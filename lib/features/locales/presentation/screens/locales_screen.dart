@@ -218,7 +218,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         child: TextField(
                           controller: cuotaCtrl,
                           decoration: const InputDecoration(
-                            labelText: 'Cuota Diaria (Q)',
+                            labelText: 'Cuota Diaria (L)',
                           ),
                           keyboardType: TextInputType.number,
                         ),

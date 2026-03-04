@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/utils/seed_data.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -97,6 +98,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onTogglePassword: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                   passwordCtrl: _passwordCtrl,
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: () async {
+                    final result = await SeedData.ejecutar();
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Seed Data'),
+                          content: SelectableText(result),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.storage_rounded, size: 16),
+                  label: const Text(
+                    'Cargar Datos de Prueba',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),

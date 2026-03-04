@@ -46,3 +46,8 @@ app.*.map.json
 
 
 /buenasPractivas/
+
+# Firebase / Google Services
+**/google-services.json
+**/GoogleService-Info.plist
+lib/firebase_options.dart

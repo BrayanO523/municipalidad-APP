@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/cobrador/presentation/screens/cobrador_home_screen.dart';
+import '../../features/cobrador/presentation/screens/cobrador_shell.dart';
 import '../../features/cobros/presentation/screens/cobros_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/locales/presentation/screens/locales_screen.dart';
@@ -13,6 +15,7 @@ import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
+  final usuarioAsync = ref.watch(currentUsuarioProvider);
 
   return GoRouter(
     initialLocation: '/dashboard',
@@ -21,7 +24,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isGoingToLogin = state.uri.toString() == '/login';
 
       if (!isLoggedIn && !isGoingToLogin) return '/login';
-      if (isLoggedIn && isGoingToLogin) return '/dashboard';
+      if (isLoggedIn && isGoingToLogin) {
+        final usuario = usuarioAsync.value;
+        if (usuario != null && usuario.esCobrador) return '/cobrador';
+        return '/dashboard';
+      }
+
+      // Cobrador trying to access admin routes
+      final usuario = usuarioAsync.value;
+      if (usuario != null && usuario.esCobrador) {
+        final path = state.uri.toString();
+        if (path != '/cobrador' && path != '/login') return '/cobrador';
+      }
+
       return null;
     },
     routes: [
@@ -30,6 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
+      // Admin routes
       ShellRoute(
         builder: (context, state, child) => ShellScreen(child: child),
         routes: [
@@ -62,6 +78,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/cobros',
             name: 'cobros',
             builder: (context, state) => const CobrosScreen(),
+          ),
+        ],
+      ),
+      // Cobrador routes
+      ShellRoute(
+        builder: (context, state, child) => CobradorShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/cobrador',
+            name: 'cobrador',
+            builder: (context, state) => const CobradorHomeScreen(),
           ),
         ],
       ),
