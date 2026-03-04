@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/cobrador/presentation/screens/cobrador_home_screen.dart';
 import '../../features/cobrador/presentation/screens/cobrador_shell.dart';
+import '../../features/cobrador/presentation/screens/qr_scanner_screen.dart';
 import '../../features/cobros/presentation/screens/cobros_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/locales/presentation/screens/locales_screen.dart';
@@ -34,7 +35,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final usuario = usuarioAsync.value;
       if (usuario != null && usuario.esCobrador) {
         final path = state.uri.toString();
-        if (path != '/cobrador' && path != '/login') return '/cobrador';
+        if (path != '/cobrador' &&
+            path != '/cobrador/scan' &&
+            path != '/login') {
+          return '/cobrador';
+        }
       }
 
       return null;
@@ -91,6 +96,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const CobradorHomeScreen(),
           ),
         ],
+      ),
+      // QR Scanner (fullscreen, fuera del shell)
+      GoRoute(
+        path: '/cobrador/scan',
+        name: 'cobrador-scan',
+        builder: (context, state) => const QrScannerScreen(),
       ),
     ],
   );

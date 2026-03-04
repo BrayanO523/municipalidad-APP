@@ -204,8 +204,12 @@ class _SidebarHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: isExpanded ? 16 : 15,
+        vertical: 20,
+      ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 40,
@@ -247,7 +251,8 @@ class _SidebarHeader extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+          ] else
+            const SizedBox.shrink(),
         ],
       ),
     );

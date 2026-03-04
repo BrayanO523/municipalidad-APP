@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -78,49 +79,59 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           ],
         ),
         content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _InfoRow(
-                label: 'Cuota diaria',
-                value: DateFormatter.formatCurrency(local.cuotaDiaria),
-              ),
-              _InfoRow(
-                label: 'Representante',
-                value: local.representante ?? '-',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: montoCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Monto a cobrar (L)',
-                  prefixIcon: Icon(Icons.attach_money_rounded, size: 20),
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoRow(
+                  label: 'Cuota diaria',
+                  value: DateFormatter.formatCurrency(local.cuotaDiaria),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: obsCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Observaciones (opcional)',
-                  prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                _InfoRow(
+                  label: 'Representante',
+                  value: local.representante ?? '-',
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: montoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Monto a cobrar (L)',
+                    prefixIcon: Icon(Icons.attach_money_rounded, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: obsCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Observaciones (opcional)',
+                    prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Registrar Cobro'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Registrar'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -213,20 +224,20 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           ),
                           const SizedBox(height: 20),
                           // Stats row
-                          Row(
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
                             children: [
                               _StatChip(
                                 icon: Icons.check_circle_rounded,
                                 label: '$cobrados / $total cobrados',
                                 color: Colors.green,
                               ),
-                              const SizedBox(width: 12),
                               _StatChip(
                                 icon: Icons.attach_money_rounded,
                                 label: DateFormatter.formatCurrency(montoHoy),
                                 color: colorScheme.primary,
                               ),
-                              const SizedBox(width: 12),
                               _StatChip(
                                 icon: Icons.pending_actions_rounded,
                                 label: '${total - cobrados} pendientes',
@@ -259,6 +270,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 ],
               ),
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await context.push('/cobrador/scan');
+          _cargarDatos();
+        },
+        icon: const Icon(Icons.qr_code_scanner_rounded),
+        label: const Text(
+          'Escanear QR',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }
