@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "725840638676",
+    "project_id": "municipalidad-f8706",
+    "storage_bucket": "municipalidad-f8706.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:725840638676:android:0f762d0293585082c40141",
+        "android_client_info": {
+          "package_name": "com.example.municipalidad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATaZJpXfkTX7-F7zMCiyihOiS5NafZEMg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

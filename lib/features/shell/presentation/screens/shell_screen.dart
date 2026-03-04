@@ -1,0 +1,333 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../app/di/providers.dart';
+
+class ShellScreen extends ConsumerWidget {
+  final Widget child;
+
+  const ShellScreen({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isExpanded = constraints.maxWidth > 900;
+        return Scaffold(
+          body: Row(
+            children: [
+              _SidebarNavigation(isExpanded: isExpanded),
+              Expanded(child: child),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SidebarNavigation extends ConsumerWidget {
+  final bool isExpanded;
+
+  const _SidebarNavigation({required this.isExpanded});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final location = GoRouterState.of(context).uri.toString();
+    final colorScheme = Theme.of(context).colorScheme;
+    final usuario = ref.watch(currentUsuarioProvider).value;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      width: isExpanded ? 260 : 72,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(right: BorderSide(color: colorScheme.outline, width: 1)),
+      ),
+      child: Column(
+        children: [
+          _SidebarHeader(isExpanded: isExpanded),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              children: [
+                _NavItem(
+                  icon: Icons.dashboard_rounded,
+                  label: 'Dashboard',
+                  path: '/dashboard',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.account_balance_rounded,
+                  label: 'Municipalidades',
+                  path: '/municipalidades',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.store_rounded,
+                  label: 'Mercados',
+                  path: '/mercados',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.storefront_rounded,
+                  label: 'Locales',
+                  path: '/locales',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.category_rounded,
+                  label: 'Tipos de Negocio',
+                  path: '/tipos-negocio',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Cobros',
+                  path: '/cobros',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          _UserFooter(
+            isExpanded: isExpanded,
+            nombre: usuario?.nombre ?? 'Usuario',
+            rol: usuario?.rol ?? '',
+            onLogout: () async {
+              final ds = ref.read(authDatasourceProvider);
+              await ds.logout();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserFooter extends StatelessWidget {
+  final bool isExpanded;
+  final String nombre;
+  final VoidCallback onLogout;
+  final String rol;
+
+  const _UserFooter({
+    required this.isExpanded,
+    required this.nombre,
+    required this.onLogout,
+    required this.rol,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: isExpanded
+          ? Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nombre,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        rol.toUpperCase(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white38,
+                          fontSize: 10,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onLogout,
+                  icon: Icon(
+                    Icons.logout_rounded,
+                    size: 18,
+                    color: colorScheme.error,
+                  ),
+                  tooltip: 'Cerrar Sesión',
+                ),
+              ],
+            )
+          : IconButton(
+              onPressed: onLogout,
+              icon: Icon(
+                Icons.logout_rounded,
+                size: 20,
+                color: colorScheme.error,
+              ),
+              tooltip: 'Cerrar Sesión',
+            ),
+    );
+  }
+}
+
+class _SidebarHeader extends StatelessWidget {
+  final bool isExpanded;
+
+  const _SidebarHeader({required this.isExpanded});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [colorScheme.primary, colorScheme.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.account_balance,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          if (isExpanded) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mercados',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Panel Administrativo',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String path;
+  final String currentPath;
+  final bool isExpanded;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.path,
+    required this.currentPath,
+    required this.isExpanded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = currentPath == path;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.go(path),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(
+              horizontal: isExpanded ? 14 : 0,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? colorScheme.primary.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    )
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: isExpanded
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : Colors.white.withValues(alpha: 0.5),
+                ),
+                if (isExpanded) ...[
+                  const SizedBox(width: 12),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
