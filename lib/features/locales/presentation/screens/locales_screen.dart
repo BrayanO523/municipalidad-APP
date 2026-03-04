@@ -94,9 +94,19 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: QrImageView(
-                  data: local.qrData ?? local.id ?? '',
+                  data: local.id ?? 'sin-id',
                   version: QrVersions.auto,
                   size: 220,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.Q,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Colors.black,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
