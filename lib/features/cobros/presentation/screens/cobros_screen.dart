@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../domain/entities/cobro.dart';
 
 // ── Constante de paginación ──────────────────────────────────────────────────
@@ -102,22 +103,13 @@ class _CobrosHeader extends ConsumerWidget {
               icon: const Icon(Icons.calendar_month),
               label: const Text('Filtrar por Fecha'),
               onPressed: () async {
-                final result = await showDateRangePicker(
+                final now = DateTime.now();
+                final hoy = DateTime(now.year, now.month, now.day);
+                final result = await showDialog<DateTimeRange>(
                   context: context,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                  initialDateRange: rango,
-                  builder: (context, child) {
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: const ColorScheme.dark(
-                          primary: Color(0xFF00D9A6),
-                          surface: Color(0xFF1E1E2D),
-                        ),
-                      ),
-                      child: child!,
-                    );
-                  },
+                  builder: (_) => CustomDateRangePicker(
+                    initialRange: rango ?? DateTimeRange(start: hoy, end: hoy),
+                  ),
                 );
 
                 if (result != null) {
