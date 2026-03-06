@@ -143,7 +143,7 @@ final cobrosFiltradosProvider = StreamProvider<List<Cobro>>((ref) {
   return ds.streamRecientes(municipalidadId: user?.municipalidadId);
 });
 
-enum DashboardPeriod { hoy, semana, mes, personalizado }
+enum DashboardPeriod { hoy, semana, mes, anio, personalizado }
 
 class DashboardFilterState {
   final DashboardPeriod period;
@@ -220,6 +220,11 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
         label = 'Mes';
         description =
             'Desde el 1 de ${DateFormatter.getMonthName(today)} hasta hoy';
+        break;
+      case DashboardPeriod.anio:
+        range = DateTimeRange(start: DateTime(today.year, 1, 1), end: today);
+        label = 'Año';
+        description = 'Desde el 1 de enero de ${today.year} hasta hoy';
         break;
       case DashboardPeriod.personalizado:
         range = state.range;

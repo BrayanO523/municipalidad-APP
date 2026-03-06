@@ -378,6 +378,13 @@ class _PeriodSelector extends ConsumerWidget {
               .setPeriod(DashboardPeriod.mes),
         ),
         _PeriodChip(
+          label: 'Año',
+          selected: filter.period == DashboardPeriod.anio,
+          onSelected: () => ref
+              .read(dashboardFilterProvider.notifier)
+              .setPeriod(DashboardPeriod.anio),
+        ),
+        _PeriodChip(
           label: 'Personalizado',
           selected: filter.period == DashboardPeriod.personalizado,
           onSelected: () => ref
