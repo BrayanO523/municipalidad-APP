@@ -64,6 +64,110 @@ class LocalDatasource {
         .toList();
   }
 
+  /// Página de locales con paginación por cursor, filtro por mercado y búsqueda.
+  Future<List<LocalJson>> listarPaginaPorMercado({
+    required String mercadoId,
+    String? searchQuery,
+    QueryDocumentSnapshot? lastDoc,
+    int limit = 25,
+  }) async {
+    Query<Map<String, dynamic>> query = _collection
+        .where('mercadoId', isEqualTo: mercadoId)
+        .orderBy('nombreSocial');
+
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final lower = searchQuery.toLowerCase();
+      query = _collection
+          .where('mercadoId', isEqualTo: mercadoId)
+          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .orderBy('nombreSocialLower');
+    }
+
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
+    }
+
+    final snapshot = await query.limit(limit).get();
+    return snapshot.docs
+        .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
+  }
+
+  /// Página de locales por municipalidad con paginación.
+  Future<List<LocalJson>> listarPaginaPorMunicipalidad({
+    required String municipalidadId,
+    String? mercadoId,
+    String? searchQuery,
+    QueryDocumentSnapshot? lastDoc,
+    int limit = 25,
+  }) async {
+    Query<Map<String, dynamic>> query = _collection
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .orderBy('nombreSocial');
+
+    if (mercadoId != null) {
+      query = _collection
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .where('mercadoId', isEqualTo: mercadoId)
+          .orderBy('nombreSocial');
+    }
+
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final lower = searchQuery.toLowerCase();
+      query = _collection
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .orderBy('nombreSocialLower');
+    }
+
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
+    }
+
+    final snapshot = await query.limit(limit).get();
+    return snapshot.docs
+        .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
+  }
+
+  /// Búsqueda rápida por prefijo de nombreSocial para el typeahead.
+  Future<List<LocalJson>> buscarPorPrefijo({
+    required String prefijo,
+    String? mercadoId,
+    String? municipalidadId,
+    int limit = 10,
+  }) async {
+    final lower = prefijo.toLowerCase();
+    Query<Map<String, dynamic>> query = _collection
+        .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+        .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+        .orderBy('nombreSocialLower')
+        .limit(limit);
+
+    if (mercadoId != null) {
+      query = _collection
+          .where('mercadoId', isEqualTo: mercadoId)
+          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .orderBy('nombreSocialLower')
+          .limit(limit);
+    } else if (municipalidadId != null) {
+      query = _collection
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .orderBy('nombreSocialLower')
+          .limit(limit);
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs
+        .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
+  }
+
   Future<LocalJson?> obtenerPorId(String docId) async {
     final doc = await _collection.doc(docId).get();
     if (!doc.exists) return null;
@@ -144,5 +248,31 @@ class LocalDatasource {
     }
 
     return actuallyMigrated;
+  }
+
+  /// Migración: Añade campo 'nombreSocialLower' para búsqueda eficiente por prefijo.
+  Future<int> migrarNombreSocialLower() async {
+    final snapshot = await _collection.get();
+    if (snapshot.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int migrated = 0;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['nombreSocialLower'] == null && data['nombreSocial'] != null) {
+        batch.update(doc.reference, {
+          'nombreSocialLower': (data['nombreSocial'] as String).toLowerCase(),
+        });
+        migrated++;
+        if (migrated % 500 == 0) {
+          await batch.commit();
+          batch = _firestore.batch();
+        }
+      }
+    }
+
+    if (migrated > 0 && migrated % 500 != 0) await batch.commit();
+    return migrated;
   }
 }

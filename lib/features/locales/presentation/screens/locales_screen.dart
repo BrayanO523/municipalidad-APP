@@ -1,8 +1,12 @@
+import 'dart:async';
+
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:printing/printing.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
@@ -13,6 +17,7 @@ import '../../data/models/local_model.dart';
 import '../../domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../mercados/presentation/widgets/map_picker_modal.dart';
+import '../viewmodels/locales_paginados_notifier.dart';
 
 class LocalesScreen extends ConsumerStatefulWidget {
   const LocalesScreen({super.key});
@@ -22,11 +27,47 @@ class LocalesScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalesScreenState extends ConsumerState<LocalesScreen> {
-  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+  Timer? _debounce;
+  Mercado? _mercadoSeleccionado;
+
+  @override
+  void initState() {
+    super.initState();
+    // Escucha el scroll para cargar la siguiente página.
+    _scrollCtrl.addListener(_onScroll);
+    // Carga inicial con municipalidad.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(localesPaginadosProvider.notifier).recargar();
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 300) {
+      ref.read(localesPaginadosProvider.notifier).cargarSiguientePagina();
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      ref.read(localesPaginadosProvider.notifier).aplicarBusqueda(value);
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final locales = ref.watch(localesProvider);
+    final paginacion = ref.watch(localesPaginadosProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -35,51 +76,360 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _LocalesHeader(
-              onSearch: (q) => setState(() => _searchQuery = q),
-              onAdd: () => _showFormDialog(context),
-            ),
-            const SizedBox(height: 20),
+            _buildHeader(context),
+            const SizedBox(height: 16),
+            _buildFiltros(context),
+            const SizedBox(height: 16),
+            Expanded(child: _buildContenido(context, paginacion)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final localesState = ref.watch(localesPaginadosProvider);
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Locales Comerciales',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                localesState.mercadoSeleccionadoId != null
+                    ? '${localesState.locales.length} locales cargados · ${_mercadoSeleccionado?.nombre ?? "Mercado seleccionado"}'
+                    : 'Selecciona un mercado para ver sus locales',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+              ),
+            ],
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => _showFormDialog(context),
+          icon: const Icon(Icons.add_rounded, size: 20),
+          label: const Text('Agregar Local'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltros(BuildContext context) {
+    final user = ref.watch(currentUsuarioProvider).value;
+    final municipalidadId = user?.municipalidadId;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Filtro Jerárquico: selector de mercado con búsqueda integrada.
             Expanded(
-              child: locales.when(
-                data: (list) {
-                  final filtered = list
-                      .where(
-                        (l) =>
-                            (l.nombreSocial ?? '').toLowerCase().contains(
-                              _searchQuery.toLowerCase(),
-                            ) ||
-                            (l.representante ?? '').toLowerCase().contains(
-                              _searchQuery.toLowerCase(),
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filtrar por Mercado',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white54,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  DropdownSearch<Mercado>(
+                    asyncItems: (filter) async {
+                      final ds = ref.read(mercadoDatasourceProvider);
+                      if (filter.isEmpty) {
+                        // Sin texto: carga los primeros 30 del municipio.
+                        final result = await ds.listarPagina(
+                          municipalidadId: municipalidadId,
+                          limit: 30,
+                        );
+                        return result.items
+                            .map(
+                              (m) => Mercado(
+                                id: m.id,
+                                nombre: m.nombre,
+                                ubicacion: m.ubicacion,
+                                latitud: m.latitud,
+                                longitud: m.longitud,
+                                perimetro: m.perimetro,
+                                activo: m.activo,
+                              ),
+                            )
+                            .toList();
+                      }
+                      // Con texto: búsqueda por prefijo.
+                      final resultados = await ds.buscarPorPrefijo(
+                        prefijo: filter,
+                        municipalidadId: municipalidadId,
+                        limit: 15,
+                      );
+                      return resultados
+                          .map(
+                            (m) => Mercado(
+                              id: m.id,
+                              nombre: m.nombre,
+                              ubicacion: m.ubicacion,
+                              latitud: m.latitud,
+                              longitud: m.longitud,
+                              perimetro: m.perimetro,
+                              activo: m.activo,
                             ),
-                      )
-                      .toList();
-                  if (filtered.isEmpty) {
-                    return const Center(
+                          )
+                          .toList();
+                    },
+                    itemAsString: (m) => m.nombre ?? m.id ?? '-',
+                    compareFn: (a, b) => a.id == b.id,
+                    selectedItem: _mercadoSeleccionado,
+                    onChanged: (mercado) {
+                      setState(() => _mercadoSeleccionado = mercado);
+                      ref
+                          .read(localesPaginadosProvider.notifier)
+                          .seleccionarMercado(mercado);
+                    },
+                    popupProps: PopupProps.menu(
+                      showSearchBox: true,
+                      searchFieldProps: const TextFieldProps(
+                        decoration: InputDecoration(
+                          hintText: 'Buscar mercado...',
+                          prefixIcon: Icon(Icons.search_rounded, size: 18),
+                          isDense: true,
+                        ),
+                      ),
+                      menuProps: MenuProps(
+                        backgroundColor:
+                            Theme.of(context).cardTheme.color ??
+                            const Color(0xFF1E2235),
+                        borderRadius: BorderRadius.circular(8),
+                        elevation: 8,
+                      ),
+                      fit: FlexFit.loose,
+                      constraints: const BoxConstraints(maxHeight: 300),
+                      emptyBuilder: (ctx, text) => const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'No se encontraron mercados',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                    dropdownDecoratorProps: const DropDownDecoratorProps(
+                      dropdownSearchDecoration: InputDecoration(
+                        hintText: 'Todos los mercados',
+                        prefixIcon: Icon(Icons.store_rounded, size: 18),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                    clearButtonProps: const ClearButtonProps(isVisible: true),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Buscador por nombre de local (Typeahead).
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Buscar Local',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white54,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TypeAheadField<Local>(
+                    controller: _searchCtrl,
+                    suggestionsCallback: (pattern) async {
+                      if (pattern.length < 2) return [];
+                      final ds = ref.read(localDatasourceProvider);
+                      final results = await ds.buscarPorPrefijo(
+                        prefijo: pattern,
+                        mercadoId: _mercadoSeleccionado?.id,
+                        municipalidadId: municipalidadId,
+                        limit: 8,
+                      );
+                      return results;
+                    },
+                    builder: (context, controller, focusNode) => TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      onChanged: _onSearchChanged,
+                      decoration: const InputDecoration(
+                        hintText: 'Nombre del local o representante...',
+                        prefixIcon: Icon(Icons.search_rounded, size: 18),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                    itemBuilder: (ctx, local) => ListTile(
+                      dense: true,
+                      leading: const Icon(
+                        Icons.storefront_rounded,
+                        size: 18,
+                        color: Colors.white54,
+                      ),
+                      title: Text(
+                        local.nombreSocial ?? '-',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        local.representante ?? local.mercadoId ?? '',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ),
+                    onSelected: (local) {
+                      _searchCtrl.text = local.nombreSocial ?? '';
+                      _debounce?.cancel();
+                      ref
+                          .read(localesPaginadosProvider.notifier)
+                          .aplicarBusqueda(local.nombreSocial ?? '');
+                    },
+                    emptyBuilder: (ctx) => const Padding(
+                      padding: EdgeInsets.all(12),
                       child: Text(
-                        'No se encontraron locales',
+                        'Sin resultados',
                         style: TextStyle(color: Colors.white54),
                       ),
-                    );
-                  }
-                  return _LocalesTable(
-                    locales: filtered,
-                    onEdit: (l) => _showFormDialog(context, local: l),
-                    onViewQr: (l) => _showQrDialog(context, l),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Botón de limpiar filtros.
+            IconButton(
+              onPressed: () {
+                setState(() => _mercadoSeleccionado = null);
+                _searchCtrl.clear();
+                _debounce?.cancel();
+                ref.read(localesPaginadosProvider.notifier).recargar();
+              },
+              icon: const Icon(Icons.filter_list_off_rounded),
+              tooltip: 'Limpiar filtros',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white10,
+                foregroundColor: Colors.white60,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildContenido(BuildContext context, LocalesPaginadosState state) {
+    if (state.errorMsg != null && state.locales.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              state.errorMsg!,
+              style: const TextStyle(color: Colors.redAccent),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  ref.read(localesPaginadosProvider.notifier).recargar(),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.cargando && state.locales.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!state.cargando &&
+        state.locales.isEmpty &&
+        state.mercadoSeleccionadoId == null) {
+      return const _EmptyStateWidget(
+        icon: Icons.store_mall_directory_rounded,
+        mensaje:
+            'Selecciona un mercado en el filtro superior\npara ver sus locales comerciales.',
+      );
+    }
+
+    if (!state.cargando && state.locales.isEmpty) {
+      return const _EmptyStateWidget(
+        icon: Icons.search_off_rounded,
+        mensaje: 'No se encontraron locales con esos filtros.',
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: _LocalesListView(
+            locales: state.locales,
+            scrollController: _scrollCtrl,
+            onEdit: (l) => _showFormDialog(context, local: l),
+            onViewQr: (l) => _showQrDialog(context, l),
+          ),
+        ),
+        if (state.cargando && state.locales.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Cargando más...',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (!state.hayMas && state.locales.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              '✓ ${state.locales.length} locales cargados',
+              style: const TextStyle(color: Colors.white30, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 
@@ -178,8 +528,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       text: local?.longitud?.toString() ?? '',
     );
 
-    // No usar ref.read aquí para listas que cambian, se usarán dentro del Consumer
-    String? selectedMercadoId = local?.mercadoId;
+    String? selectedMercadoId = local?.mercadoId ?? _mercadoSeleccionado?.id;
     String? selectedTipoNegocioId = local?.tipoNegocioId;
 
     showDialog(
@@ -191,7 +540,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           builder: (context, ref, child) {
             return StatefulBuilder(
               builder: (context, setDialogState) {
-                // Observar mercados y locales de forma reactiva dentro del diálogo
                 final currentMercs = ref.watch(mercadosProvider).value ?? [];
                 final currentLocs = ref.watch(localesProvider).value ?? [];
 
@@ -226,7 +574,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            initialValue: selectedMercadoId,
+                            value: selectedMercadoId,
                             decoration: const InputDecoration(
                               labelText: 'Mercado',
                             ),
@@ -243,7 +591,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            initialValue: selectedTipoNegocioId,
+                            value: selectedTipoNegocioId,
                             decoration: const InputDecoration(
                               labelText: 'Tipo de Negocio',
                             ),
@@ -499,12 +847,18 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           perimetro: temporalPerimetro,
                         );
 
+                        final jsonData = model.toJson();
+                        // Añadir campo de búsqueda por prefijo al guardar.
+                        jsonData['nombreSocialLower'] = (nombreCtrl.text)
+                            .toLowerCase();
+
                         if (isEditing) {
-                          await ds.actualizar(docId, model.toJson());
+                          await ds.actualizar(docId, jsonData);
                         } else {
-                          await ds.crear(docId, model.toJson());
+                          await ds.crear(docId, jsonData);
                         }
-                        ref.invalidate(localesProvider);
+
+                        ref.read(localesPaginadosProvider.notifier).recargar();
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
                       child: Text(isEditing ? 'Actualizar' : 'Crear'),
@@ -520,65 +874,16 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   }
 }
 
-class _LocalesHeader extends StatelessWidget {
-  final ValueChanged<String> onSearch;
-  final VoidCallback onAdd;
-
-  const _LocalesHeader({required this.onSearch, required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Locales',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Gestión de locales comerciales y generación de QR',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          width: 260,
-          child: TextField(
-            onChanged: onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Buscar...',
-              prefixIcon: Icon(Icons.search_rounded, size: 20),
-              isDense: true,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Agregar'),
-        ),
-      ],
-    );
-  }
-}
-
-class _LocalesTable extends ConsumerWidget {
+/// Vista de la lista de locales con scroll infinito.
+class _LocalesListView extends ConsumerWidget {
   final List<Local> locales;
+  final ScrollController scrollController;
   final ValueChanged<Local> onEdit;
   final ValueChanged<Local> onViewQr;
 
-  const _LocalesTable({
+  const _LocalesListView({
     required this.locales,
+    required this.scrollController,
     required this.onEdit,
     required this.onViewQr,
   });
@@ -590,10 +895,16 @@ class _LocalesTable extends ConsumerWidget {
 
     return Card(
       child: SingleChildScrollView(
+        controller: scrollController,
         scrollDirection: Axis.vertical,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
+            horizontalMargin: 16,
+            columnSpacing: 16,
+            headingRowColor: WidgetStateProperty.all(
+              Colors.white.withOpacity(0.05),
+            ),
             columns: const [
               DataColumn(label: Text('Local')),
               DataColumn(label: Text('Representante')),
@@ -627,7 +938,12 @@ class _LocalesTable extends ConsumerWidget {
 
               return DataRow(
                 cells: [
-                  DataCell(Text(l.nombreSocial ?? '-')),
+                  DataCell(
+                    Text(
+                      l.nombreSocial ?? '-',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
                   DataCell(Text(l.representante ?? '-')),
                   DataCell(
                     Text(
@@ -694,6 +1010,32 @@ class _LocalesTable extends ConsumerWidget {
             }).toList(),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Widget de estado vacío reutilizable.
+class _EmptyStateWidget extends StatelessWidget {
+  final IconData icon;
+  final String mensaje;
+
+  const _EmptyStateWidget({required this.icon, required this.mensaje});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.white12),
+          const SizedBox(height: 16),
+          Text(
+            mensaje,
+            style: const TextStyle(color: Colors.white38, fontSize: 15),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
