@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -135,10 +136,18 @@ class StubPrinterAdapter implements PrinterService {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) => doc.save(),
-      name: 'Ticket_${correlativo ?? "reimpresion"}.pdf',
-    );
+    final bytes = await doc.save();
+    if (kIsWeb) {
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'Ticket_${correlativo ?? 'reimpresion'}.pdf',
+      );
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: 'Ticket_${correlativo ?? 'reimpresion'}.pdf',
+      );
+    }
 
     return true;
   }

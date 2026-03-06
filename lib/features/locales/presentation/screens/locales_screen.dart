@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -146,14 +147,35 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   const SizedBox(height: 6),
                   DropdownSearch<Mercado>(
                     asyncItems: (filter) async {
-                      final ds = ref.read(mercadoDatasourceProvider);
-                      if (filter.isEmpty) {
-                        // Sin texto: carga los primeros 30 del municipio.
-                        final result = await ds.listarPagina(
+                      try {
+                        final ds = ref.read(mercadoDatasourceProvider);
+                        if (filter.isEmpty) {
+                          // Sin texto: carga los primeros 30 del municipio.
+                          final result = await ds.listarPagina(
+                            municipalidadId: municipalidadId,
+                            limit: 30,
+                          );
+                          return result.items
+                              .map(
+                                (m) => Mercado(
+                                  id: m.id,
+                                  nombre: m.nombre,
+                                  ubicacion: m.ubicacion,
+                                  latitud: m.latitud,
+                                  longitud: m.longitud,
+                                  perimetro: m.perimetro,
+                                  activo: m.activo,
+                                ),
+                              )
+                              .toList();
+                        }
+                        // Con texto: búsqueda por prefijo.
+                        final resultados = await ds.buscarPorPrefijo(
+                          prefijo: filter,
                           municipalidadId: municipalidadId,
-                          limit: 30,
+                          limit: 15,
                         );
-                        return result.items
+                        return resultados
                             .map(
                               (m) => Mercado(
                                 id: m.id,
@@ -166,26 +188,25 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               ),
                             )
                             .toList();
+                      } catch (e) {
+                        final text = e.toString();
+                        final match = RegExp(
+                          r'https://console\.firebase\.google\.com[^\s]+',
+                        ).firstMatch(text);
+                        if (match != null) {
+                          print(
+                            '\n\n🚨 FALTAN ÍNDICES EN FIRESTORE (MERCADOS) 🚨',
+                          );
+                          print(
+                            '👇 ENLACE PARA CREARLOS 👇\n\n${match.group(0)}\n\n',
+                          );
+                        } else {
+                          print(
+                            '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
+                          );
+                        }
+                        throw Exception(text);
                       }
-                      // Con texto: búsqueda por prefijo.
-                      final resultados = await ds.buscarPorPrefijo(
-                        prefijo: filter,
-                        municipalidadId: municipalidadId,
-                        limit: 15,
-                      );
-                      return resultados
-                          .map(
-                            (m) => Mercado(
-                              id: m.id,
-                              nombre: m.nombre,
-                              ubicacion: m.ubicacion,
-                              latitud: m.latitud,
-                              longitud: m.longitud,
-                              perimetro: m.perimetro,
-                              activo: m.activo,
-                            ),
-                          )
-                          .toList();
                     },
                     itemAsString: (m) => m.nombre ?? m.id ?? '-',
                     compareFn: (a, b) => a.id == b.id,
@@ -516,13 +537,21 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           ),
           ElevatedButton.icon(
             onPressed: () async {
-              await Printing.layoutPdf(
-                onLayout: (format) => QrPdfGenerator.generateLocalQrDocument(
-                  nombreLocal: local.nombreSocial ?? 'Local Comercial',
-                  qrData: local.id ?? '',
-                ),
-                name: 'QR_${local.nombreSocial ?? 'Local'}',
+              final bytes = await QrPdfGenerator.generateLocalQrDocument(
+                nombreLocal: local.nombreSocial ?? 'Local Comercial',
+                qrData: local.id ?? '',
               );
+              if (kIsWeb) {
+                await Printing.sharePdf(
+                  bytes: bytes,
+                  filename: 'QR_${local.nombreSocial ?? 'Local'}.pdf',
+                );
+              } else {
+                await Printing.layoutPdf(
+                  onLayout: (_) async => bytes,
+                  name: 'QR_${local.nombreSocial ?? 'Local'}',
+                );
+              }
             },
             icon: const Icon(Icons.print_rounded, size: 18),
             label: const Text('Imprimir QR'),
