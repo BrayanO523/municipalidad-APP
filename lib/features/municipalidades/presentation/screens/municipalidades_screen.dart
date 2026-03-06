@@ -16,6 +16,7 @@ class MunicipalidadesScreen extends ConsumerStatefulWidget {
 
 class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
   String _searchQuery = '';
+  String _searchColumn = 'Nombre';
 
   @override
   Widget build(BuildContext context) {
@@ -31,18 +32,30 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
             _ScreenHeader(
               onSearch: (q) => setState(() => _searchQuery = q),
               onAdd: () => _showFormDialog(context),
+              selectedColumn: _searchColumn,
+              onColumnChanged: (val) {
+                if (val != null) {
+                  setState(() => _searchColumn = val);
+                }
+              },
             ),
             const SizedBox(height: 20),
             Expanded(
               child: municipalidades.when(
                 data: (list) {
-                  final filtered = list
-                      .where(
-                        (m) => (m.nombre ?? '').toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
-                        ),
-                      )
-                      .toList();
+                  final filtered = list.where((m) {
+                    final query = _searchQuery.toLowerCase();
+                    if (_searchColumn == 'Nombre') {
+                      return (m.nombre ?? '').toLowerCase().contains(query);
+                    } else if (_searchColumn == 'Municipio') {
+                      return (m.municipio ?? '').toLowerCase().contains(query);
+                    } else if (_searchColumn == 'Departamento') {
+                      return (m.departamento ?? '').toLowerCase().contains(
+                        query,
+                      );
+                    }
+                    return false;
+                  }).toList();
                   if (filtered.isEmpty) {
                     return const Center(
                       child: Text(
@@ -159,8 +172,15 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
 class _ScreenHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onAdd;
+  final String selectedColumn;
+  final ValueChanged<String?> onColumnChanged;
 
-  const _ScreenHeader({required this.onSearch, required this.onAdd});
+  const _ScreenHeader({
+    required this.onSearch,
+    required this.onAdd,
+    required this.selectedColumn,
+    required this.onColumnChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -186,6 +206,33 @@ class _ScreenHeader extends StatelessWidget {
             ],
           ),
         ),
+        Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedColumn,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              isDense: true,
+              dropdownColor: const Color(0xFF1E2235),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              items: ['Nombre', 'Municipio', 'Departamento'].map((
+                String value,
+              ) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: onColumnChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         SizedBox(
           width: 260,
           child: TextField(

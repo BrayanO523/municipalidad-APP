@@ -17,6 +17,7 @@ class MercadosScreen extends ConsumerStatefulWidget {
 
 class _MercadosScreenState extends ConsumerState<MercadosScreen> {
   String _searchQuery = '';
+  String _searchColumn = 'Nombre';
 
   @override
   Widget build(BuildContext context) {
@@ -32,18 +33,26 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
             _MercadosHeader(
               onSearch: (q) => setState(() => _searchQuery = q),
               onAdd: () => _showFormDialog(context),
+              selectedColumn: _searchColumn,
+              onColumnChanged: (val) {
+                if (val != null) {
+                  setState(() => _searchColumn = val);
+                }
+              },
             ),
             const SizedBox(height: 20),
             Expanded(
               child: mercados.when(
                 data: (list) {
-                  final filtered = list
-                      .where(
-                        (m) => (m.nombre ?? '').toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
-                        ),
-                      )
-                      .toList();
+                  final filtered = list.where((m) {
+                    final query = _searchQuery.toLowerCase();
+                    if (_searchColumn == 'Nombre') {
+                      return (m.nombre ?? '').toLowerCase().contains(query);
+                    } else if (_searchColumn == 'Ubicación') {
+                      return (m.ubicacion ?? '').toLowerCase().contains(query);
+                    }
+                    return false;
+                  }).toList();
                   if (filtered.isEmpty) {
                     return const Center(
                       child: Text(
@@ -214,8 +223,15 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
 class _MercadosHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onAdd;
+  final String selectedColumn;
+  final ValueChanged<String?> onColumnChanged;
 
-  const _MercadosHeader({required this.onSearch, required this.onAdd});
+  const _MercadosHeader({
+    required this.onSearch,
+    required this.onAdd,
+    required this.selectedColumn,
+    required this.onColumnChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -241,6 +257,31 @@ class _MercadosHeader extends StatelessWidget {
             ],
           ),
         ),
+        Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedColumn,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              isDense: true,
+              dropdownColor: const Color(0xFF1E2235),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              items: ['Nombre', 'Ubicación'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: onColumnChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         SizedBox(
           width: 260,
           child: TextField(
