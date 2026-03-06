@@ -115,8 +115,7 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
     }
 
     setState(() => _periodo = p);
-    if (rango != null)
-      ref.read(fechaFiltroCobrosProvider.notifier).setRango(rango);
+    ref.read(fechaFiltroCobrosProvider.notifier).setRango(rango);
   }
 
   String get _descripcion {
