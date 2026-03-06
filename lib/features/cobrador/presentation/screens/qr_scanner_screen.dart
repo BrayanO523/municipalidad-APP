@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../locales/domain/entities/local.dart';
 
@@ -108,7 +110,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                   autofocus: true,
                   decoration: const InputDecoration(
                     labelText: 'Monto a cobrar (L)',
-                    prefixIcon: Icon(Icons.attach_money_rounded, size: 20),
+                    prefixIcon: Icon(Icons.payments_rounded, size: 20),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -150,40 +152,105 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     final monto = num.tryParse(montoCtrl.text) ?? 0;
     final cuota = local.cuotaDiaria ?? 0;
-    final saldo = (cuota - monto).clamp(0, cuota);
+    final observaciones = obsCtrl.text.trim();
+
+    // Lógica unificada de CobradorHomeScreen
+    final saldoHoy = (cuota - monto).clamp(0, cuota);
     final estado = monto >= cuota
         ? 'cobrado'
         : monto > 0
         ? 'abono_parcial'
         : 'pendiente';
 
+    final deudaActual = local.deudaAcumulada ?? 0;
+    final paraDeudaReal = monto > deudaActual ? deudaActual : monto;
+    final paraSaldoFavorReal = monto > paraDeudaReal
+        ? monto - paraDeudaReal
+        : 0;
+
     final now = DateTime.now();
-    final docId =
-        'COB-${local.id}-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
+
+    final double saldoResultante =
+        (local.deudaAcumulada ?? 0).toDouble() -
+        paraDeudaReal.toDouble() +
+        saldoHoy.toDouble();
+    final double favorResultante =
+        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
 
     try {
       final cobroDs = ref.read(cobroDatasourceProvider);
-      await cobroDs.crear(docId, {
-        'actualizadoEn': Timestamp.fromDate(now),
-        'actualizadoPor': usuario?.id ?? 'cobrador',
-        'cobradorId': usuario?.id ?? '',
-        'creadoEn': Timestamp.fromDate(now),
-        'creadoPor': usuario?.id ?? 'cobrador',
-        'cuotaDiaria': cuota,
-        'estado': estado,
-        'fecha': Timestamp.fromDate(now),
-        'localId': local.id,
-        'mercadoId': local.mercadoId,
-        'monto': monto,
-        'observaciones': obsCtrl.text,
-        'saldoPendiente': saldo,
-      });
+      final localDs = ref.read(localDatasourceProvider);
+
+      final int correlativo = await cobroDs.crearCobroConCorrelativo(
+        cobroId: docId,
+        mercadoId: local.mercadoId!,
+        cobroData: {
+          'actualizadoEn': Timestamp.fromDate(now),
+          'actualizadoPor': usuario?.id ?? 'cobrador',
+          'cobradorId': usuario?.id ?? '',
+          'creadoEn': Timestamp.fromDate(now),
+          'creadoPor': usuario?.id ?? 'cobrador',
+          'cuotaDiaria': cuota,
+          'estado': estado,
+          'fecha': Timestamp.fromDate(now),
+          'localId': local.id,
+          'mercadoId': local.mercadoId,
+          'municipalidadId': local.municipalidadId,
+          'monto': monto,
+          'pagoACuota': monto > cuota ? cuota : monto,
+          'observaciones': monto > 0
+              ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
+                    'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
+                    '${paraDeudaReal > 0 && paraSaldoFavorReal > 0 ? " y " : ""}'
+                    '${paraSaldoFavorReal > 0 ? "L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor" : ""}'
+              : observaciones,
+          'saldoPendiente': saldoHoy,
+          'deudaAnterior': local.deudaAcumulada ?? 0,
+          'montoAbonadoDeuda': paraDeudaReal,
+          'nuevoSaldoFavor': favorResultante,
+          'telefonoRepresentante': local.telefonoRepresentante,
+        },
+      );
+
+      if (local.id != null) {
+        await localDs.procesarPago(local.id!, monto);
+        await cobroDs.saldarDeudaHistoria(local.id!, monto);
+      }
+
+      // Imprimir ticket silenciosamente de fondo
+      try {
+        final printer = ref.read(printerServiceProvider);
+        final mercados = ref
+            .read(mercadosProvider)
+            .maybeWhen(data: (list) => list, orElse: () => []);
+        final mercadoNombre = mercados
+            .where((m) => m.id == local.mercadoId)
+            .firstOrNull
+            ?.nombre;
+
+        await printer.printReceipt(
+          empresa: 'MUNICIPALIDAD',
+          mercado: mercadoNombre,
+          local: local.nombreSocial ?? 'Sin Nombre',
+          monto: monto.toDouble(),
+          fecha: now,
+          saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+          saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+          deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+          montoAbonadoDeuda: paraDeudaReal.toDouble(),
+          cobrador: usuario?.nombre,
+          correlativo: correlativo,
+          anioCorrelativo: now.year,
+        );
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Cobro registrado: ${local.nombreSocial}'),
             backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 4),
           ),
         );
         _resetScanner();
@@ -396,7 +463,7 @@ class _LocalDetailPanel extends StatelessWidget {
                   ),
                   const Divider(height: 24),
                   _DetailRow(
-                    icon: Icons.attach_money_rounded,
+                    icon: Icons.payments_rounded,
                     label: 'Cuota Diaria',
                     value: DateFormatter.formatCurrency(local.cuotaDiaria),
                     valueStyle: TextStyle(
@@ -424,6 +491,34 @@ class _LocalDetailPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (local.latitud != null && local.longitud != null) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final url = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=${local.latitud},${local.longitud}',
+                  );
+                  if (!await launchUrl(
+                    url,
+                    mode: LaunchMode.externalApplication,
+                  )) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir el mapa'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.location_on_rounded),
+                label: const Text('Abrir Ubicación (Maps)'),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           SizedBox(
             width: double.infinity,
             height: 44,

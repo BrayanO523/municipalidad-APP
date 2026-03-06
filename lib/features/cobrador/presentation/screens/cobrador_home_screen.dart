@@ -2,11 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../app/di/providers.dart';
-import '../../../../core/utils/date_formatter.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../../app/di/providers.dart';
+import '../../../../core/platform/printer_provider.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../cobros/data/services/deuda_service.dart';
 
 class CobradorHomeScreen extends ConsumerStatefulWidget {
   const CobradorHomeScreen({super.key});
@@ -19,6 +26,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   List<Local> _locales = [];
   List<Cobro> _cobrosHoy = [];
   bool _isLoading = true;
+  String _filtroActivo = 'todos'; // 'todos', 'pendientes', 'cobrados'
 
   @override
   void initState() {
@@ -31,34 +39,267 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     try {
       final localDs = ref.read(localDatasourceProvider);
       final cobroDs = ref.read(cobroDatasourceProvider);
+      final usuario = await ref.read(currentUsuarioProvider.future);
+
       final locales = await localDs.listarTodos();
       final cobrosHoy = await cobroDs.listarPorFecha(DateTime.now());
+
+      // 1. Filtrar por activos
+      var filtrados = locales.where((l) => l.activo == true).toList();
+
+      // 2. Filtrar por mercado del cobrador (si tiene uno asignado)
+      if (usuario?.mercadoId != null) {
+        filtrados = filtrados
+            .where((l) => l.mercadoId == usuario!.mercadoId)
+            .toList();
+      }
+
+      // 3. Ordenar segun rutaAsignada si existe
+      if (usuario?.rutaAsignada != null && usuario!.rutaAsignada!.isNotEmpty) {
+        final orden = usuario.rutaAsignada!;
+        filtrados.sort((a, b) {
+          int indexA = orden.indexOf(a.id ?? '');
+          int indexB = orden.indexOf(b.id ?? '');
+          if (indexA == -1 && indexB == -1) return 0;
+          if (indexA == -1) return 1;
+          if (indexB == -1) return -1;
+          return indexA.compareTo(indexB);
+        });
+      }
+
       setState(() {
-        _locales = locales.where((l) => l.activo == true).toList();
+        _locales = filtrados;
         _cobrosHoy = cobrosHoy;
         _isLoading = false;
       });
+      // Verificar y crear pendientes retroactivos en background (sin bloquear UI)
+      _verificarDeudaRetroactiva(filtrados);
     } catch (_) {
       setState(() => _isLoading = false);
     }
   }
 
+  /// Ejecuta la verificación de días sin cobro en background.
+  /// Crea pendientes automáticos para los últimos 7 días.
+  Future<void> _verificarDeudaRetroactiva(List<Local> localesActivos) async {
+    try {
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final localDs = ref.read(localDatasourceProvider);
+      final usuario = ref.read(currentUsuarioProvider).value;
+      final service = DeudaService(
+        cobroDs: cobroDs,
+        localDs: localDs,
+        firestore: FirebaseFirestore.instance,
+      );
+      final creados = await service.verificarYRegistrarPendientes(
+        localesActivos: localesActivos,
+        diasAtras: 7,
+        cobradorId: usuario?.id,
+      );
+      if (creados > 0 && mounted) {
+        // Recargar lista para mostrar los nuevos pendientes
+        final cobroDs2 = ref.read(cobroDatasourceProvider);
+        final cobrosHoy = await cobroDs2.listarPorFecha(DateTime.now());
+        if (mounted) setState(() => _cobrosHoy = cobrosHoy);
+      }
+    } catch (_) {
+      // Silencioso: la verificación retroactiva no debe interrumpir la UI
+    }
+  }
+
+  num _montoPagadoHoy(String localId) {
+    return _cobrosHoy
+        .where((c) => c.localId == localId)
+        .fold<num>(0, (acc, c) => acc + (c.monto ?? 0));
+  }
+
+  bool _cuotaCubiertaHoy(Local local) {
+    final pagado = _montoPagadoHoy(local.id ?? '');
+    return pagado >= (local.cuotaDiaria ?? 0);
+  }
+
   bool _estaCobrado(String localId) {
-    return _cobrosHoy.any((c) => c.localId == localId && c.estado == 'cobrado');
+    // Definimos como "cobrado" si tiene al menos un registro de cobro hoy,
+    // independientemente de si cubrió la cuota (para efectos de filtros)
+    return _cobrosHoy.any((c) => c.localId == localId && (c.monto ?? 0) > 0);
   }
 
   Cobro? _cobroDelLocal(String localId) {
     try {
-      return _cobrosHoy.firstWhere((c) => c.localId == localId);
+      // Retornamos el último si hay varios
+      return _cobrosHoy.lastWhere((c) => c.localId == localId);
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> _registrarCobro(Local local) async {
-    final montoCtrl = TextEditingController(
-      text: local.cuotaDiaria?.toString() ?? '',
+  Future<void> _registrarSinPago(Local local) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.money_off_rounded, size: 22, color: Colors.red.shade300),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Sin Pago', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿El local ${local.nombreSocial ?? ""} no realizó su pago hoy?',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Se registrará una deuda de ${DateFormatter.formatCurrency(local.cuotaDiaria)} para hoy.',
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            if ((local.deudaAcumulada ?? 0) > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Deuda actual: ${DateFormatter.formatCurrency(local.deudaAcumulada)}',
+                  style: TextStyle(color: Colors.red.shade300, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Confirmar Sin Pago'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+            ),
+          ),
+        ],
+      ),
     );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final localDs = ref.read(localDatasourceProvider);
+      final usuario = ref.read(currentUsuarioProvider).value;
+      final service = DeudaService(
+        cobroDs: cobroDs,
+        localDs: localDs,
+        firestore: FirebaseFirestore.instance,
+      );
+      await service.registrarSinPago(
+        local: local,
+        cobradorId: usuario?.id,
+        observaciones: 'Sin pago — registrado por cobrador',
+      );
+      await _cargarDatos();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📋 Sin pago registrado: ${local.nombreSocial}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _registrarCobro(Local local) async {
+    final cuota = local.cuotaDiaria ?? 0;
+    final saldoActual = local.saldoAFavor ?? 0;
+    final pagadoHoy = _montoPagadoHoy(local.id ?? '');
+    final cuotaCubierta = pagadoHoy >= cuota;
+
+    // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crédito
+    if (saldoActual >= cuota && cuota > 0 && !cuotaCubierta) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(
+                Icons.savings_rounded,
+                size: 22,
+                color: Color(0xFF00D9A6),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Usar Saldo a Favor',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${local.nombreSocial ?? ""} tiene un crédito de:'),
+              const SizedBox(height: 8),
+              Text(
+                DateFormatter.formatCurrency(saldoActual),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00D9A6),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Se descontará ${DateFormatter.formatCurrency(cuota)} de ese crédito para cubrir el día de hoy.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true || !mounted) return;
+      await _aplicarSaldoAFavor(local);
+      return;
+    }
+
+    // Calcular cuánto falta para la cuota hoy
+    final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
+    final montoSugerido = faltanteHoy > 0 ? faltanteHoy : cuota;
+
+    final montoCtrl = TextEditingController(text: montoSugerido.toString());
     final obsCtrl = TextEditingController();
     final usuario = ref.read(currentUsuarioProvider).value;
 
@@ -67,11 +308,19 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.receipt_long_rounded, size: 22),
+            Icon(
+              cuotaCubierta
+                  ? Icons.add_circle_outline_rounded
+                  : Icons.receipt_long_rounded,
+              size: 22,
+              color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Cobrar - ${local.nombreSocial ?? ""}',
+                cuotaCubierta
+                    ? 'Abono Extra - ${local.nombreSocial ?? ""}'
+                    : 'Cobrar - ${local.nombreSocial ?? ""}',
                 style: const TextStyle(fontSize: 16),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -85,21 +334,56 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _InfoRow(
-                  label: 'Cuota diaria',
-                  value: DateFormatter.formatCurrency(local.cuotaDiaria),
-                ),
+                if (!cuotaCubierta)
+                  _InfoRow(
+                    label: 'Cuota diaria',
+                    value: DateFormatter.formatCurrency(cuota),
+                  ),
+                if (pagadoHoy > 0)
+                  _InfoRow(
+                    label: 'Pagado hoy',
+                    value: DateFormatter.formatCurrency(pagadoHoy),
+                    color: Colors.green,
+                  ),
+                if (faltanteHoy > 0 && pagadoHoy > 0)
+                  _InfoRow(
+                    label: 'Faltante cuota',
+                    value: DateFormatter.formatCurrency(faltanteHoy),
+                    color: Colors.orange,
+                  ),
                 _InfoRow(
                   label: 'Representante',
                   value: local.representante ?? '-',
+                ),
+                if (saldoActual > 0)
+                  _InfoRow(
+                    label: 'Saldo a favor',
+                    value: DateFormatter.formatCurrency(saldoActual),
+                    color: const Color(0xFF00D9A6),
+                  ),
+                if ((local.deudaAcumulada ?? 0) > 0)
+                  _InfoRow(
+                    label: 'Deuda Acumulada',
+                    value: DateFormatter.formatCurrency(local.deudaAcumulada),
+                    color: const Color(0xFFEE5A6F),
+                  ),
+                _InfoRow(
+                  label: 'Balance Neto',
+                  value: DateFormatter.formatCurrency(local.balanceNeto),
+                  color: local.balanceNeto >= 0
+                      ? const Color(0xFF00D9A6)
+                      : const Color(0xFFEE5A6F),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: montoCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Monto a cobrar (L)',
-                    prefixIcon: Icon(Icons.attach_money_rounded, size: 20),
+                    prefixIcon: const Icon(Icons.payments_rounded, size: 20),
+                    helperText:
+                        'Si paga más de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
+                    helperMaxLines: 2,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -137,44 +421,284 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       ),
     );
 
-    if (result != true) return;
+    if (result != true || !mounted) return;
 
     final monto = num.tryParse(montoCtrl.text) ?? 0;
+    await _guardarCobro(
+      local: local,
+      monto: monto,
+      observaciones: obsCtrl.text,
+      usuario: usuario,
+    );
+  }
+
+  /// Aplica el saldo a favor del local para cubrir la cuota del día.
+  Future<void> _aplicarSaldoAFavor(Local local) async {
     final cuota = local.cuotaDiaria ?? 0;
-    final saldo = (cuota - monto).clamp(0, cuota);
-    final estado = monto >= cuota
-        ? 'cobrado'
-        : monto > 0
-        ? 'abono_parcial'
-        : 'pendiente';
-
     final now = DateTime.now();
-    final docId =
-        'COB-${local.id}-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-
+    final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
+    final usuario = ref.read(currentUsuarioProvider).value;
     try {
       final cobroDs = ref.read(cobroDatasourceProvider);
-      await cobroDs.crear(docId, {
-        'actualizadoEn': Timestamp.fromDate(now),
-        'actualizadoPor': usuario?.id ?? 'cobrador',
-        'cobradorId': usuario?.id ?? '',
-        'creadoEn': Timestamp.fromDate(now),
-        'creadoPor': usuario?.id ?? 'cobrador',
-        'cuotaDiaria': cuota,
-        'estado': estado,
-        'fecha': Timestamp.fromDate(now),
-        'localId': local.id,
-        'mercadoId': local.mercadoId,
-        'monto': monto,
-        'observaciones': obsCtrl.text,
-        'saldoPendiente': saldo,
-      });
+      final localDs = ref.read(localDatasourceProvider);
+
+      final int correlativo = await cobroDs.crearCobroConCorrelativo(
+        cobroId: docId,
+        mercadoId: local.mercadoId!,
+        cobroData: {
+          'cobradorId': usuario?.id ?? '',
+          'creadoEn': Timestamp.fromDate(now),
+          'creadoPor': usuario?.id ?? 'sistema',
+          'actualizadoEn': Timestamp.fromDate(now),
+          'actualizadoPor': usuario?.id ?? 'sistema',
+          'cuotaDiaria': cuota,
+          'estado': 'cobrado',
+          'fecha': Timestamp.fromDate(now),
+          'localId': local.id,
+          'mercadoId': local.mercadoId,
+          'municipalidadId': local.municipalidadId,
+          'monto': cuota,
+          'observaciones': 'Pagado con saldo a favor',
+          'saldoPendiente': 0,
+        },
+      );
+      // Descontar la cuota del saldo a favor
+      await localDs.actualizarSaldoAFavor(local.id!, -cuota);
       await _cargarDatos();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Cobro registrado: ${local.nombreSocial}'),
-            backgroundColor: Colors.green.shade700,
+            content: Text(
+              '💰 Cobro aplicado con saldo a favor: ${local.nombreSocial}',
+            ),
+            backgroundColor: const Color(0xFF00D9A6),
+          ),
+        );
+      }
+
+      // Imprimir ticket
+      try {
+        final printer = ref.read(printerServiceProvider);
+
+        final double saldoResultante = (local.deudaAcumulada ?? 0).toDouble();
+        final double favorResultante =
+            (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
+
+        final impreso = await printer.printReceipt(
+          empresa: 'MUNICIPALIDAD',
+          local: local.nombreSocial ?? 'Sin Nombre',
+          monto: cuota.toDouble(),
+          fecha: now,
+          saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+          saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+          cobrador: usuario?.nombre,
+          correlativo: correlativo,
+          anioCorrelativo: now.year,
+        );
+        if (!impreso && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Comprobante no impreso.'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
+  Future<void> _guardarCobro({
+    required Local local,
+    required num monto,
+    required String observaciones,
+    required dynamic usuario,
+  }) async {
+    final cuota = local.cuotaDiaria ?? 0;
+    final pagadoHoy = _montoPagadoHoy(local.id ?? '');
+
+    // Cuánto falta para cubrir la cuota de hoy
+    final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
+
+    // De lo que paga el usuario, ¿cuánto va para la cuota de hoy?
+    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
+
+    // Lo que sobre de cubrir la cuota de hoy es el excedente
+    // final excedenteTotal = monto > pagoACuota ? (monto - pagoACuota) : 0;
+
+    // El saldo que queda específicamente de la cuota de HOY
+    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuota);
+
+    final cuotaTotalHoy = pagadoHoy + pagoACuota;
+    final estado = cuotaTotalHoy >= cuota
+        ? 'cobrado'
+        : cuotaTotalHoy > 0
+        ? 'abono_parcial'
+        : 'pendiente';
+
+    // Calculamos cuánto va para deuda y cuánto para saldo extra para el SnackBar y el Ticket
+    final deudaActual = local.deudaAcumulada ?? 0;
+    final paraDeudaReal = monto > deudaActual ? deudaActual : monto;
+    final paraSaldoFavorReal = monto > paraDeudaReal
+        ? monto - paraDeudaReal
+        : 0;
+
+    final now = DateTime.now();
+    // ID único por transacción para permitir múltiples cobros al día
+    final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
+
+    final double saldoResultante =
+        (local.deudaAcumulada ?? 0).toDouble() -
+        paraDeudaReal.toDouble() +
+        saldoHoy.toDouble();
+    final double favorResultante =
+        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
+
+    try {
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final localDs = ref.read(localDatasourceProvider);
+
+      final int correlativo = await cobroDs.crearCobroConCorrelativo(
+        cobroId: docId,
+        mercadoId: local.mercadoId!,
+        cobroData: {
+          'actualizadoEn': Timestamp.fromDate(now),
+          'actualizadoPor': usuario?.id ?? 'cobrador',
+          'cobradorId': usuario?.id ?? '',
+          'creadoEn': Timestamp.fromDate(now),
+          'creadoPor': usuario?.id ?? 'cobrador',
+          'cuotaDiaria': cuota,
+          'estado': estado,
+          'fecha': Timestamp.fromDate(now),
+          'localId': local.id,
+          'mercadoId': local.mercadoId,
+          'municipalidadId': local.municipalidadId,
+          'monto': monto, // Guardamos el monto total de esta transacción
+          'pagoACuota':
+              pagoACuota, // Info extra para saber cuánto fue a la cuota
+          'observaciones': monto > 0
+              ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
+                    'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
+                    '${paraDeudaReal > 0 && paraSaldoFavorReal > 0 ? " y " : ""}'
+                    '${paraSaldoFavorReal > 0 ? "L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor" : ""}'
+              : observaciones,
+          'saldoPendiente': saldoHoy,
+          'deudaAnterior': local.deudaAcumulada ?? 0,
+          'montoAbonadoDeuda': paraDeudaReal,
+          'nuevoSaldoFavor': favorResultante,
+          'telefonoRepresentante': local.telefonoRepresentante,
+        },
+      );
+
+      if (local.id != null) {
+        // Procesamos el pago en el local (deuda y saldo a favor)
+        await localDs.procesarPago(local.id!, monto);
+        // También marcamos como saldados los cobros antiguos en la historia
+        await cobroDs.saldarDeudaHistoria(local.id!, monto);
+      }
+
+      await _cargarDatos();
+
+      // Imprimir ticket silenciosamente de fondo
+      try {
+        final printer = ref.read(printerServiceProvider);
+        final mercados = ref
+            .read(mercadosProvider)
+            .maybeWhen(data: (list) => list, orElse: () => <Mercado>[]);
+        final mercadoNombre = mercados
+            .where((m) => m.id == local.mercadoId)
+            .firstOrNull
+            ?.nombre;
+
+        final impreso = await printer.printReceipt(
+          empresa: 'MUNICIPALIDAD',
+          mercado: mercadoNombre,
+          local: local.nombreSocial ?? 'Sin Nombre',
+          monto: monto.toDouble(), // Monto original entregado
+          fecha: now,
+          saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+          saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+          deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+          montoAbonadoDeuda: paraDeudaReal.toDouble(),
+          cobrador: usuario?.nombre,
+          correlativo: correlativo,
+          anioCorrelativo: now.year,
+        );
+        if (!impreso && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Comprobante Bluetoooth no impreso.'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (_) {}
+
+      // Mostrar diálogo exitoso con la opción de PDF
+      if (mounted) {
+        String mensajeExtra = '';
+        if (paraDeudaReal > 0) {
+          mensajeExtra +=
+              '\n📉 Deuda -${DateFormatter.formatCurrency(paraDeudaReal)}';
+        }
+        if (paraSaldoFavorReal > 0) {
+          mensajeExtra +=
+              '\n💬 Saldo +${DateFormatter.formatCurrency(paraSaldoFavorReal)}';
+        }
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1B27),
+            title: const Text(
+              '✅ Cobro Registrado',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              '${local.nombreSocial}$mensajeExtra',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _compartirPdfPostCobro(
+                    context: context,
+                    local: local,
+                    monto: monto.toDouble(),
+                    fecha: now,
+                    saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+                    deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+                    montoAbonadoDeuda: paraDeudaReal.toDouble(),
+                    saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+                    correlativo: correlativo,
+                    cobradorNombre: usuario?.nombre,
+                  );
+                },
+                icon: const Icon(Icons.share_rounded, size: 18),
+                label: const Text('Compartir (PDF)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
         );
       }
@@ -190,10 +714,148 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     }
   }
 
+  Future<void> _compartirPdfPostCobro({
+    required BuildContext context,
+    required Local local,
+    required double monto,
+    required DateTime fecha,
+    required double saldoPendiente,
+    required double deudaAnterior,
+    required double montoAbonadoDeuda,
+    required double saldoAFavor,
+    required int correlativo,
+    required String? cobradorNombre,
+  }) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Generando ticket en formato PDF...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context ctx) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              pw.Text(
+                'MUNICIPALIDAD',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Comprobante de Cobro',
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.SizedBox(height: 12),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              if (local.nombreSocial != null) ...[
+                pw.Align(
+                  alignment: pw.Alignment.centerLeft,
+                  child: pw.Text('Local: ${local.nombreSocial}'),
+                ),
+              ],
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Fecha: ${DateFormatter.formatDateTime(fecha)}'),
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Cobrador: ${cobradorNombre ?? "Desconocido"}'),
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Ticket N°: $correlativo'),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Monto Pagado:'),
+                  pw.Text(
+                    DateFormatter.formatCurrency(monto),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (deudaAnterior > 0) ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Deuda Anterior:'),
+                    pw.Text(DateFormatter.formatCurrency(deudaAnterior)),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Abono a Deuda:'),
+                    pw.Text(DateFormatter.formatCurrency(montoAbonadoDeuda)),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Deuda Actual:'),
+                    pw.Text(DateFormatter.formatCurrency(saldoPendiente)),
+                  ],
+                ),
+              ] else if (saldoPendiente > 0) ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Deuda Actual:'),
+                    pw.Text(DateFormatter.formatCurrency(saldoPendiente)),
+                  ],
+                ),
+              ],
+              if (saldoAFavor > 0)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Saldo A Favor:'),
+                    pw.Text(DateFormatter.formatCurrency(saldoAFavor)),
+                  ],
+                ),
+              pw.SizedBox(height: 8),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                '*** GRACIAS POR SU PAGO ***',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: 'Comprobante_Municipalidad_$correlativo.pdf',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final cobrados = _cobrosHoy.where((c) => c.estado == 'cobrado').length;
+
+    // Contamos cuántos locales han cubierto su cuota hoy, no cuántos recibos (cobros) hay
+    final cobrados = _locales.where((l) => _cuotaCubiertaHoy(l)).length;
     final total = _locales.length;
     final montoHoy = _cobrosHoy.fold<num>(0, (acc, c) => acc + (c.monto ?? 0));
 
@@ -223,25 +885,53 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 ?.copyWith(color: Colors.white54),
                           ),
                           const SizedBox(height: 20),
-                          // Stats row
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
+                          // Stats row as Filters
+                          Row(
                             children: [
-                              _StatChip(
-                                icon: Icons.check_circle_rounded,
-                                label: '$cobrados / $total cobrados',
-                                color: Colors.green,
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: _StatChip(
+                                    icon: Icons.check_circle_rounded,
+                                    label: '$cobrados / $total\ncobrados',
+                                    color: Colors.green,
+                                    isSelected: _filtroActivo == 'cobrados',
+                                    onTap: () => setState(
+                                      () => _filtroActivo =
+                                          _filtroActivo == 'cobrados'
+                                          ? 'todos'
+                                          : 'cobrados',
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _StatChip(
-                                icon: Icons.attach_money_rounded,
-                                label: DateFormatter.formatCurrency(montoHoy),
-                                color: colorScheme.primary,
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: _StatChip(
+                                    icon: Icons.payments_rounded,
+                                    label: DateFormatter.formatCurrency(
+                                      montoHoy,
+                                    ),
+                                    color: colorScheme.primary,
+                                    isSelected: true,
+                                    onTap: null,
+                                  ),
+                                ),
                               ),
-                              _StatChip(
-                                icon: Icons.pending_actions_rounded,
-                                label: '${total - cobrados} pendientes',
-                                color: Colors.orange,
+                              Expanded(
+                                child: _StatChip(
+                                  icon: Icons.pending_actions_rounded,
+                                  label: '${total - cobrados}\npendientes',
+                                  color: Colors.orange,
+                                  isSelected: _filtroActivo == 'pendientes',
+                                  onTap: () => setState(
+                                    () => _filtroActivo =
+                                        _filtroActivo == 'pendientes'
+                                        ? 'todos'
+                                        : 'pendientes',
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -253,17 +943,77 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final local = _locales[index];
-                        final cobrado = _estaCobrado(local.id ?? '');
-                        final cobroExistente = _cobroDelLocal(local.id ?? '');
-                        return _LocalCard(
-                          local: local,
-                          cobrado: cobrado,
-                          cobroExistente: cobroExistente,
-                          onCobrar: () => _registrarCobro(local),
-                        );
-                      }, childCount: _locales.length),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final localesFiltrados = _locales.where((l) {
+                            final cobrado = _estaCobrado(l.id ?? '');
+                            if (_filtroActivo == 'pendientes') return !cobrado;
+                            if (_filtroActivo == 'cobrados') return cobrado;
+                            return true;
+                          }).toList();
+
+                          if (localesFiltrados.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 40),
+                              child: Center(
+                                child: Text(
+                                  'No hay locales en esta categoría',
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(color: Colors.white54),
+                                ),
+                              ),
+                            );
+                          }
+
+                          if (index >= localesFiltrados.length) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final local = localesFiltrados[index];
+                          final cobrado = _estaCobrado(local.id ?? '');
+                          final cobroExistente = _cobroDelLocal(local.id ?? '');
+                          return _LocalCard(
+                            local: local,
+                            cobrado: cobrado,
+                            cuotaCubierta: _cuotaCubiertaHoy(local),
+                            cobroExistente: cobroExistente,
+                            onCobrar: () => _registrarCobro(local),
+                            onSinPago: cobrado
+                                ? null
+                                : () => _registrarSinPago(local),
+                            onVerHistorial: () => context.push(
+                              '/cobrador/local/${local.id}/historial',
+                              extra: local,
+                            ),
+                            onVerEstadoCuenta: () => context.push(
+                              '/cobrador/local/${local.id}/cuenta',
+                              extra: local,
+                            ),
+                          );
+                        },
+                        childCount:
+                            _locales.where((l) {
+                              final cobrado = _estaCobrado(l.id ?? '');
+                              if (_filtroActivo == 'pendientes') {
+                                return !cobrado;
+                              }
+                              if (_filtroActivo == 'cobrados') {
+                                return cobrado;
+                              }
+                              return true;
+                            }).isEmpty
+                            ? 1
+                            : _locales.where((l) {
+                                final cobrado = _estaCobrado(l.id ?? '');
+                                if (_filtroActivo == 'pendientes') {
+                                  return !cobrado;
+                                }
+                                if (_filtroActivo == 'cobrados') {
+                                  return cobrado;
+                                }
+                                return true;
+                              }).length,
+                      ),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -289,174 +1039,51 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool isSelected;
+  final VoidCallback? onTap;
 
   const _StatChip({
     required this.icon,
     required this.label,
     required this.color,
+    this.isSelected = true,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LocalCard extends StatelessWidget {
-  final Local local;
-  final bool cobrado;
-  final Cobro? cobroExistente;
-  final VoidCallback onCobrar;
-
-  const _LocalCard({
-    required this.local,
-    required this.cobrado,
-    required this.cobroExistente,
-    required this.onCobrar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: cobrado ? null : onCobrar,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: isSelected ? 1.0 : 0.4,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: cobrado
-                    ? Colors.green.withValues(alpha: 0.3)
-                    : colorScheme.outline.withValues(alpha: 0.5),
-              ),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
-            child: Row(
-              children: [
-                // Status icon
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: cobrado
-                        ? Colors.green.withValues(alpha: 0.15)
-                        : Colors.orange.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    cobrado
-                        ? Icons.check_circle_rounded
-                        : Icons.storefront_rounded,
-                    color: cobrado ? Colors.green : Colors.orange,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        local.nombreSocial ?? 'Sin nombre',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          decoration: cobrado
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${local.representante ?? '-'} • ${local.mercadoId ?? ''}',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                ),
-                // Cuota + action
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      DateFormatter.formatCurrency(local.cuotaDiaria),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: cobrado ? Colors.green : Colors.white,
-                      ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 4),
-                    if (cobrado)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Cobrado ✓',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.green.shade300,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Cobrar →',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -465,11 +1092,342 @@ class _LocalCard extends StatelessWidget {
   }
 }
 
+class _LocalCard extends StatelessWidget {
+  final Local local;
+  final bool cobrado;
+  final bool cuotaCubierta;
+  final Cobro? cobroExistente;
+  final VoidCallback onCobrar;
+  final VoidCallback? onSinPago;
+  final VoidCallback? onVerHistorial;
+  final VoidCallback? onVerEstadoCuenta;
+
+  const _LocalCard({
+    required this.local,
+    required this.cobrado,
+    required this.cuotaCubierta,
+    required this.cobroExistente,
+    required this.onCobrar,
+    this.onSinPago,
+    this.onVerHistorial,
+    this.onVerEstadoCuenta,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tieneDeuda = (local.deudaAcumulada ?? 0) > 0;
+    final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: cobrado
+                  ? Colors.green.withValues(alpha: 0.35)
+                  : tieneDeuda
+                  ? Colors.red.withValues(alpha: 0.4)
+                  : colorScheme.outline.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Fila superior: ícono + info + cuota ──────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Ícono de estado
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: cuotaCubierta
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : cobrado
+                            ? Colors.blue.withValues(alpha: 0.15)
+                            : Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        cuotaCubierta
+                            ? Icons.check_circle_rounded
+                            : cobrado
+                            ? Icons.add_task_rounded
+                            : Icons.storefront_rounded,
+                        color: cuotaCubierta
+                            ? Colors.green
+                            : cobrado
+                            ? Colors.blue
+                            : Colors.orange,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            local.nombreSocial ?? 'Sin nombre',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  decoration: cuotaCubierta
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            local.representante ?? '—',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.white60),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          // Badges de deuda / saldo
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              if (tieneDeuda)
+                                _SmallBadge(
+                                  icon: Icons.warning_amber_rounded,
+                                  label:
+                                      '-${DateFormatter.formatCurrency(local.deudaAcumulada ?? 0)}',
+                                  color: const Color(0xFFEE5A6F),
+                                ),
+                              if (tieneSaldo)
+                                _SmallBadge(
+                                  icon: Icons.savings_rounded,
+                                  label:
+                                      '+${DateFormatter.formatCurrency(local.saldoAFavor ?? 0)}',
+                                  color: const Color(0xFF00D9A6),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Cuota diaria en la esquina superior derecha
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          DateFormatter.formatCurrency(local.cuotaDiaria),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: cuotaCubierta ? Colors.green : Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'por día',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Divisor ──────────────────────────────────────────────
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colorScheme.outline.withValues(alpha: 0.2),
+              ),
+
+              // ── Fila de botones abajo ────────────────────────────────
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    // Botón principal: Cobrar / Cobrado
+                    Expanded(
+                      flex: 2,
+                      child: _CardButton(
+                        onTap: onCobrar,
+                        icon: cuotaCubierta
+                            ? Icons.add_circle_outline_rounded
+                            : Icons.payments_rounded,
+                        label: cuotaCubierta ? 'Abonar / Adelantar' : 'Cobrar',
+                        color: cuotaCubierta
+                            ? const Color(0xFF00D9A6)
+                            : colorScheme.primary,
+                        filled: !cuotaCubierta,
+                      ),
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                    // Botón estado de cuenta
+                    Expanded(
+                      flex: 2,
+                      child: _CardButton(
+                        onTap: onVerEstadoCuenta,
+                        icon: Icons.account_balance_wallet_rounded,
+                        label: 'Estado',
+                        color: colorScheme.secondary,
+                      ),
+                    ),
+                    if (local.latitud != null && local.longitud != null) ...[
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        color: colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                      // Botón ubicación
+                      Expanded(
+                        flex: 1,
+                        child: _CardButton(
+                          onTap: () async {
+                            final url = Uri.parse(
+                              'https://www.google.com/maps/search/?api=1&query=${local.latitud},${local.longitud}',
+                            );
+                            if (!await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            )) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No se pudo abrir el mapa'),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: Icons.location_on_rounded,
+                          label: 'Mapa',
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón pequeño en la barra inferior de la tarjeta.
+class _CardButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool filled;
+
+  const _CardButton({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.filled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(16),
+        bottomRight: Radius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: filled
+            ? BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                ),
+              )
+            : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: onTap == null ? Colors.white24 : color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: onTap == null ? Colors.white24 : color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Badge pequeño de estado (deuda/saldo) dentro de la tarjeta.
+class _SmallBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _SmallBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final Color? color;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -483,7 +1441,11 @@ class _InfoRow extends StatelessWidget {
           ),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: color,
+            ),
           ),
         ],
       ),
