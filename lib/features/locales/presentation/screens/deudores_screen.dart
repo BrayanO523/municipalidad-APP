@@ -6,6 +6,8 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/local.dart';
 
+const _kPageSize = 20;
+
 class DeudoresScreen extends ConsumerStatefulWidget {
   const DeudoresScreen({super.key});
 
@@ -15,6 +17,20 @@ class DeudoresScreen extends ConsumerStatefulWidget {
 
 class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   String _searchQuery = '';
+  String _searchColumn = 'Local';
+  int _currentPage = 0;
+
+  static const _columnas = ['Local', 'Representante', 'Teléfono'];
+
+  void _setSearch(String q) => setState(() {
+    _searchQuery = q;
+    _currentPage = 0;
+  });
+
+  void _setColumn(String? col) => setState(() {
+    if (col != null) _searchColumn = col;
+    _currentPage = 0;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,31 +43,90 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(onSearch: (q) => setState(() => _searchQuery = q)),
-            const SizedBox(height: 20),
+            // Header fijo
+            _Header(),
+            const SizedBox(height: 16),
+            // Barra de filtros
+            Row(
+              children: [
+                Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _searchColumn,
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.white54,
+                      ),
+                      isDense: true,
+                      dropdownColor: const Color(0xFF1E2235),
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      items: _columnas
+                          .map(
+                            (col) =>
+                                DropdownMenuItem(value: col, child: Text(col)),
+                          )
+                          .toList(),
+                      onChanged: _setColumn,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 280,
+                  child: TextField(
+                    onChanged: _setSearch,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por $_searchColumn...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: localesAsync.when(
                 data: (list) {
-                  final filtered = list.where((l) {
+                  final q = _searchQuery.toLowerCase();
+                  final withDeuda = list.where((l) {
                     final tieneDeuda = (l.deudaAcumulada ?? 0) > 0;
-                    final matchesSearch =
-                        (l.nombreSocial ?? '').toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
-                        ) ||
-                        (l.representante ?? '').toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
+                    if (!tieneDeuda) return false;
+                    if (q.isEmpty) return true;
+                    switch (_searchColumn) {
+                      case 'Local':
+                        return (l.nombreSocial ?? '').toLowerCase().contains(q);
+                      case 'Representante':
+                        return (l.representante ?? '').toLowerCase().contains(
+                          q,
                         );
-                    return tieneDeuda && matchesSearch;
+                      case 'Teléfono':
+                        return (l.telefonoRepresentante ?? '')
+                            .toLowerCase()
+                            .contains(q);
+                      default:
+                        return true;
+                    }
                   }).toList();
 
                   // Ordenar por mayor deuda
-                  filtered.sort(
+                  withDeuda.sort(
                     (a, b) => (b.deudaAcumulada ?? 0).compareTo(
                       a.deudaAcumulada ?? 0,
                     ),
                   );
 
-                  if (filtered.isEmpty) {
+                  if (withDeuda.isEmpty) {
                     return const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +146,32 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                     );
                   }
 
-                  return _DeudoresTable(locales: filtered);
+                  final totalPages = (withDeuda.length / _kPageSize)
+                      .ceil()
+                      .clamp(1, 99999);
+                  final page = _currentPage.clamp(0, totalPages - 1);
+                  final start = page * _kPageSize;
+                  final end = (start + _kPageSize).clamp(0, withDeuda.length);
+                  final paginated = withDeuda.sublist(start, end);
+
+                  return Column(
+                    children: [
+                      Expanded(child: _DeudoresTable(locales: paginated)),
+                      const SizedBox(height: 8),
+                      _PaginationBar(
+                        currentPage: page,
+                        totalPages: totalPages,
+                        totalItems: withDeuda.length,
+                        pageSize: _kPageSize,
+                        onPrev: page > 0
+                            ? () => setState(() => _currentPage = page - 1)
+                            : null,
+                        onNext: page < totalPages - 1
+                            ? () => setState(() => _currentPage = page + 1)
+                            : null,
+                      ),
+                    ],
+                  );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(
@@ -89,51 +189,32 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   }
 }
 
+// ── Header simple ─────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
-  final ValueChanged<String> onSearch;
-
-  const _Header({required this.onSearch});
-
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Locales con Deuda',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Listado de locales con pagos pendientes acumulados',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
-              ),
-            ],
-          ),
+        Text(
+          'Locales con Deuda',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
-        SizedBox(
-          width: 300,
-          child: TextField(
-            onChanged: onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Buscar local o representante...',
-              prefixIcon: Icon(Icons.search_rounded, size: 20),
-              isDense: true,
-            ),
-          ),
+        const SizedBox(height: 4),
+        Text(
+          'Listado de locales con pagos pendientes acumulados',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
         ),
       ],
     );
   }
 }
 
+// ── Tabla ─────────────────────────────────────────────────────────────────────
 class _DeudoresTable extends StatelessWidget {
   final List<Local> locales;
 
@@ -147,6 +228,9 @@ class _DeudoresTable extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
+            headingRowColor: WidgetStateProperty.all(
+              Colors.white.withOpacity(0.05),
+            ),
             columns: const [
               DataColumn(label: Text('Local')),
               DataColumn(label: Text('Representante')),
@@ -239,6 +323,60 @@ class _DeudoresTable extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Paginación ────────────────────────────────────────────────────────────────
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final int totalItems;
+  final int pageSize;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.totalItems,
+    required this.pageSize,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final start = totalItems == 0 ? 0 : currentPage * pageSize + 1;
+    final end = ((currentPage + 1) * pageSize).clamp(0, totalItems);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded),
+          onPressed: onPrev,
+          color: onPrev != null ? Colors.white70 : Colors.white24,
+          tooltip: 'Página anterior',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$start–$end de $totalItems',
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '(Pág. ${currentPage + 1}/$totalPages)',
+          style: const TextStyle(color: Colors.white38, fontSize: 11),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded),
+          onPressed: onNext,
+          color: onNext != null ? Colors.white70 : Colors.white24,
+          tooltip: 'Página siguiente',
+        ),
+      ],
     );
   }
 }
