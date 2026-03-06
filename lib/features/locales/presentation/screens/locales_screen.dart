@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -242,7 +241,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
             const SizedBox(width: 16),
 
-            // Buscador por nombre de local (Typeahead).
+            // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
             Expanded(
               flex: 2,
               child: Column(
@@ -256,66 +255,91 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  TypeAheadField<Local>(
-                    controller: _searchCtrl,
-                    suggestionsCallback: (pattern) async {
-                      if (pattern.length < 2) return [];
+                  Autocomplete<Local>(
+                    optionsBuilder: (textEditingValue) async {
+                      final patron = textEditingValue.text;
+                      if (patron.length < 2) return [];
                       final ds = ref.read(localDatasourceProvider);
                       final results = await ds.buscarPorPrefijo(
-                        prefijo: pattern,
+                        prefijo: patron,
                         mercadoId: _mercadoSeleccionado?.id,
                         municipalidadId: municipalidadId,
                         limit: 8,
                       );
-                      return results;
+                      return results.cast<Local>();
                     },
-                    builder: (context, controller, focusNode) => TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      onChanged: _onSearchChanged,
-                      decoration: const InputDecoration(
-                        hintText: 'Nombre del local o representante...',
-                        prefixIcon: Icon(Icons.search_rounded, size: 18),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                    displayStringForOption: (local) => local.nombreSocial ?? '',
+                    fieldViewBuilder:
+                        (ctx, controller, focusNode, onFieldSubmitted) {
+                          // Sincroniza controlador externo con el generado por Autocomplete
+                          controller.addListener(() {
+                            if (controller.text != _searchCtrl.text) {
+                              _onSearchChanged(controller.text);
+                            }
+                          });
+                          return TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              hintText: 'Nombre del local...',
+                              prefixIcon: Icon(Icons.search_rounded, size: 18),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                            ),
+                          );
+                        },
+                    optionsViewBuilder: (ctx, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(8),
+                          color: const Color(0xFF1E2235),
+                          child: SizedBox(
+                            width: 350,
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (ctx, index) {
+                                final local = options.elementAt(index);
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.storefront_rounded,
+                                    size: 16,
+                                    color: Colors.white54,
+                                  ),
+                                  title: Text(
+                                    local.nombreSocial ?? '-',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  subtitle: Text(
+                                    local.representante ??
+                                        local.mercadoId ??
+                                        '',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white38,
+                                    ),
+                                  ),
+                                  onTap: () => onSelected(local),
+                                );
+                              },
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    itemBuilder: (ctx, local) => ListTile(
-                      dense: true,
-                      leading: const Icon(
-                        Icons.storefront_rounded,
-                        size: 18,
-                        color: Colors.white54,
-                      ),
-                      title: Text(
-                        local.nombreSocial ?? '-',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      subtitle: Text(
-                        local.representante ?? local.mercadoId ?? '',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white38,
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                     onSelected: (local) {
-                      _searchCtrl.text = local.nombreSocial ?? '';
                       _debounce?.cancel();
                       ref
                           .read(localesPaginadosProvider.notifier)
                           .aplicarBusqueda(local.nombreSocial ?? '');
                     },
-                    emptyBuilder: (ctx) => const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text(
-                        'Sin resultados',
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                    ),
                   ),
                 ],
               ),
