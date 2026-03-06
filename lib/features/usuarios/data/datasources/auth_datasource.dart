@@ -120,4 +120,23 @@ class AuthDatasource {
         )
         .toList();
   }
+
+  Stream<List<UsuarioJson>> streamTodos({String? municipalidadId}) {
+    Query query = _firestore.collection(FirestoreCollections.usuarios);
+
+    if (municipalidadId != null && municipalidadId.isNotEmpty) {
+      query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    }
+
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs
+          .map(
+            (doc) => UsuarioJson.fromJson(
+              doc.data() as Map<String, dynamic>,
+              docId: doc.id,
+            ),
+          )
+          .toList();
+    });
+  }
 }

@@ -80,13 +80,13 @@ final municipalidadesProvider = FutureProvider<List<Municipalidad>>((
   return all;
 });
 
-final mercadosProvider = FutureProvider<List<Mercado>>((ref) async {
+final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(mercadoDatasourceProvider);
   if (user?.municipalidadId != null) {
-    return ds.listarPorMunicipalidad(user!.municipalidadId!);
+    return ds.streamPorMunicipalidad(user!.municipalidadId!);
   }
-  return ds.listarTodos();
+  return ds.streamTodos();
 });
 
 final localesProvider = StreamProvider<List<Local>>((ref) {
@@ -98,13 +98,13 @@ final localesProvider = StreamProvider<List<Local>>((ref) {
   return ds.streamTodos();
 });
 
-final tiposNegocioProvider = FutureProvider<List<TipoNegocio>>((ref) async {
+final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(tipoNegocioDatasourceProvider);
   if (user?.municipalidadId != null) {
-    return ds.listarPorMunicipalidad(user!.municipalidadId!);
+    return ds.streamPorMunicipalidad(user!.municipalidadId!);
   }
-  return ds.listarTodos();
+  return ds.streamTodos();
 });
 
 final cobrosRecientesProvider = StreamProvider<List<Cobro>>((ref) {
@@ -283,10 +283,10 @@ final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
   }
 });
 
-final usuariosProvider = FutureProvider<List<Usuario>>((ref) async {
+final usuariosProvider = StreamProvider<List<Usuario>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(authDatasourceProvider);
-  return ds.listarTodos(municipalidadId: user?.municipalidadId);
+  return ds.streamTodos(municipalidadId: user?.municipalidadId);
 });
 
 final localStreamProvider = StreamProvider.family<Local?, String>((ref, id) {

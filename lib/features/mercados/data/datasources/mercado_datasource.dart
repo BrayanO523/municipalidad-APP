@@ -36,6 +36,29 @@ class MercadoDatasource {
         .toList();
   }
 
+  Stream<List<MercadoJson>> streamTodos() {
+    return _collection
+        .orderBy('nombre')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => MercadoJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
+  Stream<List<MercadoJson>> streamPorMunicipalidad(String municipalidadId) {
+    return _collection
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .orderBy('nombre')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => MercadoJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
   /// Página de mercados con paginación por cursor y búsqueda por prefijo.
   Future<({List<MercadoJson> items, QueryDocumentSnapshot? lastDoc})>
   listarPagina({

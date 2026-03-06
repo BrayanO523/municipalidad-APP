@@ -36,6 +36,29 @@ class TipoNegocioDatasource {
         .toList();
   }
 
+  Stream<List<TipoNegocioJson>> streamTodos() {
+    return _collection
+        .orderBy('nombre')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => TipoNegocioJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
+  Stream<List<TipoNegocioJson>> streamPorMunicipalidad(String municipalidadId) {
+    return _collection
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .orderBy('nombre')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => TipoNegocioJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
   // UPDATE
   Future<void> actualizar(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).update(data);
