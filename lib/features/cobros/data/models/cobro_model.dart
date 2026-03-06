@@ -19,6 +19,10 @@ class CobroJson extends Cobro {
     super.municipalidadId,
     super.observaciones,
     super.saldoPendiente,
+    super.telefonoRepresentante,
+    super.correlativo,
+    super.anioCorrelativo,
+    super.pagoACuota,
   });
 
   factory CobroJson.fromJson(Map<String, dynamic> json, {String? docId}) {
@@ -38,6 +42,10 @@ class CobroJson extends Cobro {
       municipalidadId: json['municipalidadId'],
       observaciones: json['observaciones'],
       saldoPendiente: json['saldoPendiente'],
+      telefonoRepresentante: json['telefonoRepresentante'],
+      correlativo: json['correlativo'],
+      anioCorrelativo: json['anioCorrelativo'],
+      pagoACuota: json['pagoACuota'],
     );
   }
 
@@ -58,6 +66,10 @@ class CobroJson extends Cobro {
       municipalidadId: entity.municipalidadId,
       observaciones: entity.observaciones,
       saldoPendiente: entity.saldoPendiente,
+      telefonoRepresentante: entity.telefonoRepresentante,
+      correlativo: entity.correlativo,
+      anioCorrelativo: entity.anioCorrelativo,
+      pagoACuota: entity.pagoACuota,
     );
   }
 
@@ -79,6 +91,10 @@ class CobroJson extends Cobro {
       'municipalidadId': municipalidadId,
       'observaciones': observaciones,
       'saldoPendiente': saldoPendiente,
+      'telefonoRepresentante': telefonoRepresentante,
+      'correlativo': correlativo,
+      'anioCorrelativo': anioCorrelativo,
+      'pagoACuota': pagoACuota,
     };
   }
 }

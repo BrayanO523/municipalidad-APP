@@ -4,6 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
 
+class ShellLoading extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  set value(bool val) => state = val;
+}
+
+final shellLoadingProvider = NotifierProvider<ShellLoading, bool>(
+  ShellLoading.new,
+);
+
 class ShellScreen extends ConsumerWidget {
   final Widget child;
 
@@ -11,14 +22,37 @@ class ShellScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(shellLoadingProvider);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isExpanded = constraints.maxWidth > 900;
         return Scaffold(
-          body: Row(
+          body: Stack(
             children: [
-              _SidebarNavigation(isExpanded: isExpanded),
-              Expanded(child: child),
+              SafeArea(
+                child: IgnorePointer(
+                  ignoring: isLoading,
+                  child: Row(
+                    children: [
+                      _SidebarNavigation(isExpanded: isExpanded),
+                      Expanded(child: child),
+                    ],
+                  ),
+                ),
+              ),
+              if (isLoading)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(),
+                ),
+              if (isLoading)
+                Container(
+                  color: Colors.black12,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
             ],
           ),
         );
@@ -37,6 +71,20 @@ class _SidebarNavigation extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.toString();
     final colorScheme = Theme.of(context).colorScheme;
     final usuario = ref.watch(currentUsuarioProvider).value;
+    final municipalidades = ref.watch(municipalidadesProvider).value ?? [];
+
+    // Obtener el nombre real de la municipalidad
+    String nombreMunicipalidad = 'QRecauda Admin';
+    if (usuario?.municipalidadId != null) {
+      final mun = municipalidades
+          .where((m) => m.id == usuario!.municipalidadId)
+          .firstOrNull;
+      if (mun != null && mun.nombre != null) {
+        nombreMunicipalidad = mun.nombre!;
+      } else {
+        nombreMunicipalidad = usuario!.municipalidadId!;
+      }
+    }
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -48,7 +96,11 @@ class _SidebarNavigation extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _SidebarHeader(isExpanded: isExpanded),
+          _SidebarHeader(
+            isExpanded: isExpanded,
+            municipalidad: nombreMunicipalidad,
+            nombreCompleto: usuario?.nombre ?? 'Administrador',
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
@@ -62,12 +114,20 @@ class _SidebarNavigation extends ConsumerWidget {
                   isExpanded: isExpanded,
                 ),
                 _NavItem(
-                  icon: Icons.account_balance_rounded,
-                  label: 'Municipalidades',
-                  path: '/municipalidades',
+                  icon: Icons.people_alt_rounded,
+                  label: 'Cobradores',
+                  path: '/usuarios',
                   currentPath: location,
                   isExpanded: isExpanded,
                 ),
+                _NavItem(
+                  icon: Icons.map_rounded,
+                  label: 'Diseño de Rutas',
+                  path: '/rutas-admin',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+
                 _NavItem(
                   icon: Icons.store_rounded,
                   label: 'Mercados',
@@ -96,6 +156,20 @@ class _SidebarNavigation extends ConsumerWidget {
                   currentPath: location,
                   isExpanded: isExpanded,
                 ),
+                _NavItem(
+                  icon: Icons.savings_rounded,
+                  label: 'Saldos a Favor',
+                  path: '/saldos-favor',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
+                _NavItem(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Deudores',
+                  path: '/deudores',
+                  currentPath: location,
+                  isExpanded: isExpanded,
+                ),
               ],
             ),
           ),
@@ -115,7 +189,7 @@ class _SidebarNavigation extends ConsumerWidget {
   }
 }
 
-class _UserFooter extends StatelessWidget {
+class _UserFooter extends ConsumerWidget {
   final bool isExpanded;
   final String nombre;
   final VoidCallback onLogout;
@@ -129,8 +203,9 @@ class _UserFooter extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isLoading = ref.watch(shellLoadingProvider);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -170,8 +245,9 @@ class _UserFooter extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
-                  onPressed: onLogout,
+                  onPressed: isLoading ? null : onLogout,
                   icon: Icon(
                     Icons.logout_rounded,
                     size: 18,
@@ -182,7 +258,7 @@ class _UserFooter extends StatelessWidget {
               ],
             )
           : IconButton(
-              onPressed: onLogout,
+              onPressed: isLoading ? null : onLogout,
               icon: Icon(
                 Icons.logout_rounded,
                 size: 20,
@@ -196,8 +272,14 @@ class _UserFooter extends StatelessWidget {
 
 class _SidebarHeader extends StatelessWidget {
   final bool isExpanded;
+  final String municipalidad;
+  final String nombreCompleto;
 
-  const _SidebarHeader({required this.isExpanded});
+  const _SidebarHeader({
+    required this.isExpanded,
+    required this.municipalidad,
+    required this.nombreCompleto,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -235,18 +317,22 @@ class _SidebarHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Mercados',
+                    municipalidad,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Panel Administrativo',
+                    nombreCompleto,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white54,
                       fontSize: 11,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -299,9 +385,7 @@ class _NavItem extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                    )
+                  ? Border.all(color: colorScheme.primary.withValues(alpha: 0.2))
                   : null,
             ),
             child: Row(

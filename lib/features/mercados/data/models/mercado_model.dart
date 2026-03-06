@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../domain/entities/mercado.dart';
 
 class MercadoJson extends Mercado {
@@ -13,9 +12,26 @@ class MercadoJson extends Mercado {
     super.municipalidadId,
     super.nombre,
     super.ubicacion,
+    super.ultimoCorrelativo,
+    super.anioCorrelativo,
+    super.latitud,
+    super.longitud,
+    super.perimetro,
   });
 
-  factory MercadoJson.fromJson(Map<String, dynamic> json, {String? docId}) {
+  factory MercadoJson.fromJson(Map<String, dynamic> jsonRaw, {String? docId}) {
+    final json = Map<String, dynamic>.from(jsonRaw);
+    final geo = json['ubicacion_geo'] as GeoPoint?;
+    final perimRaw = json['perimetro'] as List<dynamic>?;
+
+    List<Map<String, double>>? perimetro;
+    if (perimRaw != null) {
+      perimetro = perimRaw.map((p) {
+        final gp = p as GeoPoint;
+        return {'lat': gp.latitude, 'lng': gp.longitude};
+      }).toList();
+    }
+
     return MercadoJson(
       activo: json['activo'],
       actualizadoEn: (json['actualizadoEn'] as Timestamp?)?.toDate(),
@@ -26,6 +42,11 @@ class MercadoJson extends Mercado {
       municipalidadId: json['municipalidadId'],
       nombre: json['nombre'],
       ubicacion: json['ubicacion'],
+      ultimoCorrelativo: json['ultimoCorrelativo'],
+      anioCorrelativo: json['anioCorrelativo'],
+      latitud: geo?.latitude ?? json['latitud'],
+      longitud: geo?.longitude ?? json['longitud'],
+      perimetro: perimetro,
     );
   }
 
@@ -40,6 +61,11 @@ class MercadoJson extends Mercado {
       municipalidadId: entity.municipalidadId,
       nombre: entity.nombre,
       ubicacion: entity.ubicacion,
+      ultimoCorrelativo: entity.ultimoCorrelativo,
+      anioCorrelativo: entity.anioCorrelativo,
+      latitud: entity.latitud,
+      longitud: entity.longitud,
+      perimetro: entity.perimetro,
     );
   }
 
@@ -55,6 +81,14 @@ class MercadoJson extends Mercado {
       'municipalidadId': municipalidadId,
       'nombre': nombre,
       'ubicacion': ubicacion,
+      'ultimoCorrelativo': ultimoCorrelativo,
+      'anioCorrelativo': anioCorrelativo,
+      'ubicacion_geo': (latitud != null && longitud != null)
+          ? GeoPoint(latitud!, longitud!)
+          : null,
+      'perimetro': perimetro
+          ?.map((p) => GeoPoint(p['lat']!, p['lng']!))
+          .toList(),
     };
   }
 }

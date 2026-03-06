@@ -74,6 +74,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
     final isEditing = tipo != null;
     final nombreCtrl = TextEditingController(text: tipo?.nombre);
     final descripcionCtrl = TextEditingController(text: tipo?.descripcion);
+    final currentAdmin = ref.read(currentUsuarioProvider).value;
 
     showDialog(
       context: context,
@@ -121,6 +122,9 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                 descripcion: descripcionCtrl.text,
                 id: docId,
                 nombre: nombreCtrl.text,
+                municipalidadId: isEditing
+                    ? tipo.municipalidadId
+                    : currentAdmin?.municipalidadId,
               );
 
               if (isEditing) {
@@ -201,33 +205,32 @@ class _TiposTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('ID')),
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Descripción')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: tipos.map((t) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Text(t.id ?? '-', style: const TextStyle(fontSize: 12)),
-                ),
-                DataCell(Text(t.nombre ?? '-')),
-                DataCell(Text(t.descripcion ?? '-')),
-                DataCell(_ActiveChip(active: t.activo ?? false)),
-                DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    onPressed: () => onEdit(t),
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Descripción')),
+              DataColumn(label: Text('Estado')),
+              DataColumn(label: Text('Acciones')),
+            ],
+            rows: tipos.map((t) {
+              return DataRow(
+                cells: [
+                  DataCell(Text(t.nombre ?? '-')),
+                  DataCell(Text(t.descripcion ?? '-')),
+                  DataCell(_ActiveChip(active: t.activo ?? false)),
+                  DataCell(
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 18),
+                      onPressed: () => onEdit(t),
+                    ),
                   ),
-                ),
-              ],
-            );
-          }).toList(),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

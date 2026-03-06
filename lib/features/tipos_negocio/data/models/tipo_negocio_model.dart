@@ -12,6 +12,7 @@ class TipoNegocioJson extends TipoNegocio {
     super.descripcion,
     super.id,
     super.nombre,
+    super.municipalidadId,
   });
 
   factory TipoNegocioJson.fromJson(Map<String, dynamic> json, {String? docId}) {
@@ -24,6 +25,7 @@ class TipoNegocioJson extends TipoNegocio {
       descripcion: json['descripcion'],
       id: docId ?? json['id'],
       nombre: json['nombre'],
+      municipalidadId: json['municipalidadId'],
     );
   }
 
@@ -37,6 +39,7 @@ class TipoNegocioJson extends TipoNegocio {
       descripcion: entity.descripcion,
       id: entity.id,
       nombre: entity.nombre,
+      municipalidadId: entity.municipalidadId,
     );
   }
 
@@ -51,6 +54,7 @@ class TipoNegocioJson extends TipoNegocio {
       'creadoPor': creadoPor,
       'descripcion': descripcion,
       'nombre': nombre,
+      'municipalidadId': municipalidadId,
     };
   }
 }

@@ -12,6 +12,8 @@ class UsuarioJson extends Usuario {
     super.email,
     super.id,
     super.municipalidadId,
+    super.mercadoId,
+    super.rutaAsignada,
     super.nombre,
     super.rol,
   });
@@ -26,6 +28,10 @@ class UsuarioJson extends Usuario {
       email: json['email'],
       id: docId ?? json['id'],
       municipalidadId: json['municipalidadId'],
+      mercadoId: json['mercadoId'],
+      rutaAsignada: json['rutaAsignada'] != null
+          ? List<String>.from(json['rutaAsignada'])
+          : null,
       nombre: json['nombre'],
       rol: json['rol'],
     );
@@ -41,6 +47,8 @@ class UsuarioJson extends Usuario {
       email: entity.email,
       id: entity.id,
       municipalidadId: entity.municipalidadId,
+      mercadoId: entity.mercadoId,
+      rutaAsignada: entity.rutaAsignada,
       nombre: entity.nombre,
       rol: entity.rol,
     );
@@ -57,6 +65,8 @@ class UsuarioJson extends Usuario {
       'creadoPor': creadoPor,
       'email': email,
       'municipalidadId': municipalidadId,
+      'mercadoId': mercadoId,
+      if (rutaAsignada != null) 'rutaAsignada': rutaAsignada,
       'nombre': nombre,
       'rol': rol,
     };

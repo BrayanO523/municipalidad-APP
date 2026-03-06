@@ -4,13 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+import '../../../locales/domain/entities/local.dart';
+import '../../../usuarios/domain/entities/usuario.dart';
 
 class RecentCobrosTable extends ConsumerWidget {
   const RecentCobrosTable({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cobrosRecientes = ref.watch(cobrosRecientesProvider);
+    final cobrosRecientes = ref.watch(cobrosHoyProvider);
+    final localesState = ref.watch(localesProvider);
+    final usuariosState = ref.watch(usuariosProvider);
+
+    final locales = localesState.value ?? [];
+    final usuarios = usuariosState.value ?? [];
 
     return Card(
       child: cobrosRecientes.when(
@@ -26,7 +33,11 @@ class RecentCobrosTable extends ConsumerWidget {
               ),
             );
           }
-          return _CobrosDataTable(cobros: cobros);
+          return _CobrosDataTable(
+            cobros: cobros,
+            locales: locales,
+            usuarios: usuarios,
+          );
         },
         loading: () => const Padding(
           padding: EdgeInsets.all(32),
@@ -46,33 +57,130 @@ class RecentCobrosTable extends ConsumerWidget {
   }
 }
 
-class _CobrosDataTable extends StatelessWidget {
+class _CobrosDataTable extends StatefulWidget {
   final List<Cobro> cobros;
+  final List<Local> locales;
+  final List<Usuario> usuarios;
 
-  const _CobrosDataTable({required this.cobros});
+  const _CobrosDataTable({
+    required this.cobros,
+    required this.locales,
+    required this.usuarios,
+  });
+
+  @override
+  State<_CobrosDataTable> createState() => _CobrosDataTableState();
+}
+
+class _CobrosDataTableState extends State<_CobrosDataTable> {
+  int _currentPage = 0;
+  static const int _itemsPerPage = 5;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Fecha')),
-          DataColumn(label: Text('Local')),
-          DataColumn(label: Text('Monto')),
-          DataColumn(label: Text('Estado')),
-        ],
-        rows: cobros.map((cobro) {
-          return DataRow(
-            cells: [
-              DataCell(Text(DateFormatter.formatDate(cobro.fecha))),
-              DataCell(Text(cobro.localId ?? '-')),
-              DataCell(Text(DateFormatter.formatCurrency(cobro.monto))),
-              DataCell(_EstadoChip(estado: cobro.estado)),
-            ],
-          );
-        }).toList(),
-      ),
+    final totalItems = widget.cobros.length;
+    final totalPages = (totalItems / _itemsPerPage).ceil();
+
+    if (_currentPage >= totalPages && totalPages > 0) {
+      _currentPage = totalPages - 1;
+    }
+
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+    final displayedCobros = widget.cobros.sublist(startIndex, endIndex);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 850),
+            child: DataTable(
+              columnSpacing: 16,
+              horizontalMargin: 12,
+              dataRowMinHeight: 48,
+              dataRowMaxHeight: 64,
+              columns: [
+                DataColumn(label: _buildHeaderCell('Fecha')),
+                DataColumn(label: _buildHeaderCell('Local')),
+                DataColumn(label: _buildHeaderCell('Representante')),
+                DataColumn(label: _buildHeaderCell('Teléfono')),
+                DataColumn(label: _buildHeaderCell('Cobrador')),
+                DataColumn(label: _buildHeaderCell('Monto'), numeric: true),
+                DataColumn(label: _buildHeaderCell('Estado')),
+              ],
+              rows: displayedCobros.map((cobro) {
+                final localMatches = widget.locales.where(
+                  (l) => l.id == cobro.localId,
+                );
+                final local = localMatches.isNotEmpty
+                    ? localMatches.first
+                    : null;
+
+                final cobradorMatches = widget.usuarios.where(
+                  (u) => u.id == cobro.cobradorId,
+                );
+                final cobrador = cobradorMatches.isNotEmpty
+                    ? cobradorMatches.first
+                    : null;
+
+                return DataRow(
+                  cells: [
+                    DataCell(Text(DateFormatter.formatDate(cobro.fecha))),
+                    DataCell(
+                      Text(
+                        local?.nombreSocial ?? cobro.localId ?? '-',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    DataCell(Text(local?.representante ?? '-')),
+                    DataCell(Text(local?.telefonoRepresentante ?? '-')),
+                    DataCell(Text(cobrador?.nombre ?? '-')),
+                    DataCell(Text(DateFormatter.formatCurrency(cobro.monto))),
+                    DataCell(_EstadoChip(estado: cobro.estado)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        if (totalPages > 1)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: _currentPage > 0
+                      ? () => setState(() => _currentPage--)
+                      : null,
+                ),
+                Text('Página ${_currentPage + 1} de $totalPages'),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: _currentPage < totalPages - 1
+                      ? () => setState(() => _currentPage++)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderCell(String label) {
+    return Text(
+      label,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontWeight: FontWeight.bold),
     );
   }
 }

@@ -7,6 +7,7 @@ class TipoNegocio {
   final String? descripcion;
   final String? id;
   final String? nombre;
+  final String? municipalidadId;
 
   const TipoNegocio({
     this.activo,
@@ -17,5 +18,6 @@ class TipoNegocio {
     this.descripcion,
     this.id,
     this.nombre,
+    this.municipalidadId,
   });
 }

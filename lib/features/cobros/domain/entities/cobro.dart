@@ -14,6 +14,13 @@ class Cobro {
   final String? municipalidadId;
   final String? observaciones;
   final num? saldoPendiente;
+  final String? telefonoRepresentante;
+  final int? correlativo;
+  final int? anioCorrelativo;
+  final num? deudaAnterior;
+  final num? montoAbonadoDeuda;
+  final num? nuevoSaldoFavor;
+  final num? pagoACuota;
 
   const Cobro({
     this.cobradorId,
@@ -31,5 +38,12 @@ class Cobro {
     this.municipalidadId,
     this.observaciones,
     this.saldoPendiente,
+    this.telefonoRepresentante,
+    this.correlativo,
+    this.anioCorrelativo,
+    this.deudaAnterior,
+    this.montoAbonadoDeuda,
+    this.nuevoSaldoFavor,
+    this.pagoACuota,
   });
 }

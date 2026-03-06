@@ -17,10 +17,26 @@ class LocalJson extends Local {
     super.nombreSocial,
     super.qrData,
     super.representante,
+    super.telefonoRepresentante,
     super.tipoNegocioId,
+    super.latitud,
+    super.longitud,
+    super.perimetro,
+    super.saldoAFavor,
+    super.deudaAcumulada,
   });
 
-  factory LocalJson.fromJson(Map<String, dynamic> json, {String? docId}) {
+  factory LocalJson.fromJson(Map<String, dynamic> jsonRaw, {String? docId}) {
+    final json = Map<String, dynamic>.from(jsonRaw);
+    final perimRaw = json['perimetro'] as List<dynamic>?;
+    List<Map<String, double>>? perimetro;
+    if (perimRaw != null) {
+      perimetro = perimRaw.map((p) {
+        final gp = p as GeoPoint;
+        return {'lat': gp.latitude, 'lng': gp.longitude};
+      }).toList();
+    }
+
     return LocalJson(
       activo: json['activo'],
       actualizadoEn: (json['actualizadoEn'] as Timestamp?)?.toDate(),
@@ -35,7 +51,13 @@ class LocalJson extends Local {
       nombreSocial: json['nombreSocial'],
       qrData: json['qrData'],
       representante: json['representante'],
+      telefonoRepresentante: json['telefonoRepresentante'],
       tipoNegocioId: json['tipoNegocioId'],
+      latitud: (json['ubicacion'] as GeoPoint?)?.latitude,
+      longitud: (json['ubicacion'] as GeoPoint?)?.longitude,
+      perimetro: perimetro,
+      saldoAFavor: json['saldoAFavor'],
+      deudaAcumulada: json['deudaAcumulada'],
     );
   }
 
@@ -54,7 +76,13 @@ class LocalJson extends Local {
       nombreSocial: entity.nombreSocial,
       qrData: entity.qrData,
       representante: entity.representante,
+      telefonoRepresentante: entity.telefonoRepresentante,
       tipoNegocioId: entity.tipoNegocioId,
+      latitud: entity.latitud,
+      longitud: entity.longitud,
+      perimetro: entity.perimetro,
+      saldoAFavor: entity.saldoAFavor,
+      deudaAcumulada: entity.deudaAcumulada,
     );
   }
 
@@ -74,7 +102,15 @@ class LocalJson extends Local {
       'nombreSocial': nombreSocial,
       'qrData': qrData,
       'representante': representante,
+      'telefonoRepresentante': telefonoRepresentante,
       'tipoNegocioId': tipoNegocioId,
+      if (latitud != null && longitud != null)
+        'ubicacion': GeoPoint(latitud!, longitud!),
+      'perimetro': perimetro
+          ?.map((p) => GeoPoint(p['lat']!, p['lng']!))
+          .toList(),
+      if (saldoAFavor != null) 'saldoAFavor': saldoAFavor,
+      if (deudaAcumulada != null) 'deudaAcumulada': deudaAcumulada,
     };
   }
 }

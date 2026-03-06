@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
-import '../../../../core/utils/seed_data.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -78,54 +77,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _LoginLogo(colorScheme: colorScheme),
-                const SizedBox(height: 40),
-                _LoginCard(
-                  colorScheme: colorScheme,
-                  emailCtrl: _emailCtrl,
-                  errorMessage: _errorMessage,
-                  isLoading: _isLoading,
-                  obscurePassword: _obscurePassword,
-                  onLogin: _handleLogin,
-                  onTogglePassword: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  passwordCtrl: _passwordCtrl,
-                ),
-                const SizedBox(height: 20),
-                TextButton.icon(
-                  onPressed: () async {
-                    final result = await SeedData.ejecutar();
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Seed Data'),
-                          content: SelectableText(result),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.storage_rounded, size: 16),
-                  label: const Text(
-                    'Cargar Datos de Prueba',
-                    style: TextStyle(fontSize: 12),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _LoginLogo(colorScheme: colorScheme),
+                  const SizedBox(height: 40),
+                  _LoginCard(
+                    colorScheme: colorScheme,
+                    emailCtrl: _emailCtrl,
+                    errorMessage: _errorMessage,
+                    isLoading: _isLoading,
+                    obscurePassword: _obscurePassword,
+                    onLogin: _handleLogin,
+                    onTogglePassword: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    passwordCtrl: _passwordCtrl,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -169,7 +144,7 @@ class _LoginLogo extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Text(
-          'Mercados Municipales',
+          'QRecauda',
           style: Theme.of(
             context,
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),

@@ -5,6 +5,8 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../data/models/mercado_model.dart';
 import '../../domain/entities/mercado.dart';
+import '../widgets/map_picker_modal.dart';
+import 'package:latlong2/latlong.dart';
 
 class MercadosScreen extends ConsumerStatefulWidget {
   const MercadosScreen({super.key});
@@ -74,8 +76,9 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
     final isEditing = mercado != null;
     final nombreCtrl = TextEditingController(text: mercado?.nombre);
     final ubicacionCtrl = TextEditingController(text: mercado?.ubicacion);
-    final municipalidades = ref.read(municipalidadesProvider).value ?? [];
-    String? selectedMunicipalidadId = mercado?.municipalidadId;
+    final currentAdmin = ref.read(currentUsuarioProvider).value;
+    String? selectedMunicipalidadId =
+        mercado?.municipalidadId ?? currentAdmin?.municipalidadId;
 
     showDialog(
       context: context,
@@ -94,23 +97,67 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: ubicacionCtrl,
-                  decoration: const InputDecoration(labelText: 'Ubicación'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ubicación Descriptiva',
+                    hintText: 'Ej. Zona 1, frente al parque',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  tileColor: Colors.black12,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  leading: const Icon(
+                    Icons.map_rounded,
+                    color: Colors.blueAccent,
+                  ),
+                  title: const Text(
+                    'Perímetro del Mercado',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    mercado?.perimetro != null ||
+                            (mercado?.perimetro?.isNotEmpty ?? false)
+                        ? 'Área definida (${mercado!.perimetro!.length} puntos)'
+                        : 'Sin definir en el mapa',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white24,
+                  ),
+                  onTap: () async {
+                    final List<LatLng>? result = await showDialog<List<LatLng>>(
+                      context: context,
+                      builder: (ctx) => MapPickerModal(
+                        mode: MapPickerMode.polygon,
+                        initialPoints: mercado?.perimetro
+                            ?.map((p) => LatLng(p['lat']!, p['lng']!))
+                            .toList(),
+                      ),
+                    );
+
+                    if (result != null) {
+                      setDialogState(() {
+                        // Actualizamos el objeto temporal para el feedback visual en el modal
+                        mercado = Mercado(
+                          id: mercado?.id,
+                          nombre: nombreCtrl.text,
+                          ubicacion: ubicacionCtrl.text,
+                          perimetro: result
+                              .map(
+                                (p) => {'lat': p.latitude, 'lng': p.longitude},
+                              )
+                              .toList(),
+                          latitud: result.first.latitude,
+                          longitud: result.first.longitude,
+                        );
+                      });
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedMunicipalidadId,
-                  decoration: const InputDecoration(labelText: 'Municipalidad'),
-                  items: municipalidades
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m.id,
-                          child: Text(m.nombre ?? '-'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) =>
-                      setDialogState(() => selectedMunicipalidadId = v),
-                ),
               ],
             ),
           ),
@@ -124,25 +171,27 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                 if (selectedMunicipalidadId == null) return;
                 final ds = ref.read(mercadoDatasourceProvider);
                 final now = DateTime.now();
-                final munNombre =
-                    municipalidades
-                        .firstWhere((m) => m.id == selectedMunicipalidadId)
-                        .nombre ??
-                    '';
+
                 final docId = isEditing
-                    ? mercado.id!
-                    : IdNormalizer.mercadoId(munNombre, nombreCtrl.text);
+                    ? mercado!.id!
+                    : IdNormalizer.mercadoId(
+                        currentAdmin?.municipalidadId ?? 'MUN',
+                        nombreCtrl.text,
+                      );
 
                 final model = MercadoJson(
                   activo: true,
                   actualizadoEn: now,
                   actualizadoPor: 'admin',
-                  creadoEn: isEditing ? mercado.creadoEn : now,
-                  creadoPor: isEditing ? mercado.creadoPor : 'admin',
+                  creadoEn: isEditing ? mercado!.creadoEn : now,
+                  creadoPor: isEditing ? mercado!.creadoPor : 'admin',
                   id: docId,
                   municipalidadId: selectedMunicipalidadId,
                   nombre: nombreCtrl.text,
                   ubicacion: ubicacionCtrl.text,
+                  perimetro: mercado?.perimetro,
+                  latitud: mercado?.latitud,
+                  longitud: mercado?.longitud,
                 );
 
                 if (isEditing) {
@@ -184,7 +233,7 @@ class _MercadosHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Gestión de mercados municipales',
+                'Gestión de mercados de QRecauda',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
@@ -224,40 +273,32 @@ class _MercadosTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('ID')),
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Ubicación')),
-            DataColumn(label: Text('Municipalidad')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: mercados.map((m) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Text(m.id ?? '-', style: const TextStyle(fontSize: 12)),
-                ),
-                DataCell(Text(m.nombre ?? '-')),
-                DataCell(Text(m.ubicacion ?? '-')),
-                DataCell(
-                  Text(
-                    m.municipalidadId ?? '-',
-                    style: const TextStyle(fontSize: 12),
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Ubicación')),
+              DataColumn(label: Text('Estado')),
+              DataColumn(label: Text('Acciones')),
+            ],
+            rows: mercados.map((m) {
+              return DataRow(
+                cells: [
+                  DataCell(Text(m.nombre ?? '-')),
+                  DataCell(Text(m.ubicacion ?? '-')),
+                  DataCell(_ActiveChip(active: m.activo ?? false)),
+                  DataCell(
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 18),
+                      onPressed: () => onEdit(m),
+                    ),
                   ),
-                ),
-                DataCell(_ActiveChip(active: m.activo ?? false)),
-                DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    onPressed: () => onEdit(m),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

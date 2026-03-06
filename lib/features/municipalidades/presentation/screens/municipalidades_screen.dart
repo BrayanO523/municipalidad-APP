@@ -221,37 +221,36 @@ class _MunicipalidadesTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('ID')),
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Municipio')),
-            DataColumn(label: Text('Departamento')),
-            DataColumn(label: Text('Porcentaje')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: municipalidades.map((m) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Text(m.id ?? '-', style: const TextStyle(fontSize: 12)),
-                ),
-                DataCell(Text(m.nombre ?? '-')),
-                DataCell(Text(m.municipio ?? '-')),
-                DataCell(Text(m.departamento ?? '-')),
-                DataCell(Text('${m.porcentaje ?? 0}%')),
-                DataCell(_ActiveChip(active: m.activa ?? false)),
-                DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    onPressed: () => onEdit(m),
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Municipio')),
+              DataColumn(label: Text('Departamento')),
+              DataColumn(label: Text('Porcentaje')),
+              DataColumn(label: Text('Estado')),
+              DataColumn(label: Text('Acciones')),
+            ],
+            rows: municipalidades.map((m) {
+              return DataRow(
+                cells: [
+                  DataCell(Text(m.nombre ?? '-')),
+                  DataCell(Text(m.municipio ?? '-')),
+                  DataCell(Text(m.departamento ?? '-')),
+                  DataCell(Text('${m.porcentaje ?? 0}%')),
+                  DataCell(_ActiveChip(active: m.activa ?? false)),
+                  DataCell(
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 18),
+                      onPressed: () => onEdit(m),
+                    ),
                   ),
-                ),
-              ],
-            );
-          }).toList(),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

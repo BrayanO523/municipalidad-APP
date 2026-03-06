@@ -12,7 +12,13 @@ class Local {
   final String? nombreSocial;
   final String? qrData;
   final String? representante;
+  final String? telefonoRepresentante;
   final String? tipoNegocioId;
+
+  final double? latitud;
+  final double? longitud;
+  final num? saldoAFavor; // Crédito acumulado por pagos adelantados
+  final num? deudaAcumulada; // Suma de cuotas no pagadas histórica
 
   const Local({
     this.activo,
@@ -28,6 +34,16 @@ class Local {
     this.nombreSocial,
     this.qrData,
     this.representante,
+    this.telefonoRepresentante,
     this.tipoNegocioId,
+    this.latitud,
+    this.longitud,
+    this.perimetro,
+    this.saldoAFavor,
+    this.deudaAcumulada,
   });
+
+  final List<Map<String, double>>? perimetro;
+
+  num get balanceNeto => (saldoAFavor ?? 0) - (deudaAcumulada ?? 0);
 }

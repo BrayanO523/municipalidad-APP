@@ -24,6 +24,18 @@ class TipoNegocioDatasource {
         .toList();
   }
 
+  Future<List<TipoNegocioJson>> listarPorMunicipalidad(
+    String municipalidadId,
+  ) async {
+    final snapshot = await _collection
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .orderBy('nombre')
+        .get();
+    return snapshot.docs
+        .map((doc) => TipoNegocioJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
+  }
+
   // UPDATE
   Future<void> actualizar(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).update(data);

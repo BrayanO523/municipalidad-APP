@@ -51,4 +51,26 @@ class MercadoDatasource {
   Future<void> eliminar(String docId) async {
     await _collection.doc(docId).delete();
   }
+
+  /// Migración: Agrega municipalidadId a mercados faltantes.
+  Future<int> migrarMercadosFaltantes(String municipalidadId) async {
+    final snapshot = await _collection.get();
+
+    if (snapshot.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int actuallyMigrated = 0;
+
+    for (var doc in snapshot.docs) {
+      if (doc.data()['municipalidadId'] == null) {
+        batch.update(doc.reference, {'municipalidadId': municipalidadId});
+        actuallyMigrated++;
+      }
+    }
+
+    if (actuallyMigrated > 0) {
+      await batch.commit();
+    }
+    return actuallyMigrated;
+  }
 }

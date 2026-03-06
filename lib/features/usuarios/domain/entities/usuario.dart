@@ -7,6 +7,8 @@ class Usuario {
   final String? email;
   final String? id;
   final String? municipalidadId;
+  final String? mercadoId;
+  final List<String>? rutaAsignada;
   final String? nombre;
   final String? rol;
 
@@ -19,6 +21,8 @@ class Usuario {
     this.email,
     this.id,
     this.municipalidadId,
+    this.mercadoId,
+    this.rutaAsignada,
     this.nombre,
     this.rol,
   });

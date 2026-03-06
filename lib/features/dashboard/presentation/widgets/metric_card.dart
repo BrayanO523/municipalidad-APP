@@ -5,6 +5,7 @@ class MetricCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
+  final String? subtitle;
 
   const MetricCard({
     super.key,
@@ -12,6 +13,7 @@ class MetricCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
+    this.subtitle,
   });
 
   @override
@@ -55,6 +57,17 @@ class MetricCard extends StatelessWidget {
                 context,
               ).textTheme.bodySmall?.copyWith(color: Colors.white54),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ],
         ),
       ),
