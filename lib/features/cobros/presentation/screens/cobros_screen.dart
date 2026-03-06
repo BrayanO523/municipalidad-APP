@@ -55,22 +55,99 @@ class CobrosScreen extends ConsumerWidget {
   }
 }
 
-// ── Header con filtro de fechas ──────────────────────────────────────────────
-class _CobrosHeader extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rango = ref.watch(fechaFiltroCobrosProvider);
-    final theme = Theme.of(context);
+// ── Header con chips de período (igual al Dashboard) ─────────────────────────
+enum _CobrosPeriod { hoy, semana, mes, anio, personalizado }
 
-    String dateText = 'Consulta de cobros y recaudación diaria';
-    if (rango != null) {
-      dateText =
-          'Del ${DateFormatter.formatDate(rango.start)} al ${DateFormatter.formatDate(rango.end)}';
+class _CobrosHeader extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_CobrosHeader> createState() => _CobrosHeaderState();
+}
+
+class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
+  _CobrosPeriod _periodo = _CobrosPeriod.hoy;
+
+  @override
+  void initState() {
+    super.initState();
+    // Arrancar con el rango de hoy
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _aplicar(_CobrosPeriod.hoy),
+    );
+  }
+
+  void _aplicar(_CobrosPeriod p) async {
+    final now = DateTime.now();
+    final hoy = DateTime(now.year, now.month, now.day);
+
+    DateTimeRange? rango;
+    switch (p) {
+      case _CobrosPeriod.hoy:
+        rango = DateTimeRange(start: hoy, end: hoy);
+        break;
+      case _CobrosPeriod.semana:
+        rango = DateTimeRange(
+          start: hoy.subtract(const Duration(days: 6)),
+          end: hoy,
+        );
+        break;
+      case _CobrosPeriod.mes:
+        rango = DateTimeRange(
+          start: DateTime(hoy.year, hoy.month, 1),
+          end: hoy,
+        );
+        break;
+      case _CobrosPeriod.anio:
+        rango = DateTimeRange(start: DateTime(hoy.year, 1, 1), end: hoy);
+        break;
+      case _CobrosPeriod.personalizado:
+        final actual = ref.read(fechaFiltroCobrosProvider);
+        final result = await showDialog<DateTimeRange>(
+          context: context,
+          builder: (_) => CustomDateRangePicker(
+            initialRange: actual ?? DateTimeRange(start: hoy, end: hoy),
+          ),
+        );
+        if (result != null) {
+          setState(() => _periodo = _CobrosPeriod.personalizado);
+          ref.read(fechaFiltroCobrosProvider.notifier).setRango(result);
+        }
+        return;
     }
+
+    setState(() => _periodo = p);
+    if (rango != null)
+      ref.read(fechaFiltroCobrosProvider.notifier).setRango(rango);
+  }
+
+  String get _descripcion {
+    final rango = ref.read(fechaFiltroCobrosProvider);
+    switch (_periodo) {
+      case _CobrosPeriod.hoy:
+        return 'Solo cobros del día de hoy';
+      case _CobrosPeriod.semana:
+        return 'Últimos 7 días de actividad';
+      case _CobrosPeriod.mes:
+        final now = DateTime.now();
+        return 'Desde el 1 de ${DateFormatter.getMonthName(now)} hasta hoy';
+      case _CobrosPeriod.anio:
+        return 'Desde el 1 de enero de ${DateTime.now().year} hasta hoy';
+      case _CobrosPeriod.personalizado:
+        if (rango != null) {
+          return 'Del ${DateFormatter.formatDate(rango.start)} al ${DateFormatter.formatDate(rango.end)}';
+        }
+        return 'Rango personalizado';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Título + descripción
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -82,44 +159,83 @@ class _CobrosHeader extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              dateText,
+              _descripcion,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.white54,
               ),
             ),
           ],
         ),
-        Row(
+        // Chips de período
+        Wrap(
+          spacing: 8,
           children: [
-            if (rango != null)
-              IconButton(
-                icon: const Icon(Icons.clear, color: Colors.white54),
-                tooltip: 'Limpiar filtro',
-                onPressed: () {
-                  ref.read(fechaFiltroCobrosProvider.notifier).setRango(null);
-                },
-              ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.calendar_month),
-              label: const Text('Filtrar por Fecha'),
-              onPressed: () async {
-                final now = DateTime.now();
-                final hoy = DateTime(now.year, now.month, now.day);
-                final result = await showDialog<DateTimeRange>(
-                  context: context,
-                  builder: (_) => CustomDateRangePicker(
-                    initialRange: rango ?? DateTimeRange(start: hoy, end: hoy),
-                  ),
-                );
-
-                if (result != null) {
-                  ref.read(fechaFiltroCobrosProvider.notifier).setRango(result);
-                }
-              },
+            _PeriodChip(
+              label: 'Hoy',
+              selected: _periodo == _CobrosPeriod.hoy,
+              onSelected: () => _aplicar(_CobrosPeriod.hoy),
+            ),
+            _PeriodChip(
+              label: 'Semana',
+              selected: _periodo == _CobrosPeriod.semana,
+              onSelected: () => _aplicar(_CobrosPeriod.semana),
+            ),
+            _PeriodChip(
+              label: 'Mes',
+              selected: _periodo == _CobrosPeriod.mes,
+              onSelected: () => _aplicar(_CobrosPeriod.mes),
+            ),
+            _PeriodChip(
+              label: 'Año',
+              selected: _periodo == _CobrosPeriod.anio,
+              onSelected: () => _aplicar(_CobrosPeriod.anio),
+            ),
+            _PeriodChip(
+              label: 'Personalizado',
+              selected: _periodo == _CobrosPeriod.personalizado,
+              onSelected: () => _aplicar(_CobrosPeriod.personalizado),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+// ── Chip reutilizable ─────────────────────────────────────────────────────────
+class _PeriodChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _PeriodChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : Colors.white54,
+        fontSize: 12,
+      ),
+      selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
+      backgroundColor: Colors.white.withValues(alpha: 0.05),
+      showCheckmark: false,
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: selected
+              ? const Color(0xFF00D9A6).withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
     );
   }
 }
