@@ -33,13 +33,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // ── Header ──────────────────────────────────────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _DashboardHeader()),
-                const SizedBox(width: 8),
-                const _ParcharPagoACuotaButton(),
-                const SizedBox(width: 8),
-                const _ParcharCobrosButton(),
-              ],
+              children: [Expanded(child: _DashboardHeader())],
             ),
             const SizedBox(height: 24),
 
@@ -422,133 +416,6 @@ class _PeriodChip extends StatelessWidget {
       showCheckmark: false,
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    );
-  }
-}
-
-class _ParcharCobrosButton extends ConsumerStatefulWidget {
-  const _ParcharCobrosButton();
-
-  @override
-  ConsumerState<_ParcharCobrosButton> createState() =>
-      _ParcharCobrosButtonState();
-}
-
-class _ParcharCobrosButtonState extends ConsumerState<_ParcharCobrosButton> {
-  bool _isLoading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.amber.shade700,
-        foregroundColor: Colors.white,
-      ),
-      icon: _isLoading
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.build_circle_rounded, size: 18),
-      label: const Text('Parchar Cobros'),
-      onPressed: _isLoading
-          ? null
-          : () async {
-              setState(() => _isLoading = true);
-              try {
-                final ds = ref.read(cobroDatasourceProvider);
-                final patched = await ds.parcharCobrosHuerfanos();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Migración completada. $patched cobros huérfanos arreglados.',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } finally {
-                if (mounted) setState(() => _isLoading = false);
-              }
-            },
-    );
-  }
-}
-
-class _ParcharPagoACuotaButton extends ConsumerStatefulWidget {
-  const _ParcharPagoACuotaButton();
-
-  @override
-  ConsumerState<_ParcharPagoACuotaButton> createState() =>
-      _ParcharPagoACuotaButtonState();
-}
-
-class _ParcharPagoACuotaButtonState
-    extends ConsumerState<_ParcharPagoACuotaButton> {
-  bool _isLoading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange.shade700,
-        foregroundColor: Colors.white,
-      ),
-      icon: _isLoading
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.auto_fix_high_rounded, size: 18),
-      label: const Text('Validar Pago Cuota'),
-      onPressed: _isLoading
-          ? null
-          : () async {
-              setState(() => _isLoading = true);
-              try {
-                final ds = ref.read(cobroDatasourceProvider);
-                final patched = await ds.parcharPagoACuota();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Validación completada. $patched registros corregidos.',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } finally {
-                if (mounted) setState(() => _isLoading = false);
-              }
-            },
     );
   }
 }
