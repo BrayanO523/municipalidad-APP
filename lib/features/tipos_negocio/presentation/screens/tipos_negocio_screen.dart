@@ -15,6 +15,7 @@ class TiposNegocioScreen extends ConsumerStatefulWidget {
 
 class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
   String _searchQuery = '';
+  String _searchColumn = 'Nombre';
 
   @override
   Widget build(BuildContext context) {
@@ -30,18 +31,28 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
             _TiposHeader(
               onSearch: (q) => setState(() => _searchQuery = q),
               onAdd: () => _showFormDialog(context),
+              selectedColumn: _searchColumn,
+              onColumnChanged: (val) {
+                if (val != null) {
+                  setState(() => _searchColumn = val);
+                }
+              },
             ),
             const SizedBox(height: 20),
             Expanded(
               child: tiposNegocio.when(
                 data: (list) {
-                  final filtered = list
-                      .where(
-                        (t) => (t.nombre ?? '').toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
-                        ),
-                      )
-                      .toList();
+                  final filtered = list.where((t) {
+                    final query = _searchQuery.toLowerCase();
+                    if (_searchColumn == 'Nombre') {
+                      return (t.nombre ?? '').toLowerCase().contains(query);
+                    } else if (_searchColumn == 'Descripción') {
+                      return (t.descripcion ?? '').toLowerCase().contains(
+                        query,
+                      );
+                    }
+                    return false;
+                  }).toList();
                   if (filtered.isEmpty) {
                     return const Center(
                       child: Text(
@@ -146,8 +157,15 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
 class _TiposHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onAdd;
+  final String selectedColumn;
+  final ValueChanged<String?> onColumnChanged;
 
-  const _TiposHeader({required this.onSearch, required this.onAdd});
+  const _TiposHeader({
+    required this.onSearch,
+    required this.onAdd,
+    required this.selectedColumn,
+    required this.onColumnChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +191,31 @@ class _TiposHeader extends StatelessWidget {
             ],
           ),
         ),
+        Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedColumn,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              isDense: true,
+              dropdownColor: const Color(0xFF1E2235),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              items: ['Nombre', 'Descripción'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: onColumnChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         SizedBox(
           width: 260,
           child: TextField(
