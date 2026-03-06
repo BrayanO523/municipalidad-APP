@@ -13,6 +13,7 @@ class UsuariosScreen extends ConsumerStatefulWidget {
 
 class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
   String _searchQuery = '';
+  String _searchColumn = 'Nombre';
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,12 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
             _UsuariosHeader(
               onSearch: (q) => setState(() => _searchQuery = q),
               onAdd: () => _showFormDialog(context),
+              selectedColumn: _searchColumn,
+              onColumnChanged: (val) {
+                if (val != null) {
+                  setState(() => _searchColumn = val);
+                }
+              },
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -38,9 +45,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                     if (u.rol != 'cobrador') return false;
 
                     final searchStr = _searchQuery.toLowerCase();
-                    return (u.nombre?.toLowerCase().contains(searchStr) ??
-                            false) ||
-                        (u.email?.toLowerCase().contains(searchStr) ?? false);
+                    if (_searchColumn == 'Nombre') {
+                      return (u.nombre?.toLowerCase().contains(searchStr) ??
+                          false);
+                    } else if (_searchColumn == 'Correo Electrónico') {
+                      return (u.email?.toLowerCase().contains(searchStr) ??
+                          false);
+                    }
+                    return false;
                   }).toList();
 
                   if (filtrados.isEmpty) {
@@ -439,8 +451,15 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 class _UsuariosHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onAdd;
+  final String selectedColumn;
+  final ValueChanged<String?> onColumnChanged;
 
-  const _UsuariosHeader({required this.onSearch, required this.onAdd});
+  const _UsuariosHeader({
+    required this.onSearch,
+    required this.onAdd,
+    required this.selectedColumn,
+    required this.onColumnChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -457,6 +476,31 @@ class _UsuariosHeader extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedColumn,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              isDense: true,
+              dropdownColor: const Color(0xFF1E2235),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              items: ['Nombre', 'Correo Electrónico'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: onColumnChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         SizedBox(
           width: 250,
           child: TextField(
