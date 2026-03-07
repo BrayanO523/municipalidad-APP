@@ -452,7 +452,7 @@ class ReportePdfGenerator {
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
-            '📍 Mercado: $nombre',
+            'Mercado: $nombre',
             style: pw.TextStyle(
               font: f['bold'],
               fontSize: 12,
@@ -484,7 +484,8 @@ class ReportePdfGenerator {
       decoration: pw.BoxDecoration(
         color: const PdfColor.fromInt(0xFFEDE9FE),
         border: pw.Border(left: pw.BorderSide(color: _colorPrimario, width: 3)),
-        borderRadius: pw.BorderRadius.circular(3),
+        // En package:pdf, borderRadius solo es válido si el borde es uniforme
+        // borderRadius: pw.BorderRadius.circular(3),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
