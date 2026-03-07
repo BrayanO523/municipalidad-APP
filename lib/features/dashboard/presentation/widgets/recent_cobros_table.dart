@@ -129,7 +129,7 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
 
                 return DataRow(
                   cells: [
-                    DataCell(Text(DateFormatter.formatDate(cobro.fecha))),
+                    DataCell(Text(DateFormatter.formatDateTime(cobro.fecha))),
                     DataCell(
                       Text(
                         local?.nombreSocial ?? cobro.localId ?? '-',

@@ -471,7 +471,9 @@ class _FiltroBar extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? color.withValues(alpha: 0.2) : Colors.white10,
+                  color: selected
+                      ? color.withValues(alpha: 0.2)
+                      : Colors.white10,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: selected ? color : Colors.transparent,
@@ -550,7 +552,7 @@ class _CobroRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fecha != null ? DateFormatter.formatDate(fecha) : '—',
+                  fecha != null ? DateFormatter.formatDateTime(fecha) : '—',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,

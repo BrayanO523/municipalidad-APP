@@ -558,7 +558,7 @@ class _CobroTile extends ConsumerWidget {
                   children: [
                     Text(
                       cobro.fecha != null
-                          ? DateFormatter.formatDate(cobro.fecha!)
+                          ? DateFormatter.formatDateTime(cobro.fecha!)
                           : '—',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
