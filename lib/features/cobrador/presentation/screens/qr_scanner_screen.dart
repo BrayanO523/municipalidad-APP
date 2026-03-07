@@ -354,7 +354,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         );
       }
 
-      // Imprimir ticket
+      // Imprimir boleta
       try {
         final printer = ref.read(printerServiceProvider);
 
@@ -480,7 +480,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         await cobroDs.saldarDeudaHistoria(local.id!, monto);
       }
 
-      // Imprimir ticket silenciosamente de fondo
+      // Imprimir boleta silenciosamente de fondo
       try {
         final printer = ref.read(printerServiceProvider);
         final mercados = ref
@@ -602,7 +602,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   }) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Generando ticket en formato PDF...'),
+        content: Text('Generando boleta en formato PDF...'),
         duration: Duration(seconds: 1),
       ),
     );
@@ -648,7 +648,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               ),
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Ticket N°: $correlativo'),
+                child: pw.Text('Boleta N°: $correlativo'),
               ),
               pw.SizedBox(height: 8),
               pw.Divider(),

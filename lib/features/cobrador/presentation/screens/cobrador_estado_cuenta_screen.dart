@@ -816,7 +816,7 @@ class _CobroTile extends ConsumerWidget {
               if (cobro.correlativo != null)
                 pw.Align(
                   alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Ticket N°: ${cobro.correlativo}'),
+                  child: pw.Text('Boleta N°: ${cobro.correlativo}'),
                 ),
               pw.SizedBox(height: 8),
               pw.Divider(),
@@ -869,7 +869,7 @@ class _CobroTile extends ConsumerWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Re-imprimiendo ticket N°${cobro.correlativo ?? "-"}...'),
+        content: Text('Re-imprimiendo boleta N°${cobro.correlativo ?? "-"}...'),
         duration: const Duration(seconds: 2),
       ),
     );

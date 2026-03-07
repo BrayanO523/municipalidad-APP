@@ -8,6 +8,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/local.dart';
 
 const _kPageSize = 20;
@@ -24,7 +25,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   String _searchColumn = 'Local';
   int _currentPage = 0;
 
-  static const _columnas = ['Local', 'Representante', 'Teléfono'];
+  static const _columnas = ['Local', 'Mercado', 'Representante', 'Teléfono'];
 
   void _setSearch(String q) => setState(() {
     _searchQuery = q;
@@ -39,6 +40,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   @override
   Widget build(BuildContext context) {
     final localesAsync = ref.watch(localesProvider);
+    final mercados = ref.watch(mercadosProvider).value ?? [];
 
     return Material(
       color: Colors.transparent,
@@ -107,6 +109,17 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                     switch (_searchColumn) {
                       case 'Local':
                         return (l.nombreSocial ?? '').toLowerCase().contains(q);
+                      case 'Mercado':
+                        final mercadoName =
+                            mercados
+                                .cast<Mercado>()
+                                .firstWhere(
+                                  (m) => m.id == l.mercadoId,
+                                  orElse: () => const Mercado(nombre: ''),
+                                )
+                                .nombre ??
+                            '';
+                        return mercadoName.toLowerCase().contains(q);
                       case 'Representante':
                         return (l.representante ?? '').toLowerCase().contains(
                           q,
@@ -161,7 +174,12 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                           ),
                         )
                       else ...[
-                        Expanded(child: _DeudoresTable(locales: paginated)),
+                        Expanded(
+                          child: _DeudoresTable(
+                            locales: paginated,
+                            mercados: mercados,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         _PaginationBar(
                           currentPage: page,
@@ -258,8 +276,9 @@ class _Header extends ConsumerWidget {
 // ── Tabla ─────────────────────────────────────────────────────────────────────
 class _DeudoresTable extends StatelessWidget {
   final List<Local> locales;
+  final List<Mercado> mercados;
 
-  const _DeudoresTable({required this.locales});
+  const _DeudoresTable({required this.locales, required this.mercados});
 
   @override
   Widget build(BuildContext context) {
@@ -274,6 +293,7 @@ class _DeudoresTable extends StatelessWidget {
             ),
             columns: const [
               DataColumn(label: Text('Local')),
+              DataColumn(label: Text('Mercado')),
               DataColumn(label: Text('Representante')),
               DataColumn(label: Text('Teléfono')),
               DataColumn(label: Text('Cuota Diaria')),
@@ -301,6 +321,22 @@ class _DeudoresTable extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      mercados
+                              .cast<Mercado>()
+                              .firstWhere(
+                                (m) => m.id == l.mercadoId,
+                                orElse: () => const Mercado(nombre: '-'),
+                              )
+                              .nombre ??
+                          '-',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                      ),
                     ),
                   ),
                   DataCell(Text(l.representante ?? '-')),

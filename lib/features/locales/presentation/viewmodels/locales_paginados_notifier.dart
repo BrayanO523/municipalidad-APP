@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -135,10 +136,23 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         clearError: true,
       );
     } catch (e) {
+      final text = e.toString();
+      final match = RegExp(
+        r'https://console\.firebase\.google\.com[^\s]+',
+      ).firstMatch(text);
+      if (match != null) {
+        debugPrint(
+          '\n\n🚨 FALTAN ÍNDICES EN FIRESTORE 🚨\n👇 HAZ CLIC EN ESTE ENLACE PARA CREARLOS 👇\n\n${match.group(0)}\n\n============================================\n\n',
+        );
+      } else {
+        debugPrint(
+          '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
+        );
+      }
       state = state.copyWith(
         cargando: false,
         hayMas: false,
-        errorMsg: 'Error al cargar locales: $e',
+        errorMsg: 'Error al cargar locales: $text',
       );
     }
   }

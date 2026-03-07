@@ -476,7 +476,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         );
       }
 
-      // Imprimir ticket
+      // Imprimir boleta
       try {
         final printer = ref.read(printerServiceProvider);
 
@@ -546,7 +546,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ? 'abono_parcial'
         : 'pendiente';
 
-    // Calculamos cuánto va para deuda y cuánto para saldo extra para el SnackBar y el Ticket
+    // Calculamos cuánto va para deuda y cuánto para saldo extra para el SnackBar y la Boleta
     final deudaActual = local.deudaAcumulada ?? 0;
     final paraDeudaReal = monto > deudaActual ? deudaActual : monto;
     final paraSaldoFavorReal = monto > paraDeudaReal
@@ -609,7 +609,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       await _cargarDatos();
 
-      // Imprimir ticket silenciosamente de fondo
+      // Imprimir boleta silenciosamente de fondo
       try {
         final printer = ref.read(printerServiceProvider);
         final mercados = ref
@@ -728,7 +728,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Generando ticket en formato PDF...'),
+        content: Text('Generando boleta en formato PDF...'),
         duration: Duration(seconds: 1),
       ),
     );
@@ -774,7 +774,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               ),
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Ticket N°: $correlativo'),
+                child: pw.Text('Boleta N°: $correlativo'),
               ),
               pw.SizedBox(height: 8),
               pw.Divider(),

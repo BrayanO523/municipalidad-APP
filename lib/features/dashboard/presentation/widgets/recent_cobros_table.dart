@@ -5,6 +5,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 import '../../../usuarios/domain/entities/usuario.dart';
 
 class RecentCobrosTable extends ConsumerWidget {
@@ -15,9 +16,11 @@ class RecentCobrosTable extends ConsumerWidget {
     final cobrosRecientes = ref.watch(cobrosHoyProvider);
     final localesState = ref.watch(localesProvider);
     final usuariosState = ref.watch(usuariosProvider);
+    final mercadosState = ref.watch(mercadosProvider);
 
     final locales = localesState.value ?? [];
     final usuarios = usuariosState.value ?? [];
+    final mercados = mercadosState.value ?? [];
 
     return Card(
       child: cobrosRecientes.when(
@@ -37,6 +40,7 @@ class RecentCobrosTable extends ConsumerWidget {
             cobros: cobros,
             locales: locales,
             usuarios: usuarios,
+            mercados: mercados,
           );
         },
         loading: () => const Padding(
@@ -61,11 +65,13 @@ class _CobrosDataTable extends StatefulWidget {
   final List<Cobro> cobros;
   final List<Local> locales;
   final List<Usuario> usuarios;
+  final List<Mercado> mercados;
 
   const _CobrosDataTable({
     required this.cobros,
     required this.locales,
     required this.usuarios,
+    required this.mercados,
   });
 
   @override
@@ -106,6 +112,7 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
               columns: [
                 DataColumn(label: _buildHeaderCell('Fecha')),
                 DataColumn(label: _buildHeaderCell('Local')),
+                DataColumn(label: _buildHeaderCell('Mercado')),
                 DataColumn(label: _buildHeaderCell('Representante')),
                 DataColumn(label: _buildHeaderCell('Teléfono')),
                 DataColumn(label: _buildHeaderCell('Cobrador')),
@@ -127,6 +134,16 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
                     ? cobradorMatches.first
                     : null;
 
+                final mercadoName =
+                    widget.mercados
+                        .cast<Mercado>()
+                        .firstWhere(
+                          (m) => m.id == cobro.mercadoId,
+                          orElse: () => const Mercado(nombre: '-'),
+                        )
+                        .nombre ??
+                    '-';
+
                 return DataRow(
                   cells: [
                     DataCell(Text(DateFormatter.formatDateTime(cobro.fecha))),
@@ -134,6 +151,15 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
                       Text(
                         local?.nombreSocial ?? cobro.localId ?? '-',
                         style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        mercadoName,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                        ),
                       ),
                     ),
                     DataCell(Text(local?.representante ?? '-')),

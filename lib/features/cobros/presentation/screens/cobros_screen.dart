@@ -296,6 +296,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
   static const List<String> _columnas = [
     'Local',
+    'Mercado',
     'Estado',
     'Cobrador',
     'Teléfono',
@@ -323,6 +324,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
   Widget build(BuildContext context) {
     final usuarios = ref.watch(usuariosProvider).value ?? [];
     final locales = ref.watch(localesProvider).value ?? [];
+    final mercados = ref.watch(mercadosProvider).value ?? [];
 
     String nombreCobrador(String? id) {
       if (id == null || id.isEmpty) return '-';
@@ -342,6 +344,15 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
       }
     }
 
+    String nombreMercado(String? id) {
+      if (id == null || id.isEmpty) return '-';
+      try {
+        return mercados.firstWhere((m) => m.id == id).nombre ?? id;
+      } catch (_) {
+        return id;
+      }
+    }
+
     // Filtrado según columna seleccionada
     final q = _searchQuery.toLowerCase();
     final filtered = q.isEmpty
@@ -350,6 +361,8 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             switch (_searchColumn) {
               case 'Local':
                 return nombreLocal(c.localId).toLowerCase().contains(q);
+              case 'Mercado':
+                return nombreMercado(c.mercadoId).toLowerCase().contains(q);
               case 'Estado':
                 return (c.estado ?? '').toLowerCase().contains(q);
               case 'Cobrador':
@@ -448,6 +461,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                     columns: const [
                       DataColumn(label: Text('Fecha')),
                       DataColumn(label: Text('Local')),
+                      DataColumn(label: Text('Mercado')),
                       DataColumn(label: Text('Teléfono')),
                       DataColumn(label: Text('Monto')),
                       DataColumn(label: Text('Pago a Cuota')),
@@ -456,7 +470,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                       DataColumn(label: Text('Estado')),
                       DataColumn(label: Text('Cobrador')),
                       DataColumn(label: Text('Observaciones')),
-                      DataColumn(label: Text('Ticket')),
+                      DataColumn(label: Text('Boleta')),
                     ],
                     rows: paginated.map((c) {
                       return DataRow(
@@ -466,6 +480,15 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                             Text(
                               nombreLocal(c.localId),
                               style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              nombreMercado(c.mercadoId),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white70,
+                              ),
                             ),
                           ),
                           DataCell(
@@ -512,7 +535,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Re-imprimiendo ticket N°${c.correlativo ?? "-"}...',
+                                      'Re-imprimiendo boleta N°${c.correlativo ?? "-"}...',
                                     ),
                                     duration: const Duration(seconds: 2),
                                   ),
