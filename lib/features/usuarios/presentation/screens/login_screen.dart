@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -199,7 +200,9 @@ class _LoginCard extends StatelessWidget {
             const SizedBox(height: 24),
             TextField(
               controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
+              keyboardType: kIsWeb
+                  ? TextInputType.text
+                  : TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Correo electrónico',
                 prefixIcon: Icon(Icons.email_outlined, size: 20),

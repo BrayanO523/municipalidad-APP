@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 
 /// Pantalla de historial financiero completo de un local.
 /// Muestra KPIs (saldo a favor, deuda, días pagados, días pendientes)
@@ -30,6 +35,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
       localCobrosStreamProvider(widget.local.id ?? ''),
     );
     final colorScheme = Theme.of(context).colorScheme;
+    final mercados = ref.watch(mercadosProvider).value ?? [];
 
     return localAsync.when(
       data: (local) {
@@ -132,6 +138,42 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                       ),
                   ],
                 ),
+                actions: [
+                  IconButton(
+                    onPressed: () async {
+                      final mercadoName =
+                          mercados
+                              .cast<Mercado>()
+                              .firstWhere(
+                                (m) => m.id == local.mercadoId,
+                                orElse: () => const Mercado(nombre: '-'),
+                              )
+                              .nombre ??
+                          '-';
+
+                      final bytes =
+                          await ReportePdfGenerator.generarEstadoCuentaLocalPdf(
+                            local: local,
+                            cobros: combinedList,
+                            nombreMercado: mercadoName,
+                          );
+                      if (kIsWeb) {
+                        await descargarPdfWeb(
+                          bytes,
+                          'EstadoCuenta_${local.nombreSocial?.replaceAll(" ", "_") ?? "Local"}.pdf',
+                        );
+                      } else {
+                        await Printing.layoutPdf(
+                          onLayout: (_) async => bytes,
+                          name: 'EstadoCuenta_${local.nombreSocial}',
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.picture_as_pdf_rounded),
+                    tooltip: 'Exportar estado de cuenta en PDF',
+                  ),
+                  const SizedBox(width: 8),
+                ],
               ),
               body: CustomScrollView(
                 slivers: [
