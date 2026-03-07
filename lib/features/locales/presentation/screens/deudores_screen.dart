@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../domain/entities/local.dart';
 
 const _kPageSize = 20;
@@ -43,10 +47,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header fijo
-            _Header(),
-            const SizedBox(height: 16),
-            // Barra de filtros
+            // Barra de filtros siempre visible
             Row(
               children: [
                 Container(
@@ -118,58 +119,63 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                         return true;
                     }
                   }).toList();
-
-                  // Ordenar por mayor deuda
                   withDeuda.sort(
                     (a, b) => (b.deudaAcumulada ?? 0).compareTo(
                       a.deudaAcumulada ?? 0,
                     ),
                   );
 
-                  if (withDeuda.isEmpty) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.check_circle_outline_rounded,
-                            size: 48,
-                            color: Colors.green,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            '¡No hay locales con deuda! Todo está al día.',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
                   final totalPages = (withDeuda.length / _kPageSize)
                       .ceil()
                       .clamp(1, 99999);
                   final page = _currentPage.clamp(0, totalPages - 1);
-                  final start = page * _kPageSize;
-                  final end = (start + _kPageSize).clamp(0, withDeuda.length);
-                  final paginated = withDeuda.sublist(start, end);
+                  final paginated = withDeuda.sublist(
+                    page * _kPageSize,
+                    (page * _kPageSize + _kPageSize).clamp(0, withDeuda.length),
+                  );
 
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: _DeudoresTable(locales: paginated)),
-                      const SizedBox(height: 8),
-                      _PaginationBar(
-                        currentPage: page,
-                        totalPages: totalPages,
-                        totalItems: withDeuda.length,
-                        pageSize: _kPageSize,
-                        onPrev: page > 0
-                            ? () => setState(() => _currentPage = page - 1)
-                            : null,
-                        onNext: page < totalPages - 1
-                            ? () => setState(() => _currentPage = page + 1)
-                            : null,
-                      ),
+                      // Header con botón exportar – tiene acceso a la lista completa
+                      _Header(todos: withDeuda),
+                      const SizedBox(height: 16),
+                      if (withDeuda.isEmpty)
+                        const Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_outline_rounded,
+                                  size: 48,
+                                  color: Colors.green,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  '¡No hay locales con deuda! Todo está al día.',
+                                  style: TextStyle(color: Colors.white54),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else ...[
+                        Expanded(child: _DeudoresTable(locales: paginated)),
+                        const SizedBox(height: 8),
+                        _PaginationBar(
+                          currentPage: page,
+                          totalPages: totalPages,
+                          totalItems: withDeuda.length,
+                          pageSize: _kPageSize,
+                          onPrev: page > 0
+                              ? () => setState(() => _currentPage = page - 1)
+                              : null,
+                          onNext: page < totalPages - 1
+                              ? () => setState(() => _currentPage = page + 1)
+                              : null,
+                        ),
+                      ],
                     ],
                   );
                 },
@@ -189,25 +195,60 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   }
 }
 
-// ── Header simple ─────────────────────────────────────────────────────────────
-class _Header extends StatelessWidget {
+// ── Header ────────────────────────────────────────────────────────────────────
+class _Header extends ConsumerWidget {
+  final List<Local> todos;
+  const _Header({required this.todos});
+
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mercados = ref.watch(mercadosProvider).value ?? [];
+    return Row(
       children: [
-        Text(
-          'Locales con Deuda',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Locales con Deuda',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Listado de locales con pagos pendientes acumulados',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Listado de locales con pagos pendientes acumulados',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+          label: const Text('Exportar PDF'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEE5A6F),
+            foregroundColor: Colors.white,
+          ),
+          onPressed: todos.isEmpty
+              ? null
+              : () async {
+                  final bytes =
+                      await ReportePdfGenerator.generarReporteDeudores(
+                        locales: todos,
+                        mercados: mercados,
+                      );
+                  if (kIsWeb) {
+                    await descargarPdfWeb(bytes, 'Reporte_Deudores.pdf');
+                  } else {
+                    await Printing.layoutPdf(
+                      onLayout: (_) async => bytes,
+                      name: 'Reporte_Deudores',
+                    );
+                  }
+                },
         ),
       ],
     );

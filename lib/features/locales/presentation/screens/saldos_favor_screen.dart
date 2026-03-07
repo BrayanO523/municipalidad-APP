@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../domain/entities/local.dart';
 
 const _kPageSize = 20;
@@ -43,10 +47,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header fijo
-            _Header(),
-            const SizedBox(height: 16),
-            // Barra de filtros
+            // Header y filtros
             Row(
               children: [
                 Container(
@@ -118,51 +119,61 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                         return true;
                     }
                   }).toList();
-
-                  if (withSaldo.isEmpty) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.query_stats_rounded,
-                            size: 48,
-                            color: Colors.white24,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No hay locales con saldo a favor actualmente',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
+                  withSaldo.sort(
+                    (a, b) =>
+                        (b.saldoAFavor ?? 0).compareTo(a.saldoAFavor ?? 0),
+                  );
 
                   final totalPages = (withSaldo.length / _kPageSize)
                       .ceil()
                       .clamp(1, 99999);
                   final page = _currentPage.clamp(0, totalPages - 1);
-                  final start = page * _kPageSize;
-                  final end = (start + _kPageSize).clamp(0, withSaldo.length);
-                  final paginated = withSaldo.sublist(start, end);
+                  final paginated = withSaldo.sublist(
+                    page * _kPageSize,
+                    (page * _kPageSize + _kPageSize).clamp(0, withSaldo.length),
+                  );
 
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: _SaldosTable(locales: paginated)),
-                      const SizedBox(height: 8),
-                      _PaginationBar(
-                        currentPage: page,
-                        totalPages: totalPages,
-                        totalItems: withSaldo.length,
-                        pageSize: _kPageSize,
-                        onPrev: page > 0
-                            ? () => setState(() => _currentPage = page - 1)
-                            : null,
-                        onNext: page < totalPages - 1
-                            ? () => setState(() => _currentPage = page + 1)
-                            : null,
-                      ),
+                      _Header(todos: withSaldo),
+                      const SizedBox(height: 16),
+                      if (withSaldo.isEmpty)
+                        const Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.query_stats_rounded,
+                                  size: 48,
+                                  color: Colors.white24,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No hay locales con saldo a favor actualmente',
+                                  style: TextStyle(color: Colors.white54),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else ...[
+                        Expanded(child: _SaldosTable(locales: paginated)),
+                        const SizedBox(height: 8),
+                        _PaginationBar(
+                          currentPage: page,
+                          totalPages: totalPages,
+                          totalItems: withSaldo.length,
+                          pageSize: _kPageSize,
+                          onPrev: page > 0
+                              ? () => setState(() => _currentPage = page - 1)
+                              : null,
+                          onNext: page < totalPages - 1
+                              ? () => setState(() => _currentPage = page + 1)
+                              : null,
+                        ),
+                      ],
                     ],
                   );
                 },
@@ -182,25 +193,60 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// ── Header simple ─────────────────────────────────────────────────────────────
-class _Header extends StatelessWidget {
+// ── Header con botón Exportar PDF ────────────────────────────────────────────────────────────
+class _Header extends ConsumerWidget {
+  final List<Local> todos;
+  const _Header({required this.todos});
+
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mercados = ref.watch(mercadosProvider).value ?? [];
+    return Row(
       children: [
-        Text(
-          'Saldos a Favor',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Saldos a Favor',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Listado de locales con crédito prepagado disponible',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Listado de locales con crédito prepagado disponible',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+          label: const Text('Exportar PDF'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF00D9A6),
+            foregroundColor: Colors.white,
+          ),
+          onPressed: todos.isEmpty
+              ? null
+              : () async {
+                  final bytes =
+                      await ReportePdfGenerator.generarReporteSaldosFavor(
+                        locales: todos,
+                        mercados: mercados,
+                      );
+                  if (kIsWeb) {
+                    await descargarPdfWeb(bytes, 'Reporte_SaldosAFavor.pdf');
+                  } else {
+                    await Printing.layoutPdf(
+                      onLayout: (_) async => bytes,
+                      name: 'Reporte_SaldosAFavor',
+                    );
+                  }
+                },
         ),
       ],
     );

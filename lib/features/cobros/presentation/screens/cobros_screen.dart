@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/platform/printer_provider.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../domain/entities/cobro.dart';
 
@@ -15,7 +19,7 @@ class CobrosScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cobrosRecientes = ref.watch(cobrosFiltradosProvider);
+    final cobrosAsync = ref.watch(cobrosFiltradosProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -24,15 +28,19 @@ class CobrosScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CobrosHeader(),
+            cobrosAsync.when(
+              data: (cobros) => _CobrosHeader(cobros: cobros),
+              loading: () => const _CobrosHeader(cobros: []),
+              error: (_, __) => const _CobrosHeader(cobros: []),
+            ),
             const SizedBox(height: 20),
             Expanded(
-              child: cobrosRecientes.when(
+              child: cobrosAsync.when(
                 data: (cobros) {
                   if (cobros.isEmpty) {
                     return const Center(
                       child: Text(
-                        'No hay cobros registrados aún',
+                        'No hay cobros registrados aun',
                         style: TextStyle(color: Colors.white54),
                       ),
                     );
@@ -59,6 +67,8 @@ class CobrosScreen extends ConsumerWidget {
 enum _CobrosPeriod { hoy, semana, mes, anio, personalizado }
 
 class _CobrosHeader extends ConsumerStatefulWidget {
+  final List<Cobro> cobros;
+  const _CobrosHeader({required this.cobros});
   @override
   ConsumerState<_CobrosHeader> createState() => _CobrosHeaderState();
 }
@@ -195,6 +205,35 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
               onSelected: () => _aplicar(_CobrosPeriod.personalizado),
             ),
           ],
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+          label: const Text('Exportar PDF'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4F46E5),
+            foregroundColor: Colors.white,
+          ),
+          onPressed: widget.cobros.isEmpty
+              ? null
+              : () async {
+                  final locales = ref.read(localesProvider).value ?? [];
+                  final mercados = ref.read(mercadosProvider).value ?? [];
+                  final bytes = await ReportePdfGenerator.generarReporteCobros(
+                    cobros: widget.cobros,
+                    locales: locales,
+                    mercados: mercados,
+                    periodoLabel: _descripcion,
+                  );
+                  if (kIsWeb) {
+                    await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
+                  } else {
+                    await Printing.layoutPdf(
+                      onLayout: (_) async => bytes,
+                      name: 'Reporte_Cobros',
+                    );
+                  }
+                },
         ),
       ],
     );
