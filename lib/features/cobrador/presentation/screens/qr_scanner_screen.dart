@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -75,10 +79,104 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     _controller.start();
   }
 
+  Future<double> _montoPagadoHoy(String localId) async {
+    try {
+      final now = DateTime.now();
+      final inicio = DateTime(now.year, now.month, now.day);
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('cobros_json')
+          .where('localId', isEqualTo: localId)
+          .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+          .get();
+      double total = 0;
+      for (var doc in querySnapshot.docs) {
+        final monto = (doc.data()['monto'] as num?)?.toDouble() ?? 0.0;
+        total += monto;
+      }
+      return total;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
   Future<void> _registrarCobro(Local local) async {
-    final montoCtrl = TextEditingController(
-      text: local.cuotaDiaria?.toString() ?? '',
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
+    final pagadoHoy = await _montoPagadoHoy(local.id ?? '');
+    if (mounted) Navigator.pop(context); // cerrar circular progress
+
+    final cuota = local.cuotaDiaria ?? 0;
+    final saldoActual = local.saldoAFavor ?? 0;
+    final cuotaCubierta = pagadoHoy >= cuota;
+
+    // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crédito
+    if (saldoActual >= cuota && cuota > 0 && !cuotaCubierta) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(
+                Icons.savings_rounded,
+                size: 22,
+                color: Color(0xFF00D9A6),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Usar Saldo a Favor',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${local.nombreSocial ?? ""} tiene un crédito de:'),
+              const SizedBox(height: 8),
+              Text(
+                DateFormatter.formatCurrency(saldoActual),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00D9A6),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Se descontará ${DateFormatter.formatCurrency(cuota)} de ese crédito para cubrir el día de hoy.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true || !mounted) return;
+      await _aplicarSaldoAFavor(local);
+      return;
+    }
+
+    // Calcular cuánto falta para la cuota hoy
+    final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
+    final montoSugerido = faltanteHoy > 0 ? faltanteHoy : cuota;
+
+    final montoCtrl = TextEditingController(text: montoSugerido.toString());
     final obsCtrl = TextEditingController();
     final usuario = ref.read(currentUsuarioProvider).value;
 
@@ -87,11 +185,19 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.receipt_long_rounded, size: 22),
+            Icon(
+              cuotaCubierta
+                  ? Icons.add_circle_outline_rounded
+                  : Icons.receipt_long_rounded,
+              size: 22,
+              color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Cobrar - ${local.nombreSocial ?? ""}',
+                cuotaCubierta
+                    ? 'Abono Extra - ${local.nombreSocial ?? ""}'
+                    : 'Cobrar - ${local.nombreSocial ?? ""}',
                 style: const TextStyle(fontSize: 16),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -103,14 +209,58 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!cuotaCubierta)
+                  _InfoRow(
+                    label: 'Cuota diaria',
+                    value: DateFormatter.formatCurrency(cuota),
+                  ),
+                if (pagadoHoy > 0)
+                  _InfoRow(
+                    label: 'Pagado hoy',
+                    value: DateFormatter.formatCurrency(pagadoHoy),
+                    color: Colors.green,
+                  ),
+                if (faltanteHoy > 0 && pagadoHoy > 0)
+                  _InfoRow(
+                    label: 'Faltante cuota',
+                    value: DateFormatter.formatCurrency(faltanteHoy),
+                    color: Colors.orange,
+                  ),
+                _InfoRow(
+                  label: 'Representante',
+                  value: local.representante ?? '-',
+                ),
+                if (saldoActual > 0)
+                  _InfoRow(
+                    label: 'Saldo a favor',
+                    value: DateFormatter.formatCurrency(saldoActual),
+                    color: const Color(0xFF00D9A6),
+                  ),
+                if ((local.deudaAcumulada ?? 0) > 0)
+                  _InfoRow(
+                    label: 'Deuda Acumulada',
+                    value: DateFormatter.formatCurrency(local.deudaAcumulada),
+                    color: const Color(0xFFEE5A6F),
+                  ),
+                _InfoRow(
+                  label: 'Balance Neto',
+                  value: DateFormatter.formatCurrency(local.balanceNeto),
+                  color: local.balanceNeto >= 0
+                      ? const Color(0xFF00D9A6)
+                      : const Color(0xFFEE5A6F),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: montoCtrl,
                   keyboardType: TextInputType.number,
-                  autofocus: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Monto a cobrar (L)',
-                    prefixIcon: Icon(Icons.payments_rounded, size: 20),
+                    prefixIcon: const Icon(Icons.payments_rounded, size: 20),
+                    helperText:
+                        'Si paga más de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
+                    helperMaxLines: 2,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -139,7 +289,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () => Navigator.pop(ctx, true),
                   icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Confirmar'),
+                  label: const Text('Registrar'),
                 ),
               ),
             ],
@@ -148,20 +298,132 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       ),
     );
 
-    if (result != true) return;
+    if (result != true || !mounted) return;
 
     final monto = num.tryParse(montoCtrl.text) ?? 0;
-    final cuota = local.cuotaDiaria ?? 0;
-    final observaciones = obsCtrl.text.trim();
+    await _guardarCobro(
+      local: local,
+      monto: monto,
+      observaciones: obsCtrl.text,
+      usuario: usuario,
+      pagadoHoy: pagadoHoy,
+    );
+  }
 
-    // Lógica unificada de CobradorHomeScreen
-    final saldoHoy = (cuota - monto).clamp(0, cuota);
-    final estado = monto >= cuota
+  /// Aplica el saldo a favor del local para cubrir la cuota del día.
+  Future<void> _aplicarSaldoAFavor(Local local) async {
+    final cuota = local.cuotaDiaria ?? 0;
+    final now = DateTime.now();
+    final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
+    final usuario = ref.read(currentUsuarioProvider).value;
+    try {
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final localDs = ref.read(localDatasourceProvider);
+
+      final int correlativo = await cobroDs.crearCobroConCorrelativo(
+        cobroId: docId,
+        mercadoId: local.mercadoId!,
+        cobroData: {
+          'cobradorId': usuario?.id ?? '',
+          'creadoEn': Timestamp.fromDate(now),
+          'creadoPor': usuario?.id ?? 'sistema',
+          'actualizadoEn': Timestamp.fromDate(now),
+          'actualizadoPor': usuario?.id ?? 'sistema',
+          'cuotaDiaria': cuota,
+          'estado': 'cobrado',
+          'fecha': Timestamp.fromDate(now),
+          'localId': local.id,
+          'mercadoId': local.mercadoId,
+          'municipalidadId': local.municipalidadId,
+          'monto': cuota,
+          'observaciones': 'Pagado con saldo a favor',
+          'saldoPendiente': 0,
+        },
+      );
+      // Descontar la cuota del saldo a favor
+      await localDs.actualizarSaldoAFavor(local.id!, -cuota);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '💰 Cobro aplicado con saldo a favor: ${local.nombreSocial}',
+            ),
+            backgroundColor: const Color(0xFF00D9A6),
+          ),
+        );
+      }
+
+      // Imprimir ticket
+      try {
+        final printer = ref.read(printerServiceProvider);
+
+        final double saldoResultante = (local.deudaAcumulada ?? 0).toDouble();
+        final double favorResultante =
+            (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
+
+        final impreso = await printer.printReceipt(
+          empresa: 'MUNICIPALIDAD',
+          local: local.nombreSocial ?? 'Sin Nombre',
+          monto: cuota.toDouble(),
+          fecha: now,
+          saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+          saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+          cobrador: usuario?.nombre,
+          correlativo: correlativo,
+          anioCorrelativo: now.year,
+        );
+        if (!impreso && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Comprobante no impreso.'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (_) {}
+
+      _resetScanner();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
+  Future<void> _guardarCobro({
+    required Local local,
+    required num monto,
+    required String observaciones,
+    required dynamic usuario,
+    required double pagadoHoy,
+  }) async {
+    final cuota = local.cuotaDiaria ?? 0;
+
+    // Cuánto falta para cubrir la cuota de hoy
+    final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
+
+    // De lo que paga el usuario, ¿cuánto va para la cuota de hoy?
+    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
+
+    // El saldo que queda específicamente de la cuota de HOY
+    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuota);
+
+    final cuotaTotalHoy = pagadoHoy + pagoACuota;
+    final estado = cuotaTotalHoy >= cuota
         ? 'cobrado'
-        : monto > 0
+        : cuotaTotalHoy > 0
         ? 'abono_parcial'
         : 'pendiente';
 
+    // Calculamos cuánto va para deuda y cuánto para saldo extra
     final deudaActual = local.deudaAcumulada ?? 0;
     final paraDeudaReal = monto > deudaActual ? deudaActual : monto;
     final paraSaldoFavorReal = monto > paraDeudaReal
@@ -198,7 +460,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           'mercadoId': local.mercadoId,
           'municipalidadId': local.municipalidadId,
           'monto': monto,
-          'pagoACuota': monto > cuota ? cuota : monto,
+          'pagoACuota': pagoACuota,
           'observaciones': monto > 0
               ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
                     'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
@@ -223,13 +485,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         final printer = ref.read(printerServiceProvider);
         final mercados = ref
             .read(mercadosProvider)
-            .maybeWhen(data: (list) => list, orElse: () => []);
+            .maybeWhen(data: (list) => list, orElse: () => <Mercado>[]);
         final mercadoNombre = mercados
             .where((m) => m.id == local.mercadoId)
             .firstOrNull
             ?.nombre;
 
-        await printer.printReceipt(
+        final impreso = await printer.printReceipt(
           empresa: 'MUNICIPALIDAD',
           mercado: mercadoNombre,
           local: local.nombreSocial ?? 'Sin Nombre',
@@ -243,17 +505,76 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           correlativo: correlativo,
           anioCorrelativo: now.year,
         );
+        if (!impreso && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Comprobante Bluetoooth no impreso.'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (_) {}
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Cobro registrado: ${local.nombreSocial}'),
-            backgroundColor: Colors.green.shade700,
-            duration: const Duration(seconds: 4),
+        String mensajeExtra = '';
+        if (paraDeudaReal > 0) {
+          mensajeExtra +=
+              '\n📉 Deuda -${DateFormatter.formatCurrency(paraDeudaReal)}';
+        }
+        if (paraSaldoFavorReal > 0) {
+          mensajeExtra +=
+              '\n💬 Saldo +${DateFormatter.formatCurrency(paraSaldoFavorReal)}';
+        }
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1B27),
+            title: const Text(
+              '✅ Cobro Registrado',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              '${local.nombreSocial}$mensajeExtra',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _resetScanner();
+                },
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _compartirPdfPostCobro(
+                    context: context,
+                    local: local,
+                    monto: monto.toDouble(),
+                    fecha: now,
+                    saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
+                    deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+                    montoAbonadoDeuda: paraDeudaReal.toDouble(),
+                    saldoAFavor: favorResultante > 0 ? favorResultante : 0,
+                    correlativo: correlativo,
+                    cobradorNombre: usuario?.nombre,
+                  );
+                  _resetScanner();
+                },
+                icon: const Icon(Icons.share_rounded, size: 18),
+                label: const Text('Compartir (PDF)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
         );
-        _resetScanner();
       }
     } catch (e) {
       if (mounted) {
@@ -263,6 +584,143 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             backgroundColor: Colors.red.shade700,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _compartirPdfPostCobro({
+    required BuildContext context,
+    required Local local,
+    required double monto,
+    required DateTime fecha,
+    required double saldoPendiente,
+    required double deudaAnterior,
+    required double montoAbonadoDeuda,
+    required double saldoAFavor,
+    required int correlativo,
+    required String? cobradorNombre,
+  }) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Generando ticket en formato PDF...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context ctx) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              pw.Text(
+                'MUNICIPALIDAD',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Comprobante de Cobro',
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.SizedBox(height: 12),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              if (local.nombreSocial != null) ...[
+                pw.Align(
+                  alignment: pw.Alignment.centerLeft,
+                  child: pw.Text('Local: ${local.nombreSocial}'),
+                ),
+              ],
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Fecha: ${DateFormatter.formatDateTime(fecha)}'),
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Cobrador: ${cobradorNombre ?? "Desconocido"}'),
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Ticket N°: $correlativo'),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Monto Pagado:'),
+                  pw.Text(
+                    DateFormatter.formatCurrency(monto),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (deudaAnterior > 0) ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Deuda Anterior:'),
+                    pw.Text(DateFormatter.formatCurrency(deudaAnterior)),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Abonado a Deuda:'),
+                    pw.Text(DateFormatter.formatCurrency(montoAbonadoDeuda)),
+                  ],
+                ),
+              ],
+              if (saldoPendiente > 0)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Deuda Actual:'),
+                    pw.Text(DateFormatter.formatCurrency(saldoPendiente)),
+                  ],
+                ),
+              if (saldoAFavor > 0)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Saldo a Favor:'),
+                    pw.Text(DateFormatter.formatCurrency(saldoAFavor)),
+                  ],
+                ),
+              pw.SizedBox(height: 8),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                '*** GRACIAS POR SU PAGO ***',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    try {
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'Comprobante_Municipalidad_$correlativo.pdf',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al compartir PDF: $e')));
       }
     }
   }
@@ -565,6 +1023,37 @@ class _DetailRow extends StatelessWidget {
             style:
                 valueStyle ??
                 const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _InfoRow({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: color,
+            ),
           ),
         ],
       ),
