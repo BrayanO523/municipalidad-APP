@@ -13,6 +13,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../../../core/utils/qr_pdf_generator.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../data/models/local_model.dart';
 import '../../domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
@@ -542,9 +543,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 qrData: local.id ?? '',
               );
               if (kIsWeb) {
-                await Printing.sharePdf(
-                  bytes: bytes,
-                  filename: 'QR_${local.nombreSocial ?? 'Local'}.pdf',
+                await descargarPdfWeb(
+                  bytes,
+                  'QR_${local.nombreSocial ?? 'Local'}.pdf',
                 );
               } else {
                 await Printing.layoutPdf(

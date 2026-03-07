@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
 import 'printer_service.dart';
+import 'web_downloader/web_downloader.dart';
 
 /// Implementación para plataformas Web y Desktop que genera un PDF.
 /// Permite "imprimir" comprobantes abriendo el diálogo del sistema.
@@ -138,9 +139,9 @@ class StubPrinterAdapter implements PrinterService {
 
     final bytes = await doc.save();
     if (kIsWeb) {
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: 'Ticket_${correlativo ?? 'reimpresion'}.pdf',
+      await descargarPdfWeb(
+        bytes,
+        'Ticket_${correlativo ?? 'reimpresion'}.pdf',
       );
     } else {
       await Printing.layoutPdf(
