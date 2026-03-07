@@ -76,7 +76,7 @@ class ReportePdfGenerator {
 
           // Secciones por mercado
           ...porMercado.entries.map((entry) {
-            final mercado = mercados.firstWhere(
+            final mercado = mercados.cast<Mercado>().firstWhere(
               (m) => m.id == entry.key,
               orElse: () => const Mercado(nombre: 'Sin Mercado'),
             );
@@ -154,7 +154,7 @@ class ReportePdfGenerator {
           pw.SizedBox(height: 16),
 
           ...porMercado.entries.map((entry) {
-            final mercado = mercados.firstWhere(
+            final mercado = mercados.cast<Mercado>().firstWhere(
               (m) => m.id == entry.key,
               orElse: () => const Mercado(nombre: 'Sin Mercado'),
             );
@@ -236,7 +236,7 @@ class ReportePdfGenerator {
           pw.SizedBox(height: 16),
 
           ...porMercado.entries.map((entry) {
-            final mercado = mercados.firstWhere(
+            final mercado = mercados.cast<Mercado>().firstWhere(
               (m) => m.id == entry.key,
               orElse: () => const Mercado(nombre: 'Sin Mercado'),
             );
