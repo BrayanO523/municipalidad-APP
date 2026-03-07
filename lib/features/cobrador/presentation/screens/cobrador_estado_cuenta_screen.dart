@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
@@ -7,9 +8,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/platform/printer_provider.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 
 /// Pantalla de Estado de Cuenta del locatario — vista del Cobrador.
 /// Muestra el balance financiero completo y el historial de cobros
@@ -55,6 +59,7 @@ class _CobradorEstadoCuentaScreenState
     final cobrosAsync = ref.watch(
       localCobrosStreamProvider(widget.local.id ?? ''),
     );
+    final mercados = ref.watch(mercadosProvider).value ?? [];
 
     return localAsync.when(
       data: (local) {
@@ -64,7 +69,8 @@ class _CobradorEstadoCuentaScreenState
           );
         }
         return cobrosAsync.when(
-          data: (cobrosList) => _buildContent(context, local, cobrosList),
+          data: (cobrosList) =>
+              _buildContent(context, local, cobrosList, mercados),
           loading: () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
@@ -80,6 +86,7 @@ class _CobradorEstadoCuentaScreenState
     BuildContext context,
     Local local,
     List<Cobro> cobrosList,
+    List<Mercado> mercados,
   ) {
     final cuota = (local.cuotaDiaria ?? 0);
     final saldo = (local.saldoAFavor ?? 0);
@@ -148,6 +155,39 @@ class _CobradorEstadoCuentaScreenState
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             actions: [
+              IconButton(
+                onPressed: () async {
+                  final mercadoName =
+                      mercados
+                          .cast<Mercado>()
+                          .firstWhere(
+                            (m) => m.id == local.mercadoId,
+                            orElse: () => const Mercado(nombre: '-'),
+                          )
+                          .nombre ??
+                      '-';
+
+                  final bytes =
+                      await ReportePdfGenerator.generarEstadoCuentaLocalPdf(
+                        local: local,
+                        cobros: combinedList,
+                        nombreMercado: mercadoName,
+                      );
+                  if (kIsWeb) {
+                    await descargarPdfWeb(
+                      bytes,
+                      'EstadoCuenta_${local.nombreSocial?.replaceAll(" ", "_") ?? "Local"}.pdf',
+                    );
+                  } else {
+                    await Printing.layoutPdf(
+                      onLayout: (_) async => bytes,
+                      name: 'EstadoCuenta_${local.nombreSocial}',
+                    );
+                  }
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                tooltip: 'Exportar estado de cuenta en PDF',
+              ),
               if (local.telefonoRepresentante != null &&
                   local.telefonoRepresentante!.isNotEmpty)
                 IconButton(
