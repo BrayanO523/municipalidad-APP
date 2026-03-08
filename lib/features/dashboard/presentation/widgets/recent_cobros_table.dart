@@ -26,12 +26,18 @@ class RecentCobrosTable extends ConsumerWidget {
       child: cobrosRecientes.when(
         data: (cobros) {
           if (cobros.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.all(32),
+            return Padding(
+              padding: const EdgeInsets.all(32),
               child: Center(
-                child: Text(
-                  'No hay cobros registrados aún',
-                  style: TextStyle(color: Colors.white54),
+                child: Builder(
+                  builder: (context) => Text(
+                    'No hay cobros registrados aún',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
+                  ),
                 ),
               ),
             );
@@ -156,9 +162,11 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
                     DataCell(
                       Text(
                         mercadoName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white70,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ),

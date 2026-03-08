@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/platform/web_downloader/web_downloader.dart';
+import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/recent_cobros_table.dart';
@@ -304,10 +308,12 @@ class _DashboardHeader extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.calendar_today,
                           size: 14,
-                          color: Colors.white54,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -316,7 +322,9 @@ class _DashboardHeader extends ConsumerWidget {
                               : DateFormatter.formatDate(filter.range.start),
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                                color: Colors.white54,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
                                 decoration: TextDecoration.underline,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -328,13 +336,54 @@ class _DashboardHeader extends ConsumerWidget {
                 Text(
                   filter.description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white38,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
             ),
             _PeriodSelector(),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final cobros = ref.read(cobrosHoyProvider).value ?? [];
+                final locales = ref.read(localesProvider).value ?? [];
+                final mercados = ref.read(mercadosProvider).value ?? [];
+                final filter = ref.read(dashboardFilterProvider);
+
+                final bytes = await ReportePdfGenerator.generarReporteDashboard(
+                  cobrosPeriodo: cobros,
+                  locales: locales,
+                  mercados: mercados,
+                  periodoLabel: filter.period == DashboardPeriod.hoy
+                      ? 'Hoy'
+                      : filter.label,
+                );
+
+                if (kIsWeb) {
+                  await descargarPdfWeb(
+                    bytes,
+                    'Dashboard_${filter.label.replaceAll(" ", "_")}.pdf',
+                  );
+                } else {
+                  await Printing.layoutPdf(
+                    onLayout: (_) async => bytes,
+                    name: 'Dashboard_${filter.label}',
+                  );
+                }
+              },
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: const Text('Exportar PDF'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
           ],
         ),
       ],
@@ -403,16 +452,20 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: selected ? Colors.white : Colors.white54,
+        color: selected
+            ? colorScheme.onSurface
+            : colorScheme.onSurface.withValues(alpha: 0.54),
         fontSize: 12,
       ),
       selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
-      backgroundColor: Colors.white.withValues(alpha: 0.05),
+      backgroundColor: colorScheme.onSurface.withValues(alpha: 0.05),
       showCheckmark: false,
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

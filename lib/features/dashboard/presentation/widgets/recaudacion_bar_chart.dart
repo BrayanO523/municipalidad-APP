@@ -17,7 +17,8 @@ class RecaudacionBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Agrupar cobros por mercadoId (solo cobrados/abono_parcial)
+    final colorScheme = Theme.of(context).colorScheme;
+
     final mapMonto = <String, double>{};
     for (final c in cobrosHoy) {
       if (c.mercadoId == null || c.estado == 'pendiente') continue;
@@ -54,7 +55,7 @@ class RecaudacionBarChart extends StatelessWidget {
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
                 toY: maxY == 0 ? 100 : maxY * 1.25,
-                color: Colors.white.withValues(alpha: 0.05),
+                color: colorScheme.onSurface.withValues(alpha: 0.05),
               ),
             ),
           ],
@@ -68,7 +69,6 @@ class RecaudacionBarChart extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: const Color(0xFF232537),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -83,7 +83,7 @@ class RecaudacionBarChart extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             if (mapMonto.isEmpty)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -91,12 +91,14 @@ class RecaudacionBarChart extends StatelessWidget {
                       Icon(
                         Icons.bar_chart_rounded,
                         size: 40,
-                        color: Colors.white24,
+                        color: colorScheme.onSurface.withValues(alpha: 0.24),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Sin recaudación hoy',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
                       ),
                     ],
                   ),
@@ -138,8 +140,10 @@ class RecaudacionBarChart extends StatelessWidget {
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
                                   xAxisTitles[idx],
-                                  style: const TextStyle(
-                                    color: Colors.white54,
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.54,
+                                    ),
                                     fontSize: 11,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -158,8 +162,10 @@ class RecaudacionBarChart extends StatelessWidget {
                               }
                               return Text(
                                 DateFormatter.formatCurrency(value),
-                                style: const TextStyle(
-                                  color: Colors.white38,
+                                style: TextStyle(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   fontSize: 9,
                                 ),
                               );
@@ -177,8 +183,8 @@ class RecaudacionBarChart extends StatelessWidget {
                         show: true,
                         drawVerticalLine: false,
                         horizontalInterval: maxY > 0 ? (maxY / 4) : 25,
-                        getDrawingHorizontalLine: (_) => const FlLine(
-                          color: Colors.white10,
+                        getDrawingHorizontalLine: (_) => FlLine(
+                          color: colorScheme.onSurface.withValues(alpha: 0.1),
                           strokeWidth: 1,
                           dashArray: [4, 4],
                         ),

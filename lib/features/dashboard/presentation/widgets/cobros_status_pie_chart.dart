@@ -16,6 +16,8 @@ class CobrosStatusPieChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     int totalLocales = locales.where((l) => l.activo == true).length;
     int cobrados = cobrosHoy
         .where((c) => c.estado == 'cobrado' || c.estado == 'abono_parcial')
@@ -26,7 +28,6 @@ class CobrosStatusPieChart extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: const Color(0xFF232537),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -41,11 +42,13 @@ class CobrosStatusPieChart extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             if (totalLocales == 0)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
                     'Sin locales activos',
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
                   ),
                 ),
               )
@@ -59,7 +62,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                       startDegreeOffset: -90,
                       sections: [
                         PieChartSectionData(
-                          color: const Color(0xFF00D9A6), // Verde
+                          color: const Color(0xFF00D9A6),
                           value: cobrados.toDouble(),
                           title: '$cobrados',
                           radius: 35,
@@ -70,7 +73,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                           ),
                         ),
                         PieChartSectionData(
-                          color: const Color(0xFFFF9F43), // Naranja
+                          color: const Color(0xFFFF9F43),
                           value: pendientes.toDouble(),
                           title: '$pendientes',
                           radius: 35,
@@ -116,6 +119,8 @@ class _Indicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -125,7 +130,13 @@ class _Indicator extends StatelessWidget {
           decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         ),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
       ],
     );
   }
