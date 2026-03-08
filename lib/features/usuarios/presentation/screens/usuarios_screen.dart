@@ -56,10 +56,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                   }).toList();
 
                   if (filtrados.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         'No se encontraron usuarios',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
                       ),
                     );
                   }
@@ -159,12 +163,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (selectedMercadoId != null) ...[
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Asignar Locales',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -217,11 +223,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                   .toList();
 
                               if (localesMercado.isEmpty) {
-                                return const Center(
+                                return Center(
                                   child: Text(
                                     'No hay locales en este mercado',
                                     style: TextStyle(
-                                      color: Colors.white54,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.54),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -279,23 +288,31 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           width: double.infinity,
                                           padding: const EdgeInsets.all(4),
                                           color: Colors.black12,
-                                          child: const Text(
+                                          child: Text(
                                             'Sin asignar',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.white54,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.54),
                                             ),
                                           ),
                                         ),
                                         Expanded(
                                           child: localesDisponibles.isEmpty
-                                              ? const Center(
+                                              ? Center(
                                                   child: Text(
                                                     'Nada aquí',
                                                     style: TextStyle(
-                                                      color: Colors.white24,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withValues(
+                                                            alpha: 0.24,
+                                                          ),
                                                       fontSize: 11,
                                                     ),
                                                   ),
@@ -323,9 +340,12 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                       ],
                                     ),
                                   ),
-                                  const VerticalDivider(
+                                  VerticalDivider(
                                     width: 1,
-                                    color: Colors.white10,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.1),
                                   ),
                                   // Columna Derecha: Asignados
                                   Expanded(
@@ -335,23 +355,30 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           width: double.infinity,
                                           padding: const EdgeInsets.all(4),
                                           color: Colors.black12,
-                                          child: const Text(
+                                          child: Text(
                                             'Asignado a este usuario',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.blueAccent,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
                                             ),
                                           ),
                                         ),
                                         Expanded(
                                           child: localesAsignados.isEmpty
-                                              ? const Center(
+                                              ? Center(
                                                   child: Text(
                                                     'Ninguno',
                                                     style: TextStyle(
-                                                      color: Colors.white24,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withValues(
+                                                            alpha: 0.24,
+                                                          ),
                                                       fontSize: 11,
                                                     ),
                                                   ),
@@ -465,12 +492,16 @@ class _UsuariosHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.people_alt_rounded, color: Colors.white, size: 28),
+        Icon(
+          Icons.people_alt_rounded,
+          color: Theme.of(context).colorScheme.onSurface,
+          size: 28,
+        ),
         const SizedBox(width: 12),
-        const Text(
+        Text(
           'Gestión de Cobradores',
           style: TextStyle(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -480,16 +511,24 @@ class _UsuariosHeader extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: Theme.of(context).cardTheme.color,
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedColumn,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
+              ),
               isDense: true,
-              dropdownColor: const Color(0xFF1E2235),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+              ),
               items: ['Nombre', 'Correo Electrónico'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -505,17 +544,26 @@ class _UsuariosHeader extends StatelessWidget {
           width: 250,
           child: TextField(
             onChanged: onSearch,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'Buscar cobrador...',
-              hintStyle: const TextStyle(color: Colors.white54),
-              prefixIcon: const Icon(
+              hintStyle: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
+              ),
+              prefixIcon: Icon(
                 Icons.search,
-                color: Colors.white54,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
                 size: 18,
               ),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.05),
+              fillColor: Theme.of(context).cardTheme.color,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -528,7 +576,7 @@ class _UsuariosHeader extends StatelessWidget {
         ElevatedButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('Crear Cobrador'),
+          label: Text('Crear Cobrador'),
         ),
       ],
     );
@@ -539,7 +587,7 @@ class _UsuariosTable extends ConsumerWidget {
   final List<Usuario> usuarios;
   final ValueChanged<Usuario> onEdit;
 
-  const _UsuariosTable({required this.usuarios, required this.onEdit});
+  _UsuariosTable({required this.usuarios, required this.onEdit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -547,13 +595,15 @@ class _UsuariosTable extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2D),
+        color: Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
       ),
       child: ListView.separated(
         itemCount: usuarios.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: Colors.white10),
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
         itemBuilder: (context, index) {
           final u = usuarios[index];
           final strMercado =
@@ -577,17 +627,27 @@ class _UsuariosTable extends ConsumerWidget {
             ),
             title: Text(
               u.nombre ?? '',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
             ),
             subtitle: Text(
               '${u.email} • Mercado: $strMercado',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                fontSize: 12,
+              ),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.edit_rounded, color: Colors.white54),
+              icon: Icon(
+                Icons.edit_rounded,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
+              ),
               onPressed: () => onEdit(u),
             ),
           );
