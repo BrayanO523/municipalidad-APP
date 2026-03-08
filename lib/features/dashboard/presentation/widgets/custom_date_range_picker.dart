@@ -71,19 +71,20 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: Container(
         width: 350,
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E2D),
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: colorScheme.outline),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -95,9 +96,11 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
             // Header
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF252535),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +108,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                   Text(
                     'Seleccionar Rango',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.bold,
                     ),
@@ -122,10 +125,10 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: const Icon(
+                        child: Icon(
                           Icons.arrow_forward,
                           size: 16,
-                          color: Colors.white10,
+                          color: colorScheme.onSurface.withValues(alpha: 0.1),
                         ),
                       ),
                       Expanded(
@@ -175,7 +178,9 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.white54,
+                        foregroundColor: colorScheme.onSurface.withValues(
+                          alpha: 0.54,
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Text('Cancelar'),
@@ -192,9 +197,9 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                       },
                       style:
                           ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D9A6),
+                            backgroundColor: Color(0xFF00D9A6),
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -233,14 +238,16 @@ class _DateInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
-            color: Colors.white30,
+            color: colorScheme.onSurface.withValues(alpha: 0.3),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -264,7 +271,7 @@ class _DateInputField extends StatelessWidget {
             border: InputBorder.none,
             hintText: 'dd/mm/yyyy',
             hintStyle: TextStyle(
-              color: Colors.white.withOpacity(0.1),
+              color: colorScheme.onSurface.withValues(alpha: 0.1),
               fontSize: 13,
             ),
           ),
@@ -315,18 +322,23 @@ class _CalendarHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
           onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left, color: Colors.white54),
+          icon: Icon(
+            Icons.chevron_left,
+            color: colorScheme.onSurface.withValues(alpha: 0.54),
+          ),
           iconSize: 20,
         ),
         Text(
           '${DateFormatter.getMonthName(viewDate).toUpperCase()} ${viewDate.year}',
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
             fontSize: 13,
@@ -334,7 +346,10 @@ class _CalendarHeader extends StatelessWidget {
         ),
         IconButton(
           onPressed: onNext,
-          icon: const Icon(Icons.chevron_right, color: Colors.white54),
+          icon: Icon(
+            Icons.chevron_right,
+            color: colorScheme.onSurface.withValues(alpha: 0.54),
+          ),
           iconSize: 20,
         ),
       ],
@@ -357,6 +372,7 @@ class _CalendarGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final daysInMonth = DateTime(viewDate.year, viewDate.month + 1, 0).day;
     final firstDayOffset =
         DateTime(viewDate.year, viewDate.month, 1).weekday % 7;
@@ -371,8 +387,8 @@ class _CalendarGrid extends StatelessWidget {
               .map(
                 (l) => Text(
                   l,
-                  style: const TextStyle(
-                    color: Colors.white24,
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.24),
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -392,7 +408,7 @@ class _CalendarGrid extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             final day = index - firstDayOffset + 1;
-            if (day < 1 || day > daysInMonth) return const SizedBox.shrink();
+            if (day < 1 || day > daysInMonth) return SizedBox.shrink();
 
             final date = DateTime(viewDate.year, viewDate.month, day);
             final isSelected =
@@ -407,16 +423,18 @@ class _CalendarGrid extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF00D9A6)
+                      ? Color(0xFF00D9A6)
                       : isInRange
-                      ? const Color(0xFF00D9A6).withOpacity(0.1)
+                      ? Color(0xFF00D9A6).withOpacity(0.1)
                       : null,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   day.toString(),
                   style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.white70,
+                    color: isSelected
+                        ? Colors.black
+                        : colorScheme.onSurface.withValues(alpha: 0.7),
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,

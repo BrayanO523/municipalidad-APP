@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/theme_provider.dart';
 
 class ShellLoading extends Notifier<bool> {
   @override
@@ -73,7 +74,6 @@ class _SidebarNavigation extends ConsumerWidget {
     final usuario = ref.watch(currentUsuarioProvider).value;
     final municipalidades = ref.watch(municipalidadesProvider).value ?? [];
 
-    // Obtener el nombre real de la municipalidad
     String nombreMunicipalidad = 'QRecauda Admin';
     if (usuario?.municipalidadId != null) {
       final mun = municipalidades
@@ -127,7 +127,6 @@ class _SidebarNavigation extends ConsumerWidget {
                   currentPath: location,
                   isExpanded: isExpanded,
                 ),
-
                 _NavItem(
                   icon: Icons.store_rounded,
                   label: 'Mercados',
@@ -206,6 +205,7 @@ class _UserFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final isLoading = ref.watch(shellLoadingProvider);
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -229,7 +229,7 @@ class _UserFooter extends ConsumerWidget {
                       Text(
                         nombre,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white,
+                          color: colorScheme.onSurface,
                           fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -237,7 +237,7 @@ class _UserFooter extends ConsumerWidget {
                       Text(
                         rol.toUpperCase(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white38,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 10,
                           letterSpacing: 0.8,
                         ),
@@ -245,7 +245,9 @@ class _UserFooter extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
+                _ThemeToggleButton(isDark: isDark),
+                const SizedBox(width: 4),
                 IconButton(
                   onPressed: isLoading ? null : onLogout,
                   icon: Icon(
@@ -257,15 +259,48 @@ class _UserFooter extends ConsumerWidget {
                 ),
               ],
             )
-          : IconButton(
-              onPressed: isLoading ? null : onLogout,
-              icon: Icon(
-                Icons.logout_rounded,
-                size: 20,
-                color: colorScheme.error,
-              ),
-              tooltip: 'Cerrar Sesión',
+          : Column(
+              children: [
+                _ThemeToggleButton(isDark: isDark),
+                const SizedBox(height: 4),
+                IconButton(
+                  onPressed: isLoading ? null : onLogout,
+                  icon: Icon(
+                    Icons.logout_rounded,
+                    size: 20,
+                    color: colorScheme.error,
+                  ),
+                  tooltip: 'Cerrar Sesión',
+                ),
+              ],
             ),
+    );
+  }
+}
+
+class _ThemeToggleButton extends ConsumerWidget {
+  final bool isDark;
+
+  const _ThemeToggleButton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return IconButton(
+      onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (child, animation) =>
+            RotationTransition(turns: animation, child: child),
+        child: Icon(
+          isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          key: ValueKey(isDark),
+          size: 18,
+          color: colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+      tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
     );
   }
 }
@@ -320,7 +355,7 @@ class _SidebarHeader extends StatelessWidget {
                     municipalidad,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: colorScheme.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -328,7 +363,7 @@ class _SidebarHeader extends StatelessWidget {
                   Text(
                     nombreCompleto,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
                       fontSize: 11,
                     ),
                     maxLines: 1,
@@ -385,7 +420,9 @@ class _NavItem extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: colorScheme.primary.withValues(alpha: 0.2))
+                  ? Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    )
                   : null,
             ),
             child: Row(
@@ -398,14 +435,16 @@ class _NavItem extends StatelessWidget {
                   size: 22,
                   color: isSelected
                       ? colorScheme.primary
-                      : Colors.white.withValues(alpha: 0.5),
+                      : colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 if (isExpanded) ...[
                   const SizedBox(width: 12),
                   Text(
                     label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: isSelected ? Colors.white : Colors.white70,
+                      color: isSelected
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurface.withValues(alpha: 0.7),
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w400,

@@ -74,11 +74,11 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: Container(
         width: 350,
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E2D),
+          color: Color(0xFF1E1E2D),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white10),
           boxShadow: [
@@ -192,9 +192,9 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                       },
                       style:
                           ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D9A6),
+                            backgroundColor: Color(0xFF00D9A6),
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -253,14 +253,14 @@ class _DateInputField extends StatelessWidget {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
             _DateInputFormatter(),
           ],
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: Color(0xFF00D9A6),
           ),
           decoration: InputDecoration(
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
             border: InputBorder.none,
             hintText: 'dd/mm/yyyy',
             hintStyle: TextStyle(
@@ -392,7 +392,7 @@ class _CalendarGrid extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             final day = index - firstDayOffset + 1;
-            if (day < 1 || day > daysInMonth) return const SizedBox.shrink();
+            if (day < 1 || day > daysInMonth) return SizedBox.shrink();
 
             final date = DateTime(viewDate.year, viewDate.month, day);
             final isSelected =
@@ -407,9 +407,9 @@ class _CalendarGrid extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF00D9A6)
+                      ? Color(0xFF00D9A6)
                       : isInRange
-                      ? const Color(0xFF00D9A6).withOpacity(0.1)
+                      ? Color(0xFF00D9A6).withOpacity(0.1)
                       : null,
                   borderRadius: BorderRadius.circular(8),
                 ),
