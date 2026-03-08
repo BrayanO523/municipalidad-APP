@@ -131,9 +131,9 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                     if (local.mercadoId != null)
                       Text(
                         local.mercadoId!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white54,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                       ),
                   ],
@@ -259,7 +259,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               _KpiItem(
                                 label: 'Total Registros',
                                 value: '${combinedList.length}',
-                                color: Colors.white54,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                                 icon: Icons.receipt_long_rounded,
                               ),
                             ],
@@ -284,13 +284,13 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                   ),
                   // ── Lista de cobros ────────────────────────────────────────
                   if (filtered.isEmpty)
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(40),
                         child: Center(
                           child: Text(
                             'No hay registros',
-                            style: TextStyle(color: Colors.white38),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                           ),
                         ),
                       ),
@@ -332,9 +332,9 @@ class _LocalInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF232537),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +365,7 @@ class _InfoFila extends StatelessWidget {
         children: [
           Text(
             '$label: ',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
           ),
           Expanded(
             child: Text(
@@ -447,7 +447,7 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             item.label,
-            style: const TextStyle(fontSize: 10, color: Colors.white54),
+            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -471,7 +471,7 @@ class _FiltroBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final opciones = [
-      ('todos', 'Todos', cobros.length, Colors.white),
+      ('todos', 'Todos', cobros.length, Theme.of(context).colorScheme.onSurface),
       (
         'cobrado',
         'Cobrados',
@@ -515,7 +515,7 @@ class _FiltroBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected
                       ? color.withValues(alpha: 0.2)
-                      : Colors.white10,
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: selected ? color : Colors.transparent,
@@ -526,7 +526,7 @@ class _FiltroBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    color: selected ? color : Colors.white54,
+                    color: selected ? color : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                 ),
               ),
@@ -563,7 +563,7 @@ class _CobroRow extends StatelessWidget {
         estadoColor = const Color(0xFFFF9F43);
         estadoIcon = Icons.fast_forward_rounded;
       default:
-        estadoColor = Colors.white38;
+        estadoColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
         estadoIcon = Icons.help_outline_rounded;
     }
 
@@ -571,7 +571,7 @@ class _CobroRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF232537),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: estadoColor.withValues(alpha: 0.2)),
       ),
@@ -604,7 +604,7 @@ class _CobroRow extends StatelessWidget {
                     cobro.observaciones!.isNotEmpty)
                   Text(
                     cobro.observaciones!,
-                    style: const TextStyle(fontSize: 10, color: Colors.white38),
+                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -622,7 +622,7 @@ class _CobroRow extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: estado == 'pendiente' ? estadoColor : Colors.white,
+                  color: estado == 'pendiente' ? estadoColor : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),

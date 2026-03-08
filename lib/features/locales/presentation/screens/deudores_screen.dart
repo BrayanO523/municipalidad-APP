@@ -45,7 +45,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
     return Material(
       color: Colors.transparent,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,21 +54,21 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
               children: [
                 Container(
                   height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: _searchColumn,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_drop_down,
-                        color: Colors.white54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                       ),
                       isDense: true,
-                      dropdownColor: const Color(0xFF1E2235),
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      dropdownColor: Theme.of(context).colorScheme.surface,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
                       items: _columnas
                           .map(
                             (col) =>
@@ -154,7 +154,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                       _Header(todos: withDeuda),
                       const SizedBox(height: 16),
                       if (withDeuda.isEmpty)
-                        const Expanded(
+                        Expanded(
                           child: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +167,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                                 SizedBox(height: 16),
                                 Text(
                                   '¡No hay locales con deuda! Todo está al día.',
-                                  style: TextStyle(color: Colors.white54),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                                 ),
                               ],
                             ),
@@ -238,7 +238,7 @@ class _Header extends ConsumerWidget {
                 'Listado de locales con pagos pendientes acumulados',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               ),
             ],
           ),
@@ -248,7 +248,7 @@ class _Header extends ConsumerWidget {
           label: const Text('Exportar PDF'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFEE5A6F),
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           onPressed: todos.isEmpty
               ? null
@@ -278,7 +278,7 @@ class _DeudoresTable extends StatelessWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
 
-  const _DeudoresTable({required this.locales, required this.mercados});
+  _DeudoresTable({required this.locales, required this.mercados});
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +289,7 @@ class _DeudoresTable extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStateProperty.all(
-              Colors.white.withOpacity(0.05),
+              Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
             ),
             columns: const [
               DataColumn(label: Text('Local')),
@@ -315,9 +315,9 @@ class _DeudoresTable extends StatelessWidget {
                         ),
                         Text(
                           l.id ?? '-',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
-                            color: Colors.white38,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -333,9 +333,9 @@ class _DeudoresTable extends StatelessWidget {
                               )
                               .nombre ??
                           '-',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -343,9 +343,9 @@ class _DeudoresTable extends StatelessWidget {
                   DataCell(
                     Text(
                       l.telefonoRepresentante ?? '-',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -433,24 +433,24 @@ class _PaginationBar extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
           onPressed: onPrev,
-          color: onPrev != null ? Colors.white70 : Colors.white24,
+          color: onPrev != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
           '$start–$end de $totalItems',
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
         ),
         const SizedBox(width: 8),
         Text(
           '(Pág. ${currentPage + 1}/$totalPages)',
-          style: const TextStyle(color: Colors.white38, fontSize: 11),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11),
         ),
         const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded),
           onPressed: onNext,
-          color: onNext != null ? Colors.white70 : Colors.white24,
+          color: onNext != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página siguiente',
         ),
       ],
