@@ -49,21 +49,21 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
         : mercados.firstWhere((m) => m.id == _selectedMercadoId);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF151521),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Row(
         children: [
           // PANEL LATERAL (Filtros y Lista Ordenable)
           Container(
             width: 380,
-            color: const Color(0xFF1E1E2D),
+            color: Theme.of(context).colorScheme.surfaceVariant,
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Diseño de Rutas',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -71,16 +71,16 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 const SizedBox(height: 24),
 
                 // Select Mercado
-                const Text(
+                Text(
                   '1. Seleccionar Mercado',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedMercadoId,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.black26,
+                    fillColor: Theme.of(context).cardTheme.color,
                   ),
                   items: mercados
                       .map(
@@ -104,16 +104,16 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 const SizedBox(height: 16),
 
                 // Select Cobrador
-                const Text(
+                Text(
                   '2. Seleccionar Cobrador',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCobradorId,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.black26,
+                    fillColor: Theme.of(context).cardTheme.color,
                   ),
                   hint: const Text('Elija un cobrador'),
                   items: cobradores
@@ -136,30 +136,30 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                const Divider(color: Colors.white10),
+                Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
                 const SizedBox(height: 16),
 
                 // Reorderable list
-                const Text(
+                Text(
                   '3. Ordenar Ruta de Cobro',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Arrastre para ordenar',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
                 ),
                 const SizedBox(height: 16),
 
                 Expanded(
                   child: _rutaActual.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'Seleccione mercado y cobrador',
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                           ),
                         )
                       : ReorderableListView(
@@ -186,22 +186,22 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                                     backgroundColor: Colors.blueAccent,
                                     child: Text(
                                       '${index + 1}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white,
+                                        color: Theme.of(context).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
                                   title: Text(
                                     loc.nombreSocial ?? 'Local',
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       fontSize: 14,
                                     ),
                                   ),
-                                  trailing: const Icon(
+                                  trailing: Icon(
                                     Icons.drag_handle,
-                                    color: Colors.white54,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                                   ),
                                 ),
                               ),
@@ -305,8 +305,8 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                                 top: 5,
                                 child: Text(
                                   '${index + 1}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -321,11 +321,11 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 ),
                 if (_selectedMercadoId == null)
                   Container(
-                    color: Colors.black54,
-                    child: const Center(
+                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+                    child: Center(
                       child: Text(
                         'Seleccione un Mercado para ver los locales',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 20),
                       ),
                     ),
                   ),
@@ -370,10 +370,10 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Ruta guardada exitosamente',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
             backgroundColor: Colors.green,
           ),
@@ -385,7 +385,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           SnackBar(
             content: Text(
               'Error al guardar: $e',
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
             backgroundColor: Colors.red,
           ),

@@ -54,10 +54,10 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                     return false;
                   }).toList();
                   if (filtered.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         'No se encontraron tipos de negocio',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                       ),
                     );
                   }
@@ -181,30 +181,30 @@ class _TiposHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 'Categorías dinámicas de negocios para locales',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               ),
             ],
           ),
         ),
         Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedColumn,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               isDense: true,
-              dropdownColor: const Color(0xFF1E2235),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
               items: ['Nombre', 'Descripción'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,

@@ -109,7 +109,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     : 'Selecciona un mercado para ver sus locales',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               ),
             ],
           ),
@@ -141,7 +141,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Text(
                     'Filtrar por Mercado',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white54,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -230,17 +230,17 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                       menuProps: MenuProps(
                         backgroundColor:
                             Theme.of(context).cardTheme.color ??
-                            const Color(0xFF1E2235),
+                            Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(8),
                         elevation: 8,
                       ),
                       fit: FlexFit.loose,
                       constraints: const BoxConstraints(maxHeight: 300),
-                      emptyBuilder: (ctx, text) => const Padding(
+                      emptyBuilder: (ctx, text) => Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
                           'No se encontraron mercados',
-                          style: TextStyle(color: Colors.white54),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                         ),
                       ),
                     ),
@@ -272,7 +272,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Text(
                     'Buscar Local',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white54,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -319,7 +319,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         child: Material(
                           elevation: 8,
                           borderRadius: BorderRadius.circular(8),
-                          color: const Color(0xFF1E2235),
+                          color: Theme.of(context).colorScheme.surface,
                           child: SizedBox(
                             width: 350,
                             child: ListView.builder(
@@ -330,10 +330,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                 final local = options.elementAt(index);
                                 return ListTile(
                                   dense: true,
-                                  leading: const Icon(
+                                  leading: Icon(
                                     Icons.storefront_rounded,
                                     size: 16,
-                                    color: Colors.white54,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                                   ),
                                   title: Text(
                                     local.nombreSocial ?? '-',
@@ -343,9 +343,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                     local.representante ??
                                         local.mercadoId ??
                                         '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.white38,
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                     ),
                                   ),
                                   onTap: () => onSelected(local),
@@ -380,8 +380,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               icon: const Icon(Icons.filter_list_off_rounded),
               tooltip: 'Limpiar filtros',
               style: IconButton.styleFrom(
-                backgroundColor: Colors.white10,
-                foregroundColor: Colors.white60,
+                backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                foregroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -447,7 +447,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           ),
         ),
         if (state.cargando && state.locales.isNotEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Center(
               child: Row(
@@ -461,7 +461,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   SizedBox(width: 10),
                   Text(
                     'Cargando más...',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
                   ),
                 ],
               ),
@@ -472,7 +472,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
               '✓ ${state.locales.length} locales cargados',
-              style: const TextStyle(color: Colors.white30, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 12),
             ),
           ),
       ],
@@ -492,14 +492,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: QrImageView(
                   data: local.id ?? 'sin-id',
                   version: QrVersions.auto,
                   size: 220,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.onSurface,
                   errorCorrectionLevel: QrErrorCorrectLevel.Q,
                   eyeStyle: const QrEyeStyle(
                     eyeShape: QrEyeShape.square,
@@ -516,7 +516,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 'ID: ${local.id}',
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -628,7 +628,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: selectedMercadoId,
+                            initialValue: selectedMercadoId,
                             decoration: const InputDecoration(
                               labelText: 'Mercado',
                             ),
@@ -645,7 +645,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: selectedTipoNegocioId,
+                            initialValue: selectedTipoNegocioId,
                             decoration: const InputDecoration(
                               labelText: 'Tipo de Negocio',
                             ),
@@ -730,10 +730,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               Icons.location_on_rounded,
                               color: Colors.redAccent,
                             ),
-                            title: const Text(
+                            title: Text(
                               'Ubicar en Mapa / Perímetro',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontSize: 13,
                               ),
                             ),
@@ -742,14 +742,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                       temporalPerimetro!.isNotEmpty
                                   ? 'Vértices definidos: ${temporalPerimetro!.length}'
                                   : 'Sin área definida en el mapa',
-                              style: const TextStyle(
-                                color: Colors.white54,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                                 fontSize: 11,
                               ),
                             ),
-                            trailing: const Icon(
+                            trailing: Icon(
                               Icons.map_rounded,
-                              color: Colors.white24,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
                             ),
                             onTap: () async {
                               if (selectedMercadoId == null) {
@@ -957,7 +957,7 @@ class _LocalesListView extends ConsumerWidget {
             horizontalMargin: 16,
             columnSpacing: 16,
             headingRowColor: WidgetStateProperty.all(
-              Colors.white.withOpacity(0.05),
+              Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
             ),
             columns: const [
               DataColumn(label: Text('Local')),
@@ -1002,9 +1002,9 @@ class _LocalesListView extends ConsumerWidget {
                   DataCell(
                     Text(
                       l.telefonoRepresentante ?? '-',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -1082,11 +1082,11 @@ class _EmptyStateWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: Colors.white12),
+          Icon(icon, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
           const SizedBox(height: 16),
           Text(
             mensaje,
-            style: const TextStyle(color: Colors.white38, fontSize: 15),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 15),
             textAlign: TextAlign.center,
           ),
         ],
