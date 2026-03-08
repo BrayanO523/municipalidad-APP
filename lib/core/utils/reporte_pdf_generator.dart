@@ -1056,26 +1056,54 @@ class ReportePdfGenerator {
     PdfColor color,
   ) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
         color: _colorFondoFila,
         borderRadius: pw.BorderRadius.circular(6),
-        border: pw.Border(left: pw.BorderSide(color: color, width: 3)),
       ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
+      child: pw.Row(
+        mainAxisSize: pw.MainAxisSize.min,
         children: [
-          pw.Text(
-            value,
-            style: pw.TextStyle(font: f['bold'], fontSize: 12, color: color),
+          // Barra de acento lateral
+          pw.Container(
+            width: 3,
+            height: 32,
+            decoration: pw.BoxDecoration(
+              color: color,
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(6),
+                bottomLeft: pw.Radius.circular(6),
+              ),
+            ),
           ),
-          pw.SizedBox(height: 2),
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              font: f['regular'],
-              fontSize: 8,
-              color: _colorGris,
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    value,
+                    style: pw.TextStyle(
+                      font: f['bold'],
+                      fontSize: 11,
+                      color: color,
+                    ),
+                  ),
+                  pw.SizedBox(height: 1),
+                  pw.Text(
+                    label,
+                    style: pw.TextStyle(
+                      font: f['regular'],
+                      fontSize: 7.5,
+                      color: _colorGris,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1103,8 +1131,9 @@ class ReportePdfGenerator {
           PdfColor estadoColor = _colorGris;
           if (c.estado == 'cobrado') estadoColor = _colorAcento;
           if (c.estado == 'pendiente') estadoColor = _colorRojo;
-          if (c.estado == 'adelantado')
+          if (c.estado == 'adelantado') {
             estadoColor = const PdfColor.fromInt(0xFFF59E0B);
+          }
 
           final String fechaObs = c.fecha != null
               ? _fFechaHora.format(c.fecha!)
@@ -1162,5 +1191,229 @@ class ReportePdfGenerator {
         }),
       ],
     );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // REPORTE DE DASHBOARD
+  // ══════════════════════════════════════════════════════════════════════════
+  static Future<Uint8List> generarReporteDashboard({
+    required List<Cobro> cobrosPeriodo,
+    required List<Local> locales,
+    required List<Mercado> mercados,
+    required String periodoLabel,
+  }) async {
+    final fonts = await _fonts();
+    final pdf = pw.Document();
+    final fechaGen = _fFechaHora.format(DateTime.now());
+
+    final recaudacion = cobrosPeriodo.fold<num>(
+      0,
+      (s, c) => s + (c.monto ?? 0),
+    );
+    final activos = locales.where((l) => l.activo == true).toList();
+    final deudaTotal = activos.fold<num>(
+      0,
+      (s, l) => s + (l.deudaAcumulada ?? 0),
+    );
+    final saldoTotal = activos.fold<num>(0, (s, l) => s + (l.saldoAFavor ?? 0));
+    final localesDeuda = activos
+        .where((l) => (l.deudaAcumulada ?? 0) > 0)
+        .length;
+    final localesCredito = activos
+        .where((l) => (l.saldoAFavor ?? 0) > 0)
+        .length;
+
+    // Agrupar cobros periodo por mercado para el detalle
+    final Map<String, List<Cobro>> porMercado = {};
+    for (final c in cobrosPeriodo) {
+      porMercado.putIfAbsent(c.mercadoId ?? '__sin_mercado__', () => []).add(c);
+    }
+    final mapLocales = {for (final l in locales) l.id: l};
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.letter,
+        margin: const pw.EdgeInsets.all(30),
+        header: (ctx) => _pdfHeader(
+          fonts,
+          titulo: 'REPORTE DE DASHBOARD',
+          subtitulo: 'Período: $periodoLabel',
+          fecha: fechaGen,
+        ),
+        footer: (ctx) => _pdfFooter(fonts, ctx),
+        build: (ctx) => [
+          // ── KPIs del Período
+          pw.Text(
+            'Métricas del Período',
+            style: pw.TextStyle(
+              font: fonts['bold'],
+              fontSize: 12,
+              color: _colorPrimario,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Recaudación',
+                  'L ${_fMoneda.format(recaudacion)}',
+                  _colorAcento,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Cobros',
+                  '${cobrosPeriodo.length}',
+                  _colorPrimario,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Mercados',
+                  '${mercados.where((m) => m.activo == true).length}',
+                  const PdfColor.fromInt(0xFFF59E0B),
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Locales',
+                  '${locales.length}',
+                  _colorRojo,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+
+          // ── KPIs Globales
+          pw.Text(
+            'Métricas Globales (Históricas)',
+            style: pw.TextStyle(
+              font: fonts['bold'],
+              fontSize: 12,
+              color: _colorPrimario,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Deuda Acumulada',
+                  'L ${_fMoneda.format(deudaTotal)}',
+                  _colorRojo,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: _kpiCard(
+                  fonts,
+                  'Saldo a Favor',
+                  'L ${_fMoneda.format(saldoTotal)}',
+                  _colorAcento,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(child: pw.SizedBox()),
+              pw.SizedBox(width: 8),
+              pw.Expanded(child: pw.SizedBox()),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Locales con Deuda: $localesDeuda  |  Locales con Saldo a Favor: $localesCredito',
+            style: pw.TextStyle(
+              font: fonts['regular'],
+              fontSize: 9,
+              color: _colorGris,
+            ),
+          ),
+          pw.SizedBox(height: 24),
+
+          // ── Detalle de cobros del período
+          pw.Text(
+            'Detalle de Recaudación del Período',
+            style: pw.TextStyle(
+              font: fonts['bold'],
+              fontSize: 12,
+              color: _colorPrimario,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+
+          if (cobrosPeriodo.isEmpty)
+            pw.Text(
+              'No hay cobros registrados en este período.',
+              style: pw.TextStyle(
+                font: fonts['regular'],
+                fontSize: 10,
+                color: _colorGris,
+              ),
+            )
+          else
+            ...porMercado.entries.map((entry) {
+              final mercado = mercados.cast<Mercado>().firstWhere(
+                (m) => m.id == entry.key,
+                orElse: () => const Mercado(nombre: 'Sin Mercado'),
+              );
+              final montoM = entry.value.fold<num>(
+                0,
+                (s, c) => s + (c.monto ?? 0),
+              );
+
+              final Map<String?, List<Cobro>> porLocal = {};
+              for (final c in entry.value) {
+                porLocal.putIfAbsent(c.localId, () => []).add(c);
+              }
+
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _seccionMercado(
+                    fonts,
+                    mercado.nombre ?? '—',
+                    entry.value.length,
+                    montoM,
+                  ),
+                  pw.SizedBox(height: 6),
+                  ...porLocal.entries.map((loc) {
+                    final local = mapLocales[loc.key];
+                    final montoLocal = loc.value.fold<num>(
+                      0,
+                      (s, c) => s + (c.monto ?? 0),
+                    );
+                    return pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _seccionLocal(
+                          fonts,
+                          local?.nombreSocial ?? loc.key ?? '—',
+                          loc.value.length,
+                          montoLocal,
+                        ),
+                        _tablaCobros(fonts, loc.value),
+                        pw.SizedBox(height: 10),
+                      ],
+                    );
+                  }),
+                  pw.SizedBox(height: 16),
+                ],
+              );
+            }),
+        ],
+      ),
+    );
+    return pdf.save();
   }
 }
