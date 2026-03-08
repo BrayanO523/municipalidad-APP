@@ -104,7 +104,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => Center(child: CircularProgressIndicator()),
     );
     final pagadoHoy = await _montoPagadoHoy(local.id ?? '');
     if (mounted) Navigator.pop(context); // cerrar circular progress
@@ -162,7 +162,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Confirmar'),
+              label: Text('Confirmar'),
             ),
           ],
         ),

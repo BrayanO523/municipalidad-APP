@@ -54,10 +54,10 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                     return false;
                   }).toList();
                   if (filtered.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         'No se encontraron mercados',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                       ),
                     );
                   }
@@ -121,20 +121,20 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                     Icons.map_rounded,
                     color: Colors.blueAccent,
                   ),
-                  title: const Text(
+                  title: Text(
                     'Perímetro del Mercado',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
                   ),
                   subtitle: Text(
                     mercado?.perimetro != null ||
                             (mercado?.perimetro?.isNotEmpty ?? false)
                         ? 'Área definida (${mercado!.perimetro!.length} puntos)'
                         : 'Sin definir en el mapa',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
                   ),
-                  trailing: const Icon(
+                  trailing: Icon(
                     Icons.chevron_right,
-                    color: Colors.white24,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
                   ),
                   onTap: () async {
                     final List<LatLng>? result = await showDialog<List<LatLng>>(
@@ -247,30 +247,30 @@ class _MercadosHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 'Gestión de mercados de QRecauda',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               ),
             ],
           ),
         ),
         Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedColumn,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+              icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
               isDense: true,
-              dropdownColor: const Color(0xFF1E2235),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
               items: ['Nombre', 'Ubicación'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,

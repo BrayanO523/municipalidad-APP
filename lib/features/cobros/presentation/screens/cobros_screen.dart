@@ -38,10 +38,10 @@ class CobrosScreen extends ConsumerWidget {
               child: cobrosAsync.when(
                 data: (cobros) {
                   if (cobros.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         'No hay cobros registrados aun',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                       ),
                     );
                   }
@@ -170,7 +170,7 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
             Text(
               _descripcion,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white54,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
               ),
             ),
           ],
@@ -212,7 +212,7 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
           label: const Text('Exportar PDF'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF4F46E5),
-            foregroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
           onPressed: widget.cobros.isEmpty
               ? null
@@ -259,11 +259,11 @@ class _PeriodChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: selected ? Colors.white : Colors.white54,
+        color: selected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
         fontSize: 12,
       ),
       selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
-      backgroundColor: Colors.white.withValues(alpha: 0.05),
+      backgroundColor: Theme.of(context).cardTheme.color,
       showCheckmark: false,
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
@@ -271,7 +271,7 @@ class _PeriodChip extends StatelessWidget {
         side: BorderSide(
           color: selected
               ? const Color(0xFF00D9A6).withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.1),
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
         ),
       ),
     );
@@ -392,21 +392,21 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             // Selector de columna
             Container(
               height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _searchColumn,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.arrow_drop_down,
-                    color: Colors.white54,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                   isDense: true,
-                  dropdownColor: const Color(0xFF1E2235),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
                   items: _columnas
                       .map(
                         (col) => DropdownMenuItem(value: col, child: Text(col)),
@@ -437,11 +437,11 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             // Contador de resultados
             Text(
               '${filtered.length} resultado${filtered.length == 1 ? '' : 's'}',
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 12),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
 
         // ── Tabla ─────────────────────────────────────────────────────────
         Expanded(
@@ -456,7 +456,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(
-                      Colors.white.withOpacity(0.05),
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
                     ),
                     columns: const [
                       DataColumn(label: Text('Fecha')),
@@ -485,18 +485,18 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                           DataCell(
                             Text(
                               nombreMercado(c.mercadoId),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                             ),
                           ),
                           DataCell(
                             Text(
                               c.telefonoRepresentante ?? '-',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                             ),
                           ),
@@ -522,9 +522,9 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                           DataCell(Text(c.observaciones ?? '-')),
                           DataCell(
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.print,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                               tooltip: 'Reimprimir boleta',
                               onPressed: () async {
@@ -567,10 +567,10 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
                                 if (!impreso && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
+                                    SnackBar(
                                       content: Text(
                                         'Comprobante no impreso. Revisa conexión de la impresora.',
-                                        style: TextStyle(color: Colors.white),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                                       ),
                                       backgroundColor: Colors.redAccent,
                                     ),
@@ -637,24 +637,24 @@ class _PaginationBar extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
           onPressed: onPrev,
-          color: onPrev != null ? Colors.white70 : Colors.white24,
+          color: onPrev != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
           '$start–$end de $totalItems',
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
         ),
         const SizedBox(width: 8),
         Text(
           '(Pág. ${currentPage + 1}/$totalPages)',
-          style: const TextStyle(color: Colors.white38, fontSize: 11),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11),
         ),
         const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded),
           onPressed: onNext,
-          color: onNext != null ? Colors.white70 : Colors.white24,
+          color: onNext != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página siguiente',
         ),
       ],

@@ -55,37 +55,37 @@ class _MapPickerModalState extends State<MapPickerModal> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: EdgeInsets.all(24),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              color: const Color(0xFF1E1E2D),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              color: Theme.of(context).colorScheme.surfaceVariant,
               child: Row(
                 children: [
                   Icon(
                     widget.mode == MapPickerMode.polygon
                         ? Icons.polyline_rounded
                         : Icons.location_on_rounded,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   const SizedBox(width: 12),
                   Text(
                     widget.mode == MapPickerMode.polygon
                         ? 'Definir Perímetro del Mercado'
                         : 'Ubicar Local en el Mapa',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
+                    icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -137,8 +137,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
                           polygons: widget.existingPolygons!.map((poly) {
                             return Polygon(
                               points: poly,
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderColor: Colors.white70,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                              borderColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               borderStrokeWidth: 1.5,
                             );
                           }).toList(),
@@ -152,7 +152,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
                               height: 12,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.black45,
@@ -212,8 +212,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
                         widget.mode == MapPickerMode.polygon
                             ? 'Toque el mapa para añadir vértices del perímetro'
                             : 'Toque el mapa para marcar la ubicación exacta',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 13,
                         ),
                       ),
@@ -225,8 +225,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
 
             // Footer
             Container(
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFF1E1E2D),
+              padding: EdgeInsets.all(16),
+              color: Theme.of(context).colorScheme.surfaceVariant,
               child: Row(
                 children: [
                   Text(
@@ -235,7 +235,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
                         : _points.isEmpty
                         ? 'Ningún punto seleccionado'
                         : 'Ubicación seleccionada',
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                   ),
                   const Spacer(),
                   TextButton(
