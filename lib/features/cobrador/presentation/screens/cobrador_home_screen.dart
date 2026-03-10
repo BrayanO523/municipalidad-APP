@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
@@ -80,23 +80,40 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
   /// Ejecuta la verificación de días sin cobro en background.
   /// Crea pendientes automáticos para los últimos 7 días.
+  /// OPTIMIZACIÓN: Solo se ejecuta una vez al día por usuario.
   Future<void> _verificarDeudaRetroactiva(List<Local> localesActivos) async {
     try {
+      final usuario = ref.read(currentUsuarioProvider).value;
+      if (usuario == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final hoyKey = 'last_debt_scan_${usuario.id}';
+      final hoyString = '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+      
+      final lastScan = prefs.getString(hoyKey);
+      if (lastScan == hoyString) {
+        debugPrint('DeudaService: Salto de revisión (ya escaneado hoy). Costo: 0 lecturas.');
+        return;
+      }
+
       final cobroDs = ref.read(cobroDatasourceProvider);
       final localDs = ref.read(localDatasourceProvider);
-      final usuario = ref.read(currentUsuarioProvider).value;
+      
       final service = DeudaService(
         cobroDs: cobroDs,
         localDs: localDs,
         firestore: FirebaseFirestore.instance,
       );
+
       await service.verificarYRegistrarPendientes(
         localesActivos: localesActivos,
         diasAtras: 7,
-        cobradorId: usuario?.id,
+        cobradorId: usuario.id,
       );
-      // Al ser reactivo (ref.watch), no necesitamos llamar a setState.
-      // Los nuevos cobros aparecerán automáticamente vía stream.
+
+      // Guardar que ya se revisó hoy
+      await prefs.setString(hoyKey, hoyString);
+      
     } catch (_) {
       // Silencioso: la verificación retroactiva no debe interrumpir la UI
     }
