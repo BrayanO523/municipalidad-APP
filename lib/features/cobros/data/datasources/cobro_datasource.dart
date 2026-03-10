@@ -4,12 +4,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
+import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
 
 class CobroDatasource {
   final FirebaseFirestore _firestore;
+  final StatsDatasource _statsDs;
 
-  CobroDatasource(this._firestore);
+  CobroDatasource(this._firestore, this._statsDs);
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(FirestoreCollections.cobros);
@@ -71,10 +73,25 @@ class CobroDatasource {
       _firestore.collection(FirestoreCollections.usuarios).doc(userId).update({
         'ultimoCorrelativo': nuevoCorrelativo,
         'anioCorrelativo': anioActual,
-        'actualizadoEn': FieldValue.serverTimestamp(),
       }).catchError((_) {
         // Silencioso: se sincronizará luego si falla
       });
+    }
+
+    // 7. Actualizar estadísticas globales (Suma atómica)
+    final municipalidadId = cobroData['municipalidadId'] as String?;
+    if (municipalidadId != null) {
+      final montoCobrado = (finalCobroData['monto'] as num?) ?? 0;
+      final abonoDeuda = (finalCobroData['abonoDeuda'] as num?) ?? 0;
+      final incrementoSaldo = (finalCobroData['incrementoSaldo'] as num?) ?? 0;
+
+      // Usamos el total cobrado (efectivo ingresado) y el movimiento de deuda/saldo
+      _statsDs.actualizarAlCobrar(
+        municipalidadId: municipalidadId,
+        montoCobrado: montoCobrado,
+        abonoDeuda: abonoDeuda,
+        incrementoSaldo: incrementoSaldo,
+      ).catchError((e) => print('Error actualizando stats: $e'));
     }
 
     return numeroBoleta;
@@ -296,10 +313,11 @@ class CobroDatasource {
     }
   }
 
-  Stream<List<CobroJson>> streamPorLocal(String localId) {
+  Stream<List<CobroJson>> streamPorLocal(String localId, {int limite = 20}) {
     return _collection
         .where('localId', isEqualTo: localId)
         .orderBy('fecha', descending: true)
+        .limit(limite)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
@@ -333,20 +351,16 @@ class CobroDatasource {
     );
   }
 
-  Stream<List<CobroJson>> streamPorRangoFechas(
+  /// Obtiene cobros en un rango de fechas de forma atómica (Sin stream) para ahorrar lecturas.
+  Future<List<CobroJson>> listarPorRangoFechas(
     DateTime inicio,
     DateTime fin, {
     String? municipalidadId,
     String? mercadoId,
-  }) {
-    // Normalizar inicio a 00:00:00
+    int? limite = 100, // Limitar a 100 por seguridad en dashboard
+  }) async {
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
-    // Normalizar fin a 23:59:59 del día de fin
-    final fechaFin = DateTime(
-      fin.year,
-      fin.month,
-      fin.day,
-    ).add(const Duration(days: 1));
+    final fechaFin = DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1));
 
     var query = _collection
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
@@ -359,6 +373,34 @@ class CobroDatasource {
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
+    if (limite != null) {
+      query = query.limit(limite);
+    }
+
+    final result = await query.get();
+    return result.docs
+        .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
+  }
+
+  @Deprecated('Usar listarPorRangoFechas para ahorrar costos en datos históricos')
+  Stream<List<CobroJson>> streamPorRangoFechas(
+    DateTime inicio,
+    DateTime fin, {
+    String? municipalidadId,
+    String? mercadoId,
+  }) {
+    // ... (Se mantiene por compatibilidad si es necesario, pero se marcará como depre)
+    final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
+    final fechaFin = DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1));
+
+    var query = _collection
+        .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
+        .where('fecha', isLessThan: Timestamp.fromDate(fechaFin))
+        .orderBy('fecha', descending: true);
+
+    if (municipalidadId != null) query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    if (mercadoId != null) query = query.where('mercadoId', isEqualTo: mercadoId);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -366,6 +408,7 @@ class CobroDatasource {
           .toList(),
     );
   }
+
 
   Stream<List<CobroJson>> streamRecientes({
     int limite = 20,
@@ -389,6 +432,42 @@ class CobroDatasource {
           .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
           .toList(),
     );
+  }
+
+  /// Obtiene cobros de múltiples locales en un rango de fechas.
+  /// Útil para optimizar lecturas masivas.
+  Future<List<CobroJson>> listarPorLocalesYRango({
+    required List<String> localIds,
+    required DateTime inicio,
+    required DateTime fin,
+  }) async {
+    if (localIds.isEmpty) return [];
+
+    final List<CobroJson> results = [];
+    final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
+    final fechaFin = DateTime(fin.year, fin.month, fin.day, 23, 59, 59);
+
+    // Lotes de 30 (límite de Firestore para whereIn)
+    for (var i = 0; i < localIds.length; i += 30) {
+      final batchIds = localIds.sublist(
+        i,
+        i + 30 > localIds.length ? localIds.length : i + 30,
+      );
+
+      final query = _collection
+          .where('localId', whereIn: batchIds)
+          .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
+          .where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(fechaFin));
+
+      final snapshot = await query.get();
+      results.addAll(
+        snapshot.docs.map(
+          (doc) => CobroJson.fromJson(doc.data(), docId: doc.id),
+        ),
+      );
+    }
+
+    return results;
   }
 
   /// Obtiene el monto total pagado por un local en una fecha específica.

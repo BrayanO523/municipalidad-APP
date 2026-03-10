@@ -27,8 +27,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
-    final locales = ref.watch(localesProvider);
-    final mercados = ref.watch(mercadosProvider);
+    final stats = ref.watch(statsProvider);
     final filter = ref.watch(dashboardFilterProvider);
 
     return Scaffold(
@@ -114,10 +113,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     SizedBox(
                       width: cardW,
-                      child: mercados.when(
-                        data: (m) => MetricCard(
+                      child: stats.when(
+                        data: (s) => MetricCard(
                           title: 'Mercados Activos',
-                          value: '${m.where((e) => e.activo == true).length}',
+                          value: '${s.cantidadMercados}',
                           icon: Icons.store_rounded,
                           color: const Color(0xFFFF9F43),
                         ),
@@ -137,10 +136,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     SizedBox(
                       width: cardW,
-                      child: locales.when(
-                        data: (l) => MetricCard(
+                      child: stats.when(
+                        data: (s) => MetricCard(
                           title: 'Locales Registrados',
-                          value: '${l.length}',
+                          value: '${s.cantidadLocales}',
                           icon: Icons.storefront_rounded,
                           color: const Color(0xFFEE5A6F),
                         ),
@@ -165,23 +164,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 16),
 
             // ── KPI cards — fila 2: deudas y saldo a favor ───────────────────
-            locales.when(
-              data: (ls) {
-                final activos = ls.where((l) => l.activo == true).toList();
-                final deudaTotal = activos.fold<num>(
-                  0,
-                  (sum, l) => sum + (l.deudaAcumulada ?? 0),
-                );
-                final saldoAFavorTotal = activos.fold<num>(
-                  0,
-                  (sum, l) => sum + (l.saldoAFavor ?? 0),
-                );
-                final localesConDeuda = activos
-                    .where((l) => (l.deudaAcumulada ?? 0) > 0)
-                    .length;
-                final localesConCredito = activos
-                    .where((l) => (l.saldoAFavor ?? 0) > 0)
-                    .length;
+            stats.when(
+              data: (s) {
+                final deudaTotal = s.totalDeuda;
+                final saldoAFavorTotal = s.totalSaldoAFavor;
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
@@ -198,8 +184,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             value: DateFormatter.formatCurrency(deudaTotal),
                             icon: Icons.warning_amber_rounded,
                             color: const Color(0xFFEE5A6F),
-                            subtitle:
-                                '$localesConDeuda local${localesConDeuda == 1 ? '' : 'es'} con deuda',
+                            subtitle: 'Total global de deudas',
                           ),
                         ),
                         SizedBox(
@@ -211,8 +196,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             icon: Icons.savings_rounded,
                             color: const Color(0xFF00D9A6),
-                            subtitle:
-                                '$localesConCredito local${localesConCredito == 1 ? '' : 'es'} con crédito',
+                            subtitle: 'Total global de créditos',
                           ),
                         ),
                       ],
@@ -228,8 +212,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // ── Gráficos ─────────────────────────────────────────────────────
             DashboardChartsWidget(
               cobrosHoy: cobrosHoy.value ?? [],
-              locales: locales.value ?? [],
-              mercados: mercados.value ?? [],
+              locales: const [], // DashboardChartsWidget debería ser agnóstico de la lista completa si solo muestra agregados
+              mercados: const [],
             ),
             const SizedBox(height: 24),
 
