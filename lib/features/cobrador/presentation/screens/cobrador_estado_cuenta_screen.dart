@@ -14,6 +14,7 @@ import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../../core/utils/visual_debt_utils.dart';
 
 /// Pantalla de Estado de Cuenta del locatario — vista del Cobrador.
 /// Muestra el balance financiero completo y el historial de cobros
@@ -88,48 +89,32 @@ class _CobradorEstadoCuentaScreenState
     List<Cobro> cobrosList,
     List<Mercado> mercados,
   ) {
-    final cuota = (local.cuotaDiaria ?? 0);
-    final saldo = (local.saldoAFavor ?? 0);
-    final deuda = (local.deudaAcumulada ?? 0);
-    final balance = local.balanceNeto;
-    final numAdelantados = cuota > 0 ? (saldo / cuota).floor() : 0;
-
-    // Generar días adelantados virtuales
-    final ahora = DateTime.now();
-    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
-    final hoyTieneRegistro = cobrosList.any(
-      (c) =>
-          c.fecha != null &&
-          c.fecha!.year == hoy.year &&
-          c.fecha!.month == hoy.month &&
-          c.fecha!.day == hoy.day,
+    // --- Lógica Visual Centralizada ---
+    final hoyVirtual = VisualDebtUtils.generarHoyPendienteVirtual(
+      local: local,
+      actualCobros: cobrosList,
     );
-    final fechaInicio = hoyTieneRegistro
-        ? hoy.add(const Duration(days: 1))
-        : hoy;
-    final adelantados = List.generate(
-      numAdelantados,
-      (i) => Cobro(
-        id: 'VIRTUAL-$i',
-        localId: local.id,
-        fecha: fechaInicio.add(Duration(days: i)),
-        monto: local.cuotaDiaria,
-        estado: 'adelantado',
-        cuotaDiaria: local.cuotaDiaria,
-        saldoPendiente: 0,
-        observaciones: 'Día cubierto por saldo a favor.',
-      ),
+    final adelantadosVirtuales = VisualDebtUtils.generarAdelantadosVirtuales(
+      local: local,
+      actualCobros: cobrosList,
     );
 
-    final List<Cobro> combinedList = [...cobrosList, ...adelantados];
+    final List<Cobro> combinedList = [
+      ...cobrosList,
+      ...adelantadosVirtuales,
+      if (hoyVirtual != null) hoyVirtual,
+    ];
+
     combinedList.sort(
       (a, b) => (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
     );
 
-    final cobrados = cobrosList.where((c) => c.estado == 'cobrado').toList();
-    final pendientes = cobrosList
-        .where((c) => c.estado == 'pendiente')
-        .toList();
+    final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
+    final balanceVisual = VisualDebtUtils.calcularBalanceNetoVisual(local, cobrosList);
+    final numAdelantados = adelantadosVirtuales.length;
+
+    final cobrados = combinedList.where((c) => c.estado == 'cobrado').toList();
+    final pendientes = combinedList.where((c) => c.estado == 'pendiente').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF12131A),
@@ -142,9 +127,9 @@ class _CobradorEstadoCuentaScreenState
             flexibleSpace: FlexibleSpaceBar(
               background: _Header(
                 local: local,
-                deuda: deuda,
-                saldo: saldo,
-                balance: balance,
+                deuda: deudaVisual,
+                saldo: local.saldoAFavor ?? 0,
+                balance: balanceVisual,
                 numAdelantados: numAdelantados,
                 onLlamar: () => _llamar(local.telefonoRepresentante),
               ),

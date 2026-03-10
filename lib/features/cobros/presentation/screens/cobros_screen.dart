@@ -516,7 +516,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         fecha: c.fecha ?? DateTime.now(),
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         anioCorrelativo: c.anioCorrelativo ?? DateTime.now().year,
-        cobrador: c.cobradorId, // O buscar el nombre si es necesario
+        cobrador: nombreCobrador(c.cobradorId),
         saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),

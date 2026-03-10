@@ -1058,6 +1058,7 @@ class _LocalesListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final pagadosHoy = ref.watch(localesPaginadosProvider).localesPagadosHoy;
     final usuarios = ref.watch(usuariosProvider).value ?? [];
     final tipos = ref.watch(tiposNegocioProvider).value ?? [];
 
@@ -1172,16 +1173,22 @@ class _LocalesListView extends ConsumerWidget {
                   DataCell(Text('${l.espacioM2 ?? 0}')),
                   DataCell(Text(DateFormatter.formatCurrency(l.cuotaDiaria))),
                   DataCell(
-                    Text(
-                      DateFormatter.formatCurrency(l.deudaAcumulada),
-                      style: TextStyle(
-                        color: (l.deudaAcumulada ?? 0) > 0
-                            ? Colors.redAccent
-                            : null,
-                        fontWeight: (l.deudaAcumulada ?? 0) > 0
-                            ? FontWeight.bold
-                            : null,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final pagadoHoy = pagadosHoy[l.id] ?? false;
+                        final tieneSaldo = (l.saldoAFavor ?? 0) >= (l.cuotaDiaria ?? 0);
+                        final num deudaVisual =
+                            (l.deudaAcumulada ?? 0) +
+                            (!pagadoHoy && !tieneSaldo ? (l.cuotaDiaria ?? 0) : 0);
+
+                        return Text(
+                          DateFormatter.formatCurrency(deudaVisual),
+                          style: TextStyle(
+                            color: deudaVisual > 0 ? Colors.redAccent : null,
+                            fontWeight: deudaVisual > 0 ? FontWeight.bold : null,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   DataCell(

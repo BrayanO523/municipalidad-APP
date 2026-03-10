@@ -10,6 +10,7 @@ import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../../core/utils/visual_debt_utils.dart';
 
 /// Pantalla de historial financiero completo de un local.
 /// Muestra KPIs (saldo a favor, deuda, días pagados, días pendientes)
@@ -47,69 +48,37 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
 
         return cobrosAsync.when(
           data: (cobrosList) {
-            // KPIs calculados desde cobros locales
-            final diasCobrados = cobrosList
-                .where((c) => c.estado == 'cobrado')
-                .length;
-            final diasPendientes = cobrosList
-                .where((c) => c.estado == 'pendiente')
-                .length;
-            final totalRecaudado = cobrosList.fold<num>(
-              0,
-              (sum, c) => sum + (c.monto ?? 0),
+            // --- Lógica Visual Centralizada ---
+            final hoyVirtual = VisualDebtUtils.generarHoyPendienteVirtual(
+              local: local,
+              actualCobros: cobrosList,
+            );
+            final adelantadosVirtuales = VisualDebtUtils.generarAdelantadosVirtuales(
+              local: local,
+              actualCobros: cobrosList,
             );
 
-            // ── Lógica de Días Adelantados Virtuales ───────────────────────
-            final numAdelantados =
-                (local.saldoAFavor ?? 0) ~/
-                ((local.cuotaDiaria ?? 0) > 0 ? local.cuotaDiaria! : 1);
-
-            final ahora = DateTime.now();
-            final hoy = DateTime(ahora.year, ahora.month, ahora.day);
-
-            // Determinar desde cuándo empezar a mostrar adelantos
-            // Si hoy ya tiene un registro (cobrado o pendiente), los adelantos empiezan mañana
-            final hoyTieneRegistro = cobrosList.any(
-              (c) =>
-                  c.fecha != null &&
-                  c.fecha!.year == hoy.year &&
-                  c.fecha!.month == hoy.month &&
-                  c.fecha!.day == hoy.day,
-            );
-
-            final fechaInicioAdelantos = hoyTieneRegistro
-                ? hoy.add(const Duration(days: 1))
-                : hoy;
-
-            final listAdelantados = List.generate(numAdelantados, (i) {
-              final baseDate = fechaInicioAdelantos.add(Duration(days: i));
-              // Usar la hora del último pago/actualización para que no salga 00:00
-              final timeBase = local.actualizadoEn ?? ahora;
-              final fechaVirtual = DateTime(
-                baseDate.year,
-                baseDate.month,
-                baseDate.day,
-                timeBase.hour,
-                timeBase.minute,
-              );
-
-              return Cobro(
-                id: 'VIRTUAL-$i',
-                localId: local.id,
-                fecha: fechaVirtual,
-                monto: local.cuotaDiaria,
-                estado: 'adelantado',
-                cuotaDiaria: local.cuotaDiaria,
-                saldoPendiente: 0,
-                observaciones: 'Día cubierto por saldo a favor.',
-              );
-            });
-
-            // Combinar y filtrar
             final List<Cobro> combinedList = [
               ...cobrosList,
-              ...listAdelantados,
+              ...adelantadosVirtuales,
+              if (hoyVirtual != null) hoyVirtual,
             ];
+
+            // --- KPIs calculados desde la lista COMBINADA (Consistencia Visual) ---
+            final diasCobrados = combinedList
+                .where((c) => c.estado == 'cobrado')
+                .length;
+            final diasPendientes = combinedList
+                .where((c) => c.estado == 'pendiente')
+                .length;
+            final totalRecaudado = combinedList.fold<num>(
+              0,
+              (sum, c) => sum + (c.estado == 'cobrado' ? (c.monto ?? 0) : 0),
+            );
+            
+            final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
+            final balanceNetoVisual = VisualDebtUtils.calcularBalanceNetoVisual(local, cobrosList);
+
             combinedList.sort(
               (a, b) =>
                   (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
@@ -217,7 +186,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               _KpiItem(
                                 label: 'Deuda Acum.',
                                 value: DateFormatter.formatCurrency(
-                                  local.deudaAcumulada ?? 0,
+                                  deudaVisual,
                                 ),
                                 color: const Color(0xFFEE5A6F),
                                 icon: Icons.warning_amber_rounded,
@@ -225,12 +194,12 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               _KpiItem(
                                 label: 'Balance Neto',
                                 value: DateFormatter.formatCurrency(
-                                  local.balanceNeto,
+                                  balanceNetoVisual,
                                 ),
-                                color: local.balanceNeto >= 0
+                                color: balanceNetoVisual >= 0
                                     ? const Color(0xFF00D9A6)
                                     : const Color(0xFFEE5A6F),
-                                icon: local.balanceNeto >= 0
+                                icon: balanceNetoVisual >= 0
                                     ? Icons.account_balance_wallet_rounded
                                     : Icons.account_balance_rounded,
                               ),

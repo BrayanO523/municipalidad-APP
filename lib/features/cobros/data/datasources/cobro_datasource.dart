@@ -152,6 +152,26 @@ class CobroDatasource {
     }
   }
 
+  Future<List<CobroJson>> listarPorIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    
+    final List<CobroJson> results = [];
+    // Firestore whereIn supports up to 30 elements.
+    for (var i = 0; i < ids.length; i += 30) {
+      final batchIds = ids.sublist(
+        i,
+        i + 30 > ids.length ? ids.length : i + 30,
+      );
+      final snapshot = await _collection
+          .where(FieldPath.documentId, whereIn: batchIds)
+          .get();
+      results.addAll(
+        snapshot.docs.map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id)),
+      );
+    }
+    return results;
+  }
+
   // READ
   Future<List<CobroJson>> listarPorLocal(String localId) async {
     final snapshot = await _collection

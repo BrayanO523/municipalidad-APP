@@ -5,15 +5,12 @@ import '../../../locales/data/models/hive/local_hive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../../app/di/providers.dart';
-import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
@@ -27,6 +24,9 @@ class CobradorHomeScreen extends ConsumerStatefulWidget {
 
 class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   String _filtroActivo = 'todos'; // 'todos', 'pendientes', 'cobrados'
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  int _limiteLocales = 20;
 
   @override
   void initState() {
@@ -35,6 +35,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _dispararSyncYVerificacion();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _dispararSyncYVerificacion() async {
@@ -514,40 +520,24 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final mercadoNombre = merc?.nombre;
       // ------------------------------------------------------------------
 
-      // Imprimir boleta sin await para no bloquear el diálogo de éxito
-      try {
-        final printer = ref.read(printerServiceProvider);
-
-        final double saldoResultante = (local.deudaAcumulada ?? 0).toDouble();
-        final double favorResultante =
-            (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
-
-        printer
-            .printReceipt(
-              empresa: municipalidadNombre,
-              mercado: mercadoNombre,
-              local: local.nombreSocial ?? 'Sin Nombre',
-              monto: cuota.toDouble(),
-              fecha: now,
-              saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
-              saldoAFavor: favorResultante > 0 ? favorResultante : 0,
-              cobrador: usuario?.nombre,
-              numeroBoleta: correlativoStr,
-              anioCorrelativo: now.year,
-            )
-            .then((impreso) {
-              if (!impreso && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Comprobante no impreso.'),
-                    backgroundColor: Colors.orange.shade800,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-            })
-            .catchError((_) {});
-      } catch (_) {}
+      // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      if (mounted) {
+        await ReceiptDispatcher.presentReceiptOptions(
+          context: context,
+          ref: ref,
+          local: local,
+          monto: cuota.toDouble(),
+          fecha: now,
+          saldoPendiente: (local.deudaAcumulada ?? 0).toDouble(),
+          deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+          montoAbonadoDeuda: 0, // En este caso fue saldo a favor
+          saldoAFavor: (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble(),
+          numeroBoleta: correlativoStr,
+          municipalidadNombre: municipalidadNombre,
+          mercadoNombre: mercadoNombre,
+          cobradorNombre: usuario?.nombre,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -585,35 +575,44 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
 
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
-    final saldoFavorInicial = (local.saldoAFavor ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
 
-    // 1. Distribución lógica: El monto recibido paga primero la deuda acumulada
-    // (que incluye hoy si se disparó la verificación retroactiva).
-    final paraDeudaReal = monto > deudaTotalInicial ? deudaTotalInicial : monto;
-    num montoRestante = monto - paraDeudaReal;
+    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL (MVVM) ---
+    // 1. Pagar hoy (Prioridad 1)
+    final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
+    final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
+    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
+    final num montoRestanteTrasHoy = (monto - pagoACuota).clamp(
+      0,
+      double.infinity,
+    );
 
-    // 2. El excedente se va a saldo a favor
-    final paraSaldoFavorReal = montoRestante;
+    // 2. Pagar deuda acumulada de días anteriores (Prioridad 2)
+    final deudaPast = local.deudaAcumulada ?? 0;
+    final paraDeudaReal = montoRestanteTrasHoy > deudaPast
+        ? deudaPast
+        : montoRestanteTrasHoy;
+    final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
+        .clamp(0, double.infinity);
 
-    // 3. Determinar el estado de HOY para el registro meta-data
-    final double saldoResultante = (deudaTotalInicial - paraDeudaReal)
-        .clamp(0, double.infinity)
-        .toDouble();
-    final double favorResultante = (saldoFavorInicial + paraSaldoFavorReal)
-        .toDouble();
+    // 3. Excedente a Saldo a Favor (Prioridad 3)
+    final paraSaldoFavorReal = montoRestanteTrasDeuda;
 
-    // El estado del registro de hoy se determina por el saldo pendiente resultante para hoy
-    final estado = saldoResultante == 0
+    // Totales calculados para el registro y balances
+    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuotaHoy);
+    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota;
+    final estado = cuotaTotalHoy >= cuotaHoy
         ? 'cobrado'
-        : (saldoResultante < cuotaHoy)
+        : cuotaTotalHoy > 0
         ? 'abono_parcial'
         : 'pendiente';
 
-    // Para el registro individual, queremos saber cuánto de este pago específico fue a la cuota de hoy.
-    final deudaVieja = (deudaTotalInicial - cuotaHoy).clamp(0, double.infinity);
-    final pagoACuota = (paraDeudaReal - deudaVieja).clamp(0, cuotaHoy);
-    final saldoPendienteHoy = (cuotaHoy - pagoACuota).clamp(0, cuotaHoy);
+    final double saldoResultante =
+        (local.deudaAcumulada ?? 0).toDouble() -
+        paraDeudaReal.toDouble() +
+        saldoHoy.toDouble();
+    final double favorResultante =
+        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
 
     try {
       // ====== MVVM REFACTOR: Utilizar CobroViewModel y Repositorios ======
@@ -635,12 +634,23 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         monto: monto,
         pagoACuota: pagoACuota,
         observaciones: monto > 0
-            ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
-                  'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
-                  '${paraDeudaReal > 0 && paraSaldoFavorReal > 0 ? " y " : ""}'
-                  '${paraSaldoFavorReal > 0 ? "L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor" : ""}'
+            ? () {
+                final partes = <String>[];
+                if (paraDeudaReal > 0) {
+                  partes.add('L ${paraDeudaReal.toStringAsFixed(2)} a deuda anterior');
+                }
+                if (pagoACuota > 0) {
+                  final hoyStr = '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
+                  partes.add('L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr');
+                }
+                if (paraSaldoFavorReal > 0) {
+                  partes.add('L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor');
+                }
+                final prefijo = observaciones.isNotEmpty ? '$observaciones | ' : '';
+                return '${prefijo}Distribuido: ${partes.join(", ")}';
+              }()
             : observaciones,
-        saldoPendiente: saldoPendienteHoy,
+        saldoPendiente: saldoHoy,
         deudaAnterior: deudaTotalInicial,
         montoAbonadoDeuda: paraDeudaReal,
         nuevoSaldoFavor: favorResultante,
@@ -661,95 +671,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       ref.invalidate(localesCobradorProvider);
       ref.invalidate(cobrosHoyCobradorProvider);
 
-      // Imprimir boleta silenciosamente de fondo (Sin Await)
-      try {
-        final printer = ref.read(printerServiceProvider);
-        printer
-            .printReceipt(
-              empresa: municipalidadNombre,
-              mercado: mercadoNombre,
-              local: local.nombreSocial ?? 'Sin Nombre',
-              monto: monto.toDouble(), // Monto original entregado
-              fecha: now,
-              saldoPendiente: saldoResultante > 0 ? saldoResultante : 0.0,
-              saldoAFavor: favorResultante > 0 ? favorResultante : 0.0,
-              deudaAnterior: deudaTotalInicial.toDouble(),
-              montoAbonadoDeuda: paraDeudaReal.toDouble(),
-              cobrador: usuario?.nombre,
-              numeroBoleta: correlativoStr,
-              anioCorrelativo: now.year,
-            )
-            .then((impreso) {
-              if (!impreso && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Comprobante Bluetoooth no impreso.'),
-                    backgroundColor: Colors.orange.shade800,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            })
-            .catchError((_) {});
-      } catch (_) {}
-
-      // Mostrar diálogo exitoso con la opción de PDF
+      // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
       if (mounted) {
-        String mensajeExtra = '';
-        if (paraDeudaReal > 0) {
-          mensajeExtra +=
-              '\n📉 Deuda -${DateFormatter.formatCurrency(paraDeudaReal)}';
-        }
-        if (paraSaldoFavorReal > 0) {
-          mensajeExtra +=
-              '\n💬 Saldo +${DateFormatter.formatCurrency(paraSaldoFavorReal)}';
-        }
-
-        showDialog(
+        await ReceiptDispatcher.presentReceiptOptions(
           context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1B27),
-            title: const Text(
-              '✅ Cobro Registrado',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              '${local.nombreSocial}$mensajeExtra',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cerrar'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _compartirPdfPostCobro(
-                    context: context,
-                    local: local,
-                    monto: monto.toDouble(),
-                    fecha: now,
-                    saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
-                    deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
-                    montoAbonadoDeuda: paraDeudaReal.toDouble(),
-                    saldoAFavor: favorResultante > 0 ? favorResultante : 0,
-                    numeroBoleta: correlativoStr,
-                    municipalidadNombre: municipalidadNombre,
-                    mercadoNombre: mercadoNombre,
-                    cobradorNombre: usuario?.nombre,
-                  );
-                },
-                icon: const Icon(Icons.share_rounded, size: 18),
-                label: const Text('Compartir (PDF)'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
+          ref: ref,
+          local: local,
+          monto: monto.toDouble(),
+          fecha: now,
+          saldoPendiente: saldoResultante,
+          deudaAnterior: deudaTotalInicial.toDouble(),
+          montoAbonadoDeuda: paraDeudaReal.toDouble(),
+          saldoAFavor: favorResultante,
+          numeroBoleta: correlativoStr,
+          municipalidadNombre: municipalidadNombre,
+          mercadoNombre: mercadoNombre,
+          cobradorNombre: usuario?.nombre,
         );
       }
     } catch (e) {
@@ -762,152 +699,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         );
       }
     }
-  }
-
-  Future<void> _compartirPdfPostCobro({
-    required BuildContext context,
-    required Local local,
-    required double monto,
-    required DateTime fecha,
-    required double saldoPendiente,
-    required double deudaAnterior,
-    required double montoAbonadoDeuda,
-    required double saldoAFavor,
-    required String numeroBoleta,
-    required String? municipalidadNombre,
-    required String? mercadoNombre,
-    required String? cobradorNombre,
-  }) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Generando boleta en formato PDF...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-
-    final doc = pw.Document();
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80,
-        build: (pw.Context ctx) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            mainAxisSize: pw.MainAxisSize.min,
-            children: [
-              pw.Text(
-                (municipalidadNombre ?? 'MUNICIPALIDAD').toUpperCase(),
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              if (mercadoNombre != null)
-                pw.Text(
-                  mercadoNombre.toUpperCase(),
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'Comprobante de Cobro',
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              if (local.nombreSocial != null) ...[
-                pw.Align(
-                  alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Local: ${local.nombreSocial}'),
-                ),
-              ],
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Fecha: ${DateFormatter.formatDateTime(fecha)}'),
-              ),
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Cobrador: ${cobradorNombre ?? "Desconocido"}'),
-              ),
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Boleta N°: $numeroBoleta'),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Monto Pagado:'),
-                  pw.Text(
-                    DateFormatter.formatCurrency(monto),
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              if (deudaAnterior > 0) ...[
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Deuda Anterior:'),
-                    pw.Text(DateFormatter.formatCurrency(deudaAnterior)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Abono a Deuda:'),
-                    pw.Text(DateFormatter.formatCurrency(montoAbonadoDeuda)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Deuda Actual:'),
-                    pw.Text(DateFormatter.formatCurrency(saldoPendiente)),
-                  ],
-                ),
-              ] else if (saldoPendiente > 0) ...[
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Deuda Actual:'),
-                    pw.Text(DateFormatter.formatCurrency(saldoPendiente)),
-                  ],
-                ),
-              ],
-              if (saldoAFavor > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Saldo A Favor:'),
-                    pw.Text(DateFormatter.formatCurrency(saldoAFavor)),
-                  ],
-                ),
-              pw.SizedBox(height: 8),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                '*** GRACIAS POR SU PAGO ***',
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'Comprobante_Municipalidad_$numeroBoleta.pdf',
-    );
   }
 
   @override
@@ -986,14 +777,28 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
         final localesFiltrados = locales.where((l) {
           final cuotaCubierta = idsCuotaCubiertaSet.contains(l.id ?? '');
-          if (_filtroActivo == 'pendientes') return !cuotaCubierta;
-          if (_filtroActivo == 'cobrados') return cuotaCubierta;
-          return true;
+          bool pasaFiltroEstado = true;
+          if (_filtroActivo == 'pendientes') pasaFiltroEstado = !cuotaCubierta;
+          if (_filtroActivo == 'cobrados') pasaFiltroEstado = cuotaCubierta;
+
+          bool pasaFiltroTexto = true;
+          if (_searchQuery.isNotEmpty) {
+            final q = _searchQuery.toLowerCase();
+            final nombre = (l.nombreSocial ?? '').toLowerCase();
+            final rep = (l.representante ?? '').toLowerCase();
+            final corr = (l.clave?.toString() ?? '');
+            pasaFiltroTexto = nombre.contains(q) || rep.contains(q) || corr.toLowerCase().contains(q);
+          }
+
+          return pasaFiltroEstado && pasaFiltroTexto;
         }).toList();
 
         final int totalTotal = locales.length;
         final int cobradosCount = idsCuotaCubiertaSet.length;
         final colorScheme = Theme.of(context).colorScheme;
+
+        final localesPaginados = localesFiltrados.take(_limiteLocales).toList();
+        final bool hasMore = localesFiltrados.length > _limiteLocales;
 
         // Disparar recarga de Hive en segundo plano si los datos cambiaron
         _recargarCacheManual(locales, cobrosHoy);
@@ -1118,6 +923,40 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: Colors.white54),
                         ),
+                        const SizedBox(height: 16),
+                        // Buscador
+                        TextField(
+                          controller: _searchController,
+                          onChanged: (v) => setState(() {
+                            _searchQuery = v;
+                            _limiteLocales = 20;
+                          }),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Buscar local, dueño o código...',
+                            hintStyle: const TextStyle(color: Colors.white54),
+                            prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, color: Colors.white54),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {
+                                        _searchQuery = '';
+                                        _limiteLocales = 20;
+                                      });
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
                         const SizedBox(height: 20),
                         // Filtros
                         Row(
@@ -1131,12 +970,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                       '$cobradosCount / $totalTotal\ncobrados',
                                   color: Colors.green,
                                   isSelected: _filtroActivo == 'cobrados',
-                                  onTap: () => setState(
-                                    () => _filtroActivo =
-                                        _filtroActivo == 'cobrados'
+                                  onTap: () => setState(() {
+                                    _filtroActivo = _filtroActivo == 'cobrados'
                                         ? 'todos'
-                                        : 'cobrados',
-                                  ),
+                                        : 'cobrados';
+                                    _limiteLocales = 20;
+                                  }),
                                 ),
                               ),
                             ),
@@ -1181,7 +1020,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        if (localesFiltrados.isEmpty) {
+                        if (localesPaginados.isEmpty) {
                           final sinAsignacion = locales.isEmpty;
                           return Padding(
                             padding: const EdgeInsets.only(top: 60),
@@ -1209,10 +1048,26 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             ),
                           );
                         }
-                        if (index >= localesFiltrados.length)
+                        if (index >= localesPaginados.length) {
+                          if (hasMore) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: TextButton.icon(
+                                  onPressed: () => setState(() => _limiteLocales += 20),
+                                  icon: const Icon(Icons.expand_more_rounded),
+                                  label: const Text('Cargar más locales'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
                           return const SizedBox.shrink();
+                        }
 
-                        final local = localesFiltrados[index];
+                        final local = localesPaginados[index];
                         final lid = local.id ?? '';
                         final cobradoHoy = idsCobradosHoySet.contains(lid);
                         final cuotaCubierta = idsCuotaCubiertaSet.contains(lid);
@@ -1240,9 +1095,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               : () => _eliminarCobro(ultimoCobro),
                         );
                       },
-                      childCount: localesFiltrados.isEmpty
+                      childCount: localesPaginados.isEmpty
                           ? 1
-                          : localesFiltrados.length,
+                          : localesPaginados.length + (hasMore ? 1 : 0),
                     ),
                   ),
                 ),
