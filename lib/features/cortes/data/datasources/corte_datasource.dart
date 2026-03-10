@@ -38,4 +38,40 @@ class CorteDatasource {
       throw ServerFailure('Error al crear corte: $e');
     }
   }
+
+  /// Lista una página de cortes para una municipalidad (Admin).
+  Future<QuerySnapshot<Map<String, dynamic>>> listarPaginaPorMunicipalidad({
+    required String municipalidadId,
+    int limite = 20,
+    DocumentSnapshot? startAfter,
+  }) {
+    var query = _firestore
+        .collection('cortes')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .orderBy('fechaCorte', descending: true)
+        .limit(limite);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    return query.get();
+  }
+
+  /// Lista una página de cortes para un cobrador específico.
+  Future<QuerySnapshot<Map<String, dynamic>>> listarPaginaPorCobrador({
+    required String cobradorId,
+    int limite = 20,
+    DocumentSnapshot? startAfter,
+  }) {
+    var query = _firestore
+        .collection('cortes')
+        .where('cobradorId', isEqualTo: cobradorId)
+        .orderBy('fechaCorte', descending: true)
+        .limit(limite);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    return query.get();
+  }
 }
