@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/scrollable_table.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
@@ -35,7 +36,7 @@ class RecentCobrosTable extends ConsumerWidget {
                     style: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                      ).colorScheme.onSurface.withOpacity(0.54),
                     ),
                   ),
                 ),
@@ -106,79 +107,86 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 850),
-            child: DataTable(
-              columnSpacing: 16,
-              horizontalMargin: 12,
-              dataRowMinHeight: 48,
-              dataRowMaxHeight: 64,
-              columns: [
-                DataColumn(label: _buildHeaderCell('Fecha')),
-                DataColumn(label: _buildHeaderCell('Local')),
-                DataColumn(label: _buildHeaderCell('Mercado')),
-                DataColumn(label: _buildHeaderCell('Representante')),
-                DataColumn(label: _buildHeaderCell('Teléfono')),
-                DataColumn(label: _buildHeaderCell('Cobrador')),
-                DataColumn(label: _buildHeaderCell('Monto'), numeric: true),
-                DataColumn(label: _buildHeaderCell('Estado')),
-              ],
-              rows: displayedCobros.map((cobro) {
-                final localMatches = widget.locales.where(
-                  (l) => l.id == cobro.localId,
-                );
-                final local = localMatches.isNotEmpty
-                    ? localMatches.first
-                    : null;
+        ScrollableTable(
+          child: DataTable(
+            columnSpacing: 16,
+            horizontalMargin: 12,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 64,
+            columns: [
+              DataColumn(label: _buildHeaderCell('Fecha')),
+              DataColumn(label: _buildHeaderCell('Local')),
+              DataColumn(label: _buildHeaderCell('Mercado')),
+              DataColumn(label: _buildHeaderCell('Representante')),
+              DataColumn(label: _buildHeaderCell('Teléfono')),
+              DataColumn(label: _buildHeaderCell('Cobrador')),
+              DataColumn(label: _buildHeaderCell('Monto'), numeric: true),
+              DataColumn(label: _buildHeaderCell('Estado')),
+            ],
+            rows: displayedCobros.map((cobro) {
+              final localMatches = widget.locales.where(
+                (l) => l.id == cobro.localId,
+              );
+              final local = localMatches.isNotEmpty ? localMatches.first : null;
 
-                final cobradorMatches = widget.usuarios.where(
-                  (u) => u.id == cobro.cobradorId,
-                );
-                final cobrador = cobradorMatches.isNotEmpty
-                    ? cobradorMatches.first
-                    : null;
+              final cobradorMatches = widget.usuarios.where(
+                (u) => u.id == cobro.cobradorId,
+              );
+              final cobrador = cobradorMatches.isNotEmpty
+                  ? cobradorMatches.first
+                  : null;
 
-                final mercadoName =
-                    widget.mercados
-                        .cast<Mercado>()
-                        .firstWhere(
-                          (m) => m.id == cobro.mercadoId,
-                          orElse: () => const Mercado(nombre: '-'),
-                        )
-                        .nombre ??
-                    '-';
+              final mercadoName =
+                  widget.mercados
+                      .cast<Mercado>()
+                      .firstWhere(
+                        (m) => m.id == cobro.mercadoId,
+                        orElse: () => const Mercado(nombre: '-'),
+                      )
+                      .nombre ??
+                  '-';
 
-                return DataRow(
-                  cells: [
-                    DataCell(Text(DateFormatter.formatDateTime(cobro.fecha))),
-                    DataCell(
-                      Text(
-                        local?.nombreSocial ?? cobro.localId ?? '-',
-                        style: const TextStyle(fontSize: 12),
+              return DataRow(
+                cells: [
+                  DataCell(Text(DateFormatter.formatDateTime(cobro.fecha))),
+                  DataCell(
+                    Text(
+                      local?.nombreSocial ?? cobro.localId ?? '-',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      mercadoName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withAlpha(178),
                       ),
                     ),
-                    DataCell(
-                      Text(
-                        mercadoName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
-                    DataCell(Text(local?.representante ?? '-')),
-                    DataCell(Text(local?.telefonoRepresentante ?? '-')),
-                    DataCell(Text(cobrador?.nombre ?? '-')),
-                    DataCell(Text(DateFormatter.formatCurrency(cobro.monto))),
-                    DataCell(_EstadoChip(estado: cobro.estado)),
-                  ],
-                );
-              }).toList(),
-            ),
+                  ),
+                  DataCell(Text(local?.representante ?? '-')),
+                  DataCell(Text(local?.telefonoRepresentante ?? '-')),
+                  DataCell(
+                    cobrador != null
+                        ? Text(cobrador.nombre ?? '-')
+                        : Text(
+                            'Sin asignar',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withAlpha(97),
+                              fontStyle: FontStyle.italic,
+                              fontSize: 12,
+                            ),
+                          ),
+                  ),
+                  DataCell(Text(DateFormatter.formatCurrency(cobro.monto))),
+                  DataCell(_EstadoChip(estado: cobro.estado)),
+                ],
+              );
+            }).toList(),
           ),
         ),
         if (totalPages > 1)
@@ -241,7 +249,7 @@ class _EstadoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.15),
+        color: chipColor.withAlpha(38),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

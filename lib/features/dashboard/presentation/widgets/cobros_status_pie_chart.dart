@@ -5,7 +5,8 @@ import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 
 class CobrosStatusPieChart extends StatelessWidget {
-  final List<Cobro> cobrosHoy;
+  final List<Cobro>
+  cobrosHoy; // Ya no se usa para el cálculo, pero se mantiene la firma
   final List<Local> locales;
 
   const CobrosStatusPieChart({
@@ -18,13 +19,25 @@ class CobrosStatusPieChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    int totalLocales = locales.where((l) => l.activo == true).length;
-    int cobrados = cobrosHoy
-        .where((c) => c.estado == 'cobrado' || c.estado == 'abono_parcial')
-        .length;
-    int pendientes = totalLocales - cobrados;
+    final activos = locales.where((l) => l.activo == true).toList();
+    final int totalLocales = activos.length;
 
-    if (pendientes < 0) pendientes = 0;
+    int localesConDeuda = 0;
+    int localesAdelantados = 0;
+    int localesAlDia = 0;
+
+    for (var l in activos) {
+      if ((l.deudaAcumulada ?? 0) > 0) {
+        localesConDeuda++;
+      } else if ((l.saldoAFavor ?? 0) > 0) {
+        localesAdelantados++;
+      } else {
+        localesAlDia++;
+      }
+    }
+
+    // Asegurar que haya algo que mostrar incluso si todos están en 0
+    final hasData = totalLocales > 0;
 
     return Card(
       elevation: 0,
@@ -35,19 +48,19 @@ class CobrosStatusPieChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Estado de Cobros',
+              'Estado de Locales',
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 24),
-            if (totalLocales == 0)
+            if (!hasData)
               Expanded(
                 child: Center(
                   child: Text(
                     'Sin locales activos',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: colorScheme.onSurface.withOpacity(0.54),
                     ),
                   ),
                 ),
@@ -61,28 +74,42 @@ class CobrosStatusPieChart extends StatelessWidget {
                       centerSpaceRadius: 40,
                       startDegreeOffset: -90,
                       sections: [
-                        PieChartSectionData(
-                          color: const Color(0xFF00D9A6),
-                          value: cobrados.toDouble(),
-                          title: '$cobrados',
-                          radius: 35,
-                          titleStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        if (localesAlDia > 0)
+                          PieChartSectionData(
+                            color: const Color(0xFF00D9A6), // Verde
+                            value: localesAlDia.toDouble(),
+                            title: '$localesAlDia',
+                            radius: 35,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        PieChartSectionData(
-                          color: const Color(0xFFFF9F43),
-                          value: pendientes.toDouble(),
-                          title: '$pendientes',
-                          radius: 35,
-                          titleStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        if (localesConDeuda > 0)
+                          PieChartSectionData(
+                            color: const Color(0xFFEE5A6F), // Rojo
+                            value: localesConDeuda.toDouble(),
+                            title: '$localesConDeuda',
+                            radius: 35,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
+                        if (localesAdelantados > 0)
+                          PieChartSectionData(
+                            color: const Color(0xFF3A86FF), // Azul
+                            value: localesAdelantados.toDouble(),
+                            title: '$localesAdelantados',
+                            radius: 35,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -96,11 +123,15 @@ class CobrosStatusPieChart extends StatelessWidget {
               children: [
                 _Indicator(
                   color: const Color(0xFF00D9A6),
-                  text: 'Cobrados ($cobrados)',
+                  text: 'Al Día ($localesAlDia)',
                 ),
                 _Indicator(
-                  color: const Color(0xFFFF9F43),
-                  text: 'Pendientes ($pendientes)',
+                  color: const Color(0xFFEE5A6F),
+                  text: 'Con Deuda ($localesConDeuda)',
+                ),
+                _Indicator(
+                  color: const Color(0xFF3A86FF),
+                  text: 'Adelantados ($localesAdelantados)',
                 ),
               ],
             ),
@@ -134,7 +165,7 @@ class _Indicator extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: 12,
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            color: colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
       ],
