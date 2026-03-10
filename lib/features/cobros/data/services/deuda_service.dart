@@ -48,41 +48,66 @@ class DeudaService {
     int diasAtras = 7,
     String? cobradorId,
   }) async {
+    if (localesActivos.isEmpty) return 0;
+
     int creados = 0;
     final hoy = DateTime.now();
     final now = Timestamp.now();
+    final fechaInicio = DateTime(hoy.year, hoy.month, hoy.day - diasAtras);
+    final fechaFin = DateTime(hoy.year, hoy.month, hoy.day - 1);
 
+    // 1. CARGA MASIVA: Traer todos los cobros de la semana para estos locales
+    final localIds = localesActivos
+        .where((l) => l.id != null)
+        .map((l) => l.id!)
+        .toList();
+    
+    final todosLosCobros = await cobroDs.listarPorLocalesYRango(
+      localIds: localIds,
+      inicio: fechaInicio,
+      fin: fechaFin,
+    );
+
+    // 2. Indexar cobros en memoria para búsqueda rápida: Map<localId, Map<fechaKey, totalPagado>>
+    final Map<String, Map<String, num>> mapaPagos = {};
+    for (final c in todosLosCobros) {
+      if (c.localId == null || c.fecha == null) continue;
+      final f = c.fecha!;
+      final fechaKey = "${f.year}${f.month}${f.day}";
+      
+      mapaPagos.putIfAbsent(c.localId!, () => {});
+      final pagosDia = mapaPagos[c.localId!]!;
+      pagosDia[fechaKey] = (pagosDia[fechaKey] ?? 0) + (c.monto ?? 0);
+    }
+
+    // 3. Procesar deudas en memoria
     for (int d = 1; d <= diasAtras; d++) {
       final fecha = DateTime(hoy.year, hoy.month, hoy.day - d);
+      final fechaKey = "${fecha.year}${fecha.month}${fecha.day}";
 
       for (final local in localesActivos) {
         if (local.id == null || local.cuotaDiaria == null) continue;
+        final lid = local.id!;
 
-        // Validar que no se cobre deuda de días anteriores a la creación del local
+        // Validar fecha de creación
         if (local.creadoEn != null) {
           final fechaCreacion = DateTime(
             local.creadoEn!.year,
             local.creadoEn!.month,
             local.creadoEn!.day,
           );
-          if (fecha.isBefore(fechaCreacion)) {
-            continue; // El local no existía en esta fecha, saltar
-          }
+          if (fecha.isBefore(fechaCreacion)) continue;
         }
 
-        // 1. ¿Cuánto pagó este local ese día?
-        final pagadoEseDia = await cobroDs.obtenerMontoPagadoEnFecha(
-          local.id!,
-          fecha,
-        );
+        // 4. Consultar pago desde el mapa en memoria (Costo 0 lecturas)
+        final pagadoEseDia = mapaPagos[lid]?[fechaKey] ?? 0;
         final cuota = local.cuotaDiaria!;
 
-        // 2. Si pagó menos de la cuota, hay un faltante
         if (pagadoEseDia < cuota) {
           num faltante = cuota - pagadoEseDia;
 
-          // 3. ¿Tiene saldo a favor para cubrir ese faltante?
-          final localData = await localDs.obtenerPorId(local.id!);
+          // 5. Saldo a favor (Sigue siendo 1 lectura por local con deuda detectada)
+          final localData = await localDs.obtenerPorId(lid);
           num saldoAFavorActual = localData?.saldoAFavor ?? 0;
 
           if (saldoAFavorActual > 0) {
@@ -90,11 +115,9 @@ class DeudaService {
                 ? faltante
                 : saldoAFavorActual;
 
-            // Creamos un registro de que se cobró del saldo
             final subDocId =
-                'COB-${local.id}-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}-S';
+                'COB-$lid-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}-S';
 
-            // Preservar la hora actual para que no sea 00:00
             final ahoraMatch = DateTime.now();
             final fechaConHora = DateTime(
               fecha.year,
@@ -113,7 +136,7 @@ class DeudaService {
               'cuotaDiaria': cuota,
               'estado': 'cobrado_saldo',
               'fecha': Timestamp.fromDate(fechaConHora),
-              'localId': local.id,
+              'localId': lid,
               'mercadoId': local.mercadoId,
               'municipalidadId': local.municipalidadId,
               'monto': aCoverirConSaldo,
@@ -125,11 +148,10 @@ class DeudaService {
               'anioCorrelativo': fecha.year,
             });
 
-            await localDs.actualizarSaldoAFavor(local.id!, -aCoverirConSaldo);
+            await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo);
             faltante -= aCoverirConSaldo;
           }
 
-          // 4. Si después de usar el saldo aún falta, crear el pendiente
           if (faltante > 0) {
             await _crearPendiente(
               local: local,

@@ -16,5 +16,6 @@ abstract class LocalRepository {
     required num montoARecomponerDeuda,
     required num montoARestarSaldo,
   });
+  Future<List<Local>> obtenerPorMercado(String mercadoId);
   Future<int> recalcularDeudasBasadoEnHistorial();
 }

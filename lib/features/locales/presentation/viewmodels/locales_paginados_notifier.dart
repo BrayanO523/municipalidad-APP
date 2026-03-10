@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../data/datasources/local_datasource.dart';
 import '../../data/models/local_model.dart';
-import '../../domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../domain/entities/local.dart';
+
+enum LocalFiltroDeuda { todos, soloDeudores, soloSaldosAFavor }
 
 /// Estado completo para la pantalla de locales paginada.
 class LocalesPaginadosState {
@@ -20,6 +22,7 @@ class LocalesPaginadosState {
   final List<QueryDocumentSnapshot?> snapshotsPaginas;
   final Map<String, bool> localesPagadosHoy;
   final QueryDocumentSnapshot? ultimoDoc;
+  final LocalFiltroDeuda filtroDeuda;
 
   const LocalesPaginadosState({
     this.locales = const [],
@@ -32,6 +35,7 @@ class LocalesPaginadosState {
     this.snapshotsPaginas = const [null],
     this.localesPagadosHoy = const {},
     this.ultimoDoc,
+    this.filtroDeuda = LocalFiltroDeuda.todos,
   });
 
   LocalesPaginadosState copyWith({
@@ -45,6 +49,7 @@ class LocalesPaginadosState {
     List<QueryDocumentSnapshot?>? snapshotsPaginas,
     Map<String, bool>? localesPagadosHoy,
     QueryDocumentSnapshot? ultimoDoc,
+    LocalFiltroDeuda? filtroDeuda,
     bool clearError = false,
     bool clearUltimoDoc = false,
     bool clearBusqueda = false,
@@ -61,6 +66,7 @@ class LocalesPaginadosState {
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
       localesPagadosHoy: localesPagadosHoy ?? this.localesPagadosHoy,
       ultimoDoc: clearUltimoDoc ? null : (ultimoDoc ?? this.ultimoDoc),
+      filtroDeuda: filtroDeuda ?? this.filtroDeuda,
     );
   }
 }
@@ -107,6 +113,22 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     await _fetchPagina(lastDoc: null);
   }
 
+  /// Cambia el filtro de deuda y recarga desde cero.
+  Future<void> cambiarFiltroDeuda(LocalFiltroDeuda filtro) async {
+    state = state.copyWith(
+      filtroDeuda: filtro,
+      locales: [],
+      hayMas: true,
+      cargando: true,
+      paginaActual: 1,
+      snapshotsPaginas: [null],
+      clearUltimoDoc: true,
+      clearError: true,
+      localesPagadosHoy: const {},
+    );
+    await _fetchPagina(lastDoc: null);
+  }
+
   /// Navega a la siguiente página.
   Future<void> irAPaginaSiguiente() async {
     if (state.cargando || !state.hayMas) return;
@@ -145,6 +167,12 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       final municipalidadId = _municipalidadId;
       final mercadoId = state.mercadoSeleccionadoId;
       final query = state.busqueda;
+      
+      // Mapear el nombre del enum al string esperado por el datasource
+      String filtroDs = 'todos';
+      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) filtroDs = 'deudores';
+      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) filtroDs = 'saldos';
+
       List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
 
       if (mercadoId != null) {
@@ -153,13 +181,16 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
           searchQuery: query,
           lastDoc: lastDoc,
           limit: _pageSize,
+          filtroDeuda: filtroDs,
         );
       } else if (municipalidadId != null) {
         docs = await _ds.listarPaginaPorMunicipalidad(
           municipalidadId: municipalidadId,
+          mercadoId: null, // Sin mercado específico
           searchQuery: query,
           lastDoc: lastDoc,
           limit: _pageSize,
+          filtroDeuda: filtroDs,
         );
       } else {
         state = state.copyWith(cargando: false, hayMas: false);

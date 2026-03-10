@@ -10,8 +10,8 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/local.dart';
+import '../viewmodels/locales_paginados_notifier.dart';
 
-const _kPageSize = 20;
 
 class DeudoresScreen extends ConsumerStatefulWidget {
   const DeudoresScreen({super.key});
@@ -21,26 +21,20 @@ class DeudoresScreen extends ConsumerStatefulWidget {
 }
 
 class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
-  String _searchQuery = '';
-  String _searchColumn = 'Local';
-  int _currentPage = 0;
-
-  static const _columnas = ['Local', 'Mercado', 'Representante', 'Teléfono'];
-
-  void _setSearch(String q) => setState(() {
-    _searchQuery = q;
-    _currentPage = 0;
-  });
-
-  void _setColumn(String? col) => setState(() {
-    if (col != null) _searchColumn = col;
-    _currentPage = 0;
-  });
-
   @override
   Widget build(BuildContext context) {
-    final localesAsync = ref.watch(localesProvider);
+    final state = ref.watch(localesPaginadosProvider);
+    final notifier = ref.read(localesPaginadosProvider.notifier);
     final mercados = ref.watch(mercadosProvider).value ?? [];
+
+    // Al iniciar, aseguramos que el filtro sea solo deudores
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (state.filtroDeuda != LocalFiltroDeuda.soloDeudores) {
+        notifier.cambiarFiltroDeuda(LocalFiltroDeuda.soloDeudores);
+      }
+    });
+
+    final list = state.locales;
 
     return Material(
       color: Colors.transparent,
@@ -52,158 +46,106 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
             // Barra de filtros siempre visible
             Row(
               children: [
-                Container(
-                  height: 40,
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _searchColumn,
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-                      ),
-                      isDense: true,
-                      dropdownColor: Theme.of(context).colorScheme.surface,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-                      items: _columnas
-                          .map(
-                            (col) =>
-                                DropdownMenuItem(value: col, child: Text(col)),
-                          )
-                          .toList(),
-                      onChanged: _setColumn,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 SizedBox(
-                  width: 280,
+                  width: 350,
                   child: TextField(
-                    onChanged: _setSearch,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por $_searchColumn...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                    onChanged: (val) => notifier.aplicarBusqueda(val),
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar por nombre de local...',
+                      prefixIcon: Icon(Icons.search_rounded, size: 18),
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
                     ),
                   ),
                 ),
+                const Spacer(),
+                Text(
+                  'Filtro: Solo Deudores',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: localesAsync.when(
-                data: (list) {
-                  final q = _searchQuery.toLowerCase();
-                  final withDeuda = list.where((l) {
-                    final tieneDeuda = (l.deudaAcumulada ?? 0) > 0;
-                    if (!tieneDeuda) return false;
-                    if (q.isEmpty) return true;
-                    switch (_searchColumn) {
-                      case 'Local':
-                        return (l.nombreSocial ?? '').toLowerCase().contains(q);
-                      case 'Mercado':
-                        final mercadoName =
-                            mercados
-                                .cast<Mercado>()
-                                .firstWhere(
-                                  (m) => m.id == l.mercadoId,
-                                  orElse: () => const Mercado(nombre: ''),
-                                )
-                                .nombre ??
-                            '';
-                        return mercadoName.toLowerCase().contains(q);
-                      case 'Representante':
-                        return (l.representante ?? '').toLowerCase().contains(
-                          q,
-                        );
-                      case 'Teléfono':
-                        return (l.telefonoRepresentante ?? '')
-                            .toLowerCase()
-                            .contains(q);
-                      default:
-                        return true;
-                    }
-                  }).toList();
-                  withDeuda.sort(
-                    (a, b) => (b.deudaAcumulada ?? 0).compareTo(
-                      a.deudaAcumulada ?? 0,
-                    ),
-                  );
-
-                  final totalPages = (withDeuda.length / _kPageSize)
-                      .ceil()
-                      .clamp(1, 99999);
-                  final page = _currentPage.clamp(0, totalPages - 1);
-                  final paginated = withDeuda.sublist(
-                    page * _kPageSize,
-                    (page * _kPageSize + _kPageSize).clamp(0, withDeuda.length),
-                  );
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header con botón exportar – tiene acceso a la lista completa
-                      _Header(todos: withDeuda),
-                      const SizedBox(height: 16),
-                      if (withDeuda.isEmpty)
-                        Expanded(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  size: 48,
-                                  color: Colors.green,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  '¡No hay locales con deuda! Todo está al día.',
-                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
-                                ),
-                              ],
+              child: Column(
+                children: [
+                  if (state.cargando && list.isEmpty)
+                    const Expanded(child: Center(child: CircularProgressIndicator()))
+                  else if (state.errorMsg != null)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'Error: ${state.errorMsg}',
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    )
+                  else if (list.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline_rounded,
+                              size: 48,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '¡No hay locales con deuda! Todo está al día.',
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.54),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Header(todos: list),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: _DeudoresTable(
+                              locales: list,
+                              mercados: mercados,
                             ),
                           ),
-                        )
-                      else ...[
-                        Expanded(
-                          child: _DeudoresTable(
-                            locales: paginated,
-                            mercados: mercados,
+                          const SizedBox(height: 8),
+                          _PaginationBar(
+                            currentPage: state.paginaActual - 1,
+                            totalPages: state.hayMas ? state.paginaActual + 1 : state.paginaActual,
+                            totalItems: list.length, // Con paginación real, esto es parcial
+                            pageSize: 20,
+                            onPrev: state.paginaActual > 1
+                                ? () => notifier.irAPaginaAnterior()
+                                : null,
+                            onNext: state.hayMas
+                                ? () => notifier.irAPaginaSiguiente()
+                                : null,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        _PaginationBar(
-                          currentPage: page,
-                          totalPages: totalPages,
-                          totalItems: withDeuda.length,
-                          pageSize: _kPageSize,
-                          onPrev: page > 0
-                              ? () => setState(() => _currentPage = page - 1)
-                              : null,
-                          onNext: page < totalPages - 1
-                              ? () => setState(() => _currentPage = page + 1)
-                              : null,
-                        ),
-                      ],
-                    ],
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
+                        ],
+                      ),
+                    ),
+                  if (state.cargando && list.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: LinearProgressIndicator(),
+                    ),
+                ],
               ),
             ),
           ],
@@ -424,33 +366,35 @@ class _PaginationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final start = totalItems == 0 ? 0 : currentPage * pageSize + 1;
-    final end = ((currentPage + 1) * pageSize).clamp(0, totalItems);
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
           onPressed: onPrev,
-          color: onPrev != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+          color: onPrev != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          '$start–$end de $totalItems',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '(Pág. ${currentPage + 1}/$totalPages)',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11),
+          'Página ${currentPage + 1}',
+          style: TextStyle(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.54),
+            fontSize: 13,
+          ),
         ),
         const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded),
           onPressed: onNext,
-          color: onNext != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+          color: onNext != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página siguiente',
         ),
       ],

@@ -2,12 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
+import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/local_model.dart';
 
 class LocalDatasource {
   final FirebaseFirestore _firestore;
+  final StatsDatasource _statsDs;
 
-  LocalDatasource(this._firestore);
+  LocalDatasource(this._firestore, this._statsDs);
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(FirestoreCollections.locales);
@@ -15,6 +17,17 @@ class LocalDatasource {
   // CREATE
   Future<void> crear(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).set(data);
+    
+    // Actualizar estadísticas (Suma atómica)
+    final municipalidadId = data['municipalidadId'] as String?;
+    if (municipalidadId != null) {
+      final deudaInicial = (data['deudaAcumulada'] as num?) ?? 0;
+      _statsDs.actualizarConteo(
+        municipalidadId: municipalidadId,
+        deltaLocales: 1,
+        deltaDeuda: deudaInicial,
+      ).catchError((e) => print('Error actualizando stats local: $e'));
+    }
   }
 
   // READ
@@ -138,6 +151,18 @@ class LocalDatasource {
         );
   }
 
+  Stream<List<LocalJson>> streamPorMercado(String mercadoId) {
+    return _collection
+        .where('mercadoId', isEqualTo: mercadoId)
+        .orderBy('nombreSocial')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
   Stream<LocalJson?> streamPorId(String docId) {
     return _collection.doc(docId).snapshots().map((doc) {
       if (!doc.exists) return null;
@@ -161,6 +186,7 @@ class LocalDatasource {
     String? searchQuery,
     QueryDocumentSnapshot? lastDoc,
     int limit = 20,
+    String filtroDeuda = 'todos',
   }) async {
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lower = searchQuery.toLowerCase();
@@ -203,9 +229,15 @@ class LocalDatasource {
       return list.take(limit).toList();
     }
 
-    Query<Map<String, dynamic>> query = _collection
-        .where('mercadoId', isEqualTo: mercadoId)
-        .orderBy('nombreSocial');
+    Query<Map<String, dynamic>> query = _collection.where('mercadoId', isEqualTo: mercadoId);
+    
+    if (filtroDeuda == 'deudores') {
+      query = query.where('deudaAcumulada', isGreaterThan: 0).orderBy('deudaAcumulada', descending: true);
+    } else if (filtroDeuda == 'saldos') {
+      query = query.where('saldoAFavor', isGreaterThan: 0).orderBy('saldoAFavor', descending: true);
+    } else {
+      query = query.orderBy('nombreSocial');
+    }
 
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
@@ -222,6 +254,7 @@ class LocalDatasource {
     String? searchQuery,
     QueryDocumentSnapshot? lastDoc,
     int limit = 20,
+    String filtroDeuda = 'todos',
   }) async {
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lower = searchQuery.toLowerCase();
@@ -275,7 +308,14 @@ class LocalDatasource {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
     
-    query = query.orderBy('nombreSocial');
+    
+    if (filtroDeuda == 'deudores') {
+      query = query.where('deudaAcumulada', isGreaterThan: 0).orderBy('deudaAcumulada', descending: true);
+    } else if (filtroDeuda == 'saldos') {
+      query = query.where('saldoAFavor', isGreaterThan: 0).orderBy('saldoAFavor', descending: true);
+    } else {
+      query = query.orderBy('nombreSocial');
+    }
 
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
@@ -334,6 +374,15 @@ class LocalDatasource {
     final list = merged.values.toList();
     list.sort((a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''));
     return list.take(limit).toList();
+  }
+
+  /// Obtiene todos los locales de un mercado de forma atómica (sin stream).
+  /// Útil para diálogos que necesitan contexto sin suscribirse.
+  Future<List<LocalJson>> obtenerPorMercado(String mercadoId) async {
+    final snapshot = await _collection.where('mercadoId', isEqualTo: mercadoId).get();
+    return snapshot.docs
+        .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
+        .toList();
   }
 
   Future<List<LocalJson>> listarPorIds(List<String> ids) async {

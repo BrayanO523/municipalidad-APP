@@ -78,6 +78,13 @@ class LocalRepositoryImpl implements LocalRepository {
     return local;
   }
 
+  @override
+  Future<List<Local>> obtenerPorMercado(String mercadoId) async {
+    final locales = await _remoteDatasource.obtenerPorMercado(mercadoId);
+    _guardarLocalesEnCache(locales);
+    return locales;
+  }
+
   // Interceptor que inyecta en Hive silenciosamente
   Future<void> _guardarLocalesEnCache(List<Local> locales) async {
     try {

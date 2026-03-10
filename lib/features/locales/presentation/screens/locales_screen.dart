@@ -121,6 +121,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Widget _buildFiltros(BuildContext context) {
     final user = ref.watch(currentUsuarioProvider).value;
     final municipalidadId = user?.municipalidadId;
+    final state = ref.watch(localesPaginadosProvider);
 
     return Card(
       child: Padding(
@@ -374,6 +375,55 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Filtro de Deuda / Saldos
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filtrar por Estado',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<LocalFiltroDeuda>(
+                  segments: const [
+                    ButtonSegment(
+                      value: LocalFiltroDeuda.todos,
+                      label: Text('Todos'),
+                      icon: Icon(Icons.list_rounded, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: LocalFiltroDeuda.soloDeudores,
+                      label: Text('Deudores'),
+                      icon: Icon(Icons.trending_down_rounded, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: LocalFiltroDeuda.soloSaldosAFavor,
+                      label: Text('Saldos +'),
+                      icon: Icon(Icons.trending_up_rounded, size: 16),
+                    ),
+                  ],
+                  selected: {state.filtroDeuda},
+                  onSelectionChanged: (newSelection) {
+                    ref
+                        .read(localesPaginadosProvider.notifier)
+                        .cambiarFiltroDeuda(newSelection.first);
+                  },
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(width: 12),
@@ -658,7 +708,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             return StatefulBuilder(
               builder: (context, setDialogState) {
                 final currentMercs = ref.watch(mercadosProvider).value ?? [];
-                final currentLocs = ref.watch(localesProvider).value ?? [];
+                List<Local> currentLocs = []; // Carga bajo demanda
 
                 return AlertDialog(
                   title: Text(isEditing ? 'Editar Local' : 'Nuevo Local'),
@@ -865,6 +915,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               ).colorScheme.onSurface.withValues(alpha: 0.24),
                             ),
                             onTap: () async {
+                              // Cargar locales del mercado bajo demanda para el mapa
+                              if (selectedMercadoId != null && currentLocs.isEmpty) {
+                                setDialogState(() => currentLocs = []); // Opcional: mostrar loading
+                                final repo = ref.read(localRepositoryProvider);
+                                final lits = await repo.obtenerPorMercado(selectedMercadoId!);
+                                setDialogState(() => currentLocs = lits);
+                              }
+
                               if (selectedMercadoId == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(

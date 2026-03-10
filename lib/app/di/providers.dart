@@ -21,6 +21,7 @@ import '../../features/cortes/data/datasources/corte_datasource.dart';
 import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
+import '../../features/dashboard/data/datasources/stats_datasource.dart';
 
 import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
 import '../../features/locales/data/datasources/local_local_datasource.dart';
@@ -104,8 +105,15 @@ final mercadoDatasourceProvider = Provider<MercadoDatasource>(
   (ref) => MercadoDatasource(ref.read(firestoreProvider)),
 );
 
+final statsDatasourceProvider = Provider<StatsDatasource>(
+  (ref) => StatsDatasource(ref.read(firestoreProvider)),
+);
+
 final localDatasourceProvider = Provider<LocalDatasource>(
-  (ref) => LocalDatasource(ref.read(firestoreProvider)),
+  (ref) => LocalDatasource(
+    ref.read(firestoreProvider),
+    ref.read(statsDatasourceProvider),
+  ),
 );
 
 final tipoNegocioDatasourceProvider = Provider<TipoNegocioDatasource>(
@@ -113,7 +121,10 @@ final tipoNegocioDatasourceProvider = Provider<TipoNegocioDatasource>(
 );
 
 final cobroDatasourceProvider = Provider<CobroDatasource>(
-  (ref) => CobroDatasource(ref.read(firestoreProvider)),
+  (ref) => CobroDatasource(
+    ref.read(firestoreProvider),
+    ref.read(statsDatasourceProvider),
+  ),
 );
 
 final corteDatasourceProvider = Provider<CorteDatasource>(
@@ -218,8 +229,16 @@ final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
 
 final cobrosRecientesProvider = StreamProvider<List<Cobro>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null || user.municipalidadId == null) return Stream.value([]);
   final ds = ref.read(cobroDatasourceProvider);
-  return ds.streamRecientes(municipalidadId: user?.municipalidadId);
+  return ds.streamRecientes(municipalidadId: user.municipalidadId!);
+});
+
+final statsProvider = StreamProvider<StatsModel>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null || user.municipalidadId == null) return Stream.value(StatsModel());
+  final ds = ref.read(statsDatasourceProvider);
+  return ds.streamStats(user.municipalidadId!);
 });
 
 class FechaFiltroCobrosNotifier extends Notifier<DateTimeRange?> {
@@ -375,19 +394,25 @@ final fechaDashboardProvider = Provider<DateTime>((ref) {
 
 final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null) return Stream.value([]);
+
   final ds = ref.read(cobroDatasourceProvider);
   final filter = ref.watch(dashboardFilterProvider);
 
   if (filter.period == DashboardPeriod.hoy) {
     return ds.streamPorFecha(
       filter.range.start,
-      municipalidadId: user?.municipalidadId,
+      municipalidadId: user.municipalidadId,
     );
   } else {
-    return ds.streamPorRangoFechas(
-      filter.range.start,
-      filter.range.end,
-      municipalidadId: user?.municipalidadId,
+    // Para rangos históricos, usamos listarPorRangoFechas (atómico)
+    // Stream.fromFuture convierte el Future en un Stream que emite una vez y cierra.
+    return Stream.fromFuture(
+      ds.listarPorRangoFechas(
+        filter.range.start,
+        filter.range.end,
+        municipalidadId: user.municipalidadId,
+      ).then((list) => list.cast<Cobro>()),
     );
   }
 });
@@ -416,21 +441,23 @@ final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
   if (user == null) return Stream.value([]);
   final ds = ref.read(localDatasourceProvider);
 
-  // Si tiene ruta específica, usamos stream de IDs (tendríamos que implementar streamPorIds)
-  // Por ahora, si tiene mercadoId, escuchamos el mercado filtrando por ruta en el mapa
+  // OPTIMIZACIÓN: Solo escuchar el Mercado asignado si existe.
+  // Evita descargar toda la municipalidad (lecturas masivas).
   if (user.mercadoId != null) {
-    return ds.streamPorMunicipalidad(user.municipalidadId!).map((locales) {
-      final filtrados = locales
-          .where((l) => l.mercadoId == user.mercadoId)
-          .toList();
+    return ds.streamPorMercado(user.mercadoId!).map((locales) {
       if (user.rutaAsignada != null && user.rutaAsignada!.isNotEmpty) {
-        return filtrados
-            .where((l) => user.rutaAsignada!.contains(l.id))
-            .toList();
+        return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
       }
-      return filtrados;
+      return locales;
     });
   }
+
+  // Fallback seguro: Si no tiene mercado, pero sí municipalidad (raro para cobrador)
+  if (user.municipalidadId != null) {
+    // Aquí limitamos a 50 como salvaguarda si algo falla en la asignación
+    return ds.streamPorMunicipalidad(user.municipalidadId!).map((l) => l.take(50).toList());
+  }
+
   return Stream.value([]);
 });
 
@@ -451,6 +478,7 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
   });
 });
 
+@Deprecated('Usar cortesAdminPaginadosProvider para evitar fugas de lectura')
 final cortesHistorialAdminProvider = StreamProvider<List<Corte>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   if (user == null || user.municipalidadId == null) return Stream.value([]);
@@ -458,6 +486,7 @@ final cortesHistorialAdminProvider = StreamProvider<List<Corte>>((ref) {
   return repo.streamPorMunicipalidad(user.municipalidadId!);
 });
 
+@Deprecated('Usar cortesCobradorPaginadosProvider para evitar fugas de lectura')
 final cortesHistorialCobradorProvider = StreamProvider<List<Corte>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   if (user == null || user.id == null) return Stream.value([]);
