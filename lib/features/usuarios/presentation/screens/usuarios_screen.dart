@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/usuario.dart';
+import '../viewmodels/usuarios_paginados_notifier.dart';
 
 class UsuariosScreen extends ConsumerStatefulWidget {
   const UsuariosScreen({super.key});
@@ -12,12 +14,19 @@ class UsuariosScreen extends ConsumerStatefulWidget {
 }
 
 class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
-  String _searchQuery = '';
   String _searchColumn = 'Nombre';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(usuariosPaginadosProvider.notifier).cargarPagina();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final usuariosAsync = ref.watch(usuariosProvider);
+    final state = ref.watch(usuariosPaginadosProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -27,7 +36,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _UsuariosHeader(
-              onSearch: (q) => setState(() => _searchQuery = q),
+              onSearch: (q) => ref.read(usuariosPaginadosProvider.notifier).buscar(q),
               onAdd: () => _showFormDialog(context),
               selectedColumn: _searchColumn,
               onColumnChanged: (val) {
@@ -38,49 +47,48 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: usuariosAsync.when(
-                data: (list) {
-                  final filtrados = list.where((u) {
-                    // Solo mostrar cobradores en esta pantalla
-                    if (u.rol != 'cobrador') return false;
-
-                    final searchStr = _searchQuery.toLowerCase();
-                    if (_searchColumn == 'Nombre') {
-                      return (u.nombre?.toLowerCase().contains(searchStr) ??
-                          false);
-                    } else if (_searchColumn == 'Correo Electrónico') {
-                      return (u.email?.toLowerCase().contains(searchStr) ??
-                          false);
-                    }
-                    return false;
-                  }).toList();
-
-                  if (filtrados.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No se encontraron usuarios',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return _UsuariosTable(
-                    usuarios: filtrados,
-                    onEdit: (u) => _showFormDialog(context, usuario: u),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ),
+              child: state.cargando && state.usuarios.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.errorMsg != null
+                      ? Center(
+                          child: Text(
+                            state.errorMsg!,
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                        )
+                      : state.usuarios.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No se encontraron usuarios',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                                ),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                Expanded(
+                                  child: _UsuariosTable(
+                                    usuarios: state.usuarios,
+                                    onEdit: (u) => _showFormDialog(context, usuario: u),
+                                    onDelete: (u) => _confirmDelete(context, u),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _PaginationBar(
+                                  currentPage: state.paginaActual - 1,
+                                  onPrev: state.paginaActual > 1
+                                      ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaAnterior()
+                                      : null,
+                                  onNext: state.hayMas
+                                      ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaSiguiente()
+                                      : null,
+                                  isCargando: state.cargando,
+                                ),
+                              ],
+                            ),
             ),
           ],
         ),
@@ -88,13 +96,57 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
     );
   }
 
+  void _confirmDelete(BuildContext context, Usuario usuario) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Cobrador'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acción NO se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final ds = ref.read(authDatasourceProvider);
+      try {
+        await ds.eliminarUsuario(usuario.id!);
+        ref.read(usuariosPaginadosProvider.notifier).recargar();
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+      }
+    }
+  }
+
   void _showFormDialog(BuildContext context, {Usuario? usuario}) {
     final isEditing = usuario != null;
     final nombreCtrl = TextEditingController(text: usuario?.nombre);
     final emailCtrl = TextEditingController(text: usuario?.email);
-    final passCtrl = TextEditingController(); // Solo para creacion
+    final passCtrl = TextEditingController();
+    final codigoCtrl = TextEditingController(text: usuario?.codigoCobrador);
 
     final currentAdmin = ref.read(currentUsuarioProvider).value;
+    final ds = ref.read(authDatasourceProvider);
+
+    if (!isEditing && currentAdmin?.municipalidadId != null) {
+      ds.sugerirSiguienteCodigoCobrador(currentAdmin!.municipalidadId!).then((sugerencia) {
+        codigoCtrl.text = sugerencia;
+      });
+    }
     final mercados = ref.read(mercadosProvider).value ?? [];
 
     String? selectedMercadoId = usuario?.mercadoId;
@@ -102,7 +154,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
         ? List<String>.from(usuario!.rutaAsignada!)
         : [];
 
-    // Solo mostrar mercados de la municipalidad del admin
     final mercadosFiltrados = mercados
         .where(
           (m) =>
@@ -130,11 +181,22 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                   ),
                   const SizedBox(height: 12),
                   TextField(
+                    controller: codigoCtrl,
+                    decoration: InputDecoration(
+                      labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
+                      hintText: 'C1',
+                      filled: true,
+                    ),
+                    readOnly: true,
+                    enabled: false,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
                     controller: emailCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Correo Electrónico',
                     ),
-                    enabled: !isEditing, // Evitar cambiar auth email por ahora
+                    enabled: !isEditing,
                   ),
                   if (!isEditing) const SizedBox(height: 12),
                   if (!isEditing)
@@ -145,7 +207,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       ),
                       obscureText: true,
                     ),
-                  const SizedBox(height: 12),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: selectedMercadoId,
@@ -190,8 +251,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                           return localesAsync.when(
                             data: (allLocales) {
                               final usuarios = usuariosAsync.value ?? [];
-
-                              // Recolectar locales asignados a CUALQUIER otro usuario (excluyendo el actual en edición)
                               final Set<String> localesOcupados = {};
                               for (final u in usuarios) {
                                 if (isEditing && u.id == usuario.id) continue;
@@ -200,26 +259,18 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                 }
                               }
 
-                              // Filtrar locales que pertenecen al mercado seleccionado
                               final localesMercado = allLocales
-                                  .where(
-                                    (l) => l.mercadoId == selectedMercadoId,
-                                  )
+                                  .where((l) => l.mercadoId == selectedMercadoId)
                                   .toList();
 
-                              // Clasificamos las dos listas interactuantes
                               final localesAsignados = localesMercado
-                                  .where(
-                                    (l) => selectedLocalesIds.contains(l.id),
-                                  )
+                                  .where((l) => selectedLocalesIds.contains(l.id))
                                   .toList();
 
                               final localesDisponibles = localesMercado
-                                  .where(
-                                    (l) =>
-                                        !selectedLocalesIds.contains(l.id) &&
-                                        !localesOcupados.contains(l.id),
-                                  )
+                                  .where((l) =>
+                                      !selectedLocalesIds.contains(l.id) &&
+                                      !localesOcupados.contains(l.id))
                                   .toList();
 
                               if (localesMercado.isEmpty) {
@@ -237,7 +288,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                 );
                               }
 
-                              // Estilo utilitario para los items
                               Widget buildListTile(
                                 String title,
                                 VoidCallback onTap,
@@ -260,17 +310,11 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           Expanded(
                                             child: Text(
                                               title,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                              ),
+                                              style: const TextStyle(fontSize: 12),
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          Icon(
-                                            icon,
-                                            size: 16,
-                                            color: iconColor,
-                                          ),
+                                          Icon(icon, size: 16, color: iconColor),
                                         ],
                                       ),
                                     ),
@@ -280,7 +324,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 
                               return Row(
                                 children: [
-                                  // Columna Izquierda: Sin Asignar
                                   Expanded(
                                     child: Column(
                                       children: [
@@ -310,9 +353,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       color: Theme.of(context)
                                                           .colorScheme
                                                           .onSurface
-                                                          .withValues(
-                                                            alpha: 0.24,
-                                                          ),
+                                                          .withValues(alpha: 0.24),
                                                       fontSize: 11,
                                                     ),
                                                   ),
@@ -326,10 +367,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     return buildListTile(
                                                       loc.nombreSocial ??
                                                           'Sin nombre',
-                                                      () => setDialogState(
-                                                        () => selectedLocalesIds
-                                                            .add(loc.id!),
-                                                      ),
+                                                      () => setDialogState(() =>
+                                                          selectedLocalesIds
+                                                              .add(loc.id!)),
                                                       Icons
                                                           .arrow_forward_ios_rounded,
                                                       Colors.green.shade400,
@@ -347,7 +387,6 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                         .onSurface
                                         .withValues(alpha: 0.1),
                                   ),
-                                  // Columna Derecha: Asignados
                                   Expanded(
                                     child: Column(
                                       children: [
@@ -356,14 +395,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           padding: const EdgeInsets.all(4),
                                           color: Colors.black12,
                                           child: Text(
-                                            'Asignado a este usuario',
+                                            'Asignado',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurface,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
                                             ),
                                           ),
                                         ),
@@ -376,9 +415,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       color: Theme.of(context)
                                                           .colorScheme
                                                           .onSurface
-                                                          .withValues(
-                                                            alpha: 0.24,
-                                                          ),
+                                                          .withValues(alpha: 0.24),
                                                       fontSize: 11,
                                                     ),
                                                   ),
@@ -392,10 +429,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     return buildListTile(
                                                       loc.nombreSocial ??
                                                           'Sin nombre',
-                                                      () => setDialogState(
-                                                        () => selectedLocalesIds
-                                                            .remove(loc.id),
-                                                      ),
+                                                      () => setDialogState(() =>
+                                                          selectedLocalesIds
+                                                              .remove(loc.id)),
                                                       Icons.close_rounded,
                                                       Colors.red.shade400,
                                                     );
@@ -433,10 +469,11 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                 final nombre = nombreCtrl.text.trim();
                 final email = emailCtrl.text.trim();
                 final pass = passCtrl.text.trim();
+                final codigo = codigoCtrl.text.trim().toUpperCase();
 
                 if (nombre.isEmpty ||
                     (!isEditing && (email.isEmpty || pass.isEmpty))) {
-                  return; // validaciones basicas
+                  return;
                 }
 
                 try {
@@ -446,6 +483,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       'nombre': nombre,
                       'mercadoId': selectedMercadoId,
                       'rutaAsignada': selectedLocalesIds,
+                      'codigoCobrador': codigo,
                     });
                   } else {
                     await ds.registrarCobrador(
@@ -455,9 +493,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       municipalidadId: currentAdmin?.municipalidadId ?? '',
                       mercadoId: selectedMercadoId,
                       rutaAsignada: selectedLocalesIds,
+                      codigoCobrador: codigo,
                     );
                   }
-                  ref.invalidate(usuariosProvider);
+                  ref.read(usuariosPaginadosProvider.notifier).recargar();
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
                   if (!ctx.mounted) return;
@@ -530,10 +569,7 @@ class _UsuariosHeader extends StatelessWidget {
                 fontSize: 13,
               ),
               items: ['Nombre', 'Correo Electrónico'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
+                return DropdownMenuItem<String>(value: value, child: Text(value));
               }).toList(),
               onChanged: onColumnChanged,
             ),
@@ -576,7 +612,7 @@ class _UsuariosHeader extends StatelessWidget {
         ElevatedButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.add, size: 18),
-          label: Text('Crear Cobrador'),
+          label: const Text('Crear Cobrador'),
         ),
       ],
     );
@@ -586,8 +622,13 @@ class _UsuariosHeader extends StatelessWidget {
 class _UsuariosTable extends ConsumerWidget {
   final List<Usuario> usuarios;
   final ValueChanged<Usuario> onEdit;
+  final ValueChanged<Usuario> onDelete;
 
-  _UsuariosTable({required this.usuarios, required this.onEdit});
+  const _UsuariosTable({
+    required this.usuarios,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -595,7 +636,7 @@ class _UsuariosTable extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
       ),
       child: ListView.separated(
@@ -632,27 +673,120 @@ class _UsuariosTable extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            subtitle: Text(
-              '${u.email} • Mercado: $strMercado',
-              style: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
-                fontSize: 12,
-              ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  u.creadoEn != null
+                      ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
+                      : 'Creado: -',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
-            trailing: IconButton(
-              icon: Icon(
-                Icons.edit_rounded,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
-              ),
-              onPressed: () => onEdit(u),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.edit_rounded,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  onPressed: () => onEdit(u),
+                  tooltip: 'Editar',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_rounded, color: Colors.redAccent),
+                  onPressed: () => onDelete(u),
+                  tooltip: 'Eliminar',
+                ),
+              ],
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isCargando)
+          const Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded),
+          onPressed: isCargando ? null : onPrev,
+          color:
+              onPrev != null
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                  : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          tooltip: 'Página anterior',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Página ${currentPage + 1}',
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded),
+          onPressed: isCargando ? null : onNext,
+          color:
+              onNext != null
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                  : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          tooltip: 'Página siguiente',
+        ),
+      ],
     );
   }
 }
