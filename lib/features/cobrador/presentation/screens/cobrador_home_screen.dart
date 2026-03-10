@@ -638,16 +638,25 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             ? () {
                 final partes = <String>[];
                 if (paraDeudaReal > 0) {
-                  partes.add('L ${paraDeudaReal.toStringAsFixed(2)} a deuda anterior');
+                  partes.add(
+                    'L ${paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
+                  );
                 }
                 if (pagoACuota > 0) {
-                  final hoyStr = '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
-                  partes.add('L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr');
+                  final hoyStr =
+                      '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
+                  partes.add(
+                    'L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr',
+                  );
                 }
                 if (paraSaldoFavorReal > 0) {
-                  partes.add('L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor');
+                  partes.add(
+                    'L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor',
+                  );
                 }
-                final prefijo = observaciones.isNotEmpty ? '$observaciones | ' : '';
+                final prefijo = observaciones.isNotEmpty
+                    ? '$observaciones | '
+                    : '';
                 return '${prefijo}Distribuido: ${partes.join(", ")}';
               }()
             : observaciones,
@@ -788,7 +797,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             final nombre = (l.nombreSocial ?? '').toLowerCase();
             final rep = (l.representante ?? '').toLowerCase();
             final corr = (l.clave?.toString() ?? '');
-            pasaFiltroTexto = nombre.contains(q) || rep.contains(q) || corr.toLowerCase().contains(q);
+            final cat = (l.codigoCatastral ?? '').toLowerCase();
+            pasaFiltroTexto =
+                nombre.contains(q) ||
+                rep.contains(q) ||
+                corr.toLowerCase().contains(q) ||
+                cat.contains(q);
           }
 
           return pasaFiltroEstado && pasaFiltroTexto;
@@ -936,10 +950,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           decoration: InputDecoration(
                             hintText: 'Buscar local, dueño o código...',
                             hintStyle: const TextStyle(color: Colors.white54),
-                            prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.white54,
+                            ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear, color: Colors.white54),
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: Colors.white54,
+                                    ),
                                     onPressed: () {
                                       _searchController.clear();
                                       setState(() {
@@ -950,12 +970,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   )
                                 : null,
                             filled: true,
-                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                            fillColor: colorScheme.surfaceContainerHighest
+                                .withOpacity(0.5),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -1055,7 +1079,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 24),
                               child: Center(
                                 child: TextButton.icon(
-                                  onPressed: () => setState(() => _limiteLocales += 20),
+                                  onPressed: () =>
+                                      setState(() => _limiteLocales += 20),
                                   icon: const Icon(Icons.expand_more_rounded),
                                   label: const Text('Cargar más locales'),
                                   style: TextButton.styleFrom(
@@ -1074,7 +1099,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         final cuotaCubierta = idsCuotaCubiertaSet.contains(lid);
                         final ultimoCobro = _cobroDelLocal(lid, cobrosHoy);
                         final usuario = ref.watch(currentUsuarioProvider).value;
-                        final esAdminWeb = kIsWeb && (usuario?.esAdmin ?? false);
+                        final esAdminWeb =
+                            kIsWeb && (usuario?.esAdmin ?? false);
 
                         return _LocalCard(
                           local: local,
@@ -1369,6 +1395,21 @@ class _LocalCard extends StatelessWidget {
                                 ?.copyWith(color: Colors.white60),
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (local.codigoCatastral != null &&
+                              local.codigoCatastral!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Código: ${local.codigoCatastral}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           const SizedBox(height: 4),
                           // Badges de deuda / saldo
                           Wrap(
