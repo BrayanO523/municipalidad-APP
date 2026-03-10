@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
-import '../../../../core/platform/printer_provider.dart';
+import '../../../../app/di/providers.dart';
 
 class PrinterConfigDialog extends ConsumerStatefulWidget {
   const PrinterConfigDialog({super.key});

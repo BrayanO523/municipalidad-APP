@@ -9,21 +9,6 @@ final printerServiceProvider = Provider<PrinterService>((ref) {
   return getPrinterAdapter();
 });
 
-class ConnectedPrinterMacNotifier extends Notifier<String?> {
-  @override
-  String? build() => null;
-
-  void setMac(String? mac) {
-    state = mac;
-  }
-}
-
-/// Guarda la dirección MAC de la impresora Bluetooth vinculada.
-final connectedPrinterMacProvider =
-    NotifierProvider<ConnectedPrinterMacNotifier, String?>(() {
-      return ConnectedPrinterMacNotifier();
-    });
-
 /// Stream que indica si hay una impresora conectada actualmente.
 final printerConnectionProvider = StreamProvider<bool>((ref) {
   final service = ref.watch(printerServiceProvider);

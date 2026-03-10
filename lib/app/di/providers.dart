@@ -22,6 +22,8 @@ import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
+import '../../core/platform/printer_persistence_datasource.dart';
+import '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
 
 import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
 import '../../features/locales/data/datasources/local_local_datasource.dart';
@@ -41,6 +43,7 @@ import '../../features/municipalidades/data/repositories/municipalidad_repositor
 import '../../core/platform/navigation_config.dart';
 export '../../core/platform/printer_provider.dart';
 export '../../core/platform/printer_service.dart';
+export '../../features/shared/presentation/viewmodels/printer_notifier.dart';
 
 // Navigation configuration provider (overridden in entry points)
 final navigationConfigProvider = Provider<NavigationConfig>((ref) {
@@ -62,6 +65,11 @@ final authDatasourceProvider = Provider<AuthDatasource>(
     ref.read(firebaseAuthProvider),
     ref.read(firestoreProvider),
   ),
+);
+
+// Printer Persistence
+final printerPersistenceDataSourceProvider = Provider<PrinterPersistenceDataSource>(
+  (_) => PrinterPersistenceLocalDataSource(),
 );
 
 final authStateProvider = StreamProvider<User?>((ref) {

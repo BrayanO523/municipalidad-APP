@@ -46,6 +46,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
   Future<void> _dispararSyncYVerificacion() async {
     try {
+      // 1. Reconexión automática de impresora (Bluetooth)
+      _reconectarImpresora();
+
       final localRepo = ref.read(localRepositoryProvider);
       final cobroRepo = ref.read(cobroRepositoryProvider);
       localRepo.syncLocales().catchError((_) {});
@@ -57,6 +60,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         _verificarDeudaRetroactiva(locales);
       }
     } catch (_) {}
+  }
+
+  Future<void> _reconectarImpresora() async {
+    // Solo intentamos si no estamos ya conectados
+    final isConnected = ref.read(printerConnectionProvider).value ?? false;
+    if (isConnected) return;
+
+    final mac = ref.read(connectedPrinterMacProvider);
+    if (mac != null) {
+      debugPrint('Bluetooth: Intentando reconexión automática a $mac');
+      final printer = ref.read(printerServiceProvider);
+      await printer.connect(mac).catchError((e) {
+        debugPrint('Bluetooth: Error en reconexión automática: $e');
+        return false;
+      });
+    }
   }
 
   Future<void> _recargarCacheManual(
