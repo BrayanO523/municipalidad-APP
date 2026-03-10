@@ -1,5 +1,5 @@
-import 'main.dart' as main_app;
+import 'main.dart' as app;
 
-void main() {
-  main_app.main();
+void main() async {
+  await app.main();
 }

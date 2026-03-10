@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../features/cobros/data/datasources/cobro_datasource.dart';
@@ -12,29 +13,38 @@ import '../../features/mercados/data/datasources/mercado_datasource.dart';
 import '../../features/mercados/domain/entities/mercado.dart';
 import '../../features/municipalidades/data/datasources/municipalidad_datasource.dart';
 import '../../features/municipalidades/domain/entities/municipalidad.dart';
-import '../../features/tipos_negocio/data/datasources/tipo_negocio_datasource.dart';
 import '../../features/tipos_negocio/domain/entities/tipo_negocio.dart';
+import '../../features/tipos_negocio/data/datasources/tipo_negocio_datasource.dart';
 import '../../features/usuarios/data/datasources/auth_datasource.dart';
 import '../../features/usuarios/domain/entities/usuario.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../features/cortes/data/datasources/corte_datasource.dart';
+import '../../features/cortes/domain/repositories/corte_repository.dart';
+import '../../features/cortes/data/repositories/corte_repository_impl.dart';
+import '../../features/cortes/domain/entities/corte.dart';
 
 import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
 import '../../features/locales/data/datasources/local_local_datasource.dart';
 import '../../features/mercados/data/datasources/mercado_local_datasource.dart';
-export '../../core/platform/printer_provider.dart';
-export '../../core/platform/printer_service.dart';
+import '../../features/municipalidades/data/datasources/municipalidad_local_datasource.dart';
 
 import '../../features/cobros/domain/repositories/cobro_repository.dart';
 import '../../features/locales/domain/repositories/local_repository.dart';
 import '../../features/mercados/domain/repositories/mercado_repository.dart';
+import '../../features/municipalidades/domain/repositories/municipalidad_repository.dart';
 
 import '../../features/cobros/data/repositories/cobro_repository_impl.dart';
 import '../../features/locales/data/repositories/local_repository_impl.dart';
 import '../../features/mercados/data/repositories/mercado_repository_impl.dart';
-
-import '../../features/municipalidades/data/datasources/municipalidad_local_datasource.dart';
-import '../../features/municipalidades/domain/repositories/municipalidad_repository.dart';
 import '../../features/municipalidades/data/repositories/municipalidad_repository_impl.dart';
+
+import '../../core/platform/navigation_config.dart';
+export '../../core/platform/printer_provider.dart';
+export '../../core/platform/printer_service.dart';
+
+// Navigation configuration provider (overridden in entry points)
+final navigationConfigProvider = Provider<NavigationConfig>((ref) {
+  return DefaultNavigationConfig();
+});
 
 // Firebase instances
 final firestoreProvider = Provider<FirebaseFirestore>(
@@ -106,6 +116,10 @@ final cobroDatasourceProvider = Provider<CobroDatasource>(
   (ref) => CobroDatasource(ref.read(firestoreProvider)),
 );
 
+final corteDatasourceProvider = Provider<CorteDatasource>(
+  (ref) => CorteDatasource(ref.read(firestoreProvider)),
+);
+
 // Repositories
 final localRepositoryProvider = Provider<LocalRepository>((ref) {
   return LocalRepositoryImpl(
@@ -142,6 +156,12 @@ final cobroRepositoryProvider = Provider<CobroRepository>((ref) {
   );
 });
 
+final corteRepositoryProvider = Provider<CorteRepository>((ref) {
+  return CorteRepositoryImpl(
+    ref.read(corteDatasourceProvider),
+  );
+});
+
 // Data providers (fetchers)
 final municipalidadesProvider = StreamProvider<List<Municipalidad>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
@@ -156,8 +176,13 @@ final municipalidadesProvider = StreamProvider<List<Municipalidad>>((ref) {
 
 final municipalidadActualProvider = Provider<Municipalidad?>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
-  final todas = ref.watch(municipalidadesProvider).value ?? [];
+  final todasRaw = ref.watch(municipalidadesProvider).value ?? [];
+  // Forzamos el cast a la interfaz base para evitar conflictos de tipos en closures (Web/JS)
+  final todas = todasRaw.cast<Municipalidad>();
+
   if (user?.municipalidadId == null) return null;
+  if (todas.isEmpty) return null;
+
   return todas.firstWhere(
     (m) => m.id == user!.municipalidadId,
     orElse: () => todas.first,
@@ -424,4 +449,18 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
     }
     return cobros;
   });
+});
+
+final cortesHistorialAdminProvider = StreamProvider<List<Corte>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null || user.municipalidadId == null) return Stream.value([]);
+  final repo = ref.read(corteRepositoryProvider);
+  return repo.streamPorMunicipalidad(user.municipalidadId!);
+});
+
+final cortesHistorialCobradorProvider = StreamProvider<List<Corte>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null || user.id == null) return Stream.value([]);
+  final repo = ref.read(corteRepositoryProvider);
+  return repo.streamPorCobrador(user.id!);
 });
