@@ -16,6 +16,25 @@ import '../../features/tipos_negocio/data/datasources/tipo_negocio_datasource.da
 import '../../features/tipos_negocio/domain/entities/tipo_negocio.dart';
 import '../../features/usuarios/data/datasources/auth_datasource.dart';
 import '../../features/usuarios/domain/entities/usuario.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
+import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
+import '../../features/locales/data/datasources/local_local_datasource.dart';
+import '../../features/mercados/data/datasources/mercado_local_datasource.dart';
+export '../../core/platform/printer_provider.dart';
+export '../../core/platform/printer_service.dart';
+
+import '../../features/cobros/domain/repositories/cobro_repository.dart';
+import '../../features/locales/domain/repositories/local_repository.dart';
+import '../../features/mercados/domain/repositories/mercado_repository.dart';
+
+import '../../features/cobros/data/repositories/cobro_repository_impl.dart';
+import '../../features/locales/data/repositories/local_repository_impl.dart';
+import '../../features/mercados/data/repositories/mercado_repository_impl.dart';
+
+import '../../features/municipalidades/data/datasources/municipalidad_local_datasource.dart';
+import '../../features/municipalidades/domain/repositories/municipalidad_repository.dart';
+import '../../features/municipalidades/data/repositories/municipalidad_repository_impl.dart';
 
 // Firebase instances
 final firestoreProvider = Provider<FirebaseFirestore>(
@@ -46,7 +65,27 @@ final currentUsuarioProvider = FutureProvider<Usuario?>((ref) async {
   return ds.obtenerUsuario(user.uid);
 });
 
-// Datasources
+// Local Datasources (Hive)
+final _connectivityProvider = Provider<Connectivity>((ref) => Connectivity());
+
+final localLocalDatasourceProvider = Provider<LocalLocalDatasource>(
+  (ref) => LocalLocalDatasource(),
+);
+
+final mercadoLocalDatasourceProvider = Provider<MercadoLocalDatasource>(
+  (ref) => MercadoLocalDatasource(),
+);
+
+final municipalidadLocalDatasourceProvider =
+    Provider<MunicipalidadLocalDatasource>(
+      (ref) => MunicipalidadLocalDatasource(),
+    );
+
+final cobroLocalDatasourceProvider = Provider<CobroLocalDatasource>(
+  (ref) => CobroLocalDatasource(),
+);
+
+// Remote Datasources (Firestore)
 final municipalidadDatasourceProvider = Provider<MunicipalidadDatasource>(
   (ref) => MunicipalidadDatasource(ref.read(firestoreProvider)),
 );
@@ -67,26 +106,71 @@ final cobroDatasourceProvider = Provider<CobroDatasource>(
   (ref) => CobroDatasource(ref.read(firestoreProvider)),
 );
 
-// Data providers (fetchers)
-final municipalidadesProvider = FutureProvider<List<Municipalidad>>((
+// Repositories
+final localRepositoryProvider = Provider<LocalRepository>((ref) {
+  return LocalRepositoryImpl(
+    ref.read(localDatasourceProvider),
+    ref.read(localLocalDatasourceProvider),
+    ref.read(_connectivityProvider),
+  );
+});
+
+final mercadoRepositoryProvider = Provider<MercadoRepository>((ref) {
+  return MercadoRepositoryImpl(
+    ref.read(mercadoDatasourceProvider),
+    ref.read(mercadoLocalDatasourceProvider),
+    ref.read(_connectivityProvider),
+  );
+});
+
+final municipalidadRepositoryProvider = Provider<MunicipalidadRepository>((
   ref,
-) async {
+) {
+  return MunicipalidadRepositoryImpl(
+    ref.read(municipalidadDatasourceProvider),
+    ref.read(municipalidadLocalDatasourceProvider),
+    ref.read(_connectivityProvider),
+  );
+});
+
+final cobroRepositoryProvider = Provider<CobroRepository>((ref) {
+  return CobroRepositoryImpl(
+    ref.read(cobroDatasourceProvider),
+    ref.read(cobroLocalDatasourceProvider),
+    ref.read(_connectivityProvider),
+    ref.read(localRepositoryProvider),
+  );
+});
+
+// Data providers (fetchers)
+final municipalidadesProvider = StreamProvider<List<Municipalidad>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(municipalidadDatasourceProvider);
-  final all = await ds.listarTodas();
   if (user?.municipalidadId != null) {
-    return all.where((m) => m.id == user!.municipalidadId).toList();
+    return ds.streamTodas().map(
+      (all) => all.where((m) => m.id == user!.municipalidadId).toList(),
+    );
   }
-  return all;
+  return ds.streamTodas();
+});
+
+final municipalidadActualProvider = Provider<Municipalidad?>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  final todas = ref.watch(municipalidadesProvider).value ?? [];
+  if (user?.municipalidadId == null) return null;
+  return todas.firstWhere(
+    (m) => m.id == user!.municipalidadId,
+    orElse: () => todas.first,
+  );
 });
 
 final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
-  final ds = ref.read(mercadoDatasourceProvider);
+  final repo = ref.read(mercadoRepositoryProvider);
   if (user?.municipalidadId != null) {
-    return ds.streamPorMunicipalidad(user!.municipalidadId!);
+    return repo.streamPorMunicipalidad(user!.municipalidadId!);
   }
-  return ds.streamTodos();
+  return repo.streamTodos();
 });
 
 final localesProvider = StreamProvider<List<Local>>((ref) {
@@ -300,4 +384,44 @@ final localCobrosStreamProvider = StreamProvider.family<List<Cobro>, String>((
 ) {
   final ds = ref.read(cobroDatasourceProvider);
   return ds.streamPorLocal(id);
+});
+
+final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null) return Stream.value([]);
+  final ds = ref.read(localDatasourceProvider);
+
+  // Si tiene ruta específica, usamos stream de IDs (tendríamos que implementar streamPorIds)
+  // Por ahora, si tiene mercadoId, escuchamos el mercado filtrando por ruta en el mapa
+  if (user.mercadoId != null) {
+    return ds.streamPorMunicipalidad(user.municipalidadId!).map((locales) {
+      final filtrados = locales
+          .where((l) => l.mercadoId == user.mercadoId)
+          .toList();
+      if (user.rutaAsignada != null && user.rutaAsignada!.isNotEmpty) {
+        return filtrados
+            .where((l) => user.rutaAsignada!.contains(l.id))
+            .toList();
+      }
+      return filtrados;
+    });
+  }
+  return Stream.value([]);
+});
+
+final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null) return Stream.value([]);
+  final ds = ref.read(cobroDatasourceProvider);
+  final now = DateTime.now();
+  final hoy = DateTime(now.year, now.month, now.day);
+
+  return ds.streamPorFecha(hoy, municipalidadId: user.municipalidadId).map((
+    cobros,
+  ) {
+    if (user.mercadoId != null) {
+      return cobros.where((c) => c.mercadoId == user.mercadoId).toList();
+    }
+    return cobros;
+  });
 });
