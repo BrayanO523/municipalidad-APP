@@ -276,7 +276,7 @@ class _SaldosTable extends StatelessWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
 
-  _SaldosTable({required this.locales, required this.mercados});
+  const _SaldosTable({required this.locales, required this.mercados});
 
   @override
   Widget build(BuildContext context) {

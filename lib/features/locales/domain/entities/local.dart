@@ -20,6 +20,8 @@ class Local {
   final num? saldoAFavor; // Crédito acumulado por pagos adelantados
   final num? deudaAcumulada; // Suma de cuotas no pagadas histórica
 
+  final String? clave;
+
   const Local({
     this.activo,
     this.actualizadoEn,
@@ -41,6 +43,7 @@ class Local {
     this.perimetro,
     this.saldoAFavor,
     this.deudaAcumulada,
+    this.clave,
   });
 
   final List<Map<String, double>>? perimetro;

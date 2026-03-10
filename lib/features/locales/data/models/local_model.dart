@@ -24,10 +24,19 @@ class LocalJson extends Local {
     super.perimetro,
     super.saldoAFavor,
     super.deudaAcumulada,
+    super.clave,
   });
 
   factory LocalJson.fromJson(Map<String, dynamic> jsonRaw, {String? docId}) {
     final json = Map<String, dynamic>.from(jsonRaw);
+
+    num? parseNum(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value;
+      if (value is String) return num.tryParse(value);
+      return null;
+    }
+
     final perimRaw = json['perimetro'] as List<dynamic>?;
     List<Map<String, double>>? perimetro;
     if (perimRaw != null) {
@@ -37,14 +46,24 @@ class LocalJson extends Local {
       }).toList();
     }
 
+    String? clave = json['clave'];
+    if (clave == null && (docId ?? json['id']) != null) {
+      // Intentar extraer algo útil del ID si no hay clave
+      final idParts = (docId ?? json['id'] as String).split('-');
+      if (idParts.length > 1) {
+        clave = idParts.last.toUpperCase();
+        if (clave.length > 8) clave = clave.substring(0, 8);
+      }
+    }
+
     return LocalJson(
       activo: json['activo'],
       actualizadoEn: (json['actualizadoEn'] as Timestamp?)?.toDate(),
       actualizadoPor: json['actualizadoPor'],
       creadoEn: (json['creadoEn'] as Timestamp?)?.toDate(),
       creadoPor: json['creadoPor'],
-      cuotaDiaria: json['cuotaDiaria'],
-      espacioM2: json['espacioM2'],
+      cuotaDiaria: parseNum(json['cuotaDiaria']),
+      espacioM2: parseNum(json['espacioM2']),
       id: docId ?? json['id'],
       mercadoId: json['mercadoId'],
       municipalidadId: json['municipalidadId'],
@@ -56,8 +75,9 @@ class LocalJson extends Local {
       latitud: (json['ubicacion'] as GeoPoint?)?.latitude,
       longitud: (json['ubicacion'] as GeoPoint?)?.longitude,
       perimetro: perimetro,
-      saldoAFavor: json['saldoAFavor'],
-      deudaAcumulada: json['deudaAcumulada'],
+      saldoAFavor: parseNum(json['saldoAFavor']),
+      deudaAcumulada: parseNum(json['deudaAcumulada']),
+      clave: clave,
     );
   }
 
@@ -83,6 +103,7 @@ class LocalJson extends Local {
       perimetro: entity.perimetro,
       saldoAFavor: entity.saldoAFavor,
       deudaAcumulada: entity.deudaAcumulada,
+      clave: entity.clave,
     );
   }
 
@@ -111,6 +132,7 @@ class LocalJson extends Local {
           .toList(),
       if (saldoAFavor != null) 'saldoAFavor': saldoAFavor,
       if (deudaAcumulada != null) 'deudaAcumulada': deudaAcumulada,
+      if (clave != null) 'clave': clave,
     };
   }
 }

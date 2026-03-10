@@ -82,10 +82,21 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                 : hoy;
 
             final listAdelantados = List.generate(numAdelantados, (i) {
+              final baseDate = fechaInicioAdelantos.add(Duration(days: i));
+              // Usar la hora del último pago/actualización para que no salga 00:00
+              final timeBase = local.actualizadoEn ?? ahora;
+              final fechaVirtual = DateTime(
+                baseDate.year,
+                baseDate.month,
+                baseDate.day,
+                timeBase.hour,
+                timeBase.minute,
+              );
+
               return Cobro(
                 id: 'VIRTUAL-$i',
                 localId: local.id,
-                fecha: fechaInicioAdelantos.add(Duration(days: i)),
+                fecha: fechaVirtual,
                 monto: local.cuotaDiaria,
                 estado: 'adelantado',
                 cuotaDiaria: local.cuotaDiaria,
@@ -95,7 +106,10 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
             });
 
             // Combinar y filtrar
-            final combinedList = [...cobrosList, ...listAdelantados];
+            final List<Cobro> combinedList = [
+              ...cobrosList,
+              ...listAdelantados,
+            ];
             combinedList.sort(
               (a, b) =>
                   (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
@@ -133,7 +147,9 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                         local.mercadoId!,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                       ),
                   ],
@@ -259,7 +275,9 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               _KpiItem(
                                 label: 'Total Registros',
                                 value: '${combinedList.length}',
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
                                 icon: Icons.receipt_long_rounded,
                               ),
                             ],
@@ -290,7 +308,11 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                         child: Center(
                           child: Text(
                             'No hay registros',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
                           ),
                         ),
                       ),
@@ -334,7 +356,11 @@ class _LocalInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.12),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +391,12 @@ class _InfoFila extends StatelessWidget {
         children: [
           Text(
             '$label: ',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+            ),
           ),
           Expanded(
             child: Text(
@@ -447,7 +478,12 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             item.label,
-            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -471,7 +507,12 @@ class _FiltroBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final opciones = [
-      ('todos', 'Todos', cobros.length, Theme.of(context).colorScheme.onSurface),
+      (
+        'todos',
+        'Todos',
+        cobros.length,
+        Theme.of(context).colorScheme.onSurface,
+      ),
       (
         'cobrado',
         'Cobrados',
@@ -515,7 +556,9 @@ class _FiltroBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected
                       ? color.withValues(alpha: 0.2)
-                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                      : Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: selected ? color : Colors.transparent,
@@ -526,7 +569,11 @@ class _FiltroBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    color: selected ? color : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: selected
+                        ? color
+                        : Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                 ),
               ),
@@ -538,12 +585,59 @@ class _FiltroBar extends StatelessWidget {
   }
 }
 
-class _CobroRow extends StatelessWidget {
+class _CobroRow extends ConsumerWidget {
   final Cobro cobro;
   const _CobroRow({required this.cobro});
 
+  Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Cobro'),
+        content: Text(
+          '¿Seguro que deseas anular el cobro\n'
+          '${cobro.numeroBoleta ?? cobro.id ?? ''}?\n\n'
+          'Se revertirá el saldo y las deudas que cubrió quedarán pendientes nuevamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final repo = ref.read(cobroRepositoryProvider);
+      await repo.eliminarCobro(cobro);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Cobro eliminado y saldos revertidos'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al eliminar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final estado = cobro.estado ?? 'desconocido';
     final fecha = cobro.fecha;
 
@@ -563,7 +657,9 @@ class _CobroRow extends StatelessWidget {
         estadoColor = const Color(0xFFFF9F43);
         estadoIcon = Icons.fast_forward_rounded;
       default:
-        estadoColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+        estadoColor = Theme.of(
+          context,
+        ).colorScheme.onSurface.withValues(alpha: 0.7);
         estadoIcon = Icons.help_outline_rounded;
     }
 
@@ -594,7 +690,23 @@ class _CobroRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fecha != null ? DateFormatter.formatDateTime(fecha) : '—',
+                  () {
+                    if (fecha == null) return '—';
+                    // Si la hora es 00:00 y tenemos creadoEn, preferimos mostrar la hora de creación real
+                    if (fecha.hour == 0 &&
+                        fecha.minute == 0 &&
+                        cobro.creadoEn != null) {
+                      final fechaDisplay = DateTime(
+                        fecha.year,
+                        fecha.month,
+                        fecha.day,
+                        cobro.creadoEn!.hour,
+                        cobro.creadoEn!.minute,
+                      );
+                      return DateFormatter.formatDateTime(fechaDisplay);
+                    }
+                    return DateFormatter.formatDateTime(fecha);
+                  }(),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -604,7 +716,12 @@ class _CobroRow extends StatelessWidget {
                     cobro.observaciones!.isNotEmpty)
                   Text(
                     cobro.observaciones!,
-                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -622,7 +739,9 @@ class _CobroRow extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: estado == 'pendiente' ? estadoColor : Theme.of(context).colorScheme.onSurface,
+                  color: estado == 'pendiente'
+                      ? estadoColor
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -647,6 +766,26 @@ class _CobroRow extends StatelessWidget {
               ),
             ],
           ),
+          // Botón de eliminar (solo en cobros reales, no virtuales/adelantados)
+          if (cobro.id != null && !cobro.id!.startsWith('VIRTUAL')) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => _eliminar(context, ref),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 16,
+                  color: Colors.red.shade400,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

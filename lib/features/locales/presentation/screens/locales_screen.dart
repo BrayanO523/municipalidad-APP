@@ -13,6 +13,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../../../core/utils/qr_pdf_generator.dart';
+import '../../../../core/widgets/scrollable_table.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../data/models/local_model.dart';
 import '../../domain/entities/local.dart';
@@ -30,31 +31,23 @@ class LocalesScreen extends ConsumerStatefulWidget {
 class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
+  Key _searchKey = UniqueKey();
   Timer? _debounce;
   Mercado? _mercadoSeleccionado;
-
-  @override
-  void initState() {
-    super.initState();
-    // Escucha el scroll para cargar la siguiente página.
-    _scrollCtrl.addListener(_onScroll);
-    // Carga inicial con municipalidad.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(localesPaginadosProvider.notifier).recargar();
-    });
-  }
-
-  void _onScroll() {
-    if (_scrollCtrl.position.pixels >=
-        _scrollCtrl.position.maxScrollExtent - 300) {
-      ref.read(localesPaginadosProvider.notifier).cargarSiguientePagina();
-    }
-  }
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       ref.read(localesPaginadosProvider.notifier).aplicarBusqueda(value);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Carga inicial con municipalidad.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(localesPaginadosProvider.notifier).recargar();
     });
   }
 
@@ -89,7 +82,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final localesState = ref.watch(localesPaginadosProvider);
+    final paginacion = ref.watch(localesPaginadosProvider);
     return Row(
       children: [
         Expanded(
@@ -104,12 +97,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                localesState.mercadoSeleccionadoId != null
-                    ? '${localesState.locales.length} locales cargados · ${_mercadoSeleccionado?.nombre ?? "Mercado seleccionado"}'
+                paginacion.mercadoSeleccionadoId != null
+                    ? 'Página ${paginacion.paginaActual} · ${paginacion.locales.length} locales mostrados'
                     : 'Selecciona un mercado para ver sus locales',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
               ),
             ],
           ),
@@ -141,7 +136,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Text(
                     'Filtrar por Mercado',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -240,7 +237,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         padding: EdgeInsets.all(16),
                         child: Text(
                           'No se encontraron mercados',
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.54),
+                          ),
                         ),
                       ),
                     ),
@@ -272,12 +273,15 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Text(
                     'Buscar Local',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                       letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Autocomplete<Local>(
+                    key: _searchKey,
                     optionsBuilder: (textEditingValue) async {
                       final patron = textEditingValue.text;
                       if (patron.length < 2) return [];
@@ -293,11 +297,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     displayStringForOption: (local) => local.nombreSocial ?? '',
                     fieldViewBuilder:
                         (ctx, controller, focusNode, onFieldSubmitted) {
-                          // Sincroniza controlador externo con el generado por Autocomplete
+                          // Escuchar cambios para filtrar la lista principal (DataTable)
                           controller.addListener(() {
-                            if (controller.text != _searchCtrl.text) {
-                              _onSearchChanged(controller.text);
-                            }
+                            // Sincronizamos con el buscador del provider
+                            _onSearchChanged(controller.text);
                           });
                           return TextField(
                             controller: controller,
@@ -333,7 +336,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                   leading: Icon(
                                     Icons.storefront_rounded,
                                     size: 16,
-                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
                                   ),
                                   title: Text(
                                     local.nombreSocial ?? '-',
@@ -345,7 +351,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                         '',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.7),
                                     ),
                                   ),
                                   onTap: () => onSelected(local),
@@ -372,16 +381,22 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             // Botón de limpiar filtros.
             IconButton(
               onPressed: () {
-                setState(() => _mercadoSeleccionado = null);
-                _searchCtrl.clear();
+                setState(() {
+                  _mercadoSeleccionado = null;
+                  _searchKey = UniqueKey(); // Fuerza reset del Autocomplete UI
+                });
                 _debounce?.cancel();
                 ref.read(localesPaginadosProvider.notifier).recargar();
               },
               icon: const Icon(Icons.filter_list_off_rounded),
               tooltip: 'Limpiar filtros',
               style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-                foregroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.1),
+                foregroundColor: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -444,35 +459,50 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             scrollController: _scrollCtrl,
             onEdit: (l) => _showFormDialog(context, local: l),
             onViewQr: (l) => _showQrDialog(context, l),
+            onDelete: (l) => _confirmDelete(context, l),
           ),
         ),
-        if (state.cargando && state.locales.isNotEmpty)
+        if (state.locales.isNotEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (state.cargando)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Cargando más...',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: (!state.cargando && state.paginaActual > 1)
+                      ? () => ref
+                          .read(localesPaginadosProvider.notifier)
+                          .irAPaginaAnterior()
+                      : null,
+                  tooltip: 'Página anterior',
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Página ${state.paginaActual}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ],
-              ),
-            ),
-          ),
-        if (!state.hayMas && state.locales.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              '✓ ${state.locales.length} locales cargados',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 12),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: (!state.cargando && state.hayMas)
+                      ? () => ref
+                          .read(localesPaginadosProvider.notifier)
+                          .irAPaginaSiguiente()
+                      : null,
+                  tooltip: 'Página siguiente',
+                ),
+              ],
             ),
           ),
       ],
@@ -514,9 +544,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               const SizedBox(height: 16),
               Text(
                 'ID: ${local.id}',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -562,6 +594,35 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     );
   }
 
+  void _confirmDelete(BuildContext context, Local local) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Local'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acción NO se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final ds = ref.read(localDatasourceProvider);
+      await ds.eliminar(local.id!);
+      ref.read(localesPaginadosProvider.notifier).recargar();
+    }
+  }
+
   void _showFormDialog(BuildContext context, {Local? local}) {
     final isEditing = local != null;
     final nombreCtrl = TextEditingController(text: local?.nombreSocial);
@@ -581,6 +642,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final longitudCtrl = TextEditingController(
       text: local?.longitud?.toString() ?? '',
     );
+    final claveCtrl = TextEditingController(text: local?.clave ?? '');
 
     String? selectedMercadoId = local?.mercadoId ?? _mercadoSeleccionado?.id;
     String? selectedTipoNegocioId = local?.tipoNegocioId;
@@ -612,11 +674,39 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          TextField(
-                            controller: representanteCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Representante',
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: representanteCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Representante',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 1,
+                                child: TextField(
+                                  controller: claveCtrl,
+                                  decoration: InputDecoration(
+                                    labelText: 'Clave (Ej. 22-37-01-01)',
+                                    helperText: 'Autogenerado si vacío',
+                                    helperStyle: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  maxLength: 20,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           TextField(
@@ -743,13 +833,17 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                   ? 'Vértices definidos: ${temporalPerimetro!.length}'
                                   : 'Sin área definida en el mapa',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
                                 fontSize: 11,
                               ),
                             ),
                             trailing: Icon(
                               Icons.map_rounded,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.24),
                             ),
                             onTap: () async {
                               if (selectedMercadoId == null) {
@@ -880,6 +974,21 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           (m) => m.id == selectedMercadoId,
                         );
 
+                        String generadaClave = claveCtrl.text
+                            .trim()
+                            .toUpperCase();
+                        if (generadaClave.isEmpty &&
+                            nombreCtrl.text.trim().isNotEmpty) {
+                          // Tomar las primeras 3-4 letras, quitar espacios y hacer mayúscula
+                          final cleanName = nombreCtrl.text.trim().replaceAll(
+                            ' ',
+                            '',
+                          );
+                          generadaClave = cleanName.length >= 4
+                              ? cleanName.substring(0, 4).toUpperCase()
+                              : cleanName.toUpperCase();
+                        }
+
                         final model = LocalJson(
                           activo: true,
                           actualizadoEn: now,
@@ -899,6 +1008,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           latitud: double.tryParse(latitudCtrl.text),
                           longitud: double.tryParse(longitudCtrl.text),
                           perimetro: temporalPerimetro,
+                          clave: generadaClave.isNotEmpty
+                              ? generadaClave
+                              : null,
                         );
 
                         final jsonData = model.toJson();
@@ -934,12 +1046,14 @@ class _LocalesListView extends ConsumerWidget {
   final ScrollController scrollController;
   final ValueChanged<Local> onEdit;
   final ValueChanged<Local> onViewQr;
+  final ValueChanged<Local> onDelete;
 
   const _LocalesListView({
     required this.locales,
     required this.scrollController,
     required this.onEdit,
     required this.onViewQr,
+    required this.onDelete,
   });
 
   @override
@@ -948,40 +1062,59 @@ class _LocalesListView extends ConsumerWidget {
     final tipos = ref.watch(tiposNegocioProvider).value ?? [];
 
     return Card(
-      child: SingleChildScrollView(
-        controller: scrollController,
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            horizontalMargin: 16,
-            columnSpacing: 16,
-            headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-            ),
-            columns: const [
-              DataColumn(label: Text('Local')),
-              DataColumn(label: Text('Representante')),
-              DataColumn(label: Text('Teléfono')),
-              DataColumn(label: Text('Cobrador')),
-              DataColumn(label: Text('Tipo')),
-              DataColumn(label: Text('m²')),
-              DataColumn(label: Text('Cuota')),
-              DataColumn(label: Text('Deuda')),
-              DataColumn(label: Text('Saldo')),
-              DataColumn(label: Text('QR')),
-              DataColumn(label: Text('Hist.')),
-              DataColumn(label: Text('Acciones')),
-            ],
+      child: ScrollableTable(
+        verticalController: scrollController,
+        child: DataTable(
+          horizontalMargin: 16,
+          columnSpacing: 16,
+          headingRowColor: WidgetStateProperty.all(
+            Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+          ),
+          columns: const [
+            DataColumn(label: Text('Local')),
+            DataColumn(label: Text('Clave')),
+            DataColumn(label: Text('Representante')),
+            DataColumn(label: Text('Teléfono')),
+            DataColumn(label: Text('Cobrador')),
+            DataColumn(label: Text('Tipo')),
+            DataColumn(label: Text('m²')),
+            DataColumn(label: Text('Cuota')),
+            DataColumn(label: Text('Deuda')),
+            DataColumn(label: Text('Saldo')),
+            DataColumn(label: Text('Creación')),
+            DataColumn(label: Text('QR')),
+            DataColumn(label: Text('Hist.')),
+            DataColumn(label: Text('Acciones')),
+          ],
             rows: locales.map((l) {
-              final userName =
-                  usuarios.any((u) => u.rutaAsignada?.contains(l.id) ?? false)
-                  ? usuarios
-                        .firstWhere(
-                          (u) => u.rutaAsignada?.contains(l.id) ?? false,
-                        )
-                        .nombre
-                  : 'Sin asignar';
+              // Buscar si hay algún cobrador asignado por Mercado o por Ruta
+              // Lógica de asignación: Priorizar Ruta > Mercado (si es único)
+              final enRuta = usuarios.where(
+                (u) =>
+                    u.esCobrador && (u.rutaAsignada?.contains(l.id) ?? false),
+              );
+
+              String? cobradorNombre;
+              if (enRuta.isNotEmpty) {
+                // Si el local está en rutas específicas, mostramos esos nombres
+                cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
+              } else {
+                // Si no hay ruta específica, verificamos los del mercado
+                final enMercado = usuarios
+                    .where(
+                      (u) =>
+                          u.esCobrador &&
+                          u.mercadoId != null &&
+                          u.mercadoId == l.mercadoId,
+                    )
+                    .toList();
+
+                // REGLA: Solo mostrar si hay EXACTAMENTE UNO asignado al mercado completo.
+                // Si hay más de uno, la asignación es ambigua (cada uno tiene su propia ruta).
+                if (enMercado.length == 1) {
+                  cobradorNombre = enMercado.first.nombre;
+                }
+              }
 
               final tipoIndex = tipos.indexWhere(
                 (t) => t.id == l.tipoNegocioId,
@@ -998,17 +1131,43 @@ class _LocalesListView extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
+                  DataCell(
+                    Text(
+                      l.clave ?? '-',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                   DataCell(Text(l.representante ?? '-')),
                   DataCell(
                     Text(
                       l.telefonoRepresentante ?? '-',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
-                  DataCell(Text(userName ?? 'Sin asignar')),
+                  DataCell(
+                    cobradorNombre != null
+                        ? Text(cobradorNombre)
+                        : Text(
+                            'Sin asignar',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.38),
+                              fontStyle: FontStyle.italic,
+                              fontSize: 12,
+                            ),
+                          ),
+                  ),
                   DataCell(Text(strTipo, style: const TextStyle(fontSize: 12))),
                   DataCell(Text('${l.espacioM2 ?? 0}')),
                   DataCell(Text(DateFormatter.formatCurrency(l.cuotaDiaria))),
@@ -1039,6 +1198,13 @@ class _LocalesListView extends ConsumerWidget {
                     ),
                   ),
                   DataCell(
+                    Text(
+                      l.creadoEn != null
+                          ? DateFormatter.formatDate(l.creadoEn!)
+                          : '-',
+                    ),
+                  ),
+                  DataCell(
                     IconButton(
                       icon: const Icon(Icons.qr_code_rounded, size: 20),
                       onPressed: () => onViewQr(l),
@@ -1054,15 +1220,29 @@ class _LocalesListView extends ConsumerWidget {
                     ),
                   ),
                   DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      onPressed: () => onEdit(l),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          onPressed: () => onEdit(l),
+                          tooltip: 'Editar',
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_rounded,
+                            size: 18,
+                            color: Colors.redAccent,
+                          ),
+                          onPressed: () => onDelete(l),
+                          tooltip: 'Eliminar',
+                        ),
+                      ],
                     ),
                   ),
                 ],
               );
             }).toList(),
-          ),
         ),
       ),
     );
@@ -1082,11 +1262,22 @@ class _EmptyStateWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+          Icon(
+            icon,
+            size: 64,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
           const SizedBox(height: 16),
           Text(
             mensaje,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 15),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
+              fontSize: 15,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
