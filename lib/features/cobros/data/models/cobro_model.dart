@@ -22,7 +22,12 @@ class CobroJson extends Cobro {
     super.telefonoRepresentante,
     super.correlativo,
     super.anioCorrelativo,
+    super.numeroBoleta,
+    super.deudaAnterior,
+    super.montoAbonadoDeuda,
+    super.nuevoSaldoFavor,
     super.pagoACuota,
+    super.idsDeudasSaldadas,
   });
 
   factory CobroJson.fromJson(Map<String, dynamic> json, {String? docId}) {
@@ -32,20 +37,27 @@ class CobroJson extends Cobro {
       actualizadoPor: json['actualizadoPor'],
       creadoEn: (json['creadoEn'] as Timestamp?)?.toDate(),
       creadoPor: json['creadoPor'],
-      cuotaDiaria: json['cuotaDiaria'],
+      cuotaDiaria: (json['cuotaDiaria'] as num?)?.toDouble(),
       estado: json['estado'],
       fecha: (json['fecha'] as Timestamp?)?.toDate(),
       id: docId ?? json['id'],
       localId: json['localId'],
       mercadoId: json['mercadoId'],
-      monto: json['monto'],
+      monto: (json['monto'] as num?)?.toDouble(),
       municipalidadId: json['municipalidadId'],
       observaciones: json['observaciones'],
-      saldoPendiente: json['saldoPendiente'],
+      saldoPendiente: (json['saldoPendiente'] as num?)?.toDouble(),
       telefonoRepresentante: json['telefonoRepresentante'],
-      correlativo: json['correlativo'],
-      anioCorrelativo: json['anioCorrelativo'],
-      pagoACuota: json['pagoACuota'],
+      correlativo: (json['correlativo'] as num?)?.toInt(),
+      anioCorrelativo: (json['anioCorrelativo'] as num?)?.toInt(),
+      numeroBoleta: json['numeroBoleta'],
+      deudaAnterior: (json['deudaAnterior'] as num?)?.toDouble(),
+      montoAbonadoDeuda: (json['montoAbonadoDeuda'] as num?)?.toDouble(),
+      nuevoSaldoFavor: (json['nuevoSaldoFavor'] as num?)?.toDouble(),
+      pagoACuota: (json['pagoACuota'] as num?)?.toDouble(),
+      idsDeudasSaldadas: (json['idsDeudasSaldadas'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
     );
   }
 
@@ -69,7 +81,12 @@ class CobroJson extends Cobro {
       telefonoRepresentante: entity.telefonoRepresentante,
       correlativo: entity.correlativo,
       anioCorrelativo: entity.anioCorrelativo,
+      numeroBoleta: entity.numeroBoleta,
+      deudaAnterior: entity.deudaAnterior,
+      montoAbonadoDeuda: entity.montoAbonadoDeuda,
+      nuevoSaldoFavor: entity.nuevoSaldoFavor,
       pagoACuota: entity.pagoACuota,
+      idsDeudasSaldadas: entity.idsDeudasSaldadas,
     );
   }
 
@@ -94,7 +111,12 @@ class CobroJson extends Cobro {
       'telefonoRepresentante': telefonoRepresentante,
       'correlativo': correlativo,
       'anioCorrelativo': anioCorrelativo,
+      'deudaAnterior': deudaAnterior,
+      'montoAbonadoDeuda': montoAbonadoDeuda,
+      'nuevoSaldoFavor': nuevoSaldoFavor,
       'pagoACuota': pagoACuota,
+      if (idsDeudasSaldadas != null && idsDeudasSaldadas!.isNotEmpty)
+        'idsDeudasSaldadas': idsDeudasSaldadas,
     };
   }
 }
