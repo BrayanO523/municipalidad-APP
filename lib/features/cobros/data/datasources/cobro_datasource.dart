@@ -1,4 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../models/cobro_model.dart';
@@ -16,51 +19,137 @@ class CobroDatasource {
     await _collection.doc(docId).set(data);
   }
 
-  /// Registra un cobro y genera un correlativo único por mercado y año.
-  Future<int> crearCobroConCorrelativo({
+  /// Registra un cobro y genera un correlativo único por LOCAL y año.
+  /// En modo offline (sin conexión), genera un correlativo leyendo y actualizando Hive.
+  Future<String> crearCobroConCorrelativo({
     required String cobroId,
     required Map<String, dynamic> cobroData,
-    required String mercadoId,
+    required String localId,
   }) async {
-    return await _firestore.runTransaction<int>((transaction) async {
-      final mercadoRef = _firestore
-          .collection(FirestoreCollections.mercados)
-          .doc(mercadoId);
-      final mercadoDoc = await transaction.get(mercadoRef);
+    final prefs = await SharedPreferences.getInstance();
+    final userId = cobroData['creadoPor'] as String?;
+    if (userId == null) throw Exception('Falta ID de usuario para correlativo');
 
-      if (!mercadoDoc.exists) {
-        throw Exception('El mercado no existe');
-      }
+    // 1. Obtener datos del usuario (prefijo y contador local)
+    // Estos deben haberse sincronizado al iniciar sesión o antes de salir.
+    final String codigoCobrador = prefs.getString('prefijo_$userId') ?? 'C';
+    final int anioActual = DateTime.now().year;
+    
+    // Llave de SharedPreferences para este usuario y año
+    final String keyContador = 'correlativo_${userId}_$anioActual';
+    int ultimoCorrelativo = prefs.getInt(keyContador) ?? 0;
+    int nuevoCorrelativo = ultimoCorrelativo + 1;
 
-      final data = mercadoDoc.data()!;
-      final anioActual = DateTime.now().year;
-      final anioGuardado = data['anioCorrelativo'] as int?;
-      final ultimoCorrelativo = data['ultimoCorrelativo'] as int? ?? 0;
+    // 2. Generar Número de Boleta: ANIO-CODIGO-0001
+    final numeroBoleta = '$anioActual-$codigoCobrador-${nuevoCorrelativo.toString().padLeft(4, "0")}';
 
-      int nuevoCorrelativo;
-      if (anioGuardado != anioActual) {
-        // Reinicio anual
-        nuevoCorrelativo = 1;
-      } else {
-        nuevoCorrelativo = ultimoCorrelativo + 1;
-      }
+    // 3. Guardar nuevo correlativo localmente de inmediato
+    await prefs.setInt(keyContador, nuevoCorrelativo);
 
-      // Actualizar mercado
-      transaction.update(mercadoRef, {
+    // 4. Preparar datos del cobro
+    final finalCobroData = Map<String, dynamic>.from(cobroData);
+    finalCobroData['correlativo'] = nuevoCorrelativo;
+    finalCobroData['anioCorrelativo'] = anioActual;
+    finalCobroData['numeroBoleta'] = numeroBoleta;
+    
+    // Intentar determinar si estamos online para marcar esOffline
+    final connectivityResult = await Connectivity().checkConnectivity().timeout(
+      const Duration(seconds: 1),
+      onTimeout: () => [ConnectivityResult.none],
+    );
+    // En las versiones más recientes checkConnectivity devuelve una lista
+    final isOnline = connectivityResult.any((res) => res != ConnectivityResult.none);
+    finalCobroData['esOffline'] = !isOnline;
+
+    // 5. Registrar en Firestore (Cacheado por Firebase)
+    // No usamos transacción aquí para permitir registro instantáneo offline.
+    // El sync del documento del usuario se hará luego o en paralelo.
+    await _collection.doc(cobroId).set(finalCobroData);
+
+    // 6. Intentar actualizar el documento del usuario en Firestore si hay red
+    if (isOnline) {
+      _firestore.collection(FirestoreCollections.usuarios).doc(userId).update({
         'ultimoCorrelativo': nuevoCorrelativo,
         'anioCorrelativo': anioActual,
         'actualizadoEn': FieldValue.serverTimestamp(),
+      }).catchError((_) {
+        // Silencioso: se sincronizará luego si falla
       });
+    }
 
-      // Crear cobro con el correlativo asignado
-      final finalCobroData = Map<String, dynamic>.from(cobroData);
-      finalCobroData['correlativo'] = nuevoCorrelativo;
-      finalCobroData['anioCorrelativo'] = anioActual;
+    return numeroBoleta;
+  }
 
-      transaction.set(_collection.doc(cobroId), finalCobroData);
+  // REVERTIR CORRELATIVO (Inteligente)
+  Future<void> retrocederCorrelativo({
+    required String usuarioId,
+    required int anio,
+    required int correlativoABorrar,
+  }) async {
+    // Solo retrocedemos si la boleta borrada es *exactamente* la última generada por este cobrador.
+    // Si borró una boleta vieja (ej: la #2 y ya va por la #5), no hacemos nada para evitar duplicar
+    // las del medio.
 
-      return nuevoCorrelativo;
-    });
+    try {
+      final connectivityResult = await Connectivity()
+          .checkConnectivity()
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () => [ConnectivityResult.none],
+          );
+
+      if (connectivityResult.any((res) => res == ConnectivityResult.none)) {
+        throw FirebaseException(plugin: 'cloud_firestore', code: 'unavailable');
+      }
+
+      await _firestore.runTransaction((transaction) async {
+        final userRef = _firestore
+            .collection(FirestoreCollections.usuarios)
+            .doc(usuarioId);
+        final userDoc = await transaction.get(userRef);
+
+        if (userDoc.exists) {
+          final data = userDoc.data()!;
+          final actualAnio = (data['anioCorrelativo'] as num?)?.toInt() ?? anio;
+          final actualCorrelativo =
+              (data['ultimoCorrelativo'] as num?)?.toInt() ?? 0;
+
+          if (actualAnio == anio && actualCorrelativo == correlativoABorrar) {
+            transaction.update(userRef, {
+              'ultimoCorrelativo': actualCorrelativo - 1,
+            });
+            // Offline sync inside online success
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt(
+              'correlativo_${usuarioId}_$anio',
+              actualCorrelativo - 1,
+            );
+          }
+        }
+      });
+    } catch (_) {
+      // OFFLINE FALLBACK
+      final prefs = await SharedPreferences.getInstance();
+      final actualCorrelativo =
+          prefs.getInt('correlativo_${usuarioId}_$anio') ?? 0;
+
+      if (actualCorrelativo == correlativoABorrar) {
+        await prefs.setInt(
+          'correlativo_${usuarioId}_$anio',
+          actualCorrelativo - 1,
+        );
+
+        // Dejar el documento listo para sync
+        _firestore
+            .collection(FirestoreCollections.usuarios)
+            .doc(usuarioId)
+            .update({
+              'ultimoCorrelativo': actualCorrelativo - 1,
+              'actualizadoEn': FieldValue.serverTimestamp(),
+            })
+            .catchError((_) {});
+      }
+    }
   }
 
   // READ
@@ -78,7 +167,17 @@ class CobroDatasource {
   Future<List<CobroJson>> listarPorFecha(
     DateTime fecha, {
     String? municipalidadId,
+    String? mercadoId,
+    List<String>? rutaAsignada,
   }) async {
+    final conectividad = await Connectivity().checkConnectivity().timeout(
+      const Duration(seconds: 1),
+      onTimeout: () => [ConnectivityResult.none],
+    );
+
+    final isOffline = conectividad.any((res) => res == ConnectivityResult.none);
+    final source = isOffline ? Source.cache : Source.serverAndCache;
+
     final inicio = DateTime(fecha.year, fecha.month, fecha.day);
     final fin = inicio.add(const Duration(days: 1));
     var query = _collection
@@ -89,10 +188,45 @@ class CobroDatasource {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
     }
 
-    final snapshot = await query.get();
-    return snapshot.docs
-        .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
-        .toList();
+    // Si hay ruta asignada, priorizamos filtrar esos IDs específicos
+    if (rutaAsignada != null && rutaAsignada.isNotEmpty) {
+      final List<CobroJson> allResults = [];
+      for (var i = 0; i < rutaAsignada.length; i += 30) {
+        final batchIds = rutaAsignada.sublist(
+          i,
+          i + 30 > rutaAsignada.length ? rutaAsignada.length : i + 30,
+        );
+        var batchQuery = query.where('localId', whereIn: batchIds);
+        final snapshot = await batchQuery.get(GetOptions(source: source));
+        allResults.addAll(
+          snapshot.docs.map(
+            (doc) => CobroJson.fromJson(doc.data(), docId: doc.id),
+          ),
+        );
+      }
+      return allResults;
+    }
+
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
+
+    try {
+      final snapshot = await query.get(GetOptions(source: source));
+      return snapshot.docs
+          .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+          .toList();
+    } catch (e) {
+      if (e is FirebaseException && e.code == 'unavailable') {
+        final snapshot = await query.get(
+          const GetOptions(source: Source.cache),
+        );
+        return snapshot.docs
+            .map((d) => CobroJson.fromJson(d.data(), docId: d.id))
+            .toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<CobroJson>> listarRecientes({
@@ -111,6 +245,37 @@ class CobroDatasource {
         .toList();
   }
 
+  Future<List<CobroJson>> listarPorCobrador(String cobradorId, {int limite = 50}) async {
+    // Nota: Puede requerir un índice compuesto (creadoPor ASC, fecha DESC) en Firestore.
+    try {
+      final snapshot = await _collection
+          .where('creadoPor', isEqualTo: cobradorId)
+          .orderBy('fecha', descending: true)
+          .limit(limite)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+          .toList();
+    } catch (e) {
+      // Fallback a buscar todos los del cobrador si el índice no existe aún,
+      // ordenándolos en memoria (menos eficiente para grandes vols, pero funcional)
+      final snapshot = await _collection
+          .where('creadoPor', isEqualTo: cobradorId)
+          .get();
+      
+      final lista = snapshot.docs
+          .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+          .toList();
+      lista.sort((a, b) {
+        final dateA = a.fecha ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = b.fecha ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return dateB.compareTo(dateA);
+      });
+      return lista.take(limite).toList();
+    }
+  }
+
   Stream<List<CobroJson>> streamPorLocal(String localId) {
     return _collection
         .where('localId', isEqualTo: localId)
@@ -126,6 +291,7 @@ class CobroDatasource {
   Stream<List<CobroJson>> streamPorFecha(
     DateTime fecha, {
     String? municipalidadId,
+    String? mercadoId,
   }) {
     final inicio = DateTime(fecha.year, fecha.month, fecha.day);
     final fin = inicio.add(const Duration(days: 1));
@@ -135,6 +301,9 @@ class CobroDatasource {
 
     if (municipalidadId != null) {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    }
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
     }
 
     return query.snapshots().map(
@@ -148,6 +317,7 @@ class CobroDatasource {
     DateTime inicio,
     DateTime fin, {
     String? municipalidadId,
+    String? mercadoId,
   }) {
     // Normalizar inicio a 00:00:00
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
@@ -166,6 +336,9 @@ class CobroDatasource {
     if (municipalidadId != null) {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
     }
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -177,11 +350,18 @@ class CobroDatasource {
   Stream<List<CobroJson>> streamRecientes({
     int limite = 20,
     String? municipalidadId,
+    String? mercadoId,
   }) {
-    var query = _collection.orderBy('fecha', descending: true).limit(limite);
+    Query<Map<String, dynamic>> query = _collection.orderBy(
+      'fecha',
+      descending: true,
+    );
 
     if (municipalidadId != null) {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    }
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
     }
 
     return query.snapshots().map(
@@ -222,7 +402,20 @@ class CobroDatasource {
 
   // UPDATE
   Future<void> actualizar(String docId, Map<String, dynamic> data) async {
-    await _collection.doc(docId).update(data);
+    final connectivityResult = await Connectivity().checkConnectivity().timeout(
+      const Duration(seconds: 1),
+      onTimeout: () => [ConnectivityResult.none],
+    );
+
+    final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
+    final future = _collection.doc(docId).update(data);
+
+    if (!isOffline) {
+      await future.timeout(
+        const Duration(milliseconds: 1500),
+        onTimeout: () => {},
+      );
+    }
   }
 
   // DELETE
@@ -232,17 +425,31 @@ class CobroDatasource {
 
   /// Busca los cobros pendientes más antiguos y los marca como cobrados
   /// basándose en un monto pagado a la deuda.
-  Future<void> saldarDeudaHistoria(String localId, num montoASaldar) async {
-    if (montoASaldar <= 0) return;
+  /// Retorna la lista de IDs de documentos afectados para registro del cobro principal.
+  Future<List<String>> saldarDeudaHistoria(
+    String localId,
+    num montoASaldar,
+  ) async {
+    if (montoASaldar <= 0) return [];
+
+    // Timeout estricto para no colgar la UI
+    final connectivityResult = await Connectivity().checkConnectivity().timeout(
+      const Duration(seconds: 1),
+      onTimeout: () => [ConnectivityResult.none],
+    );
+
+    final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
+    final source = isOffline ? Source.cache : Source.serverAndCache;
 
     final snapshot = await _collection
         .where('localId', isEqualTo: localId)
         .where('estado', whereIn: ['pendiente', 'abono_parcial'])
         .orderBy('fecha', descending: false) // Los más antiguos primero
-        .get();
+        .get(GetOptions(source: source));
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
+    final List<String> idsSaldados = [];
 
     for (var doc in snapshot.docs) {
       if (restante <= 0) break;
@@ -254,7 +461,6 @@ class CobroDatasource {
         // Se salda completamente este día
         batch.update(doc.reference, {
           'estado': 'cobrado',
-          'monto': (data['monto'] ?? 0) + saldoPendiente,
           'saldoPendiente': 0,
           'observaciones':
               '${data['observaciones'] ?? ''}\nSaldado por abono general.'
@@ -265,14 +471,51 @@ class CobroDatasource {
         // Se abona parcialmente
         batch.update(doc.reference, {
           'estado': 'abono_parcial',
-          'monto': (data['monto'] ?? 0) + restante,
           'saldoPendiente': saldoPendiente - restante,
         });
         restante = 0;
       }
+      idsSaldados.add(doc.id);
     }
 
-    await batch.commit();
+    final future = batch.commit();
+
+    if (!isOffline) {
+      await future.timeout(
+        const Duration(milliseconds: 1500),
+        onTimeout: () => {},
+      );
+    }
+
+    return idsSaldados;
+  }
+
+  /// Revierte los cobros históricos que fueron saldados por un cobro que se está eliminando.
+  /// Restaura cada registro a su estado original ('pendiente') y su saldo a la cuota diaria.
+  Future<void> revertirDeudasSaldadas(List<String> idsDeudas) async {
+    if (idsDeudas.isEmpty) return;
+
+    WriteBatch batch = _firestore.batch();
+
+    for (final id in idsDeudas) {
+      final docRef = _collection.doc(id);
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) continue;
+
+      final data = docSnap.data()!;
+      final cuotaDiaria = data['cuotaDiaria'] ?? 0;
+
+      // Revertir al estado pendiente con el saldo original (cuota diaria)
+      batch.update(docRef, {
+        'estado': 'pendiente',
+        'saldoPendiente': cuotaDiaria,
+        'observaciones': (data['observaciones'] as String? ?? '')
+            .replaceAll('\nSaldado por abono general.', '')
+            .trim(),
+      });
+    }
+
+    await batch.commit().catchError((_) {});
   }
 
   /// Migración temporal: Agrega municipalidadId a todos los cobros que no lo tienen.
@@ -401,5 +644,252 @@ class CobroDatasource {
     }
 
     return patched;
+  }
+
+  /// Inicializa todas las claves y correlativos del sistema (Mercados, Usuarios, Locales, Cobros)
+  Future<int> inicializarCorrelativosSistema() async {
+    int count = 0;
+
+    // 1. Limpiar Mercados (Eliminar campos obsoletos)
+    count += await eliminarCamposObsoletosMercados();
+
+    // 2. Limpiar Usuarios (Eliminar campos obsoletos)
+    count += await limpiarCorrelativosUsuario();
+
+    // 3. Parchar Cobros (esOffline)
+    count += await parcharEsOfflineEnCobros();
+
+    // 4. Limpiar Locales (Eliminar campos obsoletos de locales)
+    count += await _limpiarLocalesObsoletos();
+
+    return count;
+  }
+
+  Future<int> _limpiarLocalesObsoletos() async {
+    final localesDocs = await _firestore
+        .collection(FirestoreCollections.locales)
+        .get();
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+
+    for (var l in localesDocs.docs) {
+      final data = l.data();
+      if (data.containsKey('ultimoCorrelativo') ||
+          data.containsKey('anioCorrelativo')) {
+        batch.update(l.reference, {
+          'ultimoCorrelativo': FieldValue.delete(),
+          'anioCorrelativo': FieldValue.delete(),
+        });
+        count++;
+
+        if (count % 450 == 0) {
+          await batch.commit();
+          batch = _firestore.batch();
+        }
+      }
+    }
+
+    if (count % 450 != 0 && count > 0) {
+      await batch.commit();
+    }
+    return count;
+  }
+
+  /// Limpieza: Elimina campos de correlativos obsoletos de la colección de Mercados
+  Future<int> eliminarCamposObsoletosMercados() async {
+    final mercados = await _firestore
+        .collection(FirestoreCollections.mercados)
+        .get();
+
+    if (mercados.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+
+    for (var m in mercados.docs) {
+      batch.update(m.reference, {
+        'ultimoCorrelativo': FieldValue.delete(),
+        'anioCorrelativo': FieldValue.delete(),
+        'claveOnline': FieldValue.delete(),
+        'claveOffline': FieldValue.delete(),
+        'ultimoCorrelativoOnline': FieldValue.delete(),
+        'ultimoCorrelativoOffline': FieldValue.delete(),
+      });
+      count++;
+
+      if (count % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+
+    if (count % 450 != 0 && count > 0) {
+      await batch.commit();
+    }
+    return count;
+  }
+
+  /// Limpieza: Elimina campos de correlativos obsoletos de la colección de Usuarios
+  Future<int> limpiarCorrelativosUsuario() async {
+    final usuarios = await _firestore
+        .collection(FirestoreCollections.usuarios)
+        .where('rol', isEqualTo: 'cobrador')
+        .get();
+
+    if (usuarios.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+
+    for (var u in usuarios.docs) {
+      batch.update(u.reference, {
+        'ultimoCorrelativo': FieldValue.delete(),
+        'anioCorrelativo': FieldValue.delete(),
+        'clave': FieldValue.delete(),
+      });
+      count++;
+
+      if (count % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+
+    if (count % 450 != 0 && count > 0) {
+      await batch.commit();
+    }
+    return count;
+  }
+
+  /// Parchado: Asegura que todos los cobros tengan el flag 'esOffline'
+  Future<int> parcharEsOfflineEnCobros() async {
+    final cobros = await _collection.get();
+    if (cobros.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+    int patched = 0;
+
+    for (var doc in cobros.docs) {
+      if (doc.data()['esOffline'] == null) {
+        batch.update(doc.reference, {'esOffline': false});
+        patched++;
+        count++;
+
+        if (count % 450 == 0) {
+          await batch.commit();
+          batch = _firestore.batch();
+        }
+      }
+    }
+
+    if (count % 450 != 0 && patched > 0) {
+      await batch.commit();
+    }
+    return patched;
+  }
+
+  /// Acción DESTRUCTIVA: Borra todos los cobros y reinicia correlativos de mercados a 0.
+  Future<int> resetearSistemaCompleto() async {
+    // 1. Borrar todos los cobros
+    final cobros = await _collection.get();
+    WriteBatch batch = _firestore.batch();
+    int cobrosBorrados = 0;
+
+    for (var doc in cobros.docs) {
+      batch.delete(doc.reference);
+      cobrosBorrados++;
+      if (cobrosBorrados % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+    if (cobrosBorrados % 450 != 0 && cobrosBorrados > 0) {
+      await batch.commit();
+    }
+
+    // 2. Reiniciar correlativos en Usuarios (Cobradores)
+    final usuarios = await _firestore
+        .collection(FirestoreCollections.usuarios)
+        .where('rol', isEqualTo: 'cobrador')
+        .get();
+
+    batch = _firestore.batch();
+    int usuariosReset = 0;
+
+    for (var u in usuarios.docs) {
+      batch.update(u.reference, {
+        'ultimoCorrelativo': 0,
+        'anioCorrelativo': DateTime.now().year,
+      });
+      usuariosReset++;
+      if (usuariosReset % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+    if (usuariosReset % 450 != 0 && usuariosReset > 0) {
+      await batch.commit();
+    }
+
+    // 3. Limpiar saldos y deudas en TODOS los Locales
+    final locales = await _firestore
+        .collection(FirestoreCollections.locales)
+        .get();
+
+    batch = _firestore.batch();
+    int localesReset = 0;
+
+    for (var l in locales.docs) {
+      batch.update(l.reference, {
+        'deudaAcumulada': 0,
+        'saldoAFavor': 0,
+        'ultimaTransaccion': FieldValue.serverTimestamp(),
+      });
+      localesReset++;
+      if (localesReset % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+    if (localesReset % 450 != 0 && localesReset > 0) {
+      await batch.commit();
+    }
+
+    // 4. Limpiar caché local de cobros (Mobile)
+    await limpiarCacheLocal();
+
+    return cobrosBorrados;
+  }
+
+  /// Limpia la caché local de cobros (Hive + SharedPreferences).
+  /// Llamar después de un reset del sistema o para depuración.
+  Future<void> limpiarCacheLocal() async {
+    try {
+      // 1. Limpiar Hive cobrosBox
+      final box = Hive.isBoxOpen('cobrosBox')
+          ? Hive.box<dynamic>('cobrosBox')
+          : await Hive.openBox<dynamic>('cobrosBox');
+      await box.clear();
+    } catch (_) {}
+
+    try {
+      // 2. Limpiar claves de correlativos offline en SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final keysToRemove = prefs.getKeys().where(
+        (k) =>
+            k.startsWith('offlineC_') ||
+            k.startsWith('onlineC_') ||
+            k.startsWith('anioC_') ||
+            k.startsWith('claveON_') ||
+            k.startsWith('claveOFF_') ||
+            k.startsWith('prefijo_') ||
+            k.startsWith('correlativo_'),
+      );
+      for (final k in keysToRemove) {
+        await prefs.remove(k);
+      }
+    } catch (_) {}
   }
 }
