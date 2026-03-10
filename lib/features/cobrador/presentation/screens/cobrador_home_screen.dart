@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../cobros/data/models/hive/cobro_hive.dart';
 import '../../../locales/data/models/hive/local_hive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1072,6 +1073,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         final cobradoHoy = idsCobradosHoySet.contains(lid);
                         final cuotaCubierta = idsCuotaCubiertaSet.contains(lid);
                         final ultimoCobro = _cobroDelLocal(lid, cobrosHoy);
+                        final usuario = ref.watch(currentUsuarioProvider).value;
+                        final esAdminWeb = kIsWeb && (usuario?.esAdmin ?? false);
 
                         return _LocalCard(
                           local: local,
@@ -1090,7 +1093,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             '/cobrador/local/$lid/cuenta',
                             extra: local,
                           ),
-                          onEliminar: ultimoCobro == null
+                          onEliminar: (ultimoCobro == null || !esAdminWeb)
                               ? null
                               : () => _eliminarCobro(ultimoCobro),
                         );

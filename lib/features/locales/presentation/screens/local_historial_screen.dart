@@ -735,26 +735,39 @@ class _CobroRow extends ConsumerWidget {
               ),
             ],
           ),
-          // Botón de eliminar (solo en cobros reales, no virtuales/adelantados)
-          if (cobro.id != null && !cobro.id!.startsWith('VIRTUAL')) ...[
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () => _eliminar(context, ref),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 16,
-                  color: Colors.red.shade400,
-                ),
-              ),
-            ),
-          ],
+          // Botón de eliminar (solo administrador en WEB y en cobros reales, no virtuales/adelantados)
+          () {
+            final usuario = ref.watch(currentUsuarioProvider).value;
+            final esAdminWeb = kIsWeb && (usuario?.esAdmin ?? false);
+
+            if (esAdminWeb &&
+                cobro.id != null &&
+                !cobro.id!.startsWith('VIRTUAL')) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _eliminar(context, ref),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        size: 16,
+                        color: Colors.red.shade400,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }(),
         ],
       ),
     );
