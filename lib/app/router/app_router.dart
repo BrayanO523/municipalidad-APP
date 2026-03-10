@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../../features/cobrador/presentation/screens/cobrador_shell.dart';
 import '../../features/cobrador/presentation/screens/qr_scanner_screen.dart';
 import '../../features/cobros/presentation/screens/cobros_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../features/reportes/presentation/screens/resumen_reportes_screen.dart';
 import '../../features/locales/domain/entities/local.dart';
 import '../../features/locales/presentation/screens/local_historial_screen.dart';
 import '../../features/locales/presentation/screens/locales_screen.dart';
@@ -24,6 +26,11 @@ import '../../features/usuarios/presentation/screens/usuarios_screen.dart';
 import '../../features/usuarios/domain/entities/usuario.dart';
 import '../../features/usuarios/presentation/screens/correlativos_control_screen.dart';
 import '../../features/usuarios/presentation/screens/cobros_cobrador_screen.dart';
+import '../../features/cortes/presentation/screens/corte_nuevo_screen.dart';
+import '../../features/cortes/presentation/screens/cortes_historial_screen.dart';
+import '../../features/cortes/presentation/screens/corte_detalle_screen.dart';
+import '../../features/cortes/domain/entities/corte.dart';
+import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -155,6 +162,26 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'deudores',
             builder: (context, state) => const DeudoresScreen(),
           ),
+          GoRoute(
+            path: '/cortes-historial',
+            name: 'cortes-historial-admin',
+            builder: (context, state) => const CortesHistorialScreen(isAdmin: true),
+          ),
+          GoRoute(
+            path: '/corte-detalle',
+            name: 'corte-detalle-admin',
+            builder: (context, state) {
+              final corte = state.extra as Corte;
+              return CorteDetalleScreen(corte: corte);
+            },
+          ),
+          // Solo disponible en debug, nunca en release/deploy
+          if (kDebugMode)
+            GoRoute(
+              path: '/crear-admin',
+              name: 'crear-admin',
+              builder: (context, state) => const CrearAdminScreen(),
+            ),
         ],
       ),
       // Cobrador routes
@@ -165,6 +192,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/cobrador',
             name: 'cobrador',
             builder: (context, state) => const CobradorHomeScreen(),
+          ),
+          GoRoute(
+            path: '/cobrador/corte',
+            name: 'cobrador-corte',
+            builder: (context, state) => const CorteNuevoScreen(),
+          ),
+          GoRoute(
+            path: '/cobrador/cortes-historial',
+            name: 'cobrador-cortes-historial',
+            builder: (context, state) => const CortesHistorialScreen(isAdmin: false),
+          ),
+          GoRoute(
+            path: '/cobrador/corte-detalle',
+            name: 'corte-detalle-cobrador',
+            builder: (context, state) {
+              final corte = state.extra as Corte;
+              return CorteDetalleScreen(corte: corte);
+            },
           ),
           // Historial de local accesible desde el cobrador
           GoRoute(
@@ -187,6 +232,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/cobrador/mapa',
             name: 'cobrador-mapa',
             builder: (context, state) => const CobradorMapScreen(),
+          ),
+          GoRoute(
+            path: '/cobrador/resumen',
+            name: 'cobrador-resumen',
+            builder: (context, state) => const ResumenReportesScreen(),
           ),
         ],
       ),

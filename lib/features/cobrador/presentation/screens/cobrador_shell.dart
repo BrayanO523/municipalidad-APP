@@ -16,6 +16,81 @@ class CobradorShell extends ConsumerWidget {
     final usuario = ref.watch(currentUsuarioProvider).value;
 
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                border: Border(bottom: BorderSide(color: colorScheme.outline, width: 1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [colorScheme.primary, colorScheme.secondary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'QRecauda',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.dashboard_rounded, color: colorScheme.primary),
+              title: const Text('Inicio'),
+              onTap: () {
+                Navigator.pop(context);
+                context.go('/cobrador');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.analytics_rounded, color: colorScheme.primary),
+              title: const Text('Resumen Operativo'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/cobrador/resumen');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.point_of_sale_rounded, color: colorScheme.primary),
+              title: const Text('Realizar Corte Diario'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/cobrador/corte');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.history_rounded, color: colorScheme.primary),
+              title: const Text('Mi Historial de Cortes'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/cobrador/cortes-historial');
+              },
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -30,24 +105,13 @@ class CobradorShell extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [colorScheme.primary, colorScheme.secondary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.account_balance,
-                      color: Colors.white,
-                      size: 18,
+                  Builder(
+                    builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu_rounded),
+                      color: colorScheme.primary,
+                      onPressed: () => Scaffold.of(context).openDrawer(),
                     ),
                   ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

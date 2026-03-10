@@ -710,7 +710,7 @@ class _DashboardHeader extends ConsumerWidget {
                 final filter = ref.read(dashboardFilterProvider);
 
                 final bytes = await ReportePdfGenerator.generarReporteDashboard(
-                  cobrosPeriodo: cobros,
+                  cobros: cobros,
                   locales: locales,
                   mercados: mercados,
                   periodoLabel: filter.period == DashboardPeriod.hoy

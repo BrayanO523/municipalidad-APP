@@ -103,80 +103,26 @@ class _SidebarNavigation extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              children: [
-                _NavItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  path: '/dashboard',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.people_alt_rounded,
-                  label: 'Cobradores',
-                  path: '/usuarios',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.tag_rounded,
-                  label: 'Correlativos',
-                  path: '/correlativos',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.map_rounded,
-                  label: 'Diseño de Rutas',
-                  path: '/rutas-admin',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.store_rounded,
-                  label: 'Mercados',
-                  path: '/mercados',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.storefront_rounded,
-                  label: 'Locales',
-                  path: '/locales',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.category_rounded,
-                  label: 'Tipos de Negocio',
-                  path: '/tipos-negocio',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Cobros',
-                  path: '/cobros',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.savings_rounded,
-                  label: 'Saldos a Favor',
-                  path: '/saldos-favor',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-                _NavItem(
-                  icon: Icons.warning_amber_rounded,
-                  label: 'Deudores',
-                  path: '/deudores',
-                  currentPath: location,
-                  isExpanded: isExpanded,
-                ),
-              ],
+            child: Consumer(
+              builder: (context, ref, child) {
+                final navConfig = ref.watch(navigationConfigProvider);
+                final items = navConfig.getMenuItems();
+                
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return _NavItem(
+                      icon: item.icon,
+                      label: item.label,
+                      path: item.path,
+                      currentPath: location,
+                      isExpanded: isExpanded,
+                    );
+                  },
+                );
+              },
             ),
           ),
           const Divider(height: 1),
