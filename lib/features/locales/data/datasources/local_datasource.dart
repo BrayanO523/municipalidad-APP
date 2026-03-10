@@ -156,68 +156,136 @@ class LocalDatasource {
   }
 
   /// Página de locales con paginación por cursor, filtro por mercado y búsqueda.
-  Future<QuerySnapshot<Map<String, dynamic>>> listarPaginaPorMercado({
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> listarPaginaPorMercado({
     required String mercadoId,
     String? searchQuery,
     QueryDocumentSnapshot? lastDoc,
     int limit = 20,
   }) async {
-    Query<Map<String, dynamic>> query = _collection
-        .where('mercadoId', isEqualTo: mercadoId)
-        .orderBy('nombreSocial');
-
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lower = searchQuery.toLowerCase();
-      query = _collection
+      // Firestore no permite '<=' y '>=' en diferentes campos a la vez.
+      // Hacemos 2 queries en paralelo y unimos resultados en memoria.
+      final queryNombre = _collection
           .where('mercadoId', isEqualTo: mercadoId)
           .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
           .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-          .orderBy('nombreSocialLower');
+          .limit(limit);
+
+      // Eliminamos el filtro de mercadoId en Firebase para evitar requerir 
+      // un nuevo índice compuesto en la nube. Filtraremos en memoria.
+      final queryCodigo = _collection
+          .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
+          .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .limit(limit * 3); // Pedimos un poco más por si hay colisiones en otros mercados
+
+      final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
+      
+      final Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> merged = {};
+      
+      // Agregamos los resultados por nombre
+      for (var doc in results[0].docs) {
+        merged[doc.id] = doc;
+      }
+      
+      // Agregamos los resultados por código (filtrando por mercadoId en memoria)
+      for (var doc in results[1].docs) {
+        if (doc.data()['mercadoId'] == mercadoId) {
+          merged[doc.id] = doc;
+        }
+      }
+      final list = merged.values.toList();
+      list.sort((a, b) {
+        final nameA = (a.data()['nombreSocialLower'] as String?) ?? '';
+        final nameB = (b.data()['nombreSocialLower'] as String?) ?? '';
+        return nameA.compareTo(nameB);
+      });
+      return list.take(limit).toList();
     }
+
+    Query<Map<String, dynamic>> query = _collection
+        .where('mercadoId', isEqualTo: mercadoId)
+        .orderBy('nombreSocial');
 
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
     }
 
-    return await query.limit(limit).get();
+    final snap = await query.limit(limit).get();
+    return snap.docs;
   }
 
   /// Página de locales por municipalidad con paginación.
-  Future<QuerySnapshot<Map<String, dynamic>>> listarPaginaPorMunicipalidad({
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> listarPaginaPorMunicipalidad({
     required String municipalidadId,
     String? mercadoId,
     String? searchQuery,
     QueryDocumentSnapshot? lastDoc,
     int limit = 20,
   }) async {
-    Query<Map<String, dynamic>> query = _collection
-        .where('municipalidadId', isEqualTo: municipalidadId)
-        .orderBy('nombreSocial');
-
-    if (mercadoId != null) {
-      query = _collection
-          .where('municipalidadId', isEqualTo: municipalidadId)
-          .where('mercadoId', isEqualTo: mercadoId)
-          .orderBy('nombreSocial');
-    }
-
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lower = searchQuery.toLowerCase();
-      query = _collection
-          .where('municipalidadId', isEqualTo: municipalidadId)
+      Query<Map<String, dynamic>> baseQuery = _collection
+          .where('municipalidadId', isEqualTo: municipalidadId);
+      
+      if (mercadoId != null) {
+        baseQuery = baseQuery.where('mercadoId', isEqualTo: mercadoId);
+      }
+
+      final queryNombre = baseQuery
           .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
           .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-          .orderBy('nombreSocialLower');
+          .limit(limit);
+
+      // Eliminamos los filtros de igualdad para evitar nuevos índices compuestos
+      final queryCodigo = _collection
+          .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
+          .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .limit(limit * 3);
+
+      final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
+      
+      final Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> merged = {};
+      
+      for (var doc in results[0].docs) {
+        merged[doc.id] = doc;
+      }
+      
+      for (var doc in results[1].docs) {
+        final data = doc.data();
+        bool match = data['municipalidadId'] == municipalidadId;
+        if (mercadoId != null && data['mercadoId'] != mercadoId) {
+          match = false;
+        }
+        if (match) merged[doc.id] = doc;
+      }
+      final list = merged.values.toList();
+      list.sort((a, b) {
+        final nameA = (a.data()['nombreSocialLower'] as String?) ?? '';
+        final nameB = (b.data()['nombreSocialLower'] as String?) ?? '';
+        return nameA.compareTo(nameB);
+      });
+      return list.take(limit).toList();
     }
+
+    Query<Map<String, dynamic>> query = _collection
+        .where('municipalidadId', isEqualTo: municipalidadId);
+
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
+    
+    query = query.orderBy('nombreSocial');
 
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
     }
 
-    return await query.limit(limit).get();
+    final snap = await query.limit(limit).get();
+    return snap.docs;
   }
 
-  /// Búsqueda rápida por prefijo de nombreSocial para el typeahead.
+  /// Búsqueda rápida por prefijo de nombreSocial o codigoCatastral para el typeahead.
   Future<List<LocalJson>> buscarPorPrefijo({
     required String prefijo,
     String? mercadoId,
@@ -225,32 +293,47 @@ class LocalDatasource {
     int limit = 10,
   }) async {
     final lower = prefijo.toLowerCase();
-    Query<Map<String, dynamic>> query = _collection
-        .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
-        .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-        .orderBy('nombreSocialLower')
-        .limit(limit);
+    Query<Map<String, dynamic>> baseQuery = _collection;
 
     if (mercadoId != null) {
-      query = _collection
-          .where('mercadoId', isEqualTo: mercadoId)
-          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
-          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-          .orderBy('nombreSocialLower')
-          .limit(limit);
+      baseQuery = baseQuery.where('mercadoId', isEqualTo: mercadoId);
     } else if (municipalidadId != null) {
-      query = _collection
-          .where('municipalidadId', isEqualTo: municipalidadId)
-          .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
-          .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-          .orderBy('nombreSocialLower')
-          .limit(limit);
+      baseQuery = baseQuery.where('municipalidadId', isEqualTo: municipalidadId);
     }
 
-    final snapshot = await query.get();
-    return snapshot.docs
-        .map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id))
-        .toList();
+    final queryNombre = baseQuery
+        .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
+        .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
+        .limit(limit);
+
+    final queryCodigo = _collection
+        .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
+        .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+        .limit(limit * 3);
+
+    final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
+    
+    final Map<String, LocalJson> merged = {};
+    for (var doc in results[0].docs) {
+      if (!merged.containsKey(doc.id)) {
+        merged[doc.id] = LocalJson.fromJson(doc.data(), docId: doc.id);
+      }
+    }
+    
+    for (var doc in results[1].docs) {
+      final data = doc.data();
+      bool match = true;
+      if (mercadoId != null && data['mercadoId'] != mercadoId) match = false;
+      if (municipalidadId != null && data['municipalidadId'] != municipalidadId) match = false;
+      
+      if (match && !merged.containsKey(doc.id)) {
+        merged[doc.id] = LocalJson.fromJson(data, docId: doc.id);
+      }
+    }
+    
+    final list = merged.values.toList();
+    list.sort((a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''));
+    return list.take(limit).toList();
   }
 
   Future<List<LocalJson>> listarPorIds(List<String> ids) async {
@@ -397,6 +480,36 @@ class LocalDatasource {
     }
 
     return actuallyMigrated;
+  }
+
+  /// Migración: Inicializa codigoCatastral para locales viejos si no existe.
+  /// Evitará resultados nulos en las nuevas búsquedas con OR.
+  Future<int> migrarCodigoCatastralLocal() async {
+    final snapshot = await _collection.get();
+    if (snapshot.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int migrated = 0;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['codigoCatastral'] == null) {
+        // En lugar de nulo, usamos un string vacío como default
+        batch.update(doc.reference, {
+          'codigoCatastral': '',
+          'codigoCatastralLower': '',
+        });
+        migrated++;
+        
+        if (migrated % 500 == 0) {
+          await batch.commit();
+          batch = _firestore.batch();
+        }
+      }
+    }
+
+    if (migrated > 0 && migrated % 500 != 0) await batch.commit();
+    return migrated;
   }
 
   /// Migración: Añade campo 'nombreSocialLower' para búsqueda eficiente por prefijo.

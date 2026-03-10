@@ -306,7 +306,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             controller: controller,
                             focusNode: focusNode,
                             decoration: const InputDecoration(
-                              hintText: 'Nombre del local...',
+                              hintText: 'Nombre o Código local...',
                               prefixIcon: Icon(Icons.search_rounded, size: 18),
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
@@ -643,6 +643,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       text: local?.longitud?.toString() ?? '',
     );
     final claveCtrl = TextEditingController(text: local?.clave ?? '');
+    final codigoCatastralCtrl = TextEditingController(text: local?.codigoCatastral ?? '');
 
     String? selectedMercadoId = local?.mercadoId ?? _mercadoSeleccionado?.id;
     String? selectedTipoNegocioId = local?.tipoNegocioId;
@@ -682,6 +683,24 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                   controller: representanteCtrl,
                                   decoration: const InputDecoration(
                                     labelText: 'Representante',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 1,
+                                child: TextField(
+                                  controller: codigoCatastralCtrl,
+                                  decoration: InputDecoration(
+                                    labelText: 'Código Local',
+                                    helperText: 'Opcional, Búsqueda libre',
+                                    helperStyle: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1011,10 +1030,16 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           clave: generadaClave.isNotEmpty
                               ? generadaClave
                               : null,
+                          codigoCatastral: codigoCatastralCtrl.text.isNotEmpty 
+                              ? codigoCatastralCtrl.text 
+                              : null,
+                          codigoCatastralLower: codigoCatastralCtrl.text.isNotEmpty 
+                              ? codigoCatastralCtrl.text.toLowerCase() 
+                              : null,
                         );
 
                         final jsonData = model.toJson();
-                        // Añadir campo de búsqueda por prefijo al guardar.
+                        // Añadir campo de búsqueda por prefijo al guardar. (Redundante pero seguro por compatibilidad)
                         jsonData['nombreSocialLower'] = (nombreCtrl.text)
                             .toLowerCase();
 
@@ -1073,6 +1098,7 @@ class _LocalesListView extends ConsumerWidget {
           ),
           columns: const [
             DataColumn(label: Text('Local')),
+            DataColumn(label: Text('Código Local')),
             DataColumn(label: Text('Clave')),
             DataColumn(label: Text('Representante')),
             DataColumn(label: Text('Teléfono')),
@@ -1130,6 +1156,16 @@ class _LocalesListView extends ConsumerWidget {
                     Text(
                       l.nombreSocial ?? '-',
                       style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      l.codigoCatastral ?? '-',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   DataCell(

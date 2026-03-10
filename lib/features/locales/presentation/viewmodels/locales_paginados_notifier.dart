@@ -145,17 +145,17 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       final municipalidadId = _municipalidadId;
       final mercadoId = state.mercadoSeleccionadoId;
       final query = state.busqueda;
-      QuerySnapshot<Map<String, dynamic>> snapshot;
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
 
       if (mercadoId != null) {
-        snapshot = await _ds.listarPaginaPorMercado(
+        docs = await _ds.listarPaginaPorMercado(
           mercadoId: mercadoId,
           searchQuery: query,
           lastDoc: lastDoc,
           limit: _pageSize,
         );
       } else if (municipalidadId != null) {
-        snapshot = await _ds.listarPaginaPorMunicipalidad(
+        docs = await _ds.listarPaginaPorMunicipalidad(
           municipalidadId: municipalidadId,
           searchQuery: query,
           lastDoc: lastDoc,
@@ -166,7 +166,6 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         return;
       }
 
-      final docs = snapshot.docs;
       final nuevos = docs.map((doc) {
         return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;
       }).toList();

@@ -21,6 +21,8 @@ class Local {
   final num? deudaAcumulada; // Suma de cuotas no pagadas histórica
 
   final String? clave;
+  final String? codigoCatastral;
+  final String? codigoCatastralLower;
 
   const Local({
     this.activo,
@@ -44,6 +46,8 @@ class Local {
     this.saldoAFavor,
     this.deudaAcumulada,
     this.clave,
+    this.codigoCatastral,
+    this.codigoCatastralLower,
   });
 
   final List<Map<String, double>>? perimetro;

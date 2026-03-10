@@ -72,6 +72,12 @@ class LocalHive extends HiveObject {
   @HiveField(21)
   String? clave;
 
+  @HiveField(22)
+  String? codigoCatastral;
+
+  @HiveField(23)
+  String? codigoCatastralLower;
+
   LocalHive({
     this.id,
     this.syncStatus = 1,
@@ -95,6 +101,8 @@ class LocalHive extends HiveObject {
     this.deudaAcumulada,
     this.perimetroJson,
     this.clave,
+    this.codigoCatastral,
+    this.codigoCatastralLower,
   });
 
   Local toDomain() {
@@ -138,6 +146,8 @@ class LocalHive extends HiveObject {
       deudaAcumulada: deudaAcumulada,
       perimetro: perimetroDecoded,
       clave: clave,
+      codigoCatastral: codigoCatastral,
+      codigoCatastralLower: codigoCatastralLower,
     );
   }
 
@@ -170,6 +180,8 @@ class LocalHive extends HiveObject {
       deudaAcumulada: local.deudaAcumulada?.toDouble(),
       perimetroJson: perimetroEncoded,
       clave: local.clave,
+      codigoCatastral: local.codigoCatastral,
+      codigoCatastralLower: local.codigoCatastralLower,
     );
   }
 }

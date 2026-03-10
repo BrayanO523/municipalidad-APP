@@ -25,6 +25,8 @@ class LocalJson extends Local {
     super.saldoAFavor,
     super.deudaAcumulada,
     super.clave,
+    super.codigoCatastral,
+    super.codigoCatastralLower,
   });
 
   factory LocalJson.fromJson(Map<String, dynamic> jsonRaw, {String? docId}) {
@@ -78,6 +80,8 @@ class LocalJson extends Local {
       saldoAFavor: parseNum(json['saldoAFavor']),
       deudaAcumulada: parseNum(json['deudaAcumulada']),
       clave: clave,
+      codigoCatastral: json['codigoCatastral'],
+      codigoCatastralLower: json['codigoCatastralLower'],
     );
   }
 
@@ -104,6 +108,8 @@ class LocalJson extends Local {
       saldoAFavor: entity.saldoAFavor,
       deudaAcumulada: entity.deudaAcumulada,
       clave: entity.clave,
+      codigoCatastral: entity.codigoCatastral,
+      codigoCatastralLower: entity.codigoCatastralLower,
     );
   }
 
@@ -133,6 +139,8 @@ class LocalJson extends Local {
       if (saldoAFavor != null) 'saldoAFavor': saldoAFavor,
       if (deudaAcumulada != null) 'deudaAcumulada': deudaAcumulada,
       if (clave != null) 'clave': clave,
+      if (codigoCatastral != null) 'codigoCatastral': codigoCatastral,
+      if (codigoCatastralLower != null) 'codigoCatastralLower': codigoCatastralLower,
     };
   }
 }
