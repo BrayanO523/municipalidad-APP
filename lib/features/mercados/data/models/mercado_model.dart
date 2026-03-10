@@ -12,15 +12,15 @@ class MercadoJson extends Mercado {
     super.municipalidadId,
     super.nombre,
     super.ubicacion,
-    super.ultimoCorrelativo,
-    super.anioCorrelativo,
     super.latitud,
     super.longitud,
     super.perimetro,
+    super.codigo,
   });
 
   factory MercadoJson.fromJson(Map<String, dynamic> jsonRaw, {String? docId}) {
     final json = Map<String, dynamic>.from(jsonRaw);
+
     final geo = json['ubicacion_geo'] as GeoPoint?;
     final perimRaw = json['perimetro'] as List<dynamic>?;
 
@@ -42,11 +42,10 @@ class MercadoJson extends Mercado {
       municipalidadId: json['municipalidadId'],
       nombre: json['nombre'],
       ubicacion: json['ubicacion'],
-      ultimoCorrelativo: json['ultimoCorrelativo'],
-      anioCorrelativo: json['anioCorrelativo'],
       latitud: geo?.latitude ?? json['latitud'],
       longitud: geo?.longitude ?? json['longitud'],
       perimetro: perimetro,
+      codigo: json['codigo'],
     );
   }
 
@@ -61,11 +60,10 @@ class MercadoJson extends Mercado {
       municipalidadId: entity.municipalidadId,
       nombre: entity.nombre,
       ubicacion: entity.ubicacion,
-      ultimoCorrelativo: entity.ultimoCorrelativo,
-      anioCorrelativo: entity.anioCorrelativo,
       latitud: entity.latitud,
       longitud: entity.longitud,
       perimetro: entity.perimetro,
+      codigo: entity.codigo,
     );
   }
 
@@ -81,14 +79,13 @@ class MercadoJson extends Mercado {
       'municipalidadId': municipalidadId,
       'nombre': nombre,
       'ubicacion': ubicacion,
-      'ultimoCorrelativo': ultimoCorrelativo,
-      'anioCorrelativo': anioCorrelativo,
       'ubicacion_geo': (latitud != null && longitud != null)
           ? GeoPoint(latitud!, longitud!)
           : null,
       'perimetro': perimetro
           ?.map((p) => GeoPoint(p['lat']!, p['lng']!))
           .toList(),
+      'codigo': codigo,
     };
   }
 }

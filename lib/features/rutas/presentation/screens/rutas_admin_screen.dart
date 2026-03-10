@@ -55,7 +55,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           // PANEL LATERAL (Filtros y Lista Ordenable)
           Container(
             width: 380,
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -73,10 +73,15 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 // Select Mercado
                 Text(
                   '1. Seleccionar Mercado',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _selectedMercadoId,
                   decoration: InputDecoration(
                     filled: true,
@@ -86,7 +91,10 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       .map(
                         (m) => DropdownMenuItem(
                           value: m.id,
-                          child: Text(m.nombre ?? ''),
+                          child: Text(
+                            m.nombre ?? '',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -106,10 +114,15 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 // Select Cobrador
                 Text(
                   '2. Seleccionar Cobrador',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _selectedCobradorId,
                   decoration: InputDecoration(
                     filled: true,
@@ -120,7 +133,10 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       .map(
                         (c) => DropdownMenuItem(
                           value: c.id,
-                          child: Text(c.nombre ?? ''),
+                          child: Text(
+                            c.nombre ?? '',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -136,7 +152,11 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                Divider(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
                 const SizedBox(height: 16),
 
                 // Reorderable list
@@ -150,7 +170,12 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Arrastre para ordenar',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -159,7 +184,11 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       ? Center(
                           child: Text(
                             'Seleccione mercado y cobrador',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.54),
+                            ),
                           ),
                         )
                       : ReorderableListView(
@@ -188,20 +217,27 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                                       '${index + 1}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onSurface,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
                                   title: Text(
                                     loc.nombreSocial ?? 'Local',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                       fontSize: 14,
                                     ),
                                   ),
                                   trailing: Icon(
                                     Icons.drag_handle,
-                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
                                   ),
                                 ),
                               ),
@@ -266,7 +302,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                                   .map((p) => LatLng(p['lat']!, p['lng']!))
                                   .toList(),
                               color: Colors.greenAccent.withValues(alpha: 0.2),
-                              borderColor: Colors.greenAccent.withValues(alpha: 0.5),
+                              borderColor: Colors.greenAccent.withValues(
+                                alpha: 0.5,
+                              ),
                               borderStrokeWidth: 2,
                             );
                           })
@@ -306,7 +344,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                                 child: Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurface,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -321,11 +361,16 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 ),
                 if (_selectedMercadoId == null)
                   Container(
-                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.7),
                     child: Center(
                       child: Text(
                         'Seleccione un Mercado para ver los locales',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 20),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 20,
+                        ),
                       ),
                     ),
                   ),

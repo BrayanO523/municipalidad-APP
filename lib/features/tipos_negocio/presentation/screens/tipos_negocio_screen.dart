@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
+import '../../../../core/widgets/scrollable_table.dart';
 import '../../data/models/tipo_negocio_model.dart';
 import '../../domain/entities/tipo_negocio.dart';
 
@@ -57,13 +59,18 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                     return Center(
                       child: Text(
                         'No se encontraron tipos de negocio',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
                       ),
                     );
                   }
                   return _TiposTable(
                     tipos: filtered,
                     onEdit: (t) => _showFormDialog(context, tipo: t),
+                    onDelete: (t) => _confirmDelete(context, t),
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -79,6 +86,35 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
         ),
       ),
     );
+  }
+
+  void _confirmDelete(BuildContext context, TipoNegocio tipo) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Tipo de Negocio'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar el tipo de negocio "${tipo.nombre}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final ds = ref.read(tipoNegocioDatasourceProvider);
+      await ds.eliminar(tipo.id!);
+      ref.invalidate(tiposNegocioProvider);
+    }
   }
 
   void _showFormDialog(BuildContext context, {TipoNegocio? tipo}) {
@@ -184,9 +220,11 @@ class _TiposHeader extends StatelessWidget {
               SizedBox(height: 4),
               Text(
                 'Categorías dinámicas de negocios para locales',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
               ),
             ],
           ),
@@ -201,10 +239,18 @@ class _TiposHeader extends StatelessWidget {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedColumn,
-              icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
+              ),
               isDense: true,
               dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+              ),
               items: ['Nombre', 'Descripción'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -241,39 +287,63 @@ class _TiposHeader extends StatelessWidget {
 class _TiposTable extends StatelessWidget {
   final List<TipoNegocio> tipos;
   final ValueChanged<TipoNegocio> onEdit;
+  final ValueChanged<TipoNegocio> onDelete;
 
-  const _TiposTable({required this.tipos, required this.onEdit});
+  const _TiposTable({
+    required this.tipos,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Descripción')),
-              DataColumn(label: Text('Estado')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: tipos.map((t) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(t.nombre ?? '-')),
-                  DataCell(Text(t.descripcion ?? '-')),
-                  DataCell(_ActiveChip(active: t.activo ?? false)),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      onPressed: () => onEdit(t),
-                    ),
+      child: ScrollableTable(
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Nombre')),
+            DataColumn(label: Text('Descripción')),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Fecha Creación')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: tipos.map((t) {
+            return DataRow(
+              cells: [
+                DataCell(Text(t.nombre ?? '-')),
+                DataCell(Text(t.descripcion ?? '-')),
+                DataCell(_ActiveChip(active: t.activo ?? false)),
+                DataCell(
+                  Text(
+                    t.creadoEn != null
+                        ? DateFormatter.formatDate(t.creadoEn!)
+                        : '-',
                   ),
-                ],
-              );
-            }).toList(),
-          ),
+                ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        onPressed: () => onEdit(t),
+                        tooltip: 'Editar',
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_rounded,
+                          size: 18,
+                          color: Colors.redAccent,
+                        ),
+                        onPressed: () => onDelete(t),
+                        tooltip: 'Eliminar',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );

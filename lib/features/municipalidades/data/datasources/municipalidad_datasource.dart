@@ -24,6 +24,19 @@ class MunicipalidadDatasource {
         .toList();
   }
 
+  Stream<List<MunicipalidadJson>> streamTodas() {
+    return _collection
+        .orderBy('nombre')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => MunicipalidadJson.fromJson(doc.data(), docId: doc.id),
+              )
+              .toList(),
+        );
+  }
+
   Future<MunicipalidadJson?> obtenerPorId(String docId) async {
     final doc = await _collection.doc(docId).get();
     if (!doc.exists) return null;

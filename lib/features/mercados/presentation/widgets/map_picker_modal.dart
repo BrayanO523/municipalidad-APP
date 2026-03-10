@@ -63,7 +63,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
             // Header
             Container(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 children: [
                   Icon(
@@ -226,7 +226,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
             // Footer
             Container(
               padding: EdgeInsets.all(16),
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 children: [
                   Text(

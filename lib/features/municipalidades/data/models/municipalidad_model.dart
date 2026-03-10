@@ -21,6 +21,14 @@ class MunicipalidadJson extends Municipalidad {
     Map<String, dynamic> json, {
     String? docId,
   }) {
+    // Manejo robusto para campos numéricos que podrían venir como String
+    num? parseNum(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value;
+      if (value is String) return num.tryParse(value);
+      return null;
+    }
+
     return MunicipalidadJson(
       activa: json['activa'],
       actualizadoEn: (json['actualizadoEn'] as Timestamp?)?.toDate(),
@@ -32,7 +40,7 @@ class MunicipalidadJson extends Municipalidad {
       logo: json['logo'],
       municipio: json['municipio'],
       nombre: json['nombre'],
-      porcentaje: json['porcentaje'],
+      porcentaje: parseNum(json['porcentaje']),
     );
   }
 

@@ -8,11 +8,10 @@ class Mercado {
   final String? municipalidadId;
   final String? nombre;
   final String? ubicacion;
-  final int? ultimoCorrelativo;
-  final int? anioCorrelativo;
   final double? latitud;
   final double? longitud;
   final List<Map<String, double>>? perimetro;
+  final String? codigo;
 
   const Mercado({
     this.activo,
@@ -24,10 +23,9 @@ class Mercado {
     this.municipalidadId,
     this.nombre,
     this.ubicacion,
-    this.ultimoCorrelativo,
-    this.anioCorrelativo,
     this.latitud,
     this.longitud,
     this.perimetro,
+    this.codigo,
   });
 }

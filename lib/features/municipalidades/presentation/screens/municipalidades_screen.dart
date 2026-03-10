@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/id_normalizer.dart';
+import '../../../../core/widgets/scrollable_table.dart';
 import '../../data/models/municipalidad_model.dart';
 import '../../domain/entities/municipalidad.dart';
+import '../viewmodels/municipalidades_paginas_notifier.dart';
 
 class MunicipalidadesScreen extends ConsumerStatefulWidget {
   const MunicipalidadesScreen({super.key});
@@ -15,12 +17,19 @@ class MunicipalidadesScreen extends ConsumerStatefulWidget {
 }
 
 class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
-  String _searchQuery = '';
   String _searchColumn = 'Nombre';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(municipalidadesPaginadasProvider.notifier).cargarPagina();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final municipalidades = ref.watch(municipalidadesProvider);
+    final state = ref.watch(municipalidadesPaginadasProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -30,7 +39,7 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ScreenHeader(
-              onSearch: (q) => setState(() => _searchQuery = q),
+              onSearch: (q) => ref.read(municipalidadesPaginadasProvider.notifier).buscar(q),
               onAdd: () => _showFormDialog(context),
               selectedColumn: _searchColumn,
               onColumnChanged: (val) {
@@ -41,42 +50,51 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: municipalidades.when(
-                data: (list) {
-                  final filtered = list.where((m) {
-                    final query = _searchQuery.toLowerCase();
-                    if (_searchColumn == 'Nombre') {
-                      return (m.nombre ?? '').toLowerCase().contains(query);
-                    } else if (_searchColumn == 'Municipio') {
-                      return (m.municipio ?? '').toLowerCase().contains(query);
-                    } else if (_searchColumn == 'Departamento') {
-                      return (m.departamento ?? '').toLowerCase().contains(
-                        query,
-                      );
-                    }
-                    return false;
-                  }).toList();
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No se encontraron municipalidades',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
-                      ),
-                    );
-                  }
-                  return _MunicipalidadesTable(
-                    municipalidades: filtered,
-                    onEdit: (m) => _showFormDialog(context, municipalidad: m),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ),
+              child: state.cargando && state.municipalidades.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.errorMsg != null
+                      ? Center(
+                          child: Text(
+                            state.errorMsg!,
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                        )
+                      : state.municipalidades.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No se encontraron municipalidades',
+                                style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54)),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                Expanded(
+                                  child: _MunicipalidadesTable(
+                                    municipalidades: state.municipalidades,
+                                    onEdit: (m) => _showFormDialog(context, municipalidad: m),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _PaginationBar(
+                                  currentPage: state.paginaActual - 1,
+                                  onPrev: state.paginaActual > 1
+                                      ? () => ref
+                                          .read(municipalidadesPaginadasProvider.notifier)
+                                          .irAPaginaAnterior()
+                                      : null,
+                                  onNext: state.hayMas
+                                      ? () => ref
+                                          .read(municipalidadesPaginadasProvider.notifier)
+                                          .irAPaginaSiguiente()
+                                      : null,
+                                  isCargando: state.cargando,
+                                ),
+                              ],
+                            ),
             ),
           ],
         ),
@@ -158,7 +176,7 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
               } else {
                 await ds.crear(docId, model.toJson());
               }
-              ref.invalidate(municipalidadesProvider);
+              ref.read(municipalidadesPaginadasProvider.notifier).recargar();
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: Text(isEditing ? 'Actualizar' : 'Crear'),
@@ -193,22 +211,26 @@ class _ScreenHeader extends StatelessWidget {
               Text(
                 'Municipalidades',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Gestión de municipalidades registradas',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                ).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.54)),
               ),
             ],
           ),
         ),
         Container(
           height: 40,
-          padding: EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
             borderRadius: BorderRadius.circular(8),
@@ -216,10 +238,15 @@ class _ScreenHeader extends StatelessWidget {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedColumn,
-              icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+              icon: Icon(Icons.arrow_drop_down,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.54)),
               isDense: true,
               dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
               items: ['Nombre', 'Municipio', 'Departamento'].map((
                 String value,
               ) {
@@ -267,37 +294,33 @@ class _MunicipalidadesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Municipio')),
-              DataColumn(label: Text('Departamento')),
-              DataColumn(label: Text('Porcentaje')),
-              DataColumn(label: Text('Estado')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: municipalidades.map((m) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(m.nombre ?? '-')),
-                  DataCell(Text(m.municipio ?? '-')),
-                  DataCell(Text(m.departamento ?? '-')),
-                  DataCell(Text('${m.porcentaje ?? 0}%')),
-                  DataCell(_ActiveChip(active: m.activa ?? false)),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      onPressed: () => onEdit(m),
-                    ),
+      child: ScrollableTable(
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Nombre')),
+            DataColumn(label: Text('Municipio')),
+            DataColumn(label: Text('Departamento')),
+            DataColumn(label: Text('Porcentaje')),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: municipalidades.map((m) {
+            return DataRow(
+              cells: [
+                DataCell(Text(m.nombre ?? '-')),
+                DataCell(Text(m.municipio ?? '-')),
+                DataCell(Text(m.departamento ?? '-')),
+                DataCell(Text('${m.porcentaje ?? 0}%')),
+                DataCell(_ActiveChip(active: m.activa ?? false)),
+                DataCell(
+                  IconButton(
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    onPressed: () => onEdit(m),
                   ),
-                ],
-              );
-            }).toList(),
-          ),
+                ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -327,6 +350,73 @@ class _ActiveChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isCargando)
+          const Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded),
+          onPressed: isCargando ? null : onPrev,
+          color: onPrev != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.24),
+          tooltip: 'Página anterior',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Página ${currentPage + 1}',
+          style: TextStyle(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.54),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded),
+          onPressed: isCargando ? null : onNext,
+          color: onNext != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.24),
+          tooltip: 'Página siguiente',
+        ),
+      ],
     );
   }
 }
