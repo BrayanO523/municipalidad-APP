@@ -29,6 +29,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final stats = ref.watch(statsProvider);
     final filter = ref.watch(dashboardFilterProvider);
+    final localesAsync = ref.watch(localesProvider);
+    final mercadosAsync = ref.watch(mercadosProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -114,24 +116,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     SizedBox(
                       width: cardW,
                       child: stats.when(
-                        data: (s) => MetricCard(
-                          title: 'Mercados Activos',
-                          value: '${s.cantidadMercados}',
-                          icon: Icons.store_rounded,
-                          color: const Color(0xFFFF9F43),
-                        ),
+                        data: (s) {
+                          print('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
+                          return MetricCard(
+                            title: 'Mercados Activos',
+                            value: '${s.cantidadMercados}',
+                            icon: Icons.store_rounded,
+                            color: const Color(0xFFFF9F43),
+                          );
+                        },
                         loading: () => const MetricCard(
                           title: 'Mercados Activos',
                           value: '...',
                           icon: Icons.store_rounded,
                           color: Color(0xFFFF9F43),
                         ),
-                        error: (_, __) => const MetricCard(
-                          title: 'Mercados Activos',
-                          value: 'Error',
-                          icon: Icons.store_rounded,
-                          color: Color(0xFFFF9F43),
-                        ),
+                        error: (err, stack) {
+                          print('❌ ERROR AL CARGAR STATS: $err\n$stack');
+                          return const MetricCard(
+                            title: 'Mercados Activos',
+                            value: 'Error',
+                            icon: Icons.store_rounded,
+                            color: Color(0xFFFF9F43),
+                          );
+                        },
                       ),
                     ),
                     SizedBox(
@@ -212,8 +220,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // ── Gráficos ─────────────────────────────────────────────────────
             DashboardChartsWidget(
               cobrosHoy: cobrosHoy.value ?? [],
-              locales: const [], // DashboardChartsWidget debería ser agnóstico de la lista completa si solo muestra agregados
-              mercados: const [],
+              locales: localesAsync.value ?? [],
+              mercados: mercadosAsync.value ?? [],
             ),
             const SizedBox(height: 24),
 
@@ -500,17 +508,26 @@ class _DashboardHeader extends ConsumerWidget {
                         ),
                       );
                       final repo = ref.read(localRepositoryProvider);
+                      final statsDs = ref.read(statsDatasourceProvider);
+                      final user = ref.read(currentUsuarioProvider).value;
+
                       final procesados = await repo
                           .recalcularDeudasBasadoEnHistorial();
+                      
+                      if (user?.municipalidadId != null) {
+                        await statsDs.recalcularTodo(user!.municipalidadId!);
+                      }
+
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Sincronización exitosa: $procesados locales actualizados.',
+                              'Sincronización exitosa: $procesados locales y estadísticas actualizadas.',
                             ),
                             backgroundColor: Colors.green,
                           ),
                         );
+                        ref.invalidate(statsProvider);
                       }
                     } catch (e) {
                       if (context.mounted) {
