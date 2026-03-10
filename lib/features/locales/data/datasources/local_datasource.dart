@@ -253,6 +253,24 @@ class LocalDatasource {
         .toList();
   }
 
+  Future<List<LocalJson>> listarPorIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final List<LocalJson> allResults = [];
+    for (var i = 0; i < ids.length; i += 30) {
+      final batchIds = ids.sublist(
+        i,
+        i + 30 > ids.length ? ids.length : i + 30,
+      );
+      final snapshot = await _collection
+          .where(FieldPath.documentId, whereIn: batchIds)
+          .get();
+      allResults.addAll(
+        snapshot.docs.map((doc) => LocalJson.fromJson(doc.data(), docId: doc.id)),
+      );
+    }
+    return allResults;
+  }
+
   Future<LocalJson?> obtenerPorId(String docId) async {
     final doc = await _collection.doc(docId).get();
     if (!doc.exists) return null;

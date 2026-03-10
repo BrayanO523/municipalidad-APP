@@ -147,367 +147,409 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
         codigoCtrl.text = sugerencia;
       });
     }
-    final mercados = ref.read(mercadosProvider).value ?? [];
 
+    // Estado mutable del diálogo — se declara aquí para ser accesible por el Consumer
     String? selectedMercadoId = usuario?.mercadoId;
     final List<String> selectedLocalesIds = usuario?.rutaAsignada != null
         ? List<String>.from(usuario!.rutaAsignada!)
         : [];
-
-    final mercadosFiltrados = mercados
-        .where(
-          (m) =>
-              m.id == selectedMercadoId ||
-              m.municipalidadId == currentAdmin?.municipalidadId,
-        )
-        .toList();
+    String localSearchQuery = '';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(isEditing ? 'Editar Cobrador' : 'Nuevo Cobrador'),
-          content: SizedBox(
-            width: 450,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nombreCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre Completo',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: codigoCtrl,
-                    decoration: InputDecoration(
-                      labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
-                      hintText: 'C1',
-                      filled: true,
-                    ),
-                    readOnly: true,
-                    enabled: false,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: emailCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo Electrónico',
-                    ),
-                    enabled: !isEditing,
-                  ),
-                  if (!isEditing) const SizedBox(height: 12),
-                  if (!isEditing)
-                    TextField(
-                      controller: passCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Contraseña',
-                      ),
-                      obscureText: true,
-                    ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedMercadoId,
-                    decoration: const InputDecoration(
-                      labelText: 'Mercado Asignado',
-                    ),
-                    items: mercadosFiltrados.map((m) {
-                      return DropdownMenuItem(
-                        value: m.id,
-                        child: Text(m.nombre ?? 'Sin nombre'),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setDialogState(() => selectedMercadoId = val),
-                  ),
-                  const SizedBox(height: 16),
-                  if (selectedMercadoId != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Asignar Locales',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.7),
-                          fontWeight: FontWeight.bold,
+        builder: (ctx, setDialogState) => Consumer(
+          builder: (ctx, ref, _) {
+            // ✅ FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
+            // Antes se leía con ref.read() fuera del builder, lo que daba [] si aún no cargaba
+            final mercados = ref.watch(mercadosProvider).value ?? [];
+            final mercadosFiltrados = mercados
+                .where(
+                  (m) =>
+                      m.id == selectedMercadoId ||
+                      m.municipalidadId == currentAdmin?.municipalidadId,
+                )
+                .toList();
+
+            return AlertDialog(
+              title: Text(isEditing ? 'Editar Cobrador' : 'Nuevo Cobrador'),
+              content: SizedBox(
+                width: 450,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nombreCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre Completo',
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: codigoCtrl,
+                        decoration: InputDecoration(
+                          labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
+                          hintText: 'C1',
+                          filled: true,
+                        ),
+                        readOnly: true,
+                        enabled: false,
                       ),
-                      child: Consumer(
-                        builder: (ctx, ref, _) {
-                          final localesAsync = ref.watch(localesProvider);
-                          final usuariosAsync = ref.watch(usuariosProvider);
-
-                          return localesAsync.when(
-                            data: (allLocales) {
-                              final usuarios = usuariosAsync.value ?? [];
-                              final Set<String> localesOcupados = {};
-                              for (final u in usuarios) {
-                                if (isEditing && u.id == usuario.id) continue;
-                                if (u.rutaAsignada != null) {
-                                  localesOcupados.addAll(u.rutaAsignada!);
-                                }
-                              }
-
-                              final localesMercado = allLocales
-                                  .where((l) => l.mercadoId == selectedMercadoId)
-                                  .toList();
-
-                              final localesAsignados = localesMercado
-                                  .where((l) => selectedLocalesIds.contains(l.id))
-                                  .toList();
-
-                              final localesDisponibles = localesMercado
-                                  .where((l) =>
-                                      !selectedLocalesIds.contains(l.id) &&
-                                      !localesOcupados.contains(l.id))
-                                  .toList();
-
-                              if (localesMercado.isEmpty) {
-                                return Center(
-                                  child: Text(
-                                    'No hay locales en este mercado',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.54),
-                                      fontSize: 12,
-                                    ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: emailCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo Electrónico',
+                        ),
+                        enabled: !isEditing,
+                      ),
+                      if (!isEditing) const SizedBox(height: 12),
+                      if (!isEditing)
+                        TextField(
+                          controller: passCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Contraseña',
+                          ),
+                          obscureText: true,
+                        ),
+                      const SizedBox(height: 12),
+                      // Dropdown de Mercado — se refresh automático vía Consumer
+                      DropdownButtonFormField<String>(
+                        value: mercadosFiltrados.any((m) => m.id == selectedMercadoId)
+                            ? selectedMercadoId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Mercado Asignado',
+                        ),
+                        items: mercadosFiltrados.map((m) {
+                          return DropdownMenuItem(
+                            value: m.id,
+                            child: Text(m.nombre ?? 'Sin nombre'),
+                          );
+                        }).toList(),
+                        onChanged: (val) =>
+                            setDialogState(() => selectedMercadoId = val),
+                      ),
+                      const SizedBox(height: 16),
+                      if (selectedMercadoId != null) ...[
+                        Row(
+                          children: [
+                            Text(
+                              'Asignar Locales',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              width: 180,
+                              child: TextField(
+                                style: const TextStyle(fontSize: 12),
+                                decoration: InputDecoration(
+                                  hintText: 'Buscar local...',
+                                  prefixIcon: const Icon(Icons.search, size: 16),
+                                  isDense: true,
+                                  filled: true,
+                                  fillColor: Colors.black12,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
                                   ),
-                                );
-                              }
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                onChanged: (val) =>
+                                    setDialogState(() => localSearchQuery = val),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 250,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Consumer(
+                            builder: (ctx, ref, _) {
+                              final localesAsync = ref.watch(localesProvider);
+                              final usuariosAsync = ref.watch(usuariosProvider);
 
-                              Widget buildListTile(
-                                String title,
-                                VoidCallback onTap,
-                                IconData icon,
-                                Color iconColor,
-                              ) {
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: onTap,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8.0,
-                                        vertical: 6.0,
+                              return localesAsync.when(
+                                data: (allLocales) {
+                                  final usuarios = usuariosAsync.value ?? [];
+                                  final Set<String> localesOcupados = {};
+                                  for (final u in usuarios) {
+                                    if (isEditing && u.id == usuario.id) continue;
+                                    if (u.rutaAsignada != null) {
+                                      localesOcupados.addAll(u.rutaAsignada!);
+                                    }
+                                  }
+
+                                  final query = localSearchQuery.toLowerCase();
+                                  final localesMercado = allLocales
+                                      .where((l) => l.mercadoId == selectedMercadoId)
+                                      .where((l) {
+                                    if (query.isEmpty) return true;
+                                    final nombre =
+                                        l.nombreSocial?.toLowerCase() ?? '';
+                                    return nombre.contains(query);
+                                  }).toList();
+
+                                  final localesAsignados = localesMercado
+                                      .where((l) => selectedLocalesIds.contains(l.id))
+                                      .toList();
+
+                                  final localesDisponibles = localesMercado
+                                      .where((l) =>
+                                          !selectedLocalesIds.contains(l.id) &&
+                                          !localesOcupados.contains(l.id))
+                                      .toList();
+
+                                  if (localesMercado.isEmpty) {
+                                    return Center(
+                                      child: Text(
+                                        'No hay locales en este mercado',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.54),
+                                          fontSize: 12,
+                                        ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              title,
-                                              style: const TextStyle(fontSize: 12),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          Icon(icon, size: 16, color: iconColor),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
+                                    );
+                                  }
 
-                              return Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(4),
-                                          color: Colors.black12,
-                                          child: Text(
-                                            'Sin asignar',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.54),
-                                            ),
+                                  Widget buildListTile(
+                                    String title,
+                                    VoidCallback onTap,
+                                    IconData icon,
+                                    Color iconColor,
+                                  ) {
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: onTap,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8.0,
+                                            vertical: 6.0,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  title,
+                                                  style: const TextStyle(fontSize: 12),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              Icon(icon, size: 16, color: iconColor),
+                                            ],
                                           ),
                                         ),
-                                        Expanded(
-                                          child: localesDisponibles.isEmpty
-                                              ? Center(
-                                                  child: Text(
-                                                    'Nada aquí',
-                                                    style: TextStyle(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withValues(alpha: 0.24),
-                                                      fontSize: 11,
-                                                    ),
-                                                  ),
-                                                )
-                                              : ListView.builder(
-                                                  itemCount:
-                                                      localesDisponibles.length,
-                                                  itemBuilder: (ctx, i) {
-                                                    final loc =
-                                                        localesDisponibles[i];
-                                                    return buildListTile(
-                                                      loc.nombreSocial ??
-                                                          'Sin nombre',
-                                                      () => setDialogState(() =>
-                                                          selectedLocalesIds
-                                                              .add(loc.id!)),
-                                                      Icons
-                                                          .arrow_forward_ios_rounded,
-                                                      Colors.green.shade400,
-                                                    );
-                                                  },
+                                      ),
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(4),
+                                              color: Colors.black12,
+                                              child: Text(
+                                                'Sin asignar',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withOpacity(0.54),
                                                 ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  VerticalDivider(
-                                    width: 1,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.1),
-                                  ),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(4),
-                                          color: Colors.black12,
-                                          child: Text(
-                                            'Asignado',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: localesAsignados.isEmpty
-                                              ? Center(
-                                                  child: Text(
-                                                    'Ninguno',
-                                                    style: TextStyle(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withValues(alpha: 0.24),
-                                                      fontSize: 11,
+                                            Expanded(
+                                              child: localesDisponibles.isEmpty
+                                                  ? Center(
+                                                      child: Text(
+                                                        'Nada aquí',
+                                                        style: TextStyle(
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurface
+                                                              .withOpacity(0.24),
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : ListView.builder(
+                                                      itemCount:
+                                                          localesDisponibles.length,
+                                                      itemBuilder: (ctx, i) {
+                                                        final loc =
+                                                            localesDisponibles[i];
+                                                        return buildListTile(
+                                                          loc.nombreSocial ??
+                                                              'Sin nombre',
+                                                          () => setDialogState(() =>
+                                                              selectedLocalesIds
+                                                                  .add(loc.id!)),
+                                                          Icons
+                                                              .arrow_forward_ios_rounded,
+                                                          Colors.green.shade400,
+                                                        );
+                                                      },
                                                     ),
-                                                  ),
-                                                )
-                                              : ListView.builder(
-                                                  itemCount:
-                                                      localesAsignados.length,
-                                                  itemBuilder: (ctx, i) {
-                                                    final loc =
-                                                        localesAsignados[i];
-                                                    return buildListTile(
-                                                      loc.nombreSocial ??
-                                                          'Sin nombre',
-                                                      () => setDialogState(() =>
-                                                          selectedLocalesIds
-                                                              .remove(loc.id)),
-                                                      Icons.close_rounded,
-                                                      Colors.red.shade400,
-                                                    );
-                                                  },
-                                                ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                      ),
+                                      VerticalDivider(
+                                        width: 1,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.1),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(4),
+                                              color: Colors.black12,
+                                              child: Text(
+                                                'Asignado',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: localesAsignados.isEmpty
+                                                  ? Center(
+                                                      child: Text(
+                                                        'Ninguno',
+                                                        style: TextStyle(
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurface
+                                                              .withOpacity(0.24),
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : ListView.builder(
+                                                      itemCount:
+                                                          localesAsignados.length,
+                                                      itemBuilder: (ctx, i) {
+                                                        final loc =
+                                                            localesAsignados[i];
+                                                        return buildListTile(
+                                                          loc.nombreSocial ??
+                                                              'Sin nombre',
+                                                          () => setDialogState(() =>
+                                                              selectedLocalesIds
+                                                                  .remove(loc.id)),
+                                                          Icons.close_rounded,
+                                                          Colors.red.shade400,
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                                loading: () => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                error: (_, __) => const Center(
+                                  child: Text('Error al cargar locales'),
+                                ),
                               );
                             },
-                            loading: () => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                            error: (_, __) => const Center(
-                              child: Text('Error al cargar locales'),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final nombre = nombreCtrl.text.trim();
-                final email = emailCtrl.text.trim();
-                final pass = passCtrl.text.trim();
-                final codigo = codigoCtrl.text.trim().toUpperCase();
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final nombre = nombreCtrl.text.trim();
+                    final email = emailCtrl.text.trim();
+                    final pass = passCtrl.text.trim();
+                    final codigo = codigoCtrl.text.trim().toUpperCase();
 
-                if (nombre.isEmpty ||
-                    (!isEditing && (email.isEmpty || pass.isEmpty))) {
-                  return;
-                }
+                    if (nombre.isEmpty ||
+                        (!isEditing && (email.isEmpty || pass.isEmpty))) {
+                      return;
+                    }
 
-                try {
-                  final ds = ref.read(authDatasourceProvider);
-                  if (isEditing) {
-                    await ds.actualizarUsuario(usuario.id!, {
-                      'nombre': nombre,
-                      'mercadoId': selectedMercadoId,
-                      'rutaAsignada': selectedLocalesIds,
-                      'codigoCobrador': codigo,
-                    });
-                  } else {
-                    await ds.registrarCobrador(
-                      email: email,
-                      password: pass,
-                      nombre: nombre,
-                      municipalidadId: currentAdmin?.municipalidadId ?? '',
-                      mercadoId: selectedMercadoId,
-                      rutaAsignada: selectedLocalesIds,
-                      codigoCobrador: codigo,
-                    );
-                  }
-                  ref.read(usuariosPaginadosProvider.notifier).recargar();
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e) {
-                  if (!ctx.mounted) return;
-                  ScaffoldMessenger.of(
-                    ctx,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+                    try {
+                      final ds = ref.read(authDatasourceProvider);
+                      if (isEditing) {
+                        await ds.actualizarUsuario(usuario.id!, {
+                          'nombre': nombre,
+                          'mercadoId': selectedMercadoId,
+                          'rutaAsignada': selectedLocalesIds,
+                          'codigoCobrador': codigo,
+                        });
+                      } else {
+                        await ds.registrarCobrador(
+                          email: email,
+                          password: pass,
+                          nombre: nombre,
+                          municipalidadId: currentAdmin?.municipalidadId ?? '',
+                          mercadoId: selectedMercadoId,
+                          rutaAsignada: selectedLocalesIds,
+                          codigoCobrador: codigo,
+                        );
+                      }
+                      ref.read(usuariosPaginadosProvider.notifier).recargar();
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    } catch (e) {
+                      if (!ctx.mounted) return;
+                      ScaffoldMessenger.of(
+                        ctx,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -589,13 +631,13 @@ class _UsuariosHeader extends StatelessWidget {
               hintStyle: TextStyle(
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ).colorScheme.onSurface.withOpacity(0.54),
               ),
               prefixIcon: Icon(
                 Icons.search,
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ).colorScheme.onSurface.withOpacity(0.54),
                 size: 18,
               ),
               filled: true,
@@ -643,7 +685,7 @@ class _UsuariosTable extends ConsumerWidget {
         itemCount: usuarios.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
         ),
         itemBuilder: (context, index) {
           final u = usuarios[index];
@@ -657,7 +699,7 @@ class _UsuariosTable extends ConsumerWidget {
               vertical: 8,
             ),
             leading: CircleAvatar(
-              backgroundColor: const Color(0xFF6C63FF).withValues(alpha: 0.2),
+              backgroundColor: const Color(0xFF6C63FF).withOpacity(0.2),
               child: Text(
                 u.nombre?.substring(0, 1).toUpperCase() ?? 'U',
                 style: const TextStyle(
@@ -681,7 +723,7 @@ class _UsuariosTable extends ConsumerWidget {
                   style: TextStyle(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ).colorScheme.onSurface.withOpacity(0.54),
                     fontSize: 12,
                   ),
                 ),
@@ -692,7 +734,7 @@ class _UsuariosTable extends ConsumerWidget {
                   style: TextStyle(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ).colorScheme.onSurface.withOpacity(0.4),
                     fontSize: 11,
                   ),
                 ),
@@ -706,7 +748,7 @@ class _UsuariosTable extends ConsumerWidget {
                     Icons.edit_rounded,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ).colorScheme.onSurface.withOpacity(0.54),
                   ),
                   onPressed: () => onEdit(u),
                   tooltip: 'Editar',
@@ -757,10 +799,10 @@ class _PaginationBar extends StatelessWidget {
           onPressed: isCargando ? null : onPrev,
           color:
               onPrev != null
-                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
                   : Theme.of(
                     context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+                  ).colorScheme.onSurface.withOpacity(0.24),
           tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
@@ -769,7 +811,7 @@ class _PaginationBar extends StatelessWidget {
           style: TextStyle(
             color: Theme.of(
               context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            ).colorScheme.onSurface.withOpacity(0.54),
             fontSize: 13,
             fontWeight: FontWeight.bold,
           ),

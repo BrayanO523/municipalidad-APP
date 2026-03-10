@@ -18,6 +18,7 @@ class LocalesPaginadosState {
   final String? busqueda;
   final int paginaActual;
   final List<QueryDocumentSnapshot?> snapshotsPaginas;
+  final Map<String, bool> localesPagadosHoy;
   final QueryDocumentSnapshot? ultimoDoc;
 
   const LocalesPaginadosState({
@@ -29,6 +30,7 @@ class LocalesPaginadosState {
     this.busqueda,
     this.paginaActual = 1,
     this.snapshotsPaginas = const [null],
+    this.localesPagadosHoy = const {},
     this.ultimoDoc,
   });
 
@@ -41,6 +43,7 @@ class LocalesPaginadosState {
     String? busqueda,
     int? paginaActual,
     List<QueryDocumentSnapshot?>? snapshotsPaginas,
+    Map<String, bool>? localesPagadosHoy,
     QueryDocumentSnapshot? ultimoDoc,
     bool clearError = false,
     bool clearUltimoDoc = false,
@@ -56,6 +59,7 @@ class LocalesPaginadosState {
       busqueda: clearBusqueda ? null : (busqueda ?? this.busqueda),
       paginaActual: paginaActual ?? this.paginaActual,
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
+      localesPagadosHoy: localesPagadosHoy ?? this.localesPagadosHoy,
       ultimoDoc: clearUltimoDoc ? null : (ultimoDoc ?? this.ultimoDoc),
     );
   }
@@ -81,6 +85,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       cargando: true,
       paginaActual: 1,
       snapshotsPaginas: [null],
+      localesPagadosHoy: const {},
     );
     await _fetchPagina(lastDoc: null);
   }
@@ -175,6 +180,9 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         ultimoDoc: ultimoDoc,
         clearError: true,
       );
+
+      // Verificar cuáles de estos locales ya pagaron hoy
+      await _verificarPagosHoy(nuevos);
     } catch (e) {
       final text = e.toString();
       debugPrint('Error en Firestore: $text');
@@ -183,6 +191,48 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         hayMas: false,
         errorMsg: 'Error al cargar locales: $text',
       );
+    }
+  }
+
+  /// Verifica en una sola consulta cuáles de los locales cargados tienen pago hoy.
+  Future<void> _verificarPagosHoy(List<Local> locales) async {
+    if (locales.isEmpty) return;
+
+    final ahora = DateTime.now();
+    final hoyStr =
+        '${ahora.year}${ahora.month.toString().padLeft(2, "0")}${ahora.day.toString().padLeft(2, "0")}';
+
+    final idsPorVerificar =
+        locales
+            .map((l) => 'COB-${l.id}-$hoyStr')
+            .where((id) => !id.contains('null'))
+            .toList();
+
+    if (idsPorVerificar.isEmpty) return;
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      // Consultamos los registros de hoy para estos locales.
+      // Firebase tiene límite de 30 en whereIn. Nuestros lotes son de 20.
+      final snapshot =
+          await firestore
+              .collection('cobros')
+              .where(FieldPath.documentId, whereIn: idsPorVerificar)
+              .get();
+
+      final Map<String, bool> pagaronHoy = {};
+      for (var doc in snapshot.docs) {
+        // El docId es COB-localId-fecha
+        final parts = doc.id.split('-');
+        if (parts.length >= 2) {
+          final localId = parts[1];
+          pagaronHoy[localId] = true;
+        }
+      }
+
+      state = state.copyWith(localesPagadosHoy: pagaronHoy);
+    } catch (e) {
+      debugPrint('Error verificando pagos hoy: $e');
     }
   }
 
@@ -197,6 +247,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       clearUltimoDoc: true,
       clearError: true,
       clearBusqueda: true,
+      localesPagadosHoy: const {},
     );
     await _fetchPagina(lastDoc: null);
   }

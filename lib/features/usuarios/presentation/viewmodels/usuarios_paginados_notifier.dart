@@ -122,10 +122,13 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
     return Usuario(
       id: doc.id,
       nombre: data['nombre'],
-      email: data['email'] ?? data['correo'], // Fallback por si acaso
+      email: data['email'] ?? data['correo'],
       rol: data['rol'],
       municipalidadId: data['municipalidadId'],
       mercadoId: data['mercadoId'],
+      rutaAsignada: data['rutaAsignada'] != null
+          ? List<String>.from(data['rutaAsignada'])
+          : null,
       activo: data['activo'] ?? true,
       creadoEn: (data['creadoEn'] as Timestamp?)?.toDate(),
       ultimoCorrelativo: (data['ultimoCorrelativo'] as num?)?.toInt(),

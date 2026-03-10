@@ -101,6 +101,52 @@ class AuthDatasource {
     }
   }
 
+  /// [DEV] Crea un usuario administrador sin cerrar sesión del admin actual.
+  /// Usa el mismo patrón de app secundaria de Firebase.
+  Future<void> registrarAdmin({
+    required String email,
+    required String password,
+    required String nombre,
+    required String municipalidadId,
+    String? mercadoId,
+  }) async {
+    FirebaseApp tempApp = await Firebase.initializeApp(
+      name: 'AdminApp_${DateTime.now().millisecondsSinceEpoch}',
+      options: Firebase.app().options,
+    );
+
+    try {
+      final FirebaseAuth authTemp = FirebaseAuth.instanceFor(app: tempApp);
+      final userCredential = await authTemp.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final uid = userCredential.user!.uid;
+
+      final nuevoAdmin = UsuarioJson(
+        id: uid,
+        email: email,
+        nombre: nombre,
+        rol: 'admin',
+        municipalidadId: municipalidadId,
+        mercadoId: mercadoId,
+        activo: true,
+        creadoEn: DateTime.now(),
+        creadoPor: currentFirebaseUser?.uid,
+        actualizadoEn: DateTime.now(),
+        actualizadoPor: currentFirebaseUser?.uid,
+      );
+
+      await _firestore
+          .collection(FirestoreCollections.usuarios)
+          .doc(uid)
+          .set(nuevoAdmin.toJson());
+    } finally {
+      await tempApp.delete();
+    }
+  }
+
   Future<void> actualizarRutaUsuario(String uid, List<String> rutaIds) async {
     await _firestore.collection(FirestoreCollections.usuarios).doc(uid).update({
       'rutaAsignada': rutaIds,
