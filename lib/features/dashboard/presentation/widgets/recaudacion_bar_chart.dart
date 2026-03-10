@@ -82,7 +82,7 @@ class RecaudacionBarChart extends StatelessWidget {
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
-            if (mapMonto.isEmpty)
+            if (mapMonto.isEmpty || barGroups.isEmpty)
               Expanded(
                 child: Center(
                   child: Column(
