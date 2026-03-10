@@ -16,6 +16,10 @@ class UsuarioJson extends Usuario {
     super.rutaAsignada,
     super.nombre,
     super.rol,
+    super.clave,
+    super.ultimoCorrelativo,
+    super.anioCorrelativo,
+    super.codigoCobrador,
   });
 
   factory UsuarioJson.fromJson(Map<String, dynamic> json, {String? docId}) {
@@ -34,6 +38,10 @@ class UsuarioJson extends Usuario {
           : null,
       nombre: json['nombre'],
       rol: json['rol'],
+      clave: json['clave'],
+      ultimoCorrelativo: json['ultimoCorrelativo'],
+      anioCorrelativo: json['anioCorrelativo'],
+      codigoCobrador: json['codigoCobrador'],
     );
   }
 
@@ -51,6 +59,10 @@ class UsuarioJson extends Usuario {
       rutaAsignada: entity.rutaAsignada,
       nombre: entity.nombre,
       rol: entity.rol,
+      clave: entity.clave,
+      ultimoCorrelativo: entity.ultimoCorrelativo,
+      anioCorrelativo: entity.anioCorrelativo,
+      codigoCobrador: entity.codigoCobrador,
     );
   }
 
@@ -69,6 +81,10 @@ class UsuarioJson extends Usuario {
       if (rutaAsignada != null) 'rutaAsignada': rutaAsignada,
       'nombre': nombre,
       'rol': rol,
+      'clave': clave,
+      'ultimoCorrelativo': ultimoCorrelativo,
+      'anioCorrelativo': anioCorrelativo,
+      'codigoCobrador': codigoCobrador,
     };
   }
 }

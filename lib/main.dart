@@ -1,14 +1,14 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
 
-import 'app/router/app_router.dart';
+import 'app/bootstrap.dart';
 import 'app/theme/app_theme.dart';
 import 'app/theme/theme_provider.dart';
-import 'firebase_options.dart';
+import 'app/router/app_router.dart';
 
+import 'core/platform/permission_requester_factory.dart';
+
+/// Observador para depuración de providers.
 base class Logger extends ProviderObserver {
   @override
   void providerDidFail(
@@ -24,11 +24,16 @@ Error: $error
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es', null);
-  Intl.defaultLocale = 'es';
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(ProviderScope(observers: [Logger()], child: const MunicipalidadApp()));
+  // Inicialización común (Firebase, Hive, i18n, etc.)
+  await bootstrap();
+  
+  // Solicitar permisos iniciales (Solo en plataformas móviles, gestionado por fábrica)
+  await getPermissionRequester().requestInitialPermissions();
+
+  runApp(ProviderScope(
+    observers: [Logger()],
+    child: const MunicipalidadApp(),
+  ));
 }
 
 class MunicipalidadApp extends ConsumerWidget {
@@ -36,16 +41,18 @@ class MunicipalidadApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 
+    final router = ref.watch(routerProvider);
+
     return MaterialApp.router(
-      title: 'QRecauda',
+      title: 'Municipalidad App',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: router,
     );
+
   }
 }

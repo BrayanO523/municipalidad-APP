@@ -11,6 +11,10 @@ class Usuario {
   final List<String>? rutaAsignada;
   final String? nombre;
   final String? rol;
+  final String? clave;
+  final int? ultimoCorrelativo;
+  final int? anioCorrelativo;
+  final String? codigoCobrador;
 
   const Usuario({
     this.activo,
@@ -25,6 +29,10 @@ class Usuario {
     this.rutaAsignada,
     this.nombre,
     this.rol,
+    this.clave,
+    this.ultimoCorrelativo,
+    this.anioCorrelativo,
+    this.codigoCobrador,
   });
 
   bool get esAdmin => rol == 'admin';
