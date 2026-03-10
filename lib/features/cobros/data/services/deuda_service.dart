@@ -58,6 +58,18 @@ class DeudaService {
       for (final local in localesActivos) {
         if (local.id == null || local.cuotaDiaria == null) continue;
 
+        // Validar que no se cobre deuda de días anteriores a la creación del local
+        if (local.creadoEn != null) {
+          final fechaCreacion = DateTime(
+            local.creadoEn!.year,
+            local.creadoEn!.month,
+            local.creadoEn!.day,
+          );
+          if (fecha.isBefore(fechaCreacion)) {
+            continue; // El local no existía en esta fecha, saltar
+          }
+        }
+
         // 1. ¿Cuánto pagó este local ese día?
         final pagadoEseDia = await cobroDs.obtenerMontoPagadoEnFecha(
           local.id!,
@@ -81,28 +93,37 @@ class DeudaService {
             // Creamos un registro de que se cobró del saldo
             final subDocId =
                 'COB-${local.id}-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}-S';
-            await cobroDs.crearCobroConCorrelativo(
-              cobroId: subDocId,
-              mercadoId: local.mercadoId!,
-              cobroData: {
-                'actualizadoEn': now,
-                'actualizadoPor': 'sistema-saldo',
-                'cobradorId': 'sistema',
-                'creadoEn': now,
-                'creadoPor': 'sistema-saldo',
-                'cuotaDiaria': cuota,
-                'estado': 'cobrado_saldo',
-                'fecha': Timestamp.fromDate(fecha),
-                'localId': local.id,
-                'mercadoId': local.mercadoId,
-                'municipalidadId': local.municipalidadId,
-                'monto': aCoverirConSaldo,
-                'pagoACuota': aCoverirConSaldo,
-                'observaciones':
-                    'Cubierto automáticamente con saldo a favor acumulado',
-                'saldoPendiente': 0,
-              },
+
+            // Preservar la hora actual para que no sea 00:00
+            final ahoraMatch = DateTime.now();
+            final fechaConHora = DateTime(
+              fecha.year,
+              fecha.month,
+              fecha.day,
+              ahoraMatch.hour,
+              ahoraMatch.minute,
             );
+
+            await cobroDs.crear(subDocId, {
+              'actualizadoEn': now,
+              'actualizadoPor': 'sistema-saldo',
+              'cobradorId': 'sistema',
+              'creadoEn': now,
+              'creadoPor': 'sistema-saldo',
+              'cuotaDiaria': cuota,
+              'estado': 'cobrado_saldo',
+              'fecha': Timestamp.fromDate(fechaConHora),
+              'localId': local.id,
+              'mercadoId': local.mercadoId,
+              'municipalidadId': local.municipalidadId,
+              'monto': aCoverirConSaldo,
+              'pagoACuota': aCoverirConSaldo,
+              'observaciones':
+                  'Cubierto automáticamente con saldo a favor acumulado',
+              'saldoPendiente': 0,
+              'correlativo': 0,
+              'anioCorrelativo': fecha.year,
+            });
 
             await localDs.actualizarSaldoAFavor(local.id!, -aCoverirConSaldo);
             faltante -= aCoverirConSaldo;
@@ -147,27 +168,34 @@ class DeudaService {
     if (existing.exists) return; // Ya tiene cobro ese día
 
     final now = Timestamp.now();
-    await cobroDs.crearCobroConCorrelativo(
-      cobroId: docId,
-      mercadoId: local.mercadoId!,
-      cobroData: {
-        'actualizadoEn': now,
-        'actualizadoPor': cobradorId ?? 'sistema',
-        'cobradorId': cobradorId ?? '',
-        'creadoEn': now,
-        'creadoPor': cobradorId ?? 'sistema',
-        'cuotaDiaria': cuota,
-        'estado': 'pendiente',
-        'fecha': Timestamp.fromDate(fecha),
-        'localId': local.id,
-        'mercadoId': local.mercadoId,
-        'monto': 0,
-        'pagoACuota': 0,
-        'municipalidadId': local.municipalidadId,
-        'observaciones': observaciones,
-        'saldoPendiente': faltante,
-      },
+    final ahoraMatch = DateTime.now();
+    final fechaConHora = DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      ahoraMatch.hour,
+      ahoraMatch.minute,
     );
+
+    await cobroDs.crear(docId, {
+      'actualizadoEn': now,
+      'actualizadoPor': cobradorId ?? 'sistema',
+      'cobradorId': cobradorId ?? '',
+      'creadoEn': now,
+      'creadoPor': cobradorId ?? 'sistema',
+      'cuotaDiaria': cuota,
+      'estado': 'pendiente',
+      'fecha': Timestamp.fromDate(fechaConHora),
+      'localId': local.id,
+      'mercadoId': local.mercadoId,
+      'monto': 0,
+      'pagoACuota': 0,
+      'municipalidadId': local.municipalidadId,
+      'observaciones': observaciones,
+      'saldoPendiente': faltante,
+      'correlativo': 0,
+      'anioCorrelativo': fecha.year,
+    });
 
     // Incrementar deuda acumulada en el local
     await localDs.actualizarDeudaAcumulada(local.id!, faltante);

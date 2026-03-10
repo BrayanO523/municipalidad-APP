@@ -1,0 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+import '../../../../app/di/providers.dart';
+import '../../../../core/platform/printer_provider.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
+import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
+import '../../../cobros/domain/entities/cobro.dart';
+import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';

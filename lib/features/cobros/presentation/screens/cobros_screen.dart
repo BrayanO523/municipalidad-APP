@@ -9,7 +9,10 @@ import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
-import '../../domain/entities/cobro.dart';
+import '../../../../core/widgets/scrollable_table.dart';
+import '../../../cobros/domain/entities/cobro.dart';
+import '../viewmodels/cobro_viewmodel.dart';
+import '../viewmodels/cobros_paginados_notifier.dart';
 
 // ── Constante de paginación ──────────────────────────────────────────────────
 const _kPageSize = 20;
@@ -19,7 +22,7 @@ class CobrosScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cobrosAsync = ref.watch(cobrosFiltradosProvider);
+    final state = ref.watch(cobrosPaginadosProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -28,33 +31,31 @@ class CobrosScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            cobrosAsync.when(
-              data: (cobros) => _CobrosHeader(cobros: cobros),
-              loading: () => const _CobrosHeader(cobros: []),
-              error: (_, __) => const _CobrosHeader(cobros: []),
-            ),
+            _CobrosHeader(cobros: state.cobros),
             const SizedBox(height: 20),
             Expanded(
-              child: cobrosAsync.when(
-                data: (cobros) {
-                  if (cobros.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No hay cobros registrados aun',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
-                      ),
-                    );
-                  }
-                  return _CobrosFullTable(cobros: cobros);
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ),
+              child:
+                  state.cargando && state.cobros.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : state.errorMsg != null
+                      ? Center(
+                        child: Text(
+                          state.errorMsg!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      )
+                      : state.cobros.isEmpty
+                      ? Center(
+                        child: Text(
+                          'No hay cobros registrados aun',
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.54),
+                          ),
+                        ),
+                      )
+                      : _CobrosFullTable(state: state),
             ),
           ],
         ),
@@ -101,35 +102,36 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
         );
         break;
       case _CobrosPeriod.mes:
-        rango = DateTimeRange(
-          start: DateTime(hoy.year, hoy.month, 1),
-          end: hoy,
-        );
+        rango = DateTimeRange(start: DateTime(hoy.year, hoy.month, 1), end: hoy);
         break;
       case _CobrosPeriod.anio:
         rango = DateTimeRange(start: DateTime(hoy.year, 1, 1), end: hoy);
         break;
       case _CobrosPeriod.personalizado:
-        final actual = ref.read(fechaFiltroCobrosProvider);
+        final actual = ref.read(cobrosPaginadosProvider).rangoFechas;
         final result = await showDialog<DateTimeRange>(
           context: context,
-          builder: (_) => CustomDateRangePicker(
-            initialRange: actual ?? DateTimeRange(start: hoy, end: hoy),
-          ),
+          builder:
+              (_) => CustomDateRangePicker(
+                initialRange: actual ?? DateTimeRange(start: hoy, end: hoy),
+              ),
         );
         if (result != null) {
           setState(() => _periodo = _CobrosPeriod.personalizado);
-          ref.read(fechaFiltroCobrosProvider.notifier).setRango(result);
+          ref
+              .read(cobrosPaginadosProvider.notifier)
+              .aplicarFiltros(rango: result);
         }
         return;
     }
 
     setState(() => _periodo = p);
-    ref.read(fechaFiltroCobrosProvider.notifier).setRango(rango);
+    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(rango: rango);
   }
 
-  String get _descripcion {
-    final rango = ref.read(fechaFiltroCobrosProvider);
+  String _getDescripcion(WidgetRef ref) {
+    final state = ref.watch(cobrosPaginadosProvider);
+    final rango = state.rangoFechas;
     switch (_periodo) {
       case _CobrosPeriod.hoy:
         return 'Solo cobros del día de hoy';
@@ -151,6 +153,7 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final descripcion = _getDescripcion(ref);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -168,9 +171,11 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
             ),
             const SizedBox(height: 4),
             Text(
-              _descripcion,
+              descripcion,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
               ),
             ),
           ],
@@ -214,33 +219,431 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
             backgroundColor: const Color(0xFF4F46E5),
             foregroundColor: Theme.of(context).colorScheme.onSurface,
           ),
-          onPressed: widget.cobros.isEmpty
-              ? null
-              : () async {
-                  final locales = ref.read(localesProvider).value ?? [];
-                  final mercados = ref.read(mercadosProvider).value ?? [];
-                  final bytes = await ReportePdfGenerator.generarReporteCobros(
-                    cobros: widget.cobros,
-                    locales: locales,
-                    mercados: mercados,
-                    periodoLabel: _descripcion,
-                  );
-                  if (kIsWeb) {
-                    await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
-                  } else {
-                    await Printing.layoutPdf(
-                      onLayout: (_) async => bytes,
-                      name: 'Reporte_Cobros',
+          onPressed:
+              widget.cobros.isEmpty
+                  ? null
+                  : () async {
+                    final locales = ref.read(localesProvider).value ?? [];
+                    final mercados = ref.read(mercadosProvider).value ?? [];
+                    final bytes = await ReportePdfGenerator.generarReporteCobros(
+                      cobros: widget.cobros,
+                      locales: locales,
+                      mercados: mercados,
+                      periodoLabel: descripcion,
                     );
-                  }
-                },
+                    if (kIsWeb) {
+                      await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
+                    } else {
+                      await Printing.layoutPdf(
+                        onLayout: (_) async => bytes,
+                        name: 'Reporte_Cobros',
+                      );
+                    }
+                  },
         ),
       ],
     );
   }
 }
 
-// ── Chip reutilizable ─────────────────────────────────────────────────────────
+// ── Tabla con filtros por columna y paginación ───────────────────────────────
+class _CobrosFullTable extends ConsumerStatefulWidget {
+  final CobrosPaginadosState state;
+  const _CobrosFullTable({required this.state});
+
+  @override
+  ConsumerState<_CobrosFullTable> createState() => _CobrosFullTableState();
+}
+
+class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
+  String _searchQuery = '';
+  String _searchColumn = 'Local';
+
+  String nombreLocal(String? id) {
+    if (id == null) return '-';
+    final locales = ref.read(localesProvider).value ?? [];
+    return locales
+        .where((l) => l.id == id)
+        .map((l) => l.nombreSocial ?? '-')
+        .firstWhere((_) => true, orElse: () => 'Desconocido');
+  }
+
+  String nombreMercado(String? id) {
+    if (id == null) return '-';
+    final mercados = ref.read(mercadosProvider).value ?? [];
+    return mercados
+        .where((m) => m.id == id)
+        .map((m) => m.nombre ?? '-')
+        .firstWhere((_) => true, orElse: () => 'Desconocido');
+  }
+
+  String nombreCobrador(String? id) {
+    if (id == null) return '-';
+    final usuarios = ref.read(usuariosProvider).value ?? [];
+    return usuarios
+        .where((u) => u.id == id)
+        .map((u) => u.nombre ?? '-')
+        .firstWhere((_) => true, orElse: () => 'Desconocido');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _searchQuery.toLowerCase();
+    final filtered =
+        q.isEmpty
+            ? widget.state.cobros
+            : widget.state.cobros.where((c) {
+              switch (_searchColumn) {
+                case 'Local':
+                  return nombreLocal(c.localId).toLowerCase().contains(q);
+                case 'Mercado':
+                  return nombreMercado(c.mercadoId).toLowerCase().contains(q);
+                case 'Estado':
+                  return (c.estado ?? '').toLowerCase().contains(q);
+                case 'Cobrador':
+                  return nombreCobrador(c.cobradorId).toLowerCase().contains(q);
+                case 'Teléfono':
+                  return (c.telefonoRepresentante ?? '')
+                      .toLowerCase()
+                      .contains(q);
+                case 'Observaciones':
+                  return (c.observaciones ?? '').toLowerCase().contains(q);
+                default:
+                  return true;
+              }
+            }).toList();
+
+    return Column(
+      children: [
+        // ── Barra de filtros ──────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            border: Border.all(
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search_rounded, size: 20, color: Colors.blue),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar cobros...',
+                    border: InputBorder.none,
+                    hintStyle: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              DropdownButton<String>(
+                value: _searchColumn,
+                underline: const SizedBox(),
+                items:
+                    [
+                      'Local',
+                      'Mercado',
+                      'Estado',
+                      'Cobrador',
+                      'Teléfono',
+                      'Observaciones',
+                    ].map((c) {
+                      return DropdownMenuItem(value: c, child: Text(c));
+                    }).toList(),
+                onChanged: (v) => setState(() => _searchColumn = v!),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Tabla ─────────────────────────────────────────────────────────
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.1),
+              ),
+            ),
+            child: ScrollableTable(
+              child: DataTable(
+                headingRowHeight: 48,
+                dataRowMinHeight: 48,
+                dataRowMaxHeight: 56,
+                columnSpacing: 24,
+                headingTextStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                columns: const [
+                  DataColumn(label: Text('Fecha')),
+                  DataColumn(label: Text('Mercado')),
+                  DataColumn(label: Text('Local')),
+                  DataColumn(label: Text('Monto')),
+                  DataColumn(label: Text('Estado')),
+                  DataColumn(label: Text('Cobrador')),
+                  DataColumn(label: Text('Boleta')),
+                  DataColumn(label: Text('Acciones')),
+                ],
+                rows:
+                    filtered.map((c) {
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
+                          DataCell(Text(nombreMercado(c.mercadoId))),
+                          DataCell(Text(nombreLocal(c.localId))),
+                          DataCell(
+                            Text(
+                              'L. ${c.monto?.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          DataCell(_EstadoChip(estado: c.estado)),
+                          DataCell(Text(nombreCobrador(c.cobradorId))),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                c.numeroBoletaFmt,
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.print_rounded,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => _imprimirCobro(context, ref, c),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_forever_rounded,
+                                    color: Colors.redAccent,
+                                    size: 20,
+                                  ),
+                                  tooltip: 'Eliminar cobro',
+                                  onPressed:
+                                      () =>
+                                          _confirmarEliminacion(context, ref, c),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+              ),
+            ),
+          ),
+        ),
+
+        // ── Controles de paginación ───────────────────────────────────────
+        const SizedBox(height: 8),
+        _PaginationBar(
+          currentPage: widget.state.paginaActual - 1,
+          totalItems: widget.state.cobros.length,
+          pageSize: _kPageSize,
+          onPrev:
+              widget.state.paginaActual > 1
+                  ? () =>
+                      ref
+                          .read(cobrosPaginadosProvider.notifier)
+                          .irAPaginaAnterior()
+                  : null,
+          onNext:
+              widget.state.hayMas
+                  ? () =>
+                      ref
+                          .read(cobrosPaginadosProvider.notifier)
+                          .irAPaginaSiguiente()
+                  : null,
+          isCargando: widget.state.cargando,
+        ),
+      ],
+    );
+  }
+
+  void _imprimirCobro(BuildContext context, WidgetRef ref, Cobro c) async {
+    final printer = ref.read(printerServiceProvider);
+    // printerServiceProvider actualmente no tiene una propiedad isConnected expuesta directamente de la misma forma que Notifier, 
+    // pero podemos intentar usar el servicio.
+
+    final locales = ref.read(localesProvider).value ?? [];
+    final mercados = ref.read(mercadosProvider).value ?? [];
+    final local = locales.firstWhere((l) => l.id == c.localId);
+    final mcd = mercados.firstWhere((m) => m.id == c.mercadoId);
+
+    try {
+      final municipalidad = ref.read(municipalidadActualProvider);
+      await printer.printReceipt(
+        empresa: municipalidad?.nombre ?? 'Municipalidad',
+        mercado: mcd.nombre ?? 'Mercado',
+        local: local.nombreSocial ?? 'Local',
+        monto: (c.monto ?? 0).toDouble(),
+        fecha: c.fecha ?? DateTime.now(),
+        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
+        anioCorrelativo: c.anioCorrelativo ?? DateTime.now().year,
+        cobrador: c.cobradorId, // O buscar el nombre si es necesario
+        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
+        deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
+        montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
+        saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
+      );
+
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al imprimir: $e')));
+      }
+    }
+  }
+
+  void _confirmarEliminacion(BuildContext context, WidgetRef ref, Cobro c) {
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Eliminar Cobro'),
+            content: Text(
+              '¿Estás seguro de eliminar este cobro de L. ${c.monto}? Esto revertirá los saldos y deudas asociados.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    await ref
+                        .read(cobrosPaginadosProvider.notifier)
+                        .recargar(); // Recargar después de eliminar si se desea, o llamar al service directamente
+                    await ref.read(cobroViewModelProvider.notifier).eliminarCobro(c);
+                    ref.read(cobrosPaginadosProvider.notifier).recargar();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error al eliminar: $e')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
+// ── Widget reutilizable de paginación ────────────────────────────────────────
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int totalItems;
+  final int pageSize;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalItems,
+    required this.pageSize,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isCargando)
+          const Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded),
+          onPressed: isCargando ? null : onPrev,
+          color:
+              onPrev != null
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                  : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          tooltip: 'Página anterior',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Página ${currentPage + 1}',
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded),
+          onPressed: isCargando ? null : onNext,
+          color:
+              onNext != null
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                  : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          tooltip: 'Página siguiente',
+        ),
+      ],
+    );
+  }
+}
+
+// ── Chip de periodo ──────────────────────────────────────────────────────────
 class _PeriodChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -259,405 +662,14 @@ class _PeriodChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: selected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+        color:
+            selected
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface,
         fontSize: 12,
       ),
-      selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
-      backgroundColor: Theme.of(context).cardTheme.color,
-      showCheckmark: false,
-      padding: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: selected
-              ? const Color(0xFF00D9A6).withValues(alpha: 0.5)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tabla con filtros por columna y paginación ───────────────────────────────
-class _CobrosFullTable extends ConsumerStatefulWidget {
-  final List<Cobro> cobros;
-
-  const _CobrosFullTable({required this.cobros});
-
-  @override
-  ConsumerState<_CobrosFullTable> createState() => _CobrosFullTableState();
-}
-
-class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
-  final ScrollController _scrollController = ScrollController();
-  String _searchQuery = '';
-  String _searchColumn = 'Local';
-  int _currentPage = 0;
-
-  static const List<String> _columnas = [
-    'Local',
-    'Mercado',
-    'Estado',
-    'Cobrador',
-    'Teléfono',
-    'Observaciones',
-  ];
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  // Cuando cambia filtro, siempre volver a la página 0
-  void _setSearch(String q) => setState(() {
-    _searchQuery = q;
-    _currentPage = 0;
-  });
-
-  void _setColumn(String? col) => setState(() {
-    if (col != null) _searchColumn = col;
-    _currentPage = 0;
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final usuarios = ref.watch(usuariosProvider).value ?? [];
-    final locales = ref.watch(localesProvider).value ?? [];
-    final mercados = ref.watch(mercadosProvider).value ?? [];
-
-    String nombreCobrador(String? id) {
-      if (id == null || id.isEmpty) return '-';
-      try {
-        return usuarios.firstWhere((u) => u.id == id).nombre ?? id;
-      } catch (_) {
-        return id;
-      }
-    }
-
-    String nombreLocal(String? id) {
-      if (id == null || id.isEmpty) return '-';
-      try {
-        return locales.firstWhere((l) => l.id == id).nombreSocial ?? id;
-      } catch (_) {
-        return id;
-      }
-    }
-
-    String nombreMercado(String? id) {
-      if (id == null || id.isEmpty) return '-';
-      try {
-        return mercados.firstWhere((m) => m.id == id).nombre ?? id;
-      } catch (_) {
-        return id;
-      }
-    }
-
-    // Filtrado según columna seleccionada
-    final q = _searchQuery.toLowerCase();
-    final filtered = q.isEmpty
-        ? widget.cobros
-        : widget.cobros.where((c) {
-            switch (_searchColumn) {
-              case 'Local':
-                return nombreLocal(c.localId).toLowerCase().contains(q);
-              case 'Mercado':
-                return nombreMercado(c.mercadoId).toLowerCase().contains(q);
-              case 'Estado':
-                return (c.estado ?? '').toLowerCase().contains(q);
-              case 'Cobrador':
-                return nombreCobrador(c.cobradorId).toLowerCase().contains(q);
-              case 'Teléfono':
-                return (c.telefonoRepresentante ?? '').toLowerCase().contains(
-                  q,
-                );
-              case 'Observaciones':
-                return (c.observaciones ?? '').toLowerCase().contains(q);
-              default:
-                return true;
-            }
-          }).toList();
-
-    // Paginación
-    final totalPages = (filtered.length / _kPageSize).ceil().clamp(1, 99999);
-    final start = _currentPage * _kPageSize;
-    final end = (start + _kPageSize).clamp(0, filtered.length);
-    final paginated = filtered.sublist(start, end);
-
-    return Column(
-      children: [
-        // ── Barra de filtros ──────────────────────────────────────────────
-        Row(
-          children: [
-            // Selector de columna
-            Container(
-              height: 40,
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _searchColumn,
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-                  ),
-                  isDense: true,
-                  dropdownColor: Theme.of(context).colorScheme.surface,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-                  items: _columnas
-                      .map(
-                        (col) => DropdownMenuItem(value: col, child: Text(col)),
-                      )
-                      .toList(),
-                  onChanged: _setColumn,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Campo de búsqueda
-            SizedBox(
-              width: 280,
-              child: TextField(
-                onChanged: _setSearch,
-                decoration: InputDecoration(
-                  hintText: 'Buscar por $_searchColumn...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-            const Spacer(),
-            // Contador de resultados
-            Text(
-              '${filtered.length} resultado${filtered.length == 1 ? '' : 's'}',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 12),
-            ),
-          ],
-        ),
-        SizedBox(height: 12),
-
-        // ── Tabla ─────────────────────────────────────────────────────────
-        Expanded(
-          child: Card(
-            child: Scrollbar(
-              controller: _scrollController,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-                    ),
-                    columns: const [
-                      DataColumn(label: Text('Fecha')),
-                      DataColumn(label: Text('Local')),
-                      DataColumn(label: Text('Mercado')),
-                      DataColumn(label: Text('Teléfono')),
-                      DataColumn(label: Text('Monto')),
-                      DataColumn(label: Text('Pago a Cuota')),
-                      DataColumn(label: Text('Cuota Diaria')),
-                      DataColumn(label: Text('Saldo Pendiente')),
-                      DataColumn(label: Text('Estado')),
-                      DataColumn(label: Text('Cobrador')),
-                      DataColumn(label: Text('Observaciones')),
-                      DataColumn(label: Text('Boleta')),
-                    ],
-                    rows: paginated.map((c) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
-                          DataCell(
-                            Text(
-                              nombreLocal(c.localId),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              nombreMercado(c.mercadoId),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              c.telefonoRepresentante ?? '-',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ),
-                          DataCell(Text(DateFormatter.formatCurrency(c.monto))),
-                          DataCell(
-                            Text(DateFormatter.formatCurrency(c.pagoACuota)),
-                          ),
-                          DataCell(
-                            Text(DateFormatter.formatCurrency(c.cuotaDiaria)),
-                          ),
-                          DataCell(
-                            Text(
-                              DateFormatter.formatCurrency(c.saldoPendiente),
-                            ),
-                          ),
-                          DataCell(_EstadoChip(estado: c.estado)),
-                          DataCell(
-                            Text(
-                              nombreCobrador(c.cobradorId),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          DataCell(Text(c.observaciones ?? '-')),
-                          DataCell(
-                            IconButton(
-                              icon: Icon(
-                                Icons.print,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                              tooltip: 'Reimprimir boleta',
-                              onPressed: () async {
-                                final printer = ref.read(
-                                  printerServiceProvider,
-                                );
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Re-imprimiendo boleta N°${c.correlativo ?? "-"}...',
-                                    ),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-
-                                final double montoSeguro =
-                                    c.monto?.toDouble() ?? 0.0;
-                                final double saldoPendienteRaw =
-                                    c.saldoPendiente?.toDouble() ?? 0.0;
-                                final double saldoPendienteSeguro =
-                                    saldoPendienteRaw > 0
-                                    ? saldoPendienteRaw
-                                    : 0.0;
-
-                                final impreso = await printer.printReceipt(
-                                  empresa: 'MUNICIPALIDAD',
-                                  local: nombreLocal(c.localId),
-                                  monto: montoSeguro,
-                                  fecha: c.fecha ?? DateTime.now(),
-                                  saldoPendiente: saldoPendienteSeguro,
-                                  saldoAFavor: c.nuevoSaldoFavor?.toDouble(),
-                                  deudaAnterior: c.deudaAnterior?.toDouble(),
-                                  montoAbonadoDeuda: c.montoAbonadoDeuda
-                                      ?.toDouble(),
-                                  cobrador: nombreCobrador(c.cobradorId),
-                                  correlativo: c.correlativo,
-                                  anioCorrelativo: c.anioCorrelativo,
-                                );
-
-                                if (!impreso && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Comprobante no impreso. Revisa conexión de la impresora.',
-                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                                      ),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // ── Controles de paginación ───────────────────────────────────────
-        const SizedBox(height: 8),
-        _PaginationBar(
-          currentPage: _currentPage,
-          totalPages: totalPages,
-          totalItems: filtered.length,
-          pageSize: _kPageSize,
-          onPrev: _currentPage > 0
-              ? () => setState(() => _currentPage--)
-              : null,
-          onNext: _currentPage < totalPages - 1
-              ? () => setState(() => _currentPage++)
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-// ── Widget reutilizable de paginación ────────────────────────────────────────
-class _PaginationBar extends StatelessWidget {
-  final int currentPage;
-  final int totalPages;
-  final int totalItems;
-  final int pageSize;
-  final VoidCallback? onPrev;
-  final VoidCallback? onNext;
-
-  const _PaginationBar({
-    required this.currentPage,
-    required this.totalPages,
-    required this.totalItems,
-    required this.pageSize,
-    required this.onPrev,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final start = totalItems == 0 ? 0 : currentPage * pageSize + 1;
-    final end = ((currentPage + 1) * pageSize).clamp(0, totalItems);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded),
-          onPressed: onPrev,
-          color: onPrev != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$start–$end de $totalItems',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '(Pág. ${currentPage + 1}/$totalPages)',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded),
-          onPressed: onNext,
-          color: onNext != null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
-        ),
-      ],
+      selectedColor: const Color(0xFF4F46E5),
+      backgroundColor: Colors.transparent,
     );
   }
 }

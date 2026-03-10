@@ -126,10 +126,18 @@ class CobradorShell extends ConsumerWidget {
                         builder: (context) => const PrinterConfigDialog(),
                       );
                     },
-                    icon: Icon(
-                      Icons.print_rounded,
-                      size: 20,
-                      color: colorScheme.primary,
+                    icon: Consumer(
+                      builder: (context, ref, _) {
+                        final isConnected =
+                            ref.watch(printerConnectionProvider).value ?? false;
+                        return Icon(
+                          Icons.print_rounded,
+                          size: 20,
+                          color: isConnected
+                              ? Colors.greenAccent
+                              : colorScheme.primary,
+                        );
+                      },
                     ),
                     tooltip: 'Configurar Impresora',
                   ),

@@ -121,7 +121,7 @@ class _CobradorEstadoCuentaScreenState
       ),
     );
 
-    final combinedList = [...cobrosList, ...adelantados];
+    final List<Cobro> combinedList = [...cobrosList, ...adelantados];
     combinedList.sort(
       (a, b) => (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
     );
@@ -812,6 +812,19 @@ class _CobroTile extends ConsumerWidget {
       ),
     );
 
+    // --- OBTENER DATOS MAESTROS ---
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(
+      cobro.municipalidadId ?? '',
+    );
+    final merc = await mercadoRepo.obtenerPorId(cobro.mercadoId ?? '');
+
+    final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
+    final mercadoNombre = merc?.nombre;
+    // -----------------------------
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -823,12 +836,20 @@ class _CobroTile extends ConsumerWidget {
             mainAxisSize: pw.MainAxisSize.min,
             children: [
               pw.Text(
-                'MUNICIPALIDAD',
+                (municipalidadNombre).toUpperCase(),
                 style: pw.TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+              if (mercadoNombre != null)
+                pw.Text(
+                  mercadoNombre.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
               pw.SizedBox(height: 4),
               pw.Text(
                 'Comprobante de Cobro',
@@ -920,16 +941,30 @@ class _CobroTile extends ConsumerWidget {
         ? saldoPendienteRaw
         : 0.0;
 
+    // --- OBTENER DATOS MAESTROS ---
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(
+      cobro.municipalidadId ?? '',
+    );
+    final merc = await mercadoRepo.obtenerPorId(cobro.mercadoId ?? '');
+
+    final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
+    final mercadoNombre = merc?.nombre;
+    // -----------------------------
+
     final impreso = await printer.printReceipt(
-      empresa: 'MUNICIPALIDAD',
+      empresa: municipalidadNombre,
+      mercado: mercadoNombre,
       local: local.nombreSocial ?? 'Local',
       monto: montoSeguro,
       fecha: cobro.fecha ?? DateTime.now(),
       saldoPendiente: saldoPendienteSeguro,
       saldoAFavor: null,
       cobrador: user?.nombre ?? 'Desconocido',
-      correlativo: cobro.correlativo,
-      anioCorrelativo: cobro.anioCorrelativo,
+      numeroBoleta: cobro.numeroBoletaFmt,
+      anioCorrelativo: cobro.anioCorrelativo ?? DateTime.now().year,
     );
 
     if (!impreso && context.mounted) {

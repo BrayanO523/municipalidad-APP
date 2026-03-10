@@ -12,6 +12,9 @@ import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
+import '../../../cobros/domain/entities/cobro.dart';
+import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -25,6 +28,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   Local? _localEncontrado;
   bool _yaEscaneado = false;
   bool _buscando = false;
+  bool _isRegistering = false;
   String? _error;
 
   @override
@@ -83,8 +87,12 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     try {
       final now = DateTime.now();
       final inicio = DateTime(now.year, now.month, now.day);
+      final usuario = ref.read(currentUsuarioProvider).value;
+      if (usuario == null) return 0.0;
+
       final querySnapshot = await FirebaseFirestore.instance
           .collection('cobros_json')
+          .where('municipalidadId', isEqualTo: usuario.municipalidadId)
           .where('localId', isEqualTo: localId)
           .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
           .get();
@@ -320,9 +328,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       final cobroDs = ref.read(cobroDatasourceProvider);
       final localDs = ref.read(localDatasourceProvider);
 
-      final int correlativo = await cobroDs.crearCobroConCorrelativo(
+      final String correlativoStr = await cobroDs.crearCobroConCorrelativo(
         cobroId: docId,
-        mercadoId: local.mercadoId!,
+        localId: local.id!,
         cobroData: {
           'cobradorId': usuario?.id ?? '',
           'creadoEn': Timestamp.fromDate(now),
@@ -343,6 +351,19 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       // Descontar la cuota del saldo a favor
       await localDs.actualizarSaldoAFavor(local.id!, -cuota);
 
+      // --- OBTENER DATOS MAESTROS ---
+      final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+      final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+      final muni = await municipalidadRepo.obtenerPorId(
+        local.municipalidadId ?? '',
+      );
+      final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+      final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
+      final mercadoNombre = merc?.nombre;
+      // -----------------------------
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -354,6 +375,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         );
       }
 
+      // -----------------------------
+
       // Imprimir boleta
       try {
         final printer = ref.read(printerServiceProvider);
@@ -363,14 +386,15 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
 
         final impreso = await printer.printReceipt(
-          empresa: 'MUNICIPALIDAD',
+          empresa: municipalidadNombre,
+          mercado: mercadoNombre,
           local: local.nombreSocial ?? 'Sin Nombre',
           monto: cuota.toDouble(),
           fecha: now,
           saldoPendiente: saldoResultante > 0 ? saldoResultante : 0,
           saldoAFavor: favorResultante > 0 ? favorResultante : 0,
           cobrador: usuario?.nombre,
-          correlativo: correlativo,
+          numeroBoleta: correlativoStr,
           anioCorrelativo: now.year,
         );
         if (!impreso && mounted) {
@@ -405,6 +429,21 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     required dynamic usuario,
     required double pagadoHoy,
   }) async {
+    setState(() => _isRegistering = true);
+
+    // --- OBTENER DATOS MAESTROS (Con soporte offline vía repositorios) ---
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
+    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
+    final mercadoNombre = merc?.nombre;
+    // ------------------------------------------------------------------
+
     final cuota = local.cuotaDiaria ?? 0;
 
     // Cuánto falta para cubrir la cuota de hoy
@@ -441,58 +480,54 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
 
     try {
-      final cobroDs = ref.read(cobroDatasourceProvider);
-      final localDs = ref.read(localDatasourceProvider);
+      // ====== MVVM REFACTOR: Utilizar CobroViewModel y Repositorios ======
+      final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
-      final int correlativo = await cobroDs.crearCobroConCorrelativo(
-        cobroId: docId,
-        mercadoId: local.mercadoId!,
-        cobroData: {
-          'actualizadoEn': Timestamp.fromDate(now),
-          'actualizadoPor': usuario?.id ?? 'cobrador',
-          'cobradorId': usuario?.id ?? '',
-          'creadoEn': Timestamp.fromDate(now),
-          'creadoPor': usuario?.id ?? 'cobrador',
-          'cuotaDiaria': cuota,
-          'estado': estado,
-          'fecha': Timestamp.fromDate(now),
-          'localId': local.id,
-          'mercadoId': local.mercadoId,
-          'municipalidadId': local.municipalidadId,
-          'monto': monto,
-          'pagoACuota': pagoACuota,
-          'observaciones': monto > 0
-              ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
-                    'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
-                    '${paraDeudaReal > 0 && paraSaldoFavorReal > 0 ? " y " : ""}'
-                    '${paraSaldoFavorReal > 0 ? "L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor" : ""}'
-              : observaciones,
-          'saldoPendiente': saldoHoy,
-          'deudaAnterior': local.deudaAcumulada ?? 0,
-          'montoAbonadoDeuda': paraDeudaReal,
-          'nuevoSaldoFavor': favorResultante,
-          'telefonoRepresentante': local.telefonoRepresentante,
-        },
+      final nuevoCobro = Cobro(
+        id: docId,
+        cobradorId: usuario?.id ?? '',
+        actualizadoEn: now,
+        actualizadoPor: usuario?.id ?? 'cobrador',
+        creadoEn: now,
+        creadoPor: usuario?.id ?? 'cobrador',
+        cuotaDiaria: cuota,
+        estado: estado,
+        fecha: now,
+        localId: local.id,
+        mercadoId: local.mercadoId,
+        municipalidadId: local.municipalidadId,
+        monto: monto,
+        pagoACuota: pagoACuota,
+        observaciones: monto > 0
+            ? '${observaciones.isNotEmpty ? "$observaciones | " : ""}'
+                  'Distribuido: ${paraDeudaReal > 0 ? "L ${paraDeudaReal.toStringAsFixed(2)} a deuda" : ""}'
+                  '${paraDeudaReal > 0 && paraSaldoFavorReal > 0 ? " y " : ""}'
+                  '${paraSaldoFavorReal > 0 ? "L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor" : ""}'
+            : observaciones,
+        saldoPendiente: saldoHoy,
+        deudaAnterior: local.deudaAcumulada ?? 0,
+        montoAbonadoDeuda: paraDeudaReal,
+        nuevoSaldoFavor: favorResultante,
+        telefonoRepresentante: local.telefonoRepresentante,
       );
 
-      if (local.id != null) {
-        await localDs.procesarPago(local.id!, monto);
-        await cobroDs.saldarDeudaHistoria(local.id!, monto);
-      }
+      final String? correlativoAsignado = await cobroViewModel.registrarPago(
+        cobro: nuevoCobro,
+        mercadoId: local.mercadoId!,
+        localId: local.id!,
+        montoAbonadoDeuda: paraDeudaReal,
+        incrementoSaldoFavor: paraSaldoFavorReal,
+      );
+
+      final String correlativoStr = correlativoAsignado ?? '0';
+      // ====== END MVVM REFACTOR ======
 
       // Imprimir boleta silenciosamente de fondo
       try {
         final printer = ref.read(printerServiceProvider);
-        final mercados = ref
-            .read(mercadosProvider)
-            .maybeWhen(data: (list) => list, orElse: () => <Mercado>[]);
-        final mercadoNombre = mercados
-            .where((m) => m.id == local.mercadoId)
-            .firstOrNull
-            ?.nombre;
-
-        final impreso = await printer.printReceipt(
-          empresa: 'MUNICIPALIDAD',
+        // NO AWAIT: La impresión ocurre en segundo plano para no demorar el diálogo de éxito
+        printer.printReceipt(
+          empresa: municipalidadNombre,
           mercado: mercadoNombre,
           local: local.nombreSocial ?? 'Sin Nombre',
           monto: monto.toDouble(),
@@ -502,19 +537,16 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
           montoAbonadoDeuda: paraDeudaReal.toDouble(),
           cobrador: usuario?.nombre,
-          correlativo: correlativo,
+          numeroBoleta: correlativoStr,
           anioCorrelativo: now.year,
         );
-        if (!impreso && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Comprobante Bluetoooth no impreso.'),
-              backgroundColor: Colors.orange.shade800,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (_) {}
+        // La impresión se lanza de fondo; se omite la validación de éxito inmediata para agilizar la UI
+        if (mounted) setState(() => _isRegistering = false);
+      } catch (_) {
+        if (mounted) setState(() => _isRegistering = false);
+      }
+
+      if (mounted) setState(() => _isRegistering = false);
 
       if (mounted) {
         String mensajeExtra = '';
@@ -560,7 +592,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                     deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
                     montoAbonadoDeuda: paraDeudaReal.toDouble(),
                     saldoAFavor: favorResultante > 0 ? favorResultante : 0,
-                    correlativo: correlativo,
+                    numeroBoleta: correlativoStr,
+                    municipalidadNombre: municipalidadNombre,
+                    mercadoNombre: mercadoNombre,
                     cobradorNombre: usuario?.nombre,
                   );
                   _resetScanner();
@@ -597,7 +631,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     required double deudaAnterior,
     required double montoAbonadoDeuda,
     required double saldoAFavor,
-    required int correlativo,
+    required String numeroBoleta,
+    required String? municipalidadNombre,
+    required String? mercadoNombre,
     required String? cobradorNombre,
   }) async {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -618,12 +654,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             mainAxisSize: pw.MainAxisSize.min,
             children: [
               pw.Text(
-                'MUNICIPALIDAD',
+                (municipalidadNombre ?? 'MUNICIPALIDAD').toUpperCase(),
                 style: pw.TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+              if (mercadoNombre != null)
+                pw.Text(
+                  mercadoNombre.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
               pw.SizedBox(height: 4),
               pw.Text(
                 'Comprobante de Cobro',
@@ -648,7 +692,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               ),
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Boleta N°: $correlativo'),
+                child: pw.Text('Boleta N°: $numeroBoleta'),
               ),
               pw.SizedBox(height: 8),
               pw.Divider(),
@@ -714,7 +758,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     try {
       await Printing.sharePdf(
         bytes: await doc.save(),
-        filename: 'Comprobante_Municipalidad_$correlativo.pdf',
+        filename: 'Comprobante_Municipalidad_$numeroBoleta.pdf',
       );
     } catch (e) {
       if (context.mounted) {
@@ -729,121 +773,145 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Escanear QR'),
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        actions: [
-          if (_yaEscaneado)
-            IconButton(
-              onPressed: _resetScanner,
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Escanear otro',
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Escanear QR'),
+            leading: IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_rounded),
             ),
-        ],
-      ),
-      body: _localEncontrado != null
-          ? _LocalDetailPanel(
-              local: _localEncontrado!,
-              onCobrar: () => _registrarCobro(_localEncontrado!),
-              onScanOtro: _resetScanner,
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      MobileScanner(
-                        controller: _controller,
-                        onDetect: _onDetect,
-                      ),
-                      // Overlay con marco
-                      Container(
-                        width: 250,
-                        height: 250,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: colorScheme.primary,
-                            width: 3,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ],
-                  ),
+            actions: [
+              if (_yaEscaneado)
+                IconButton(
+                  onPressed: _resetScanner,
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Escanear otro',
                 ),
-                if (_buscando)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 12),
-                        Text('Buscando local...'),
-                      ],
-                    ),
-                  ),
-                if (_error != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: colorScheme.error,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: TextStyle(color: colorScheme.error),
+            ],
+          ),
+          body: _localEncontrado != null
+              ? _LocalDetailPanel(
+                  local: _localEncontrado!,
+                  onCobrar: () => _registrarCobro(_localEncontrado!),
+                  onScanOtro: _resetScanner,
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          MobileScanner(
+                            controller: _controller,
+                            onDetect: _onDetect,
+                          ),
+                          // Overlay con marco
+                          Container(
+                            width: 250,
+                            height: 250,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: colorScheme.primary,
+                                width: 3,
                               ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_buscando)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Buscando local...'),
+                          ],
+                        ),
+                      ),
+                    if (_error != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(color: colorScheme.error),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              onPressed: _resetScanner,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Intentar de nuevo'),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          onPressed: _resetScanner,
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: const Text('Intentar de nuevo'),
+                      ),
+                    if (!_buscando && _error == null)
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          'Apunta la cámara al código QR del local',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.white54),
                         ),
-                      ],
+                      ),
+                  ],
+                ),
+        ),
+        if (_isRegistering)
+          Container(
+            color: Colors.black54,
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.green),
+                  SizedBox(height: 16),
+                  Text(
+                    'Registrando cobro...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                if (!_buscando && _error == null)
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      'Apunta la cámara al código QR del local',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
+          ),
+      ],
     );
   }
 }
 
-class _LocalDetailPanel extends StatelessWidget {
+class _LocalDetailPanel extends ConsumerWidget {
   final Local local;
   final VoidCallback onCobrar;
   final VoidCallback onScanOtro;
@@ -855,8 +923,26 @@ class _LocalDetailPanel extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Obtener nombres de Mercado y Tipo de Negocio desde los providers
+    final mercados = ref
+        .watch(mercadosProvider)
+        .maybeWhen(data: (list) => list, orElse: () => <Mercado>[]);
+    final tipos = ref
+        .watch(tiposNegocioProvider)
+        .maybeWhen(data: (list) => list, orElse: () => <TipoNegocio>[]);
+
+    final mercadoNombre =
+        mercados.where((m) => m.id == local.mercadoId).firstOrNull?.nombre ??
+        local.mercadoId ??
+        '-';
+
+    final tipoNombre =
+        tipos.where((t) => t.id == local.tipoNegocioId).firstOrNull?.nombre ??
+        local.tipoNegocioId ??
+        '-';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -907,7 +993,7 @@ class _LocalDetailPanel extends StatelessWidget {
                   _DetailRow(
                     icon: Icons.store_rounded,
                     label: 'Mercado',
-                    value: local.mercadoId ?? '-',
+                    value: mercadoNombre,
                   ),
                   _DetailRow(
                     icon: Icons.square_foot_rounded,
@@ -917,7 +1003,7 @@ class _LocalDetailPanel extends StatelessWidget {
                   _DetailRow(
                     icon: Icons.category_rounded,
                     label: 'Tipo',
-                    value: local.tipoNegocioId ?? '-',
+                    value: tipoNombre,
                   ),
                   const Divider(height: 24),
                   _DetailRow(
@@ -1017,12 +1103,16 @@ class _DetailRow extends StatelessWidget {
             '$label:',
             style: const TextStyle(color: Colors.white54, fontSize: 13),
           ),
-          const Spacer(),
-          Text(
-            value,
-            style:
-                valueStyle ??
-                const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  valueStyle ??
+                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -1042,17 +1132,23 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '$label: ',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            label,
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: color,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color ?? Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
