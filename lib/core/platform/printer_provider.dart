@@ -1,8 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'printer_service.dart';
-import 'stub_printer_adapter.dart'
-    if (dart.library.io) 'bluetooth_printer_adapter.dart';
+import 'printer_adapter_factory.dart';
 
 /// Proveedor global para el servicio de impresora.
 /// Utiliza importación condicional para evitar errores de compilación en Web.
@@ -24,3 +23,9 @@ final connectedPrinterMacProvider =
     NotifierProvider<ConnectedPrinterMacNotifier, String?>(() {
       return ConnectedPrinterMacNotifier();
     });
+
+/// Stream que indica si hay una impresora conectada actualmente.
+final printerConnectionProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(printerServiceProvider);
+  return service.connectionStream;
+});

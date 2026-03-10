@@ -315,45 +315,53 @@ class ReportePdfGenerator {
         color: _colorFondoCabecera,
         borderRadius: pw.BorderRadius.circular(8),
       ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      child: pw.Column(
         children: [
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
                 'QRecauda',
                 style: pw.TextStyle(
                   font: f['bold'],
-                  fontSize: 18,
+                  fontSize: 10,
                   color: _colorAcento,
                 ),
               ),
-              pw.SizedBox(height: 2),
               pw.Text(
-                titulo,
-                style: pw.TextStyle(
-                  font: f['semi'],
-                  fontSize: 14,
-                  color: PdfColors.white,
-                ),
-              ),
-              pw.Text(
-                subtitulo,
+                'Generado: $fecha',
                 style: pw.TextStyle(
                   font: f['regular'],
-                  fontSize: 9,
+                  fontSize: 7,
                   color: _colorGris,
                 ),
               ),
             ],
           ),
-          pw.Text(
-            'Generado: $fecha',
-            style: pw.TextStyle(
-              font: f['regular'],
-              fontSize: 8,
-              color: _colorGris,
+          pw.SizedBox(height: 4),
+          pw.Divider(color: _colorGris, thickness: 0.2),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  titulo,
+                  style: pw.TextStyle(
+                    font: f['bold'],
+                    fontSize: 15,
+                    color: PdfColors.white,
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  subtitulo,
+                  style: pw.TextStyle(
+                    font: f['regular'],
+                    fontSize: 10,
+                    color: _colorGris,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -630,9 +638,7 @@ class ReportePdfGenerator {
         ...items.asMap().entries.map((e) {
           final c = e.value;
           final isAlternate = e.key.isEven;
-          final correlativoStr = c.correlativo != null
-              ? '${c.anioCorrelativo ?? ''}/${c.correlativo}'
-              : '—';
+          final correlativoStr = c.numeroBoletaFmt;
           return pw.TableRow(
             decoration: pw.BoxDecoration(
               color: isAlternate ? _colorFondoFila : PdfColors.white,
@@ -1082,7 +1088,7 @@ class ReportePdfGenerator {
                 vertical: 8,
               ),
               child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
                   pw.Text(
