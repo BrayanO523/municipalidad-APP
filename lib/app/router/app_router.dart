@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,6 +21,9 @@ import '../../features/shell/presentation/screens/shell_screen.dart';
 import '../../features/tipos_negocio/presentation/screens/tipos_negocio_screen.dart';
 import '../../features/usuarios/presentation/screens/login_screen.dart';
 import '../../features/usuarios/presentation/screens/usuarios_screen.dart';
+import '../../features/usuarios/domain/entities/usuario.dart';
+import '../../features/usuarios/presentation/screens/correlativos_control_screen.dart';
+import '../../features/usuarios/presentation/screens/cobros_cobrador_screen.dart';
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -27,13 +31,19 @@ final routerProvider = Provider<GoRouter>((ref) {
   final usuarioAsync = ref.watch(currentUsuarioProvider);
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/splash',
     redirect: (context, state) {
+      if (authState.isLoading || usuarioAsync.isLoading) {
+        return '/splash';
+      }
+
       final isLoggedIn = authState.value != null;
       final isGoingToLogin = state.uri.toString() == '/login';
+      final isGoingToSplash = state.uri.toString() == '/splash';
 
       if (!isLoggedIn && !isGoingToLogin) return '/login';
-      if (isLoggedIn && isGoingToLogin) {
+
+      if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
         final usuario = usuarioAsync.value;
         if (usuario != null && usuario.esCobrador) return '/cobrador';
         return '/dashboard';
@@ -52,6 +62,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const Scaffold(
+          backgroundColor: Color(0xFF10121B),
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      GoRoute(
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
@@ -69,6 +87,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/usuarios',
             name: 'usuarios',
             builder: (context, state) => const UsuariosScreen(),
+          ),
+          GoRoute(
+            path: '/correlativos',
+            name: 'correlativos',
+            builder: (context, state) => const CorrelativosControlScreen(),
+            routes: [
+              GoRoute(
+                path: 'cobrador',
+                name: 'cobrador-cobros-admin',
+                builder: (context, state) {
+                  final cobrador = state.extra as Usuario;
+                  return CobrosCobradorScreen(cobrador: cobrador);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/rutas-admin',
