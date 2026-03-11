@@ -20,6 +20,8 @@ class Local {
   final num? saldoAFavor; // Crédito acumulado por pagos adelantados
   final num? deudaAcumulada; // Suma de cuotas no pagadas histórica
 
+  final String? frecuenciaCobro; // 'diaria', 'semanal', 'quincenal', 'mensual'
+
   final String? clave;
   final String? codigoCatastral;
   final String? codigoCatastralLower;
@@ -45,6 +47,7 @@ class Local {
     this.perimetro,
     this.saldoAFavor,
     this.deudaAcumulada,
+    this.frecuenciaCobro,
     this.clave,
     this.codigoCatastral,
     this.codigoCatastralLower,
