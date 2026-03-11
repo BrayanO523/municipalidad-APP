@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -80,10 +79,7 @@ class AppUpdateRepositoryImpl implements AppUpdateRepository {
     final pending = await _localDatasource.getPendingSyncVersions();
     if (pending.isEmpty) return;
 
-    await _remoteDatasource.syncVersionHistory(
-      pending,
-      deviceId: _deviceId,
-    );
+    await _remoteDatasource.syncVersionHistory(pending, deviceId: _deviceId);
 
     // Marcar como sincronizadas
     for (final v in pending) {
@@ -112,10 +108,7 @@ class AppUpdateRepositoryImpl implements AppUpdateRepository {
 
   /// Elimina binarios antiguos (.apk, .exe, .dmg) en la carpeta,
   /// excluyendo [keepFileName].
-  Future<void> _cleanOldBinaries(
-    Directory dir,
-    String keepFileName,
-  ) async {
+  Future<void> _cleanOldBinaries(Directory dir, String keepFileName) async {
     const binaryExtensions = ['.apk', '.exe', '.dmg', '.AppImage', '.deb'];
 
     try {

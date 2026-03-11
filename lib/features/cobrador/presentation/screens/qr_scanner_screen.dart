@@ -11,6 +11,7 @@ import '../../../mercados/domain/entities/mercado.dart';
 import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
+import '../../../../app/theme/app_theme.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -111,116 +112,102 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     );
     final obsCtrl = TextEditingController();
 
-    await showDialog(
+    await showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1B27),
-        title: const Text(
-          'Registrar Cobro',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Local: ${local.nombreSocial}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _InfoRow(
-              label: 'Cuota Diaria:',
-              value: DateFormatter.formatCurrency(local.cuotaDiaria),
-            ),
-            _InfoRow(
-              label: 'Deuda Acumulada:',
-              value: DateFormatter.formatCurrency(local.deudaAcumulada),
-            ),
-            _InfoRow(
-              label: 'Saldo a Favor:',
-              value: DateFormatter.formatCurrency(local.saldoAFavor),
-            ),
-            _InfoRow(
-              label: 'Pagado hoy:',
-              value: DateFormatter.formatCurrency(pagadoHoy),
-              color: Colors.greenAccent,
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: montoCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Monto a Cobrar',
-                labelStyle: const TextStyle(color: Colors.white70),
-                prefixText: 'L ',
-                prefixStyle: const TextStyle(color: Colors.white),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(12),
+      isScrollControlled: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 8,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long_rounded, size: 36, color: cs.primary),
+                const SizedBox(height: 8),
+                Text(
+                  'Registrar Cobro',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.blue),
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 4),
+                Text(
+                  'Local: ${local.nombreSocial}',
+                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: obsCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Observaciones (opcional)',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+                _InfoRow(
+                  label: 'Cuota Diaria:',
+                  value: DateFormatter.formatCurrency(local.cuotaDiaria),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.blue),
-                  borderRadius: BorderRadius.circular(12),
+                _InfoRow(
+                  label: 'Deuda Acumulada:',
+                  value: DateFormatter.formatCurrency(local.deudaAcumulada),
                 ),
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.white54),
+                _InfoRow(
+                  label: 'Saldo a Favor:',
+                  value: DateFormatter.formatCurrency(local.saldoAFavor),
+                ),
+                _InfoRow(
+                  label: 'Pagado hoy:',
+                  value: DateFormatter.formatCurrency(pagadoHoy),
+                  color: AppColors.success,
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: montoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  decoration: const InputDecoration(
+                    labelText: 'Monto a Cobrar',
+                    prefixText: 'L ',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: obsCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Observaciones (opcional)',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancelar'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          final monto = num.tryParse(montoCtrl.text) ?? 0;
+                          if (monto <= 0) return;
+                          Navigator.pop(ctx);
+                          final usuario = ref.read(currentUsuarioProvider).value;
+                          await _guardarCobro(
+                            local: local,
+                            monto: monto,
+                            observaciones: obsCtrl.text,
+                            usuario: usuario,
+                            pagadoHoy: pagadoHoy.toDouble(),
+                          );
+                        },
+                        child: const Text('Confirmar Cobro'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final monto = num.tryParse(montoCtrl.text) ?? 0;
-              if (monto <= 0) return;
-
-              Navigator.pop(context);
-              final usuario = ref.read(currentUsuarioProvider).value;
-              await _guardarCobro(
-                local: local,
-                monto: monto,
-                observaciones: obsCtrl.text,
-                usuario: usuario,
-                pagadoHoy: pagadoHoy.toDouble(),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Confirmar Cobro'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -389,7 +376,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -505,7 +492,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                         child: Text(
                           'Apunta la cámara al código QR del local',
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.white54),
+                          ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
                         ),
                       ),
                   ],
@@ -518,7 +505,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: Colors.green),
+                    CircularProgressIndicator(color: AppColors.success),
                   SizedBox(height: 16),
                   Text(
                     'Registrando cobro...',
@@ -576,12 +563,12 @@ class _LocalDetailPanel extends ConsumerWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.15),
+              color: AppColors.success.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
               Icons.qr_code_scanner_rounded,
-              color: Colors.green,
+              color: AppColors.success,
               size: 32,
             ),
           ),
@@ -589,7 +576,7 @@ class _LocalDetailPanel extends ConsumerWidget {
           Text(
             'Local Encontrado',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.green,
+              color: AppColors.success,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -718,11 +705,11 @@ class _DetailRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.white38),
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
           const SizedBox(width: 10),
           Text(
             '$label:',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -757,7 +744,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.white60, fontSize: 13),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -766,7 +753,7 @@ class _InfoRow extends StatelessWidget {
               textAlign: TextAlign.end,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: color ?? Colors.white,
+                color: color ?? Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
