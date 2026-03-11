@@ -30,14 +30,15 @@ class MainApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final seedColor = ref.watch(primaryColorProvider);
 
     return MaterialApp.router(
       title: 'QRecauda Municipalidad (Web)',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       themeMode: themeMode,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme(seedColor),
+      darkTheme: AppTheme.darkTheme(seedColor),
     );
   }
 }

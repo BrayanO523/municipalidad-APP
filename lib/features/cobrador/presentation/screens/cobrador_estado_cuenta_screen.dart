@@ -16,6 +16,7 @@ import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../../core/utils/visual_debt_utils.dart';
+import '../../../../app/theme/app_theme.dart';
 
 /// Pantalla de Estado de Cuenta del locatario — vista del Cobrador.
 /// Muestra el balance financiero completo y el historial de cobros
@@ -118,11 +119,9 @@ class _CobradorEstadoCuentaScreenState
     final pendientes = combinedList.where((c) => c.estado == 'pendiente').toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF12131A),
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
-            backgroundColor: const Color(0xFF1A1B27),
             expandedHeight: 240,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -185,9 +184,9 @@ class _CobradorEstadoCuentaScreenState
             ],
             bottom: TabBar(
               controller: _tabController,
-              indicatorColor: const Color(0xFF6C63FF),
-              labelColor: const Color(0xFF6C63FF),
-              unselectedLabelColor: Colors.white54,
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               labelStyle: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -238,11 +237,14 @@ class _Header extends StatelessWidget {
     final tieneSaldo = saldo > 0;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1B27), Color(0xFF0E0F18)],
+          colors: [
+            Theme.of(context).colorScheme.surfaceContainerLow,
+            Theme.of(context).colorScheme.surface,
+          ],
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 70, 16, 4),
@@ -258,18 +260,18 @@ class _Header extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF00D9A6)],
+                  gradient: LinearGradient(
+                    colors: [Theme.of(context).colorScheme.primary, AppColors.success],
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                   child: Text(
                     (local.nombreSocial ?? 'L').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -281,10 +283,10 @@ class _Header extends StatelessWidget {
                   children: [
                     Text(
                       local.representante ?? '—',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     if (local.telefonoRepresentante != null &&
@@ -296,14 +298,14 @@ class _Header extends StatelessWidget {
                             const Icon(
                               Icons.call_rounded,
                               size: 12,
-                              color: Color(0xFF00D9A6),
+                              color: AppColors.success,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               local.telefonoRepresentante!,
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF00D9A6),
+                                color: AppColors.success,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -313,9 +315,9 @@ class _Header extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Cuota: ${DateFormatter.formatCurrency(local.cuotaDiaria)}/día',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -333,15 +335,15 @@ class _Header extends StatelessWidget {
                 label: 'Balance',
                 value: DateFormatter.formatCurrency(balance),
                 color: balance >= 0
-                    ? const Color(0xFF00D9A6)
-                    : const Color(0xFFEE5A6F),
+                    ? AppColors.success
+                    : AppColors.danger,
                 icon: Icons.account_balance_wallet_rounded,
               ),
               const SizedBox(width: 8),
               _MiniKpi(
                 label: 'Deuda',
                 value: DateFormatter.formatCurrency(deuda),
-                color: deuda > 0 ? const Color(0xFFEE5A6F) : Colors.white38,
+                color: deuda > 0 ? AppColors.danger : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                 icon: Icons.warning_amber_rounded,
               ),
               const SizedBox(width: 8),
@@ -349,8 +351,8 @@ class _Header extends StatelessWidget {
                 label: 'Días Adel.',
                 value: '$numAdelantados',
                 color: numAdelantados > 0
-                    ? const Color(0xFFFF9F43)
-                    : Colors.white38,
+                    ? AppColors.warning
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                 icon: Icons.fast_forward_rounded,
               ),
             ],
@@ -372,20 +374,20 @@ class _EstadoBadge extends StatelessWidget {
     if (tieneDeuda) {
       return _Badge(
         label: 'Con Deuda',
-        color: const Color(0xFFEE5A6F),
+        color: AppColors.danger,
         icon: Icons.warning_rounded,
       );
     }
     if (tieneSaldo) {
       return _Badge(
         label: 'Con Crédito',
-        color: const Color(0xFF00D9A6),
+        color: AppColors.success,
         icon: Icons.savings_rounded,
       );
     }
     return _Badge(
       label: 'Al Día',
-      color: Colors.green,
+      color: AppColors.success,
       icon: Icons.check_circle_rounded,
     );
   }
@@ -464,7 +466,7 @@ class _MiniKpi extends StatelessWidget {
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: 8, color: Colors.white54),
+              style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
             ),
           ],
         ),
@@ -576,10 +578,10 @@ class _GrupoSaldadoCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1B27),
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.green.withValues(alpha: 0.25),
+          color: AppColors.success.withValues(alpha: 0.25),
         ),
       ),
       child: Theme(
@@ -591,10 +593,10 @@ class _GrupoSaldadoCard extends ConsumerWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.12),
+              color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.playlist_add_check_rounded, color: Colors.green, size: 20),
+            child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.success, size: 20),
           ),
           title: Text(
             rangoStr,
@@ -611,14 +613,14 @@ class _GrupoSaldadoCard extends ConsumerWidget {
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.15),
+              color: AppColors.success.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               '${cobros.length} dias',
               style: const TextStyle(
                 fontSize: 9,
-                color: Colors.green,
+                color: AppColors.success,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -634,7 +636,7 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, size: 12, color: Colors.green),
+                    const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.success),
                     const SizedBox(width: 8),
                     Text(
                       fechaStr,
@@ -650,7 +652,7 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               );
             }),
             const SizedBox(height: 8),
-            const Divider(color: Colors.white12, height: 1),
+            Divider(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), height: 1),
             const SizedBox(height: 8),
             // Botón para imprimir por térmica
             SizedBox(
@@ -663,7 +665,7 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                   style: TextStyle(fontSize: 12),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.withValues(alpha: 0.8),
+                  backgroundColor: AppColors.success.withValues(alpha: 0.8),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -676,13 +678,13 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _compartirResumenGrupo(context, ref, rangoStr, montoTotal, fechas),
-                icon: const Icon(Icons.share_rounded, size: 16, color: Colors.greenAccent),
+                icon: const Icon(Icons.share_rounded, size: 16, color: AppColors.success),
                 label: const Text(
                   'Compartir Resumen (PDF)',
-                  style: TextStyle(fontSize: 12, color: Colors.greenAccent),
+                  style: TextStyle(fontSize: 12, color: AppColors.success),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.greenAccent, width: 0.5),
+                  side: const BorderSide(color: AppColors.success, width: 0.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -751,7 +753,7 @@ class _GrupoSaldadoCard extends ConsumerWidget {
             'No se pudo imprimir. Revisa la conexion de la impresora.',
             style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.danger,
         ),
       );
     }
@@ -953,28 +955,28 @@ class _CobroTile extends ConsumerWidget {
     switch (estado) {
       case 'cobrado':
         if (esPagadoConSaldoAFavor) {
-          color = Colors.green;
+          color = AppColors.success;
           icon = Icons.savings_rounded;
           label = 'Saldo a Favor';
         } else {
-          color = Colors.green;
+          color = AppColors.success;
           icon = Icons.check_circle_rounded;
           label = 'Cobrado';
         }
       case 'pendiente':
-        color = const Color(0xFFEE5A6F);
+        color = AppColors.danger;
         icon = Icons.cancel_rounded;
         label = 'Pendiente';
       case 'abono_parcial':
-        color = const Color(0xFFFF9F43);
+        color = AppColors.warning;
         icon = Icons.timelapse_rounded;
         label = 'Abono';
       case 'adelantado':
-        color = const Color(0xFFFF9F43);
+        color = AppColors.warning;
         icon = Icons.fast_forward_rounded;
         label = 'Adelantado';
       default:
-        color = Colors.white38;
+        color = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
         icon = Icons.help_outline_rounded;
         label = estado;
     }
@@ -996,8 +998,8 @@ class _CobroTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: esAdelantado
-                ? const Color(0xFF1E1F2E)
-                : const Color(0xFF1A1B27),
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
+                : Theme.of(context).colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: color.withValues(alpha: esAdelantado ? 0.3 : 0.15),
@@ -1102,11 +1104,7 @@ class _CobroTile extends ConsumerWidget {
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1B27),
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
@@ -1220,18 +1218,18 @@ class _CobroTile extends ConsumerWidget {
                     },
                     icon: const Icon(
                       Icons.share_rounded,
-                      color: Colors.greenAccent,
+                      color: AppColors.success,
                     ),
                     label: const Text(
                       'Compartir por WhatsApp (PDF)',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.greenAccent,
+                        color: AppColors.success,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.greenAccent),
+                      side: const BorderSide(color: AppColors.success),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1375,7 +1373,7 @@ class _CobroTile extends ConsumerWidget {
             'Comprobante no impreso. Revisa conexión de la impresora rápida.',
             style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.danger,
         ),
       );
     }

@@ -16,6 +16,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
+import '../../../../app/theme/app_theme.dart';
 
 class CobradorHomeScreen extends ConsumerStatefulWidget {
   const CobradorHomeScreen({super.key});
@@ -164,26 +165,49 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   Future<void> _eliminarCobro(Cobro cobro) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar Cobro?'),
-        content: const Text(
-          'Esta acción revertirá los saldos y eliminará el registro. '
-          'Si hubo auto-pagos posteriores, también se borrarán.\n\n'
-          '¿Estás seguro?',
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_forever_rounded, size: 40, color: AppColors.danger),
+            const SizedBox(height: 12),
+            Text(
+              '¿Eliminar Cobro?',
+              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Esta acción revertirá los saldos y eliminará el registro. '
+              'Si hubo auto-pagos posteriores, también se borrarán.',
+              textAlign: TextAlign.center,
+              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+                    child: const Text('Sí, Eliminar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Sí, Eliminar'),
-          ),
-        ],
       ),
     );
 
@@ -198,12 +222,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Cobro eliminado correctamente')),
         );
-        // Ya no cargamos datos manualmente, Riverpod detecta el cambio en Firestore.
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Error al eliminar el cobro'),
-            backgroundColor: Colors.redAccent,
+          SnackBar(
+            content: const Text('❌ Error al eliminar el cobro'),
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -211,62 +234,70 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   Future<void> _registrarSinPago(Local local, List<Cobro> cobrosHoy) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.money_off_rounded, size: 22, color: Colors.red.shade300),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('Sin Pago', style: TextStyle(fontSize: 16)),
-            ),
-          ],
-        ),
-        content: Column(
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Icon(Icons.money_off_rounded, size: 40, color: AppColors.warning),
+            const SizedBox(height: 12),
             Text(
-              '¿El local ${local.nombreSocial ?? ""} no realizo su pago hoy?',
+              'Sin Pago',
+              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              'Se registrara una deuda de ${DateFormatter.formatCurrency(local.cuotaDiaria)} para hoy.',
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              '¿El local ${local.nombreSocial ?? ""} no realizó su pago hoy?',
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            if ((local.deudaAcumulada ?? 0) > 0)
+            const SizedBox(height: 4),
+            Text(
+              'Se registrará una deuda de ${DateFormatter.formatCurrency(local.cuotaDiaria)} para hoy.',
+              textAlign: TextAlign.center,
+              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+            if ((local.deudaAcumulada ?? 0) > 0) ...[
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.danger.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   'Deuda acumulada: ${DateFormatter.formatCurrency(local.deudaAcumulada)}',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                  style: TextStyle(color: AppColors.danger, fontSize: 12),
+                  textAlign: TextAlign.center,
                 ),
               ),
+            ],
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Confirmar'),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Confirmar Sin Pago'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-            ),
-          ),
-        ],
       ),
     );
 
@@ -291,7 +322,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('📋 Sin pago registrado: ${local.nombreSocial}'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.warning,
           ),
         );
       }
@@ -300,7 +331,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -315,56 +346,61 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crédito
     if (saldoActual >= cuota && cuota > 0 && !cuotaCubierta) {
-      final confirm = await showDialog<bool>(
+      final confirm = await showModalBottomSheet<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              const Icon(
-                Icons.savings_rounded,
-                size: 22,
-                color: Color(0xFF00D9A6),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Usar Saldo a Favor',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${local.nombreSocial ?? ""} tiene un crédito de:'),
+              Icon(Icons.savings_rounded, size: 40, color: AppColors.success),
+              const SizedBox(height: 12),
+              Text(
+                'Usar Saldo a Favor',
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text('${local.nombreSocial ?? ""} tiene un crédito de:',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 8),
               Text(
                 DateFormatter.formatCurrency(saldoActual),
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF00D9A6),
+                  color: AppColors.success,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 'Se descontará ${DateFormatter.formatCurrency(cuota)} de ese crédito para cubrir el día de hoy.',
+                textAlign: TextAlign.center,
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Confirmar'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Confirmar'),
-            ),
-          ],
         ),
       );
       if (confirm != true || !mounted) return;
@@ -386,184 +422,182 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     if (!mounted) return;
 
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(
-                  cuotaCubierta
-                      ? Icons.add_circle_outline_rounded
-                      : Icons.receipt_long_rounded,
-                  size: 22,
-                  color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
+          final cs = Theme.of(context).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24, right: 24, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    cuotaCubierta
+                        ? Icons.add_circle_outline_rounded
+                        : Icons.receipt_long_rounded,
+                    size: 36,
+                    color: cuotaCubierta ? AppColors.success : cs.primary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
                     cuotaCubierta
                         ? 'Abono Extra - ${local.nombreSocial ?? ""}'
                         : 'Cobrar - ${local.nombreSocial ?? ""}',
-                    style: const TextStyle(fontSize: 16),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!cuotaCubierta)
-                      _InfoRow(
-                        label: 'Cuota diaria',
-                        value: DateFormatter.formatCurrency(cuota),
-                      ),
-                    if (pagadoHoy > 0)
-                      _InfoRow(
-                        label: 'Pagado hoy',
-                        value: DateFormatter.formatCurrency(pagadoHoy),
-                        color: Colors.green,
-                      ),
-                    if (faltanteHoy > 0 && pagadoHoy > 0)
-                      _InfoRow(
-                        label: 'Faltante cuota',
-                        value: DateFormatter.formatCurrency(faltanteHoy),
-                        color: Colors.orange,
-                      ),
+                  const SizedBox(height: 16),
+                  if (!cuotaCubierta)
                     _InfoRow(
-                      label: 'Representante',
-                      value: local.representante ?? '-',
+                      label: 'Cuota diaria',
+                      value: DateFormatter.formatCurrency(cuota),
                     ),
-                    if (saldoActual > 0)
-                      _InfoRow(
-                        label: 'Saldo a favor Total',
-                        value: DateFormatter.formatCurrency(saldoActual),
-                        color: const Color(0xFF00D9A6),
-                      ),
-                    if ((local.deudaAcumulada ?? 0) > 0)
-                      _InfoRow(
-                        label: 'Deuda Acumulada',
-                        value: DateFormatter.formatCurrency(local.deudaAcumulada),
-                        color: const Color(0xFFEE5A6F),
-                      ),
+                  if (pagadoHoy > 0)
                     _InfoRow(
-                      label: 'Balance Neto',
-                      value: DateFormatter.formatCurrency(local.balanceNeto),
-                      color: local.balanceNeto >= 0
-                          ? const Color(0xFF00D9A6)
-                          : const Color(0xFFEE5A6F),
+                      label: 'Pagado hoy',
+                      value: DateFormatter.formatCurrency(pagadoHoy),
+                      color: AppColors.success,
                     ),
+                  if (faltanteHoy > 0 && pagadoHoy > 0)
+                    _InfoRow(
+                      label: 'Faltante cuota',
+                      value: DateFormatter.formatCurrency(faltanteHoy),
+                      color: AppColors.warning,
+                    ),
+                  _InfoRow(
+                    label: 'Representante',
+                    value: local.representante ?? '-',
+                  ),
+                  if (saldoActual > 0)
+                    _InfoRow(
+                      label: 'Saldo a favor Total',
+                      value: DateFormatter.formatCurrency(saldoActual),
+                      color: AppColors.success,
+                    ),
+                  if ((local.deudaAcumulada ?? 0) > 0)
+                    _InfoRow(
+                      label: 'Deuda Acumulada',
+                      value: DateFormatter.formatCurrency(local.deudaAcumulada),
+                      color: AppColors.danger,
+                    ),
+                  _InfoRow(
+                    label: 'Balance Neto',
+                    value: DateFormatter.formatCurrency(local.balanceNeto),
+                    color: local.balanceNeto >= 0
+                        ? AppColors.success
+                        : AppColors.danger,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: montoCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    decoration: InputDecoration(
+                      labelText: 'Efectivo Recibido (L)',
+                      prefixIcon: const Icon(Icons.payments_rounded, size: 20),
+                      helperText:
+                          'Si deposita más de su deuda total, se acumulará saldo a favor',
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                  if (saldoActual > 0) ...[
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: montoCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Efectivo Recibido (L)',
-                        prefixIcon: const Icon(Icons.payments_rounded, size: 20),
-                        helperText:
-                            'Si deposita más de su deuda total, se acumulará saldo a favor',
-                        helperMaxLines: 2,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.3),
+                        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    if (saldoActual > 0) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.withValues(alpha: 0.1),
-                          border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    '¿Usar Saldo a Favor Disponible?',
-                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '¿Usar Saldo a Favor Disponible?',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                                 ),
-                                Switch(
-                                  value: usarSaldoFavor,
-                                  onChanged: (val) {
-                                    setModalState(() {
-                                      usarSaldoFavor = val;
-                                      if (val) {
-                                        montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
-                                      } else {
-                                        montoSaldoFavorCtrl.clear();
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (usarSaldoFavor) ...[
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: montoSaldoFavorCtrl,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Monto a Extraer (L)',
-                                  prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
-                                  isDense: true,
-                                ),
+                              ),
+                              Switch(
+                                value: usarSaldoFavor,
                                 onChanged: (val) {
-                                  final parsed = double.tryParse(val) ?? 0;
-                                  if (parsed > saldoActual) {
-                                    montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
-                                    montoSaldoFavorCtrl.selection = TextSelection.fromPosition(
-                                      TextPosition(offset: montoSaldoFavorCtrl.text.length),
-                                    );
-                                  }
+                                  setModalState(() {
+                                    usarSaldoFavor = val;
+                                    if (val) {
+                                      montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                    } else {
+                                      montoSaldoFavorCtrl.clear();
+                                    }
+                                  });
                                 },
                               ),
                             ],
+                          ),
+                          if (usarSaldoFavor) ...[
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: montoSaldoFavorCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Monto a Extraer (L)',
+                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
+                                isDense: true,
+                              ),
+                              onChanged: (val) {
+                                final parsed = double.tryParse(val) ?? 0;
+                                if (parsed > saldoActual) {
+                                  montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                  montoSaldoFavorCtrl.selection = TextSelection.fromPosition(
+                                    TextPosition(offset: montoSaldoFavorCtrl.text.length),
+                                  );
+                                }
+                              },
+                            ),
                           ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: obsCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Observaciones (opcional)',
-                        prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                        ],
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancelar'),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Registrar'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: obsCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Observaciones (opcional)',
+                      prefixIcon: Icon(Icons.notes_rounded, size: 20),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          icon: const Icon(Icons.check_rounded, size: 18),
+                          label: const Text('Registrar'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -635,7 +669,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             content: Text(
               '💰 Cobro aplicado con saldo a favor: ${local.nombreSocial}',
             ),
-            backgroundColor: const Color(0xFF00D9A6),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -691,7 +725,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -889,7 +923,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -904,11 +938,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     return localesAsync.when(
       loading: () => const Scaffold(
-        backgroundColor: Color(0xFF0F1017),
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (e, __) => Scaffold(
-        backgroundColor: const Color(0xFF0F1017),
         body: Center(
           child: Text(
             '❌ Error: $e',
@@ -1036,7 +1068,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         _recargarCacheManual(locales, cobrosHoy);
 
         return Scaffold(
-          backgroundColor: const Color(0xFF0F1017),
           body: RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(localesCobradorProvider);
@@ -1066,37 +1097,36 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.cleaning_services_rounded,
-                                    color: Colors.orangeAccent,
+                                    color: colorScheme.secondary,
                                   ),
                                   tooltip:
                                       'Limpiar Caché Local (Cobros Fantasma)',
                                   onPressed: () async {
-                                    final confirm = await showDialog<bool>(
+                                    final confirm = await showModalBottomSheet<bool>(
                                       context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text(
-                            'Limpiar Caché Local',
-                                        ),
-                                        content: const Text(
-                            'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: const Text('Cancelar'),
-                                          ),
-                                          FilledButton(
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: Colors.orange,
+                                      builder: (ctx) => Padding(
+                                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.cleaning_services_rounded, size: 36, color: AppColors.warning),
+                                            const SizedBox(height: 12),
+                                            Text('Limpiar Caché Local', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                            const SizedBox(height: 8),
+                                            const Text(
+                                              'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
+                                              textAlign: TextAlign.center,
                                             ),
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, true),
-                                            child: const Text('Limpiar'),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 20),
+                                            Row(children: [
+                                              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar'))),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: FilledButton(style: FilledButton.styleFrom(backgroundColor: AppColors.warning), onPressed: () => Navigator.pop(ctx, true), child: const Text('Limpiar'))),
+                                            ]),
+                                          ],
+                                        ),
                                       ),
                                     );
                                     if (confirm != true || !mounted) return;
@@ -1114,7 +1144,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                             content: Text(
                                               '🧹 Caché limpiada. Recargando...',
                                             ),
-                                            backgroundColor: Colors.orange,
+                                            backgroundColor: AppColors.warning,
                                           ),
                                         );
                                       }
@@ -1132,15 +1162,15 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 IconButton(
                                   icon: const Icon(
                                     Icons.bug_report,
-                                    color: Colors.redAccent,
+                                    color: AppColors.danger,
                                   ),
                                   tooltip: 'Ver BD Local (Hive)',
                                   onPressed: () => _mostrarDebugHive(context),
                                 ),
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.cloud_download_rounded,
-                                    color: Colors.blueAccent,
+                                    color: colorScheme.secondary,
                                   ),
                                   tooltip: 'Descargar Offline',
                                   onPressed: () =>
@@ -1154,7 +1184,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         Text(
                           DateFormatter.formatDate(DateTime.now()),
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.white54),
+                              ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
                         ),
                         const SizedBox(height: 16),
                         // Buscador
@@ -1164,19 +1194,19 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             _searchQuery = v;
                             _limiteLocales = 20;
                           }),
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Buscar local, dueño o código...',
-                            hintStyle: const TextStyle(color: Colors.white54),
-                            prefixIcon: const Icon(
+                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+                            prefixIcon: Icon(
                               Icons.search,
-                              color: Colors.white54,
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.clear,
-                                      color: Colors.white54,
+                                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                     ),
                                     onPressed: () {
                                       _searchController.clear();
@@ -1221,7 +1251,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 label: 'Pendientes',
                                 count: pendientesCount.toString(),
                                 isSelected: _filtroEstado == 'pendientes',
-                                baseColor: Colors.orange,
+                                baseColor: AppColors.warning,
                                 icon: Icons.pending_actions_rounded,
                                 onTap: () => setState(() => _filtroEstado = 'pendientes'),
                               ),
@@ -1229,7 +1259,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 label: 'Cobrados',
                                 count: cobradosCount.toString(),
                                 isSelected: _filtroEstado == 'cobrados',
-                                baseColor: Colors.green,
+                                baseColor: AppColors.success,
                                 icon: Icons.check_circle_rounded,
                                 onTap: () => setState(() => _filtroEstado = 'cobrados'),
                               ),
@@ -1239,7 +1269,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 width: 1,
                                 height: 30,
                                 margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                color: Colors.white24,
+                                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                               ),
                               const SizedBox(width: 12),
 
@@ -1247,7 +1277,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               _CustomFilterChip(
                                 label: 'Frec. Todas',
                                 isSelected: _filtroFrecuencia == 'todos',
-                                baseColor: Colors.indigoAccent,
+                                baseColor: colorScheme.secondary,
                                 icon: Icons.filter_alt_outlined,
                                 onTap: () => setState(() => _filtroFrecuencia = 'todos'),
                               ),
@@ -1256,7 +1286,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Diarios',
                                   count: diariosCount.toString(),
                                   isSelected: _filtroFrecuencia == 'diaria',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'diaria'),
                                 ),
                               if (semanalesCount > 0)
@@ -1264,7 +1294,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Semanales',
                                   count: semanalesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'semanal',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'semanal'),
                                 ),
                               if (quincenalesCount > 0)
@@ -1272,7 +1302,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Quincenales',
                                   count: quincenalesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'quincenal',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'quincenal'),
                                 ),
                               if (mensualesCount > 0)
@@ -1280,7 +1310,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Mensuales',
                                   count: mensualesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'mensual',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'mensual'),
                                 ),
                             ],
@@ -1290,12 +1320,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         // Monto Total Cobrado Hoy
                         Row(
                           children: [
-                            const Icon(Icons.payments_rounded, size: 16, color: Colors.blueAccent),
+                            Icon(Icons.payments_rounded, size: 16, color: colorScheme.primary),
                             const SizedBox(width: 8),
                             Text(
                               'Cobrado hoy: ${DateFormatter.formatCurrency(montoTotalHoy)}',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white70,
+                                color: colorScheme.onSurface.withValues(alpha: 0.8),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1323,7 +1353,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         ? Icons.lock_person_rounded
                                         : Icons.search_off_rounded,
                                     size: 48,
-                                    color: Colors.white24,
+                                    color: colorScheme.onSurface.withValues(alpha: 0.2),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
@@ -1332,7 +1362,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         : 'No hay locales con este filtro',
                                     textAlign: TextAlign.center,
                                     style: Theme.of(context).textTheme.bodyLarge
-                                        ?.copyWith(color: Colors.white54),
+                                        ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
                                   ),
                                 ],
                               ),
@@ -1428,54 +1458,46 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final localesAgregados = localesBox.values.toList();
 
     if (!context.mounted) return;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Offline Storage'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '📂 Locales Bajados: ${localesAgregados.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '💰 Cobros Bajados (Nube): ${cobrosNube.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '⏳ Cobros Pendientes (Local): ${cobrosPendientes.length}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-                const Divider(),
-                const Text('Recientes Pendientes:'),
-                ...cobrosPendientes.map(
-                  (cobro) => ListTile(
-                    title: Text('Monto: L ${cobro.monto}'),
-                    subtitle: Text(
-                      'ID: ${cobro.id}\nLocal UUID: ${cobro.localId}',
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Offline Storage', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 300,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('📂 Locales Bajados: ${localesAgregados.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    Text('💰 Cobros Bajados (Nube): ${cobrosNube.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    Text('⏳ Cobros Pendientes (Local): ${cobrosPendientes.length}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning)),
+                    const Divider(),
+                    const Text('Recientes Pendientes:'),
+                    ...cobrosPendientes.map(
+                      (cobro) => ListTile(
+                        title: Text('Monto: L ${cobro.monto}'),
+                        subtitle: Text('ID: ${cobro.id}\nLocal UUID: ${cobro.localId}'),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
     );
   }
@@ -1492,7 +1514,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('¡Descarga Completada!'),
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.success,
         duration: Duration(seconds: 3),
       ),
     );
@@ -1518,6 +1540,7 @@ class _CustomFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Material(
@@ -1532,7 +1555,7 @@ class _CustomFilterChip extends StatelessWidget {
               color: isSelected ? baseColor.withValues(alpha: 0.15) : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSelected ? baseColor : Colors.white24,
+                color: isSelected ? baseColor : colorScheme.outlineVariant.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
@@ -1540,13 +1563,13 @@ class _CustomFilterChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 16, color: isSelected ? baseColor : Colors.white54),
+                  Icon(icon, size: 16, color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.6)),
                   const SizedBox(width: 4),
                 ],
                 Text(
                   label,
                   style: TextStyle(
-                    color: isSelected ? baseColor : Colors.white70,
+                    color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.8),
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     fontSize: 13,
                   ),
@@ -1556,13 +1579,13 @@ class _CustomFilterChip extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isSelected ? baseColor : Colors.white12,
+                      color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       count!,
                       style: TextStyle(
-                        color: isSelected ? Colors.black87 : Colors.white70,
+                        color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface.withValues(alpha: 0.8),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1617,11 +1640,11 @@ class _LocalCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: cuotaCubierta
-                  ? Colors.green.withValues(alpha: 0.35)
+                  ? colorScheme.primary.withValues(alpha: 0.35)
                   : cobrado
-                  ? Colors.blue.withValues(alpha: 0.4)
+                  ? colorScheme.primary.withValues(alpha: 0.4)
                   : tieneDeuda
-                  ? Colors.red.withValues(alpha: 0.4)
+                  ? AppColors.danger.withValues(alpha: 0.4)
                   : colorScheme.outline.withValues(alpha: 0.4),
             ),
           ),
@@ -1639,11 +1662,7 @@ class _LocalCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: cuotaCubierta
-                            ? Colors.green.withValues(alpha: 0.15)
-                            : cobrado
-                            ? Colors.blue.withValues(alpha: 0.15)
-                            : Colors.orange.withValues(alpha: 0.15),
+                        color: colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -1652,11 +1671,7 @@ class _LocalCard extends StatelessWidget {
                             : cobrado
                             ? Icons.add_task_rounded
                             : Icons.storefront_rounded,
-                        color: cuotaCubierta
-                            ? Colors.green
-                            : cobrado
-                            ? Colors.blue
-                            : Colors.orange,
+                        color: colorScheme.primary,
                         size: 22,
                       ),
                     ),
@@ -1680,7 +1695,7 @@ class _LocalCard extends StatelessWidget {
                           Text(
                             local.representante ?? '—',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: Colors.white60),
+                                ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (local.clave != null &&
@@ -1691,7 +1706,7 @@ class _LocalCard extends StatelessWidget {
                                 'Clave: ${local.clave}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
-                                      color: Colors.white54,
+                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1707,21 +1722,21 @@ class _LocalCard extends StatelessWidget {
                               _SmallBadge(
                                 icon: Icons.schedule_rounded,
                                 label: local.frecuenciaCobro?.toUpperCase() ?? 'DIARIA',
-                                color: Colors.blueGrey,
+                                color: colorScheme.primary.withValues(alpha: 0.7),
                               ),
                               if (tieneDeuda)
                                 _SmallBadge(
                                   icon: Icons.warning_amber_rounded,
                                   label:
                                       '-${DateFormatter.formatCurrency(local.deudaAcumulada ?? 0)}',
-                                  color: const Color(0xFFEE5A6F),
+                                  color: AppColors.danger,
                                 ),
                               if (tieneSaldo)
                                 _SmallBadge(
                                   icon: Icons.savings_rounded,
                                   label:
                                       '+${DateFormatter.formatCurrency(local.saldoAFavor ?? 0)}',
-                                  color: const Color(0xFF00D9A6),
+                                  color: AppColors.success,
                                 ),
                             ],
                           ),
@@ -1737,14 +1752,14 @@ class _LocalCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: cuotaCubierta ? Colors.green : Colors.white,
+                            color: cuotaCubierta ? colorScheme.primary : colorScheme.onSurface,
                           ),
                         ),
                         Text(
                           'por día',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
-                            color: Colors.white38,
+                            color: colorScheme.onSurface.withValues(alpha: 0.4),
                           ),
                         ),
                       ],
@@ -1773,9 +1788,7 @@ class _LocalCard extends StatelessWidget {
                             ? Icons.add_circle_outline_rounded
                             : Icons.payments_rounded,
                         label: cuotaCubierta ? 'Abonar / Adelantar' : 'Cobrar',
-                        color: cuotaCubierta
-                            ? const Color(0xFF00D9A6)
-                            : colorScheme.primary,
+                        color: colorScheme.primary,
                         filled: !cuotaCubierta,
                       ),
                     ),
@@ -1791,7 +1804,7 @@ class _LocalCard extends StatelessWidget {
                         onTap: onVerEstadoCuenta,
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Estado',
-                        color: colorScheme.secondary,
+                        color: colorScheme.primary,
                       ),
                     ),
                     if (local.latitud != null && local.longitud != null) ...[
@@ -1839,7 +1852,7 @@ class _LocalCard extends StatelessWidget {
                           onTap: onEliminar,
                           icon: Icons.delete_outline_rounded,
                           label: 'Borrar',
-                          color: Colors.redAccent,
+                          color: AppColors.danger,
                         ),
                       ),
                     ],
@@ -1872,6 +1885,7 @@ class _CardButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: const BorderRadius.only(
@@ -1885,20 +1899,21 @@ class _CardButton extends StatelessWidget {
                 color: color.withValues(alpha: 0.15),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
                 ),
               )
             : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: onTap == null ? Colors.white24 : color),
+            Icon(icon, size: 18, color: onTap == null ? colorScheme.onSurface.withValues(alpha: 0.24) : color),
             const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: onTap == null ? Colors.white24 : color,
+                color: onTap == null ? colorScheme.onSurface.withValues(alpha: 0.24) : color,
               ),
             ),
           ],
@@ -1957,6 +1972,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1964,7 +1980,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             '$label: ',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
           ),
           Expanded(
             child: Text(
