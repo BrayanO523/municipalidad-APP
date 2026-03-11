@@ -6,6 +6,7 @@ class StatsModel {
   final num totalCobrado;
   final num totalDeuda;
   final num totalSaldoAFavor;
+  final num totalCuotaDiaria;
   final int cantidadLocales;
   final int cantidadMercados;
   final DateTime? ultimaActualizacion;
@@ -17,6 +18,7 @@ class StatsModel {
     this.totalCobrado = 0,
     this.totalDeuda = 0,
     this.totalSaldoAFavor = 0,
+    this.totalCuotaDiaria = 0,
     this.cantidadLocales = 0,
     this.cantidadMercados = 0,
     this.ultimaActualizacion,
@@ -28,6 +30,7 @@ class StatsModel {
       totalCobrado: (json['totalCobrado'] as num?) ?? 0,
       totalDeuda: (json['totalDeuda'] as num?) ?? 0,
       totalSaldoAFavor: (json['totalSaldoAFavor'] as num?) ?? 0,
+      totalCuotaDiaria: (json['totalCuotaDiaria'] as num?) ?? 0,
       cantidadLocales: (json['cantidadLocales'] as num?)?.toInt() ?? 0,
       cantidadMercados: (json['cantidadMercados'] as num?)?.toInt() ?? 0,
       ultimaActualizacion: (json['ultimaActualizacion'] as Timestamp?)?.toDate(),
@@ -39,6 +42,7 @@ class StatsModel {
     'totalCobrado': totalCobrado,
     'totalDeuda': totalDeuda,
     'totalSaldoAFavor': totalSaldoAFavor,
+    'totalCuotaDiaria': totalCuotaDiaria,
     'cantidadLocales': cantidadLocales,
     'cantidadMercados': cantidadMercados,
     'ultimaActualizacion': FieldValue.serverTimestamp(),
@@ -59,6 +63,13 @@ class StatsModel {
     final obj = diario[key];
     if (obj == null || obj is! Map) return 0;
     return ((obj['cobros'] as num?) ?? 0).toInt();
+  }
+
+  /// Cuánto falta por cobrar hoy (cuota diaria esperada – recaudado hoy).
+  /// Nunca negativo: si se cobró más de lo esperado, retorna 0.
+  num get pendienteCobroHoy {
+    final pendiente = totalCuotaDiaria - recaudacionHoy;
+    return pendiente > 0 ? pendiente : 0;
   }
 }
 
@@ -120,27 +131,31 @@ class StatsDatasource {
 
   /// Actualización al registrar o eliminar un local/mercado.
   /// Usa set(merge:true) porque el documento puede no existir aún.
+  /// [deltaCuotaDiaria] suma/resta la cuota diaria del local creado/eliminado.
   Future<void> actualizarConteo({
     required String municipalidadId,
     int deltaLocales = 0,
     int deltaMercados = 0,
     num deltaDeuda = 0,
+    num deltaCuotaDiaria = 0,
   }) async {
     await _doc(municipalidadId).set({
       'cantidadLocales': FieldValue.increment(deltaLocales),
       'cantidadMercados': FieldValue.increment(deltaMercados),
       'totalDeuda': FieldValue.increment(deltaDeuda),
+      'totalCuotaDiaria': FieldValue.increment(deltaCuotaDiaria),
     }, SetOptions(merge: true));
   }
 
-  /// Recalcula el mapa `diario` de hoy desde los cobros reales.
+  /// Recalcula el mapa `diario` de hoy y la cuota diaria total desde los datos reales.
   Future<void> recalcularDiarioHoy(String municipalidadId) async {
     final hoy = DateTime.now();
     final inicio = DateTime(hoy.year, hoy.month, hoy.day);
     final fin = inicio.add(const Duration(days: 1));
     final key = DateFormat('yyyy-MM-dd').format(hoy);
 
-    final snapshot = await _firestore
+    // 1. Cobros de hoy (ya estaba)
+    final cobrosSnap = await _firestore
         .collection('cobros')
         .where('municipalidadId', isEqualTo: municipalidadId)
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
@@ -150,20 +165,35 @@ class StatsDatasource {
     num totalRecaudado = 0;
     int totalCobros = 0;
 
-    for (final doc in snapshot.docs) {
+    for (final doc in cobrosSnap.docs) {
       final data = doc.data();
       final monto = (data['monto'] as num?) ?? 0;
       totalRecaudado += monto;
       totalCobros++;
     }
 
-    // Escribir la estructura anidada correcta: diario -> key -> {recaudado, cobros}
+    // 2. Cuota diaria total: suma de cuotaDiaria de todos los locales activos
+    //    Solo se calcula aquí una vez al cargar el dashboard (y se almacena en stats).
+    final localesSnap = await _firestore
+        .collection('locales')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .where('activo', isEqualTo: true)
+        .get();
+
+    num totalCuota = 0;
+    for (final doc in localesSnap.docs) {
+      final cuota = (doc.data()['cuotaDiaria'] as num?) ?? 0;
+      totalCuota += cuota;
+    }
+
+    // 3. Escribir todo de una vez
     await _doc(municipalidadId).update({
       'diario.$key.recaudado': totalRecaudado,
       'diario.$key.cobros': totalCobros,
+      'totalCuotaDiaria': totalCuota,
     });
 
-    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado hoy');
+    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado, cuota esperada: L$totalCuota');
   }
 
 }

@@ -172,12 +172,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount = constraints.maxWidth > 600 ? 2 : 1;
-                    final cardW = (constraints.maxWidth - 16) / crossAxisCount;
+                    final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
+                    final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
                     return Wrap(
                       spacing: 16,
                       runSpacing: 16,
                       children: [
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Pendiente de Cobro Hoy',
+                            value: DateFormatter.formatCurrency(s.pendienteCobroHoy),
+                            icon: Icons.schedule_rounded,
+                            color: const Color(0xFFFF6B35),
+                            subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(s.totalCuotaDiaria)}',
+                          ),
+                        ),
                         SizedBox(
                           width: cardW,
                           child: MetricCard(

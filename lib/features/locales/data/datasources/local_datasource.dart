@@ -23,10 +23,12 @@ class LocalDatasource {
     final municipalidadId = data['municipalidadId'] as String?;
     if (municipalidadId != null) {
       final deudaInicial = (data['deudaAcumulada'] as num?) ?? 0;
+      final cuotaDiaria = (data['cuotaDiaria'] as num?) ?? 0;
       _statsDs.actualizarConteo(
         municipalidadId: municipalidadId,
         deltaLocales: 1,
         deltaDeuda: deudaInicial,
+        deltaCuotaDiaria: cuotaDiaria,
       ).catchError((e) => debugPrint('Error actualizando stats local: $e'));
     }
   }
@@ -519,11 +521,13 @@ class LocalDatasource {
     }
 
     if (targetMuniId != null) {
-      // 2. Restar 1 local, y restar su deuda (con valor negativo)
+      // 2. Restar 1 local, su deuda y su cuota diaria
+      final cuotaDiaria = docSnap.exists ? ((docSnap.data()!['cuotaDiaria'] as num?) ?? 0) : 0;
       _statsDs.actualizarConteo(
         municipalidadId: targetMuniId,
         deltaLocales: -1,
         deltaDeuda: -deudaActual,
+        deltaCuotaDiaria: -cuotaDiaria,
       ).catchError((e) => debugPrint('Error al restar stats por local eliminado: $e'));
     }
 
