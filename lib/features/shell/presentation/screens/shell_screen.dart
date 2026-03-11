@@ -210,7 +210,7 @@ class _UserFooter extends ConsumerWidget {
                     size: 18,
                     color: colorScheme.error,
                   ),
-                  tooltip: 'Cerrar SesiÃ³n',
+                  tooltip: 'Cerrar Sesión',
                 ),
               ],
             )
@@ -225,7 +225,7 @@ class _UserFooter extends ConsumerWidget {
                     size: 20,
                     color: colorScheme.error,
                   ),
-                  tooltip: 'Cerrar SesiÃ³n',
+                  tooltip: 'Cerrar Sesión',
                 ),
               ],
             ),

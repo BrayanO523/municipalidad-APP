@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -99,7 +99,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Â¡No hay locales con deuda! Todo estÃ¡ al dÃ­a.',
+                              '¡No hay locales con deuda! Todo está al día.',
                               style: TextStyle(
                                 color: Theme.of(context)
                                     .colorScheme
@@ -128,7 +128,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                           _PaginationBar(
                             currentPage: state.paginaActual - 1,
                             totalPages: state.hayMas ? state.paginaActual + 1 : state.paginaActual,
-                            totalItems: list.length, // Con paginaciÃ³n real, esto es parcial
+                            totalItems: list.length, // Con paginación real, esto es parcial
                             pageSize: 20,
                             onPrev: state.paginaActual > 1
                                 ? () => notifier.irAPaginaAnterior()
@@ -237,7 +237,7 @@ class _DeudoresTable extends StatelessWidget {
               DataColumn(label: Text('Local')),
               DataColumn(label: Text('Mercado')),
               DataColumn(label: Text('Representante')),
-              DataColumn(label: Text('TelÃ©fono')),
+              DataColumn(label: Text('Teléfono')),
               DataColumn(label: Text('Cuota Diaria')),
               DataColumn(label: Text('Deuda Acumulada')),
               DataColumn(label: Text('Balance Neto')),
@@ -346,7 +346,7 @@ class _DeudoresTable extends StatelessWidget {
   }
 }
 
-// â”€â”€ PaginaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Paginación â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
@@ -375,11 +375,11 @@ class _PaginationBar extends StatelessWidget {
           color: onPrev != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina anterior',
+          tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'PÃ¡gina ${currentPage + 1}',
+          'Página ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -395,7 +395,7 @@ class _PaginationBar extends StatelessWidget {
           color: onNext != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina siguiente',
+          tooltip: 'Página siguiente',
         ),
       ],
     );

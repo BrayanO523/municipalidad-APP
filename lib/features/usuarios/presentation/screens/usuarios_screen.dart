@@ -102,7 +102,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Cobrador'),
         content: Text(
-          'Â¿EstÃ¡s seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acciÃ³n NO se puede deshacer.',
+          '¿Estás seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acción NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -148,7 +148,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       });
     }
 
-    // Estado mutable del diÃ¡logo â€” se declara aquÃ­ para ser accesible por el Consumer
+    // Estado mutable del diálogo — se declara aquí para ser accesible por el Consumer
     String? selectedMercadoId = usuario?.mercadoId;
     final List<String> selectedLocalesIds = usuario?.rutaAsignada != null
         ? List<String>.from(usuario!.rutaAsignada!)
@@ -160,8 +160,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Consumer(
           builder: (ctx, ref, _) {
-            // âœ… FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
-            // Antes se leÃ­a con ref.read() fuera del builder, lo que daba [] si aÃºn no cargaba
+            // ✅ FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
+            // Antes se leía con ref.read() fuera del builder, lo que daba [] si aún no cargaba
             final mercados = ref.watch(mercadosProvider).value ?? [];
             final mercadosFiltrados = mercados
                 .where(
@@ -189,7 +189,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       TextField(
                         controller: codigoCtrl,
                         decoration: InputDecoration(
-                          labelText: isEditing ? 'CÃ³digo Cobrador' : 'CÃ³digo Cobrador (Autogenerado)',
+                          labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
                           hintText: 'C1',
                           filled: true,
                         ),
@@ -200,7 +200,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       TextField(
                         controller: emailCtrl,
                         decoration: const InputDecoration(
-                          labelText: 'Correo ElectrÃ³nico',
+                          labelText: 'Correo Electrónico',
                         ),
                         enabled: !isEditing,
                       ),
@@ -209,12 +209,12 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                         TextField(
                           controller: passCtrl,
                           decoration: const InputDecoration(
-                            labelText: 'ContraseÃ±a',
+                            labelText: 'Contraseña',
                           ),
                           obscureText: true,
                         ),
                       const SizedBox(height: 12),
-                      // Dropdown de Mercado â€” se refresh automÃ¡tico vÃ­a Consumer
+                      // Dropdown de Mercado — se refresh automático vía Consumer
                       DropdownButtonFormField<String>(
                         initialValue: mercadosFiltrados.any((m) => m.id == selectedMercadoId)
                             ? selectedMercadoId
@@ -388,7 +388,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                               child: localesDisponibles.isEmpty
                                                   ? Center(
                                                       child: Text(
-                                                        'Nada aquÃ­',
+                                                        'Nada aquí',
                                                         style: TextStyle(
                                                           color: Theme.of(context)
                                                               .colorScheme
@@ -580,7 +580,7 @@ class _UsuariosHeader extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          'GestiÃ³n de Cobradores',
+          'Gestión de Cobradores',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 24,
@@ -610,7 +610,7 @@ class _UsuariosHeader extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
               ),
-              items: ['Nombre', 'Correo ElectrÃ³nico'].map((String value) {
+              items: ['Nombre', 'Correo Electrónico'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));
               }).toList(),
               onChanged: onColumnChanged,
@@ -719,7 +719,7 @@ class _UsuariosTable extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${u.email} â€¢ CÃ³digo: ${u.codigoCobrador ?? 'S/C'} â€¢ Mercado: $strMercado',
+                  '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
                   style: TextStyle(
                     color: Theme.of(
                       context,
@@ -803,11 +803,11 @@ class _PaginationBar extends StatelessWidget {
                   : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina anterior',
+          tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'PÃ¡gina ${currentPage + 1}',
+          'Página ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(
               context,
@@ -826,7 +826,7 @@ class _PaginationBar extends StatelessWidget {
                   : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina siguiente',
+          tooltip: 'Página siguiente',
         ),
       ],
     );

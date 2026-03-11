@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -48,7 +48,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                     final query = _searchQuery.toLowerCase();
                     if (_searchColumn == 'Nombre') {
                       return (t.nombre ?? '').toLowerCase().contains(query);
-                    } else if (_searchColumn == 'DescripciÃ³n') {
+                    } else if (_searchColumn == 'Descripción') {
                       return (t.descripcion ?? '').toLowerCase().contains(
                         query,
                       );
@@ -94,7 +94,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Tipo de Negocio'),
         content: Text(
-          'Â¿EstÃ¡s seguro de que deseas eliminar el tipo de negocio "${tipo.nombre}"?',
+          '¿Estás seguro de que deseas eliminar el tipo de negocio "${tipo.nombre}"?',
         ),
         actions: [
           TextButton(
@@ -141,7 +141,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: descripcionCtrl,
-                decoration: const InputDecoration(labelText: 'DescripciÃ³n'),
+                decoration: const InputDecoration(labelText: 'Descripción'),
                 maxLines: 2,
               ),
             ],
@@ -219,7 +219,7 @@ class _TiposHeader extends StatelessWidget {
               ),
               SizedBox(height: 4),
               Text(
-                'CategorÃ­as dinÃ¡micas de negocios para locales',
+                'Categorías dinámicas de negocios para locales',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(
                     context,
@@ -251,7 +251,7 @@ class _TiposHeader extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
               ),
-              items: ['Nombre', 'DescripciÃ³n'].map((String value) {
+              items: ['Nombre', 'Descripción'].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),
@@ -302,9 +302,9 @@ class _TiposTable extends StatelessWidget {
         child: DataTable(
           columns: const [
             DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('DescripciÃ³n')),
+            DataColumn(label: Text('Descripción')),
             DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Fecha CreaciÃ³n')),
+            DataColumn(label: Text('Fecha Creación')),
             DataColumn(label: Text('Acciones')),
           ],
           rows: tipos.map((t) {

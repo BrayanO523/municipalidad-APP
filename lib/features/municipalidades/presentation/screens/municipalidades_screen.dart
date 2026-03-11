@@ -216,7 +216,7 @@ class _ScreenHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'GestiÃ³n de municipalidades registradas',
+                'Gestión de municipalidades registradas',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(
@@ -390,11 +390,11 @@ class _PaginationBar extends StatelessWidget {
                   .colorScheme
                   .onSurface
                   .withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina anterior',
+          tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'PÃ¡gina ${currentPage + 1}',
+          'Página ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -414,7 +414,7 @@ class _PaginationBar extends StatelessWidget {
                   .colorScheme
                   .onSurface
                   .withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina siguiente',
+          tooltip: 'Página siguiente',
         ),
       ],
     );

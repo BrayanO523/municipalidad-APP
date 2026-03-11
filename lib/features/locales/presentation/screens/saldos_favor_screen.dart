@@ -162,7 +162,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// â”€â”€ Header con botÃ³n Exportar PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Header con botón Exportar PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _Header extends ConsumerWidget {
   final List<Local> todos;
   const _Header({required this.todos});
@@ -184,7 +184,7 @@ class _Header extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Listado de locales con crÃ©dito prepagado disponible',
+                'Listado de locales con crédito prepagado disponible',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
@@ -244,7 +244,7 @@ class _SaldosTable extends StatelessWidget {
               DataColumn(label: Text('Local')),
               DataColumn(label: Text('Mercado')),
               DataColumn(label: Text('Representante')),
-              DataColumn(label: Text('TelÃ©fono')),
+              DataColumn(label: Text('Teléfono')),
               DataColumn(label: Text('Saldo a Favor')),
               DataColumn(label: Text('Balance Neto')),
               DataColumn(label: Text('Acciones')),
@@ -345,7 +345,7 @@ class _SaldosTable extends StatelessWidget {
   }
 }
 
-// â”€â”€ PaginaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Paginación â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
@@ -374,11 +374,11 @@ class _PaginationBar extends StatelessWidget {
           color: onPrev != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina anterior',
+          tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'PÃ¡gina ${currentPage + 1}',
+          'Página ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -394,7 +394,7 @@ class _PaginationBar extends StatelessWidget {
           color: onNext != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'PÃ¡gina siguiente',
+          tooltip: 'Página siguiente',
         ),
       ],
     );

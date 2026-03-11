@@ -98,7 +98,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               const SizedBox(height: 4),
               Text(
                 paginacion.mercadoSeleccionadoId != null
-                    ? 'PÃ¡gina ${paginacion.paginaActual} Â· ${paginacion.locales.length} locales mostrados'
+                    ? 'Página ${paginacion.paginaActual} · ${paginacion.locales.length} locales mostrados'
                     : 'Selecciona un mercado para ver sus locales',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(
@@ -128,7 +128,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Filtro JerÃ¡rquico: selector de mercado con bÃºsqueda integrada.
+            // Filtro Jerárquico: selector de mercado con búsqueda integrada.
             Expanded(
               flex: 2,
               child: Column(
@@ -168,7 +168,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               )
                               .toList();
                         }
-                        // Con texto: bÃºsqueda por prefijo.
+                        // Con texto: búsqueda por prefijo.
                         final resultados = await ds.buscarPorPrefijo(
                           prefijo: filter,
                           municipalidadId: municipalidadId,
@@ -307,7 +307,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             controller: controller,
                             focusNode: focusNode,
                             decoration: const InputDecoration(
-                              hintText: 'Nombre o CÃ³digo local...',
+                              hintText: 'Nombre o Código local...',
                               prefixIcon: Icon(Icons.search_rounded, size: 18),
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
@@ -428,7 +428,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
             const SizedBox(width: 12),
 
-            // BotÃ³n de limpiar filtros.
+            // Botón de limpiar filtros.
             IconButton(
               onPressed: () {
                 setState(() {
@@ -534,12 +534,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           .read(localesPaginadosProvider.notifier)
                           .irAPaginaAnterior()
                       : null,
-                  tooltip: 'PÃ¡gina anterior',
+                  tooltip: 'Página anterior',
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
-                    'PÃ¡gina ${state.paginaActual}',
+                    'Página ${state.paginaActual}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -550,7 +550,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           .read(localesPaginadosProvider.notifier)
                           .irAPaginaSiguiente()
                       : null,
-                  tooltip: 'PÃ¡gina siguiente',
+                  tooltip: 'Página siguiente',
                 ),
               ],
             ),
@@ -650,7 +650,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Local'),
         content: Text(
-          'Â¿EstÃ¡s seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acciÃ³n NO se puede deshacer.',
+          '¿Estás seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acción NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -697,6 +697,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     String? selectedMercadoId = local?.mercadoId ?? _mercadoSeleccionado?.id;
     String? selectedTipoNegocioId = local?.tipoNegocioId;
+    String selectedFrecuenciaCobro = local?.frecuenciaCobro ?? 'diaria';
 
     showDialog(
       context: context,
@@ -742,8 +743,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                 child: TextField(
                                   controller: codigoCatastralCtrl,
                                   decoration: InputDecoration(
-                                    labelText: 'CÃ³digo Local',
-                                    helperText: 'Opcional, BÃºsqueda libre',
+                                    labelText: 'Código Local',
+                                    helperText: 'Opcional, Búsqueda libre',
                                     helperStyle: TextStyle(
                                       fontSize: 10,
                                       color: Theme.of(context)
@@ -761,7 +762,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                   controller: claveCtrl,
                                   decoration: InputDecoration(
                                     labelText: 'Clave (Ej. 22-37-01-01)',
-                                    helperText: 'Autogenerado si vacÃ­o',
+                                    helperText: 'Autogenerado si vacío',
                                     helperStyle: TextStyle(
                                       fontSize: 10,
                                       color: Theme.of(context)
@@ -781,7 +782,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           TextField(
                             controller: telefonoCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'TelÃ©fono Representante',
+                              labelText: 'Teléfono Representante',
                             ),
                             keyboardType: TextInputType.phone,
                           ),
@@ -830,7 +831,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                 child: TextField(
                                   controller: espacioCtrl,
                                   decoration: const InputDecoration(
-                                    labelText: 'Espacio (mÂ²)',
+                                    labelText: 'Espacio (m²)',
                                   ),
                                   keyboardType: TextInputType.number,
                                 ),
@@ -846,6 +847,24 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedFrecuenciaCobro,
+                            decoration: const InputDecoration(
+                              labelText: 'Preferencia de Pago / Frecuencia',
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'diaria', child: Text('Diaria')),
+                              DropdownMenuItem(value: 'semanal', child: Text('Semanal')),
+                              DropdownMenuItem(value: 'quincenal', child: Text('Quincenal')),
+                              DropdownMenuItem(value: 'mensual', child: Text('Mensual')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setDialogState(() => selectedFrecuenciaCobro = v);
+                              }
+                            },
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -890,7 +909,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               color: Colors.redAccent,
                             ),
                             title: Text(
-                              'Ubicar en Mapa / PerÃ­metro',
+                              'Ubicar en Mapa / Perímetro',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurface,
                                 fontSize: 13,
@@ -899,8 +918,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             subtitle: Text(
                               temporalPerimetro != null &&
                                       temporalPerimetro!.isNotEmpty
-                                  ? 'VÃ©rtices definidos: ${temporalPerimetro!.length}'
-                                  : 'Sin Ã¡rea definida en el mapa',
+                                  ? 'Vértices definidos: ${temporalPerimetro!.length}'
+                                  : 'Sin área definida en el mapa',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -1058,7 +1077,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             .toUpperCase();
                         if (generadaClave.isEmpty &&
                             nombreCtrl.text.trim().isNotEmpty) {
-                          // Tomar las primeras 3-4 letras, quitar espacios y hacer mayÃºscula
+                          // Tomar las primeras 3-4 letras, quitar espacios y hacer mayúscula
                           final cleanName = nombreCtrl.text.trim().replaceAll(
                             ' ',
                             '',
@@ -1096,10 +1115,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           codigoCatastralLower: codigoCatastralCtrl.text.isNotEmpty 
                               ? codigoCatastralCtrl.text.toLowerCase() 
                               : null,
+                          frecuenciaCobro: selectedFrecuenciaCobro,
                         );
 
                         final jsonData = model.toJson();
-                        // AÃ±adir campo de bÃºsqueda por prefijo al guardar. (Redundante pero seguro por compatibilidad)
+                        // Añadir campo de búsqueda por prefijo al guardar. (Redundante pero seguro por compatibilidad)
                         jsonData['nombreSocialLower'] = (nombreCtrl.text)
                             .toLowerCase();
 
@@ -1158,24 +1178,24 @@ class _LocalesListView extends ConsumerWidget {
           ),
           columns: const [
             DataColumn(label: Text('Local')),
-            DataColumn(label: Text('CÃ³digo Local')),
+            DataColumn(label: Text('Código Local')),
             DataColumn(label: Text('Clave')),
             DataColumn(label: Text('Representante')),
-            DataColumn(label: Text('TelÃ©fono')),
+            DataColumn(label: Text('Teléfono')),
             DataColumn(label: Text('Cobrador')),
             DataColumn(label: Text('Tipo')),
-            DataColumn(label: Text('mÂ²')),
+            DataColumn(label: Text('m²')),
             DataColumn(label: Text('Cuota')),
             DataColumn(label: Text('Deuda')),
             DataColumn(label: Text('Saldo')),
-            DataColumn(label: Text('CreaciÃ³n')),
+            DataColumn(label: Text('Creación')),
             DataColumn(label: Text('QR')),
             DataColumn(label: Text('Hist.')),
             DataColumn(label: Text('Acciones')),
           ],
             rows: locales.map((l) {
-              // Buscar si hay algÃºn cobrador asignado por Mercado o por Ruta
-              // LÃ³gica de asignaciÃ³n: Priorizar Ruta > Mercado (si es Ãºnico)
+              // Buscar si hay algún cobrador asignado por Mercado o por Ruta
+              // Lógica de asignación: Priorizar Ruta > Mercado (si es único)
               final enRuta = usuarios.where(
                 (u) =>
                     u.esCobrador && (u.rutaAsignada?.contains(l.id) ?? false),
@@ -1183,10 +1203,10 @@ class _LocalesListView extends ConsumerWidget {
 
               String? cobradorNombre;
               if (enRuta.isNotEmpty) {
-                // Si el local estÃ¡ en rutas especÃ­ficas, mostramos esos nombres
+                // Si el local está en rutas específicas, mostramos esos nombres
                 cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
               } else {
-                // Si no hay ruta especÃ­fica, verificamos los del mercado
+                // Si no hay ruta específica, verificamos los del mercado
                 final enMercado = usuarios
                     .where(
                       (u) =>
@@ -1197,7 +1217,7 @@ class _LocalesListView extends ConsumerWidget {
                     .toList();
 
                 // REGLA: Solo mostrar si hay EXACTAMENTE UNO asignado al mercado completo.
-                // Si hay mÃ¡s de uno, la asignaciÃ³n es ambigua (cada uno tiene su propia ruta).
+                // Si hay más de uno, la asignación es ambigua (cada uno tiene su propia ruta).
                 if (enMercado.length == 1) {
                   cobradorNombre = enMercado.first.nombre;
                 }
@@ -1352,7 +1372,7 @@ class _LocalesListView extends ConsumerWidget {
   }
 }
 
-/// Widget de estado vacÃ­o reutilizable.
+/// Widget de estado vacío reutilizable.
 class _EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String mensaje;
