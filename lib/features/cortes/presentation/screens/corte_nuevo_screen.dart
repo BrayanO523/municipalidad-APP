@@ -49,9 +49,13 @@ class CorteNuevoScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         'Total Recaudado',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -59,13 +63,16 @@ class CorteNuevoScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         '${state.cantidad} cobros registrados',
-                        style: const TextStyle(fontSize: 16),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
                       ),
                     ],
                   ),
