@@ -130,4 +130,35 @@ class StatsDatasource {
     }, SetOptions(merge: true));
   }
 
+  /// Recalcula el mapa `diario` de hoy consultando los cobros reales en Firestore.
+  /// Repara datos corruptos por escrituras anteriores con mapas anidados.
+  Future<void> recalcularDiarioHoy(String municipalidadId) async {
+    final hoy = DateTime.now();
+    final inicio = DateTime(hoy.year, hoy.month, hoy.day);
+    final fin = inicio.add(const Duration(days: 1));
+    final key = DateFormat('yyyy-MM-dd').format(hoy);
+
+    final snapshot = await _firestore
+        .collection('cobros')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+        .where('fecha', isLessThan: Timestamp.fromDate(fin))
+        .get();
+
+    num totalRecaudado = 0;
+    int totalCobros = 0;
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final monto = (data['monto'] as num?) ?? 0;
+      totalRecaudado += monto;
+      totalCobros++;
+    }
+
+    await _doc(municipalidadId).set({
+      'diario.$key.recaudado': totalRecaudado,
+      'diario.$key.cobros': totalCobros,
+    }, SetOptions(merge: true));
+  }
+
 }
