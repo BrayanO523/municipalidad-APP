@@ -83,8 +83,8 @@ class CobroDatasource {
     final municipalidadId = cobroData['municipalidadId'] as String?;
     if (municipalidadId != null) {
       final montoCobrado = (finalCobroData['monto'] as num?) ?? 0;
-      final abonoDeuda = (finalCobroData['abonoDeuda'] as num?) ?? 0;
-      final incrementoSaldo = (finalCobroData['incrementoSaldo'] as num?) ?? 0;
+      final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
+      final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
 
       // Usamos el total cobrado (efectivo ingresado) y el movimiento de deuda/saldo
       _statsDs.actualizarAlCobrar(
