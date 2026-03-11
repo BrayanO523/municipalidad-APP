@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,6 +37,31 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // P5: Bloqueo en producción — el Seeder NUNCA debe ejecutarse en release.
+    // Genera cobros falsos y consume miles de lecturas Firestore.
+    if (kReleaseMode) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF12131A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A1B27),
+          title: const Text('Seeder (Dev Only)', style: TextStyle(fontSize: 16)),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.white24, size: 48),
+              SizedBox(height: 12),
+              Text(
+                'No disponible en producción',
+                style: TextStyle(color: Colors.white38, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final localesAsync = ref.watch(localesProvider);
 
     return Scaffold(
