@@ -172,8 +172,8 @@ class StatsDatasource {
       totalCobros++;
     }
 
-    // 2. Cuota diaria total: suma de cuotaDiaria de todos los locales activos
-    //    Solo se calcula aquí una vez al cargar el dashboard (y se almacena en stats).
+    // 2. Locales activos: suma de cuotaDiaria, deudaAcumulada y saldoAFavor
+    //    Aprovechamos UNA SOLA query para extraer 3 métricas (costo 0 lecturas extra).
     final localesSnap = await _firestore
         .collection('locales')
         .where('municipalidadId', isEqualTo: municipalidadId)
@@ -181,19 +181,26 @@ class StatsDatasource {
         .get();
 
     num totalCuota = 0;
+    num totalDeuda = 0;
+    num totalSaldo = 0;
     for (final doc in localesSnap.docs) {
-      final cuota = (doc.data()['cuotaDiaria'] as num?) ?? 0;
-      totalCuota += cuota;
+      final d = doc.data();
+      totalCuota += (d['cuotaDiaria'] as num?) ?? 0;
+      totalDeuda += (d['deudaAcumulada'] as num?) ?? 0;
+      totalSaldo += (d['saldoAFavor'] as num?) ?? 0;
     }
 
-    // 3. Escribir todo de una vez
+    // 3. Escribir todo de una vez (diario + totales reales recalculados)
     await _doc(municipalidadId).update({
       'diario.$key.recaudado': totalRecaudado,
       'diario.$key.cobros': totalCobros,
       'totalCuotaDiaria': totalCuota,
+      'totalDeuda': totalDeuda,
+      'totalSaldoAFavor': totalSaldo,
+      'cantidadLocales': localesSnap.docs.length,
     });
 
-    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado, cuota esperada: L$totalCuota');
+    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado, cuota: L$totalCuota, deuda: L$totalDeuda, saldo: L$totalSaldo');
   }
 
 }
