@@ -371,139 +371,218 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     // Calcular cuánto falta para la cuota hoy
     final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
-    final montoSugerido = faltanteHoy > 0 ? faltanteHoy : cuota;
 
-    final montoCtrl = TextEditingController(text: montoSugerido.toString());
+    final montoCtrl = TextEditingController(
+      text: cuotaCubierta ? '' : faltanteHoy.toStringAsFixed(0),
+    );
     final obsCtrl = TextEditingController();
-    final usuario = ref.read(currentUsuarioProvider).value;
+
+    // Variables para saldo a favor
+    bool usarSaldoFavor = false;
+    final montoSaldoFavorCtrl = TextEditingController();
+
+    if (!mounted) return;
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              cuotaCubierta
-                  ? Icons.add_circle_outline_rounded
-                  : Icons.receipt_long_rounded,
-              size: 22,
-              color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                cuotaCubierta
-                    ? 'Abono Extra - ${local.nombreSocial ?? ""}'
-                    : 'Cobrar - ${local.nombreSocial ?? ""}',
-                style: const TextStyle(fontSize: 16),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return AlertDialog(
+            title: Row(
               children: [
-                if (!cuotaCubierta)
-                  _InfoRow(
-                    label: 'Cuota diaria',
-                    value: DateFormatter.formatCurrency(cuota),
-                  ),
-                if (pagadoHoy > 0)
-                  _InfoRow(
-                    label: 'Pagado hoy',
-                    value: DateFormatter.formatCurrency(pagadoHoy),
-                    color: Colors.green,
-                  ),
-                if (faltanteHoy > 0 && pagadoHoy > 0)
-                  _InfoRow(
-                    label: 'Faltante cuota',
-                    value: DateFormatter.formatCurrency(faltanteHoy),
-                    color: Colors.orange,
-                  ),
-                _InfoRow(
-                  label: 'Representante',
-                  value: local.representante ?? '-',
+                Icon(
+                  cuotaCubierta
+                      ? Icons.add_circle_outline_rounded
+                      : Icons.receipt_long_rounded,
+                  size: 22,
+                  color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
                 ),
-                if (saldoActual > 0)
-                  _InfoRow(
-                    label: 'Saldo a favor',
-                    value: DateFormatter.formatCurrency(saldoActual),
-                    color: const Color(0xFF00D9A6),
-                  ),
-                if ((local.deudaAcumulada ?? 0) > 0)
-                  _InfoRow(
-                    label: 'Deuda Acumulada',
-                    value: DateFormatter.formatCurrency(local.deudaAcumulada),
-                    color: const Color(0xFFEE5A6F),
-                  ),
-                _InfoRow(
-                  label: 'Balance Neto',
-                  value: DateFormatter.formatCurrency(local.balanceNeto),
-                  color: local.balanceNeto >= 0
-                      ? const Color(0xFF00D9A6)
-                      : const Color(0xFFEE5A6F),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: montoCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Monto a cobrar (L)',
-                    prefixIcon: const Icon(Icons.payments_rounded, size: 20),
-                    helperText:
-                        'Si paga más de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
-                    helperMaxLines: 2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: obsCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Observaciones (opcional)',
-                    prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    cuotaCubierta
+                        ? 'Abono Extra - ${local.nombreSocial ?? ""}'
+                        : 'Cobrar - ${local.nombreSocial ?? ""}',
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Registrar'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!cuotaCubierta)
+                      _InfoRow(
+                        label: 'Cuota diaria',
+                        value: DateFormatter.formatCurrency(cuota),
+                      ),
+                    if (pagadoHoy > 0)
+                      _InfoRow(
+                        label: 'Pagado hoy',
+                        value: DateFormatter.formatCurrency(pagadoHoy),
+                        color: Colors.green,
+                      ),
+                    if (faltanteHoy > 0 && pagadoHoy > 0)
+                      _InfoRow(
+                        label: 'Faltante cuota',
+                        value: DateFormatter.formatCurrency(faltanteHoy),
+                        color: Colors.orange,
+                      ),
+                    _InfoRow(
+                      label: 'Representante',
+                      value: local.representante ?? '-',
+                    ),
+                    if (saldoActual > 0)
+                      _InfoRow(
+                        label: 'Saldo a favor Total',
+                        value: DateFormatter.formatCurrency(saldoActual),
+                        color: const Color(0xFF00D9A6),
+                      ),
+                    if ((local.deudaAcumulada ?? 0) > 0)
+                      _InfoRow(
+                        label: 'Deuda Acumulada',
+                        value: DateFormatter.formatCurrency(local.deudaAcumulada),
+                        color: const Color(0xFFEE5A6F),
+                      ),
+                    _InfoRow(
+                      label: 'Balance Neto',
+                      value: DateFormatter.formatCurrency(local.balanceNeto),
+                      color: local.balanceNeto >= 0
+                          ? const Color(0xFF00D9A6)
+                          : const Color(0xFFEE5A6F),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: montoCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Efectivo Recibido (L)',
+                        prefixIcon: const Icon(Icons.payments_rounded, size: 20),
+                        helperText:
+                            'Si deposita más de su deuda total, se acumulará saldo a favor',
+                        helperMaxLines: 2,
+                      ),
+                    ),
+                    if (saldoActual > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    '¿Usar Saldo a Favor Disponible?',
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                  ),
+                                ),
+                                Switch(
+                                  value: usarSaldoFavor,
+                                  onChanged: (val) {
+                                    setModalState(() {
+                                      usarSaldoFavor = val;
+                                      if (val) {
+                                        montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                      } else {
+                                        montoSaldoFavorCtrl.clear();
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (usarSaldoFavor) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: montoSaldoFavorCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Monto a Extraer (L)',
+                                  prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
+                                  isDense: true,
+                                ),
+                                onChanged: (val) {
+                                  final parsed = double.tryParse(val) ?? 0;
+                                  if (parsed > saldoActual) {
+                                    montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                    montoSaldoFavorCtrl.selection = TextSelection.fromPosition(
+                                      TextPosition(offset: montoSaldoFavorCtrl.text.length),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: obsCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Observaciones (opcional)',
+                        prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Registrar'),
+                    ),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
 
     if (result != true || !mounted) return;
 
-    final monto = num.tryParse(montoCtrl.text) ?? 0;
+    final montoEfectivo = num.tryParse(montoCtrl.text) ?? 0;
+    final saldoAExtraer = usarSaldoFavor ? (num.tryParse(montoSaldoFavorCtrl.text) ?? 0) : 0;
+    
+    if (montoEfectivo <= 0 && saldoAExtraer <= 0) return;
+
+    final cobrosHoyActual = ref.read(cobrosHoyCobradorProvider).value ?? [];
+    final usuario = ref.read(currentUsuarioProvider).value;
+
     await _guardarCobro(
       local: local,
-      monto: monto,
+      montoEfectivo: montoEfectivo,
+      saldoAExtraer: saldoAExtraer,
       observaciones: obsCtrl.text,
       usuario: usuario,
-      cobrosHoy: cobrosHoy,
+      cobrosHoy: cobrosHoyActual,
     );
   }
 
@@ -615,9 +694,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
+  /// Acepta montoEfectivo (cash) y saldoAExtraer (crédito explícito del saldo a favor).
   Future<void> _guardarCobro({
     required Local local,
-    required num monto,
+    required num montoEfectivo,
+    required num saldoAExtraer,
     required String observaciones,
     required dynamic usuario,
     required List<Cobro> cobrosHoy,
@@ -641,19 +722,21 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
-    final num saldoFavorExistente = local.saldoAFavor ?? 0;
 
-    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL ---
-    // 1. Pagar cuota de hoy con EFECTIVO (Prioridad 1)
+    // --- BOLSA TOTAL = Efectivo + Saldo a Extraer ---
+    final num bolsaTotal = montoEfectivo + saldoAExtraer;
+
+    // --- LÓGICA DE DISTRIBUCIÓN EN CASCADA ---
+    // 1. Pagar cuota de hoy (Prioridad 1)
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
-    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
-    final num montoRestanteTrasHoy = (monto - pagoACuota).clamp(
+    final pagoACuota = bolsaTotal > faltanteHoy ? faltanteHoy : bolsaTotal;
+    final num montoRestanteTrasHoy = (bolsaTotal - pagoACuota).clamp(
       0,
       double.infinity,
     );
 
-    // 2. Pagar deuda acumulada con excedente de EFECTIVO (Prioridad 2)
+    // 2. Pagar deuda acumulada con excedente (Prioridad 2)
     final deudaPast = local.deudaAcumulada ?? 0;
     final paraDeudaReal = montoRestanteTrasHoy > deudaPast
         ? deudaPast
@@ -661,22 +744,15 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
         .clamp(0, double.infinity);
 
-    // 3. Excedente de efectivo a Saldo a Favor (Prioridad 3)
+    // 3. Excedente a Nuevo Saldo a Favor (Prioridad 3)
     final paraSaldoFavorReal = montoRestanteTrasDeuda;
 
-    // 4. Si el efectivo NO alcanzó para la cuota, complementar con saldo a favor
-    //    El saldo SOLO se usa para cubrir la cuota, NO para deuda ni otra cosa.
-    final num faltanteTrasEfectivo = (faltanteHoy - pagoACuota).clamp(0, double.infinity);
-    final num saldoConsumido = faltanteTrasEfectivo > saldoFavorExistente
-        ? saldoFavorExistente
-        : faltanteTrasEfectivo;
+    // Delta neto del saldo: nuevo excedente generado - saldo explícitamente extraído
+    final num deltaSaldoFavor = paraSaldoFavorReal - saldoAExtraer;
 
-    // Delta neto del saldo: nuevo excedente - saldo consumido
-    final num deltaSaldoFavor = paraSaldoFavorReal - saldoConsumido;
-
-    // Totales incluyendo saldo consumido
-    final saldoHoy = (faltanteHoy - pagoACuota - saldoConsumido).clamp(0, cuotaHoy);
-    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota + saldoConsumido;
+    // Totales
+    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuotaHoy);
+    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota;
     final estado = cuotaTotalHoy >= cuotaHoy
         ? 'cobrado'
         : cuotaTotalHoy > 0
@@ -689,6 +765,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         saldoHoy.toDouble();
     final double favorResultante =
         (local.saldoAFavor ?? 0).toDouble() + deltaSaldoFavor.toDouble();
+
+    // Monto registrado en el cobro: solo el efectivo
+    final num monto = montoEfectivo;
 
     try {
       // ====== MVVM REFACTOR: Utilizar CobroViewModel y Repositorios ======
@@ -723,9 +802,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     'L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr',
                   );
                 }
-                if (saldoConsumido > 0) {
+                if (saldoAExtraer > 0) {
                   partes.add(
-                    'L ${saldoConsumido.toStringAsFixed(2)} de saldo a favor',
+                    'L ${saldoAExtraer.toStringAsFixed(2)} de saldo a favor',
                   );
                 }
                 if (paraSaldoFavorReal > 0) {
