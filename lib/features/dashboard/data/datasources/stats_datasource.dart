@@ -90,12 +90,8 @@ class StatsDatasource {
       'totalDeuda': FieldValue.increment(-abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
-      'diario': {
-        key: {
-          'recaudado': FieldValue.increment(montoCobrado),
-          'cobros': FieldValue.increment(1),
-        }
-      }
+      'diario.$key.recaudado': FieldValue.increment(montoCobrado),
+      'diario.$key.cobros': FieldValue.increment(1),
     }, SetOptions(merge: true));
   }
 
@@ -115,12 +111,8 @@ class StatsDatasource {
       'totalDeuda': FieldValue.increment(abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(-incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
-      'diario': {
-        key: {
-          'recaudado': FieldValue.increment(-montoCobrado),
-          'cobros': FieldValue.increment(-1),
-        }
-      }
+      'diario.$key.recaudado': FieldValue.increment(-montoCobrado),
+      'diario.$key.cobros': FieldValue.increment(-1),
     }, SetOptions(merge: true));
   }
 

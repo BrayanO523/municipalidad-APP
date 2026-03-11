@@ -555,22 +555,15 @@ class CobroDatasource {
           
           final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
           _firestore.collection('stats').doc(targetMuniId).set({
-            'diario': {
-              key: {
-                'cobros': FieldValue.increment(-1),
-              }
-            }
+            'diario.$key.cobros': FieldValue.increment(-1),
           }, SetOptions(merge: true)).catchError((_) {});
 
         } else if (estado == 'cobrado_saldo') {
           // Revertir un saldado implica devolver el saldo a favor consumido, no altera el efectivo
+          final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
           _firestore.collection('stats').doc(targetMuniId).set({
-            'totalSaldoAFavor': FieldValue.increment(montoCobrado), // Devolver el saldo
-            'diario': {
-              DateFormat('yyyy-MM-dd').format(fechaCobro): {
-                'cobros': FieldValue.increment(-1),
-              }
-            }
+            'totalSaldoAFavor': FieldValue.increment(montoCobrado),
+            'diario.$key.cobros': FieldValue.increment(-1),
           }, SetOptions(merge: true)).catchError((_) {});
 
         } else {
