@@ -316,7 +316,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         telefonoRepresentante: local.telefonoRepresentante,
       );
 
-      final String? correlativoAsignado = await cobroViewModel.registrarPago(
+      final resultado = await cobroViewModel.registrarPago(
         cobro: nuevoCobro,
         mercadoId: local.mercadoId!,
         localId: local.id!,
@@ -324,7 +324,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         incrementoSaldoFavor: paraSaldoFavorReal,
       );
 
-      final String correlativoStr = correlativoAsignado ?? '0';
+      final String correlativoStr = resultado.numeroBoleta ?? '0';
+      final List<DateTime> fechasSaldadas = resultado.fechasSaldadas;
 
       if (mounted) {
         setState(() => _isRegistering = false);
@@ -342,6 +343,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          fechasSaldadas: fechasSaldadas,
         );
         _resetScanner();
       }
