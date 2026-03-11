@@ -334,40 +334,43 @@ class LocalDatasource {
     int limit = 10,
   }) async {
     final lower = prefijo.toLowerCase();
-    Query<Map<String, dynamic>> baseQuery = _collection;
 
-    if (mercadoId != null) {
-      baseQuery = baseQuery.where('mercadoId', isEqualTo: mercadoId);
-    } else if (municipalidadId != null) {
-      baseQuery = baseQuery.where('municipalidadId', isEqualTo: municipalidadId);
-    }
-
-    final queryNombre = baseQuery
+    // Consultamos por nombre sin filtros de igualdad para EVITAR requerir nuevos
+    // índices compuestos en Firestore. Filtramos la municipalidad/mercado en memoria.
+    final queryNombre = _collection
         .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
         .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-        .limit(limit);
+        .limit(limit * 4); // Pedimos más para que luego del filter in-memory no nos quedemos escasos
 
+    // Hacemos lo mismo con código
     final queryCodigo = _collection
         .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
         .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
-        .limit(limit * 3);
+        .limit(limit * 4);
 
     final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
     
     final Map<String, LocalJson> merged = {};
+    
+    // Función helper para validar si un doc cumple los filtros en memoria
+    bool cumpleFiltros(Map<String, dynamic> data) {
+      if (mercadoId != null && data['mercadoId'] != mercadoId) return false;
+      if (municipalidadId != null && data['municipalidadId'] != municipalidadId) return false;
+      return true;
+    }
+
+    // Agregar resultados de nombres que cumplan el filtro
     for (var doc in results[0].docs) {
-      if (!merged.containsKey(doc.id)) {
-        merged[doc.id] = LocalJson.fromJson(doc.data(), docId: doc.id);
+      final data = doc.data();
+      if (cumpleFiltros(data) && !merged.containsKey(doc.id)) {
+        merged[doc.id] = LocalJson.fromJson(data, docId: doc.id);
       }
     }
     
+    // Agregar resultados de códigos que cumplan el filtro
     for (var doc in results[1].docs) {
       final data = doc.data();
-      bool match = true;
-      if (mercadoId != null && data['mercadoId'] != mercadoId) match = false;
-      if (municipalidadId != null && data['municipalidadId'] != municipalidadId) match = false;
-      
-      if (match && !merged.containsKey(doc.id)) {
+      if (cumpleFiltros(data) && !merged.containsKey(doc.id)) {
         merged[doc.id] = LocalJson.fromJson(data, docId: doc.id);
       }
     }
@@ -481,8 +484,7 @@ class LocalDatasource {
       // Si hay internet, garantizamos que se envíe o falle en 1.5 segundos
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () =>
-            {}, // Si tarda mucho, que siga de largo sin quebrar (background sync)
+        onTimeout: () {}, // Si tarda mucho, que siga de largo sin quebrar (background sync)
       );
     }
   }

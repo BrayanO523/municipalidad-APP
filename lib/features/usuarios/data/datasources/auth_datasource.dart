@@ -203,6 +203,35 @@ class AuthDatasource {
     }
   }
 
+  /// Stream en tiempo real del documento de usuario.
+  /// Permite que cambios del admin (ruta, mercado, rol) se reflejen al instante.
+  Stream<UsuarioJson?> streamUsuario(String uid) {
+    return _firestore
+        .collection(FirestoreCollections.usuarios)
+        .doc(uid)
+        .snapshots()
+        .asyncMap((doc) async {
+      if (!doc.exists) return null;
+      final usuario = UsuarioJson.fromJson(doc.data()!, docId: doc.id);
+
+      // Sincronizar campos críticos para modo Offline en cada emisión
+      if (usuario.esCobrador) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (usuario.codigoCobrador != null) {
+            await prefs.setString('prefijo_${usuario.id}', usuario.codigoCobrador!);
+          }
+          if (usuario.ultimoCorrelativo != null) {
+            final int anio = usuario.anioCorrelativo ?? DateTime.now().year;
+            await prefs.setInt('correlativo_${usuario.id}_$anio', usuario.ultimoCorrelativo!);
+          }
+        } catch (_) {}
+      }
+
+      return usuario;
+    });
+  }
+
   Future<List<UsuarioJson>> listarTodos({String? municipalidadId}) async {
     Query query = _firestore.collection(FirestoreCollections.usuarios);
 

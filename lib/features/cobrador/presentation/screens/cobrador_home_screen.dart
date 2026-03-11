@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../cobros/data/models/hive/cobro_hive.dart';
 import '../../../locales/data/models/hive/local_hive.dart';
@@ -55,12 +55,18 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       localRepo.syncLocales().catchError((_) {});
       cobroRepo.syncCobros().catchError((_) {});
 
-      // Esperar a que los locales carguen para verificar deuda
-      final locales = await ref.read(localesCobradorProvider.future);
-      if (mounted && locales.isNotEmpty) {
-        _verificarDeudaRetroactiva(locales);
-      }
-    } catch (_) {}
+      // Esperar a que los locales carguen en background para verificar deuda
+      // Se quita el `await .future` puro para no congelar el arranque
+      ref.read(localesCobradorProvider.future).then((locales) {
+        if (mounted && locales.isNotEmpty) {
+          _verificarDeudaRetroactiva(locales);
+        }
+      }).catchError((e) {
+        debugPrint('Error en carga background de locales: $e');
+      });
+    } catch (e) {
+      debugPrint('Excepción en dispararSync: $e');
+    }
   }
 
   Future<void> _reconectarImpresora() async {
@@ -506,9 +512,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final now = DateTime.now();
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
     final usuario = ref.read(currentUsuarioProvider).value;
+
+    // Leer providers síncronamente antes de los await
+    final cobroDs = ref.read(cobroDatasourceProvider);
+    final localDs = ref.read(localDatasourceProvider);
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
     try {
-      final cobroDs = ref.read(cobroDatasourceProvider);
-      final localDs = ref.read(localDatasourceProvider);
 
       final String correlativoStr = await cobroDs.crearCobroConCorrelativo(
         cobroId: docId,
@@ -532,8 +543,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       );
       // Descontar la cuota del saldo a favor
       await localDs.actualizarSaldoAFavor(local.id!, -cuota);
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -546,9 +555,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       }
 
       // --- OBTENER DATOS MAESTROS (Con soporte offline vía repositorios) ---
-      final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
-      final mercadoRepo = ref.read(mercadoRepositoryProvider);
-
       final muni = await municipalidadRepo.obtenerPorId(
         local.municipalidadId ?? '',
       );
@@ -559,6 +565,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       // ------------------------------------------------------------------
 
       // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // Mostrar recibo ANTES de invalidar providers para evitar rebuild prematuro
       if (mounted) {
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -574,9 +581,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          slogan: muni?.slogan,
         );
       }
+
+      if (!mounted) return;
+      // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
+      ref.invalidate(localesCobradorProvider);
+      ref.invalidate(cobrosHoyCobradorProvider);
     } catch (e) {
+      debugPrint('❌ Error en _aplicarSaldoAFavor: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -596,9 +610,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     required dynamic usuario,
     required List<Cobro> cobrosHoy,
   }) async {
-    // --- OBTENER DATOS MAESTROS (Con soporte offline via repositorios) ---
+    // --- OBTENER DATOS MAESTROS síncronamente ---
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
+    final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
     final muni = await municipalidadRepo.obtenerPorId(
       local.municipalidadId ?? '',
@@ -614,9 +629,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
+    final num saldoFavorExistente = local.saldoAFavor ?? 0;
 
-    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL (MVVM) ---
-    // 1. Pagar hoy (Prioridad 1)
+    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL ---
+    // 1. Pagar cuota de hoy con EFECTIVO (Prioridad 1)
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
     final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
@@ -625,7 +641,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       double.infinity,
     );
 
-    // 2. Pagar deuda acumulada de días anteriores (Prioridad 2)
+    // 2. Pagar deuda acumulada con excedente de EFECTIVO (Prioridad 2)
     final deudaPast = local.deudaAcumulada ?? 0;
     final paraDeudaReal = montoRestanteTrasHoy > deudaPast
         ? deudaPast
@@ -633,12 +649,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
         .clamp(0, double.infinity);
 
-    // 3. Excedente a Saldo a Favor (Prioridad 3)
+    // 3. Excedente de efectivo a Saldo a Favor (Prioridad 3)
     final paraSaldoFavorReal = montoRestanteTrasDeuda;
 
-    // Totales calculados para el registro y balances
-    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuotaHoy);
-    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota;
+    // 4. Si el efectivo NO alcanzó para la cuota, complementar con saldo a favor
+    //    El saldo SOLO se usa para cubrir la cuota, NO para deuda ni otra cosa.
+    final num faltanteTrasEfectivo = (faltanteHoy - pagoACuota).clamp(0, double.infinity);
+    final num saldoConsumido = faltanteTrasEfectivo > saldoFavorExistente
+        ? saldoFavorExistente
+        : faltanteTrasEfectivo;
+
+    // Delta neto del saldo: nuevo excedente - saldo consumido
+    final num deltaSaldoFavor = paraSaldoFavorReal - saldoConsumido;
+
+    // Totales incluyendo saldo consumido
+    final saldoHoy = (faltanteHoy - pagoACuota - saldoConsumido).clamp(0, cuotaHoy);
+    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota + saldoConsumido;
     final estado = cuotaTotalHoy >= cuotaHoy
         ? 'cobrado'
         : cuotaTotalHoy > 0
@@ -650,11 +676,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         paraDeudaReal.toDouble() +
         saldoHoy.toDouble();
     final double favorResultante =
-        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
+        (local.saldoAFavor ?? 0).toDouble() + deltaSaldoFavor.toDouble();
 
     try {
       // ====== MVVM REFACTOR: Utilizar CobroViewModel y Repositorios ======
-      final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
       final nuevoCobro = Cobro(
         id: docId,
@@ -686,6 +711,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     'L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr',
                   );
                 }
+                if (saldoConsumido > 0) {
+                  partes.add(
+                    'L ${saldoConsumido.toStringAsFixed(2)} de saldo a favor',
+                  );
+                }
                 if (paraSaldoFavorReal > 0) {
                   partes.add(
                     'L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor',
@@ -706,20 +736,18 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       final resultado = await cobroViewModel.registrarPago(
         cobro: nuevoCobro,
-        mercadoId: local.mercadoId!,
         localId: local.id!,
         montoAbonadoDeuda: paraDeudaReal,
-        incrementoSaldoFavor: paraSaldoFavorReal,
+        incrementoSaldoFavor: deltaSaldoFavor,
       );
 
       final String correlativoStr = resultado.numeroBoleta ?? '0';
       final List<DateTime> fechasSaldadas = resultado.fechasSaldadas;
       // ====== END MVVM REFACTOR ======
 
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
-
       // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // IMPORTANTE: Mostrar el recibo ANTES de invalidar los providers,
+      // porque ref.invalidate provoca rebuild y puede desmontar el widget.
       if (mounted) {
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -736,9 +764,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
           fechasSaldadas: fechasSaldadas,
+          slogan: muni?.slogan,
         );
       }
+
+      if (!mounted) return;
+      // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
+      ref.invalidate(localesCobradorProvider);
+      ref.invalidate(cobrosHoyCobradorProvider);
     } catch (e) {
+      debugPrint('❌ Error en _guardarCobro: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

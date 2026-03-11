@@ -73,12 +73,12 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return ref.read(firebaseAuthProvider).authStateChanges();
 });
 
-final currentUsuarioProvider = FutureProvider<Usuario?>((ref) async {
+final currentUsuarioProvider = StreamProvider<Usuario?>((ref) {
   final authState = ref.watch(authStateProvider);
   final user = authState.value;
-  if (user == null) return null;
+  if (user == null) return Stream.value(null);
   final ds = ref.read(authDatasourceProvider);
-  return ds.obtenerUsuario(user.uid);
+  return ds.streamUsuario(user.uid);
 });
 
 // Local Datasources (Hive)

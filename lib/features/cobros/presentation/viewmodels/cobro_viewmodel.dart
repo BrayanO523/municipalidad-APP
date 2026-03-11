@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../domain/entities/cobro.dart';
@@ -24,7 +25,6 @@ class CobroViewModel extends AsyncNotifier<void> {
   /// Retorna la boleta y las fechas históricas saldadas (FIFO).
   Future<({String? numeroBoleta, List<DateTime> fechasSaldadas})> registrarPago({
     required Cobro cobro,
-    required String mercadoId,
     required String localId,
     required num montoAbonadoDeuda,
     required num incrementoSaldoFavor,
@@ -50,6 +50,8 @@ class CobroViewModel extends AsyncNotifier<void> {
       state = const AsyncValue.data(null);
       return (numeroBoleta: resultado.numeroBoleta, fechasSaldadas: resultado.fechasSaldadas);
     } catch (e, st) {
+      debugPrint('🚨 ERROR CRÍTICO EN registrarPago: $e');
+      debugPrint('STACKTRACE: $st');
       state = AsyncValue.error(e, st);
       return (numeroBoleta: null, fechasSaldadas: <DateTime>[]);
     }

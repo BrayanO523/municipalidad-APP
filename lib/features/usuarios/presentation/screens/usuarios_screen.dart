@@ -154,6 +154,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
         ? List<String>.from(usuario!.rutaAsignada!)
         : [];
     String localSearchQuery = '';
+    // Sets para multi-selección con checkboxes
+    final Set<String> checkedDisponibles = {};
+    final Set<String> checkedAsignados = {};
 
     showDialog(
       context: context,
@@ -328,11 +331,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                     );
                                   }
 
-                                  Widget buildListTile(
+                                  Widget buildCheckTile(
+                                    String id,
                                     String title,
+                                    bool isChecked,
+                                    ValueChanged<bool?> onCheck,
                                     VoidCallback onTap,
-                                    IconData icon,
-                                    Color iconColor,
+                                    IconData trailingIcon,
+                                    Color trailingColor,
                                   ) {
                                     return Material(
                                       color: Colors.transparent,
@@ -340,13 +346,23 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                         onTap: onTap,
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 8.0,
-                                            vertical: 6.0,
+                                            horizontal: 4.0,
+                                            vertical: 2.0,
                                           ),
                                           child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
                                             children: [
+                                              SizedBox(
+                                                width: 28,
+                                                height: 28,
+                                                child: Checkbox(
+                                                  value: isChecked,
+                                                  onChanged: onCheck,
+                                                  visualDensity: VisualDensity.compact,
+                                                  materialTapTargetSize:
+                                                      MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(
                                                   title,
@@ -354,7 +370,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
-                                              Icon(icon, size: 16, color: iconColor),
+                                              Icon(trailingIcon, size: 14, color: trailingColor),
                                             ],
                                           ),
                                         ),
@@ -364,24 +380,56 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 
                                   return Row(
                                     children: [
+                                      // ── Columna izquierda: Disponibles ──
                                       Expanded(
                                         child: Column(
                                           children: [
                                             Container(
                                               width: double.infinity,
-                                              padding: const EdgeInsets.all(4),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 4),
                                               color: Colors.black12,
-                                              child: Text(
-                                                'Sin asignar',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface
-                                                      .withValues(alpha: 0.54),
-                                                ),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child: Checkbox(
+                                                      value: localesDisponibles.isNotEmpty &&
+                                                          localesDisponibles.every(
+                                                            (l) => checkedDisponibles.contains(l.id)),
+                                                      tristate: true,
+                                                      onChanged: (_) => setDialogState(() {
+                                                        final allChecked = localesDisponibles.every(
+                                                          (l) => checkedDisponibles.contains(l.id));
+                                                        if (allChecked) {
+                                                          checkedDisponibles.clear();
+                                                        } else {
+                                                          for (final l in localesDisponibles) {
+                                                            if (l.id != null) checkedDisponibles.add(l.id!);
+                                                          }
+                                                        }
+                                                      }),
+                                                      visualDensity: VisualDensity.compact,
+                                                      materialTapTargetSize:
+                                                          MaterialTapTargetSize.shrinkWrap,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Sin asignar (${localesDisponibles.length})',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface
+                                                            .withValues(alpha: 0.54),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             Expanded(
@@ -399,19 +447,23 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       ),
                                                     )
                                                   : ListView.builder(
-                                                      itemCount:
-                                                          localesDisponibles.length,
+                                                      itemCount: localesDisponibles.length,
                                                       itemBuilder: (ctx, i) {
-                                                        final loc =
-                                                            localesDisponibles[i];
-                                                        return buildListTile(
-                                                          loc.nombreSocial ??
-                                                              'Sin nombre',
+                                                        final loc = localesDisponibles[i];
+                                                        return buildCheckTile(
+                                                          loc.id ?? '',
+                                                          loc.nombreSocial ?? 'Sin nombre',
+                                                          checkedDisponibles.contains(loc.id),
+                                                          (val) => setDialogState(() {
+                                                            if (val == true) {
+                                                              checkedDisponibles.add(loc.id!);
+                                                            } else {
+                                                              checkedDisponibles.remove(loc.id);
+                                                            }
+                                                          }),
                                                           () => setDialogState(() =>
-                                                              selectedLocalesIds
-                                                                  .add(loc.id!)),
-                                                          Icons
-                                                              .arrow_forward_ios_rounded,
+                                                              selectedLocalesIds.add(loc.id!)),
+                                                          Icons.arrow_forward_ios_rounded,
                                                           Colors.green.shade400,
                                                         );
                                                       },
@@ -420,30 +472,138 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           ],
                                         ),
                                       ),
-                                      VerticalDivider(
-                                        width: 1,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.1),
+                                      // ── Columna central: Botones de acción ──
+                                      Container(
+                                        width: 36,
+                                        decoration: BoxDecoration(
+                                          border: Border.symmetric(
+                                            vertical: BorderSide(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.1),
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            // Mover todos >>
+                                            Tooltip(
+                                              message: 'Asignar todos',
+                                              child: IconButton(
+                                                icon: const Icon(Icons.keyboard_double_arrow_right, size: 18),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minHeight: 32),
+                                                onPressed: localesDisponibles.isEmpty
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        for (final l in localesDisponibles) {
+                                                          if (l.id != null) selectedLocalesIds.add(l.id!);
+                                                        }
+                                                        checkedDisponibles.clear();
+                                                      }),
+                                              ),
+                                            ),
+                                            // Mover seleccionados >
+                                            Tooltip(
+                                              message: 'Asignar seleccionados',
+                                              child: IconButton(
+                                                icon: const Icon(Icons.chevron_right, size: 18),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minHeight: 32),
+                                                onPressed: checkedDisponibles.isEmpty
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        selectedLocalesIds.addAll(checkedDisponibles);
+                                                        checkedDisponibles.clear();
+                                                      }),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Devolver seleccionados <
+                                            Tooltip(
+                                              message: 'Quitar seleccionados',
+                                              child: IconButton(
+                                                icon: const Icon(Icons.chevron_left, size: 18),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minHeight: 32),
+                                                onPressed: checkedAsignados.isEmpty
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        selectedLocalesIds.removeWhere(
+                                                          (id) => checkedAsignados.contains(id));
+                                                        checkedAsignados.clear();
+                                                      }),
+                                              ),
+                                            ),
+                                            // Devolver todos <<
+                                            Tooltip(
+                                              message: 'Quitar todos',
+                                              child: IconButton(
+                                                icon: const Icon(Icons.keyboard_double_arrow_left, size: 18),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minHeight: 32),
+                                                onPressed: localesAsignados.isEmpty
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        selectedLocalesIds.clear();
+                                                        checkedAsignados.clear();
+                                                      }),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
+                                      // ── Columna derecha: Asignados ──
                                       Expanded(
                                         child: Column(
                                           children: [
                                             Container(
                                               width: double.infinity,
-                                              padding: const EdgeInsets.all(4),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 4),
                                               color: Colors.black12,
-                                              child: Text(
-                                                'Asignado',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface,
-                                                ),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child: Checkbox(
+                                                      value: localesAsignados.isNotEmpty &&
+                                                          localesAsignados.every(
+                                                            (l) => checkedAsignados.contains(l.id)),
+                                                      tristate: true,
+                                                      onChanged: (_) => setDialogState(() {
+                                                        final allChecked = localesAsignados.every(
+                                                          (l) => checkedAsignados.contains(l.id));
+                                                        if (allChecked) {
+                                                          checkedAsignados.clear();
+                                                        } else {
+                                                          for (final l in localesAsignados) {
+                                                            if (l.id != null) checkedAsignados.add(l.id!);
+                                                          }
+                                                        }
+                                                      }),
+                                                      visualDensity: VisualDensity.compact,
+                                                      materialTapTargetSize:
+                                                          MaterialTapTargetSize.shrinkWrap,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Asignados (${localesAsignados.length})',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             Expanded(
@@ -461,17 +621,22 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       ),
                                                     )
                                                   : ListView.builder(
-                                                      itemCount:
-                                                          localesAsignados.length,
+                                                      itemCount: localesAsignados.length,
                                                       itemBuilder: (ctx, i) {
-                                                        final loc =
-                                                            localesAsignados[i];
-                                                        return buildListTile(
-                                                          loc.nombreSocial ??
-                                                              'Sin nombre',
+                                                        final loc = localesAsignados[i];
+                                                        return buildCheckTile(
+                                                          loc.id ?? '',
+                                                          loc.nombreSocial ?? 'Sin nombre',
+                                                          checkedAsignados.contains(loc.id),
+                                                          (val) => setDialogState(() {
+                                                            if (val == true) {
+                                                              checkedAsignados.add(loc.id!);
+                                                            } else {
+                                                              checkedAsignados.remove(loc.id);
+                                                            }
+                                                          }),
                                                           () => setDialogState(() =>
-                                                              selectedLocalesIds
-                                                                  .remove(loc.id)),
+                                                              selectedLocalesIds.remove(loc.id)),
                                                           Icons.close_rounded,
                                                           Colors.red.shade400,
                                                         );

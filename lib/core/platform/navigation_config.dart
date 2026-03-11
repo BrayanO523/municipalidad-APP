@@ -88,6 +88,11 @@ class DefaultNavigationConfig implements NavigationConfig {
           label: '[DEV] Visor DB',
           path: '/dev-firestore',
         ),
+        const NavItemConfig(
+          icon: Icons.rocket_launch_rounded,
+          label: '[DEV] Seeder FIFO',
+          path: '/dev-seeder',
+        ),
       ]
     ];
   }

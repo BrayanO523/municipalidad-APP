@@ -134,9 +134,15 @@ class MercadoDatasource {
   }
 
   Future<MercadoJson?> obtenerPorId(String docId) async {
-    final doc = await _collection.doc(docId).get();
-    if (!doc.exists) return null;
-    return MercadoJson.fromJson(doc.data()!, docId: doc.id);
+    try {
+      final doc = await _collection.doc(docId).get().timeout(const Duration(seconds: 3));
+      if (!doc.exists) return null;
+      return MercadoJson.fromJson(doc.data()!, docId: doc.id);
+    } catch (_) {
+      final docCache = await _collection.doc(docId).get(const GetOptions(source: Source.cache));
+      if (!docCache.exists) return null;
+      return MercadoJson.fromJson(docCache.data()!, docId: docCache.id);
+    }
   }
 
   // UPDATE
