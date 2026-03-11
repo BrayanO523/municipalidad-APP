@@ -590,9 +590,13 @@ class LocalDatasource {
     return migrated;
   }
 
-  /// Reparación de Datos: Recalcula la deuda acumulada de todos los locales
-  /// basándose en la cantidad real de registros "pendientes" en su historial.
-  /// Útil si se eliminaron cobros manualmente o hubo desincronización.
+  /// ⚠️ PELIGRO: Esta función descarga todos los locales y hace N queries
+  /// individuales a Firestore (una por local). Con 600 locales = ~6,000 lecturas.
+  /// El botón que la llamaba fue eliminado. No volver a llamar esta función.
+  @Deprecated(
+    'Causa fuga masiva de lecturas en Firestore (N queries por local). '
+    'Usar actualizaciones incrementales via StatsDatasource.actualizarConteo() en su lugar.',
+  )
   Future<int> recalcularDeudasBasadoEnHistorial() async {
     final localesDoc = await _collection.get();
     int corregidos = 0;
