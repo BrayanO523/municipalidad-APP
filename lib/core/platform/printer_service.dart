@@ -33,5 +33,6 @@ abstract class PrinterService {  /// Obtiene la lista de dispositivos Bluetooth 
     String? periodoAbonadoStr,
     String? periodoSaldoAFavorStr,
     String? slogan,
+    String? clave,
   });
 }

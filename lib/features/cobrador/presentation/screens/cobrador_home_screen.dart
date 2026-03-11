@@ -990,13 +990,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             final q = _searchQuery.toLowerCase();
             final nombre = (l.nombreSocial ?? '').toLowerCase();
             final rep = (l.representante ?? '').toLowerCase();
-            final corr = (l.clave?.toString() ?? '');
-            final cat = (l.codigoCatastral ?? '').toLowerCase();
+            final currClave = (l.clave ?? '').toLowerCase();
             pasaFiltroTexto =
                 nombre.contains(q) ||
                 rep.contains(q) ||
-                corr.toLowerCase().contains(q) ||
-                cat.contains(q);
+                currClave.contains(q);
           }
 
           return pasaFiltroEstado && pasaFiltroFrecuencia && pasaFiltroTexto;
@@ -1684,12 +1682,12 @@ class _LocalCard extends StatelessWidget {
                                 ?.copyWith(color: Colors.white60),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (local.codigoCatastral != null &&
-                              local.codigoCatastral!.isNotEmpty)
+                          if (local.clave != null &&
+                              local.clave!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
-                                'Código: ${local.codigoCatastral}',
+                                'Clave: ${local.clave}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Colors.white54,

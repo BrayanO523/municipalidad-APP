@@ -52,6 +52,8 @@ class ReceiptDispatcher {
             ),
             const SizedBox(height: 8),
             _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true),
+            if (local.clave != null && local.clave!.isNotEmpty)
+              _infoRow('Clave:', local.clave!),
             if (montoAbonadoDeuda > 0)
               _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent),
             if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
@@ -98,6 +100,7 @@ class ReceiptDispatcher {
                       periodoAbonadoStr: periodoAbonadoStr,
                       periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
+                      clave: local.clave,
                     );
                     if (context.mounted) {
                       await compartirPdf(
@@ -152,6 +155,7 @@ class ReceiptDispatcher {
                       periodoAbonadoStr: periodoAbonadoStr,
                       periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
+                      clave: local.clave,
                     );
                   },
                   icon: const Icon(Icons.print_rounded),
@@ -257,6 +261,7 @@ class ReceiptDispatcher {
     String? periodoAbonadoStr,
     String? periodoSaldoAFavorStr,
     String? slogan,
+    String? clave,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -277,6 +282,7 @@ class ReceiptDispatcher {
         periodoAbonadoStr: periodoAbonadoStr,
         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
         slogan: slogan,
+        clave: clave,
       );
     } catch (_) {}
   }
@@ -327,6 +333,8 @@ class ReceiptDispatcher {
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
+              if (local.clave != null && local.clave!.isNotEmpty)
+                _pdfRow('CLAVE:', local.clave!),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
               if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
               
