@@ -35,6 +35,7 @@ abstract class PrinterService {
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
     String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   });
 }

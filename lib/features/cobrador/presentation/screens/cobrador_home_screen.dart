@@ -13,6 +13,7 @@ import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 
@@ -567,6 +568,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
       // Mostrar recibo ANTES de invalidar providers para evitar rebuild prematuro
       if (mounted) {
+        String? periodoFavorStr;
+        final saldoFinal = (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
+        if (saldoFinal > 0 && cuota > 0) {
+          int dias = (saldoFinal / cuota).floor();
+          if (dias > 0) {
+            final fechaInicio = now.add(const Duration(days: 1));
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(fechaInicio, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -576,11 +587,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: (local.deudaAcumulada ?? 0).toDouble(),
           deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
           montoAbonadoDeuda: 0, // En este caso fue saldo a favor
-          saldoAFavor: (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble(),
+          saldoAFavor: saldoFinal,
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
         );
       }
@@ -749,6 +761,19 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       // IMPORTANTE: Mostrar el recibo ANTES de invalidar los providers,
       // porque ref.invalidate provoca rebuild y puede desmontar el widget.
       if (mounted) {
+        String? periodoFavorStr;
+        if (favorResultante > 0 && cuotaHoy > 0) {
+          int dias = (favorResultante / cuotaHoy).floor();
+          if (dias > 0) {
+            DateTime inicioFavor = now.add(const Duration(days: 1));
+            if (fechasSaldadas.isNotEmpty) {
+               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+               inicioFavor = sorted.last.add(const Duration(days: 1));
+            }
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -758,12 +783,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: saldoResultante,
           deudaAnterior: deudaTotalInicial.toDouble(),
           montoAbonadoDeuda: paraDeudaReal.toDouble(),
-          saldoAFavor: favorResultante,
+          saldoAFavor: favorResultante.toDouble(),
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
           fechasSaldadas: fechasSaldadas,
+          periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
         );
       }

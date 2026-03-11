@@ -46,6 +46,7 @@ class StubPrinterAdapter implements PrinterService {
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
     String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
     final doc = pw.Document();

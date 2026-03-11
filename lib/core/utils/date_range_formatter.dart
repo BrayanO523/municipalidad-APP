@@ -48,6 +48,15 @@ class DateRangeFormatter {
     return rangos.map((r) => r.formatear()).join(', ');
   }
 
+  /// Calcula un rango futuro de días continuos a partir de un [inicio].
+  /// Útil para calcular periodos proyectados por "Saldo a favor".
+  static String? calcularPeriodoFuturo(DateTime inicio, int dias) {
+    if (dias <= 0) return null;
+    if (dias == 1) return _fmt(inicio);
+    final fin = inicio.add(Duration(days: dias - 1));
+    return '${_fmt(inicio)} al ${_fmt(fin)} ($dias días)';
+  }
+
   static String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 

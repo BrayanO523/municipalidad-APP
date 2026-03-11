@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
@@ -349,6 +350,19 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
       if (mounted) {
         setState(() => _isRegistering = false);
+        String? periodoFavorStr;
+        if (favorResultante > 0 && cuota > 0) {
+          int dias = (favorResultante / cuota).floor();
+          if (dias > 0) {
+            DateTime inicioFavor = now.add(const Duration(days: 1));
+            if (fechasSaldadas.isNotEmpty) {
+               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+               inicioFavor = sorted.last.add(const Duration(days: 1));
+            }
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -364,6 +378,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
           fechasSaldadas: fechasSaldadas,
+          periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
         );
         _resetScanner();

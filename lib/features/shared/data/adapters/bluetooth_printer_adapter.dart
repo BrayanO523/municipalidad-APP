@@ -106,6 +106,7 @@ class BluetoothPrinterAdapter implements PrinterService {
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
     String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
     try {
@@ -265,6 +266,9 @@ class BluetoothPrinterAdapter implements PrinterService {
           1,
           0,
         );
+        if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty) {
+          addText('PERIODO A FAVOR: $periodoSaldoAFavorStr', 1, 0);
+        }
       }
       addText(d, 1, 1);
 

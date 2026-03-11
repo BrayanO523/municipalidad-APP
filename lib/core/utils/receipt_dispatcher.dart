@@ -26,6 +26,7 @@ class ReceiptDispatcher {
     required String? cobradorNombre,
     List<DateTime>? fechasSaldadas,
     String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
     if (context.mounted) {
@@ -73,6 +74,8 @@ class ReceiptDispatcher {
             ],
             if (saldoAFavor > 0)
               _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6)),
+            if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+              _infoRow('Periodo a favor:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9)),
             const SizedBox(height: 16),
             const Text(
               '¿Cómo desea entregar el comprobante?',
@@ -103,6 +106,7 @@ class ReceiptDispatcher {
                       boleta: numeroBoleta,
                       fechasSaldadas: fechasSaldadas,
                       periodoAbonadoStr: periodoAbonadoStr,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
                     );
                     if (context.mounted) {
@@ -120,6 +124,7 @@ class ReceiptDispatcher {
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
                         fechasSaldadas: fechasSaldadas,
+                        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                       );
                     }
@@ -154,6 +159,7 @@ class ReceiptDispatcher {
                       boleta: numeroBoleta,
                       fechasSaldadas: fechasSaldadas,
                       periodoAbonadoStr: periodoAbonadoStr,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
                     );
                   },
@@ -186,6 +192,7 @@ class ReceiptDispatcher {
                       merc: mercadoNombre,
                       cobrador: cobradorNombre,
                       fechasSaldadas: fechasSaldadas,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
                     );
                   },
@@ -256,6 +263,7 @@ class ReceiptDispatcher {
     required String boleta,
     List<DateTime>? fechasSaldadas,
     String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
     try {
@@ -275,6 +283,7 @@ class ReceiptDispatcher {
         anioCorrelativo: fecha.year,
         fechasSaldadas: fechasSaldadas,
         periodoAbonadoStr: periodoAbonadoStr,
+        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
         slogan: slogan,
       );
     } catch (_) {}
@@ -294,6 +303,7 @@ class ReceiptDispatcher {
     required String? merc,
     required String? cobrador,
     List<DateTime>? fechasSaldadas,
+    String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
     String? diasCubiertosStr;
@@ -335,6 +345,8 @@ class ReceiptDispatcher {
               ] else if (saldoPendiente > 0)
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
               if (saldoAFavor > 0) _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
+              if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+                _pdfRow('PERIODO A FAVOR:', periodoSaldoAFavorStr),
               pw.SizedBox(height: 8),
               pw.Text(slogan ?? '¡Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
               pw.Text(DateFormatter.formatDateTime(DateTime.now()), style: const pw.TextStyle(fontSize: 7)),

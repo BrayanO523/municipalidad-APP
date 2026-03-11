@@ -1374,6 +1374,22 @@ class _CobroTile extends ConsumerWidget {
 
     // -----------------------------
 
+    String? periodoFavorStr;
+    final favorResultante = (cobro.nuevoSaldoFavor ?? 0).toDouble();
+    final cuota = (cobro.cuotaDiaria ?? 0).toDouble();
+    if (favorResultante > 0 && cuota > 0) {
+      int dias = (favorResultante / cuota).floor();
+      if (dias > 0) {
+        DateTime inicioFavor = (cobro.fecha ?? DateTime.now()).add(const Duration(days: 1));
+        final fechasSaldadas = cobro.fechasDeudasSaldadas ?? [];
+        if (fechasSaldadas.isNotEmpty) {
+           final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+           inicioFavor = sorted.last.add(const Duration(days: 1));
+        }
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+      }
+    }
+
     final impreso = await printer.printReceipt(
       empresa: muni?.nombre ?? 'Municipalidad',
       mercado: merc?.nombre ?? 'Mercado',
@@ -1386,8 +1402,9 @@ class _CobroTile extends ConsumerWidget {
       saldoPendiente: (cobro.saldoPendiente ?? 0).toDouble(),
       deudaAnterior: (cobro.deudaAnterior ?? 0).toDouble(),
       montoAbonadoDeuda: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
-      saldoAFavor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
+      saldoAFavor: favorResultante,
       fechasSaldadas: cobro.fechasDeudasSaldadas,
+      periodoSaldoAFavorStr: periodoFavorStr,
       slogan: muni?.slogan,
     );
 
