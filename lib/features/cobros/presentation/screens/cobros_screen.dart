@@ -537,20 +537,20 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     showDialog(
       context: context,
       builder:
-          (_) => AlertDialog(
+          (dialogCtx) => AlertDialog(
             title: const Text('Eliminar Cobro'),
             content: Text(
               '¿Estás seguro de eliminar este cobro de L. ${c.monto}? Esto revertirá los saldos y deudas asociados.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('Cancelar'),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: Colors.red),
                 onPressed: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogCtx);
                   try {
                     await ref
                         .read(cobrosPaginadosProvider.notifier)
