@@ -134,7 +134,6 @@ class StatsDatasource {
   }
 
   /// Recalcula el mapa `diario` de hoy desde los cobros reales.
-  /// También limpia campos planos corruptos (e.g. 'diario.2026-03-11.cobros').
   Future<void> recalcularDiarioHoy(String municipalidadId) async {
     final hoy = DateTime.now();
     final inicio = DateTime(hoy.year, hoy.month, hoy.day);
@@ -158,25 +157,7 @@ class StatsDatasource {
       totalCobros++;
     }
 
-    // 1. Limpiar campos planos corruptos creados por set(merge:true) con dot notation
-    try {
-      await _doc(municipalidadId).update({
-        'diario.$key.cobros': FieldValue.delete(),
-        'diario.$key.recaudado': FieldValue.delete(),
-      });
-    } catch (_) {
-      // Si el doc no existe o los campos no existen, ignorar
-    }
-
-    // 2. Eliminar los campos planos con nombre literal (ej: "diario.2026-03-11.cobros")
-    try {
-      await _doc(municipalidadId).update({
-        'diario.$key.cobros': FieldValue.delete(),
-        'diario.$key.recaudado': FieldValue.delete(),
-      });
-    } catch (_) {}
-
-    // 3. Escribir la estructura anidada correcta usando update()
+    // Escribir la estructura anidada correcta: diario -> key -> {recaudado, cobros}
     await _doc(municipalidadId).update({
       'diario.$key.recaudado': totalRecaudado,
       'diario.$key.cobros': totalCobros,
