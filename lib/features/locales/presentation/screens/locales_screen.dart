@@ -667,8 +667,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     );
 
     if (confirm == true) {
+      final usuario = ref.read(currentUsuarioProvider).value;
       final ds = ref.read(localDatasourceProvider);
-      await ds.eliminar(local.id!);
+      await ds.eliminar(local.id!, municipalidadId: usuario?.municipalidadId);
       ref.read(localesPaginadosProvider.notifier).recargar();
     }
   }

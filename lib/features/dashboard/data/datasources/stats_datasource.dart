@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class StatsModel {
   final num totalCobrado;
@@ -7,6 +8,9 @@ class StatsModel {
   final int cantidadLocales;
   final int cantidadMercados;
   final DateTime? ultimaActualizacion;
+  
+  // Mapa agrupado por "yyyy-MM-dd"
+  final Map<String, dynamic> diario;
 
   StatsModel({
     this.totalCobrado = 0,
@@ -15,6 +19,7 @@ class StatsModel {
     this.cantidadLocales = 0,
     this.cantidadMercados = 0,
     this.ultimaActualizacion,
+    this.diario = const {},
   });
 
   factory StatsModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +30,7 @@ class StatsModel {
       cantidadLocales: (json['cantidadLocales'] as num?)?.toInt() ?? 0,
       cantidadMercados: (json['cantidadMercados'] as num?)?.toInt() ?? 0,
       ultimaActualizacion: (json['ultimaActualizacion'] as Timestamp?)?.toDate(),
+      diario: json['diario'] as Map<String, dynamic>? ?? {},
     );
   }
 
@@ -35,7 +41,24 @@ class StatsModel {
     'cantidadLocales': cantidadLocales,
     'cantidadMercados': cantidadMercados,
     'ultimaActualizacion': FieldValue.serverTimestamp(),
+    'diario': diario, // no se suele sobreescribir completo, es para lectura local
   };
+
+  /// Obtiene la recaudación específica del día actual local.
+  num get recaudacionHoy {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dia = diario[key] as Map<String, dynamic>?;
+    if (dia == null) return 0;
+    return (dia['recaudado'] as num?) ?? 0;
+  }
+
+  /// Obtiene la cantidad de recibos emitidos el día actual local.
+  int get cobrosHoy {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dia = diario[key] as Map<String, dynamic>?;
+    if (dia == null) return 0;
+    return ((dia['cobros'] as num?) ?? 0).toInt();
+  }
 }
 
 class StatsDatasource {
@@ -60,11 +83,44 @@ class StatsDatasource {
     required num abonoDeuda,
     required num incrementoSaldo,
   }) async {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
     await _doc(municipalidadId).set({
       'totalCobrado': FieldValue.increment(montoCobrado),
       'totalDeuda': FieldValue.increment(-abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
+      'diario': {
+        key: {
+          'recaudado': FieldValue.increment(montoCobrado),
+          'cobros': FieldValue.increment(1),
+        }
+      }
+    }, SetOptions(merge: true));
+  }
+
+  /// Revierte las estadísticas al eliminar/anular un cobro.
+  /// Requiere la [fechaCobroOriginal] para descontar el contador del día correcto en el mapa `diario`.
+  Future<void> revertirCobro({
+    required String municipalidadId,
+    required num montoCobrado,
+    required num abonoDeuda,
+    required num incrementoSaldo,
+    required DateTime fechaCobroOriginal,
+  }) async {
+    final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
+
+    await _doc(municipalidadId).set({
+      'totalCobrado': FieldValue.increment(-montoCobrado),
+      'totalDeuda': FieldValue.increment(abonoDeuda),
+      'totalSaldoAFavor': FieldValue.increment(-incrementoSaldo),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+      'diario': {
+        key: {
+          'recaudado': FieldValue.increment(-montoCobrado),
+          'cobros': FieldValue.increment(-1),
+        }
+      }
     }, SetOptions(merge: true));
   }
 

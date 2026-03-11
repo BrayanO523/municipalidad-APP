@@ -519,7 +519,31 @@ class CobroDatasource {
   }
 
   // DELETE
-  Future<void> eliminar(String docId) async {
+  Future<void> eliminar(String docId, {String? municipalidadId}) async {
+    final docSnap = await _collection.doc(docId).get();
+    
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      final targetMuniId = municipalidadId ?? data['municipalidadId'] as String?;
+      final montoCobrado = (data['monto'] as num?) ?? 0;
+      final abonoDeuda = (data['montoAbonadoDeuda'] as num?) ?? 0;
+      final incrementoSaldo = (data['nuevoSaldoFavor'] as num?) ?? 0;
+      
+      final fechaRaw = data['fecha'];
+      DateTime fechaCobro = DateTime.now();
+      if (fechaRaw is Timestamp) fechaCobro = fechaRaw.toDate();
+
+      if (targetMuniId != null) {
+        _statsDs.revertirCobro(
+          municipalidadId: targetMuniId,
+          montoCobrado: montoCobrado,
+          abonoDeuda: abonoDeuda,
+          incrementoSaldo: incrementoSaldo,
+          fechaCobroOriginal: fechaCobro,
+        ).catchError((e) => debugPrint('Error al revertir stats por cobro eliminado: $e'));
+      }
+    }
+
     await _collection.doc(docId).delete();
   }
 

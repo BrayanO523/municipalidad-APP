@@ -170,7 +170,7 @@ class CobroRepositoryImpl implements CobroRepository {
 
     // 1. Eliminar el registro del cobro (Remote + Local Cache)
     if (cobro.id != null) {
-      await _remoteDatasource.eliminar(cobro.id!);
+      await _remoteDatasource.eliminar(cobro.id!, municipalidadId: cobro.municipalidadId);
       await _localDatasource.eliminarCobro(cobro.id!);
     }
 

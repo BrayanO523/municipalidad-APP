@@ -62,53 +62,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     SizedBox(
                       width: cardW,
-                      child: cobrosHoy.when(
-                        data: (cobros) {
-                          final totalCobrado = cobros.fold<num>(
-                            0,
-                            (sum, c) => sum + (c.monto ?? 0),
-                          );
-                          return MetricCard(
-                            title: 'Recaudación ${filter.label}',
-                            value: DateFormatter.formatCurrency(totalCobrado),
-                            icon: Icons.payments_rounded,
-                            color: const Color(0xFF00D9A6),
-                          );
-                        },
-                        loading: () => MetricCard(
-                          title: 'Recaudación ${filter.label}',
-                          value: '...',
+                      child: stats.when(
+                        data: (s) => MetricCard(
+                          title: 'Recaudación Hoy',
+                          value: DateFormatter.formatCurrency(s.recaudacionHoy),
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF00D9A6),
                         ),
-                        error: (_, __) => MetricCard(
-                          title: 'Recaudación ${filter.label}',
+                        loading: () => const MetricCard(
+                          title: 'Recaudación Hoy',
+                          value: '...',
+                          icon: Icons.payments_rounded,
+                          color: Color(0xFF00D9A6),
+                        ),
+                        error: (_, __) => const MetricCard(
+                          title: 'Recaudación Hoy',
                           value: 'Error',
                           icon: Icons.payments_rounded,
-                          color: const Color(0xFF00D9A6),
+                          color: Color(0xFF00D9A6),
                         ),
                       ),
                     ),
                     SizedBox(
                       width: cardW,
-                      child: cobrosHoy.when(
-                        data: (cobros) => MetricCard(
-                          title: 'Cobros ${filter.label}',
-                          value: '${cobros.length}',
+                      child: stats.when(
+                        data: (s) => MetricCard(
+                          title: 'Cobros Hoy',
+                          value: '${s.cobrosHoy}',
                           icon: Icons.receipt_long_rounded,
                           color: const Color(0xFF6C63FF),
                         ),
-                        loading: () => MetricCard(
-                          title: 'Cobros ${filter.label}',
+                        loading: () => const MetricCard(
+                          title: 'Cobros Hoy',
                           value: '...',
                           icon: Icons.receipt_long_rounded,
-                          color: const Color(0xFF6C63FF),
+                          color: Color(0xFF6C63FF),
                         ),
-                        error: (_, __) => MetricCard(
-                          title: 'Cobros ${filter.label}',
+                        error: (_, __) => const MetricCard(
+                          title: 'Cobros Hoy',
                           value: 'Error',
                           icon: Icons.receipt_long_rounded,
-                          color: const Color(0xFF6C63FF),
+                          color: Color(0xFF6C63FF),
                         ),
                       ),
                     ),
