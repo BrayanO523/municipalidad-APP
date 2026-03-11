@@ -476,87 +476,8 @@ class _DashboardHeader extends ConsumerWidget {
                 ),
               ),
 
-            const SizedBox(width: 8),
-            if (kDebugMode)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Sincronizar Deudas'),
-                      content: const Text(
-                        '¿Desea recalcular la deuda acumulada de todos los locales basándose estrictamente en su historial de cobros pendientes? Esto solucionará cualquier descuadre de datos.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Sincronizar'),
-                        ),
-                      ],
-                    ),
-                  );
 
-                  if (confirm == true) {
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Sincronizando deudas con historial...',
-                          ),
-                        ),
-                      );
-                      final repo = ref.read(localRepositoryProvider);
-                      final statsDs = ref.read(statsDatasourceProvider);
-                      final user = ref.read(currentUsuarioProvider).value;
 
-                      final procesados = await repo
-                          .recalcularDeudasBasadoEnHistorial();
-                      
-                      if (user?.municipalidadId != null) {
-                        await statsDs.recalcularTodo(user!.municipalidadId!);
-                      }
-
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sincronización exitosa: $procesados locales y estadísticas actualizadas.',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        ref.invalidate(statsProvider);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error al sincronizar: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
-                      }
-                    }
-                  }
-                },
-                icon: const Icon(Icons.sync_problem_rounded, size: 18),
-                label: const Text('Sincronizar Deudas'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
             const SizedBox(width: 8),
             if (kDebugMode)
               ElevatedButton.icon(
