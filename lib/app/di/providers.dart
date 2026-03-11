@@ -208,7 +208,9 @@ final municipalidadActualProvider = Provider<Municipalidad?>((ref) {
   );
 });
 
-final mercadosProvider = StreamProvider.autoDispose<List<Mercado>>((ref) {
+// P1: Sin autoDispose — se lee 1 sola vez por sesión. Firestore envía solo deltas
+// incrementales cuando un mercado cambia. Re-leer 30 mercados solo al iniciar sesión.
+final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final repo = ref.read(mercadoRepositoryProvider);
   if (user?.municipalidadId != null) {
@@ -217,7 +219,9 @@ final mercadosProvider = StreamProvider.autoDispose<List<Mercado>>((ref) {
   return repo.streamTodos();
 });
 
-final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
+// P1: Sin autoDispose — se lee 1 sola vez por sesión. Firestore envía solo deltas
+// incrementales cuando un local cambia. Re-leer 600 locales solo al iniciar sesión.
+final localesProvider = StreamProvider<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(localDatasourceProvider);
   if (user?.municipalidadId != null) {
