@@ -266,7 +266,10 @@ class BluetoothPrinterAdapter implements PrinterService {
 
       // 5. PIE (Centrado)
       addText('', 1, 1); // Espacio en blanco
-      addText(slogan ?? 'Gracias por su pago!', 1, 1);
+      addText('¡Gracias por su pago!', 1, 1);
+      if (slogan != null && slogan.trim().isNotEmpty) {
+        addText(slogan.trim(), 1, 1);
+      }
       bytes.addAll([10, 10, 10]); // Avance de papel para fácil corte
 
       // Enviar de una sola vez

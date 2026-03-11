@@ -369,7 +369,11 @@ class ReceiptDispatcher {
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 8),
               
-              pw.Text(slogan ?? 'Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+              pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              if (slogan != null && slogan.trim().isNotEmpty) ...[
+                pw.SizedBox(height: 4),
+                pw.Text(slogan, style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+              ],
               pw.SizedBox(height: 6),
             ],
           );
