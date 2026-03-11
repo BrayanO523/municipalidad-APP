@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -32,11 +32,11 @@ class RecentCobrosTable extends ConsumerWidget {
               child: Center(
                 child: Builder(
                   builder: (context) => Text(
-                    'No hay cobros registrados aún',
+                    'No hay cobros registrados aÃºn',
                     style: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.54),
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                   ),
                 ),
@@ -118,7 +118,7 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
               DataColumn(label: _buildHeaderCell('Local')),
               DataColumn(label: _buildHeaderCell('Mercado')),
               DataColumn(label: _buildHeaderCell('Representante')),
-              DataColumn(label: _buildHeaderCell('Teléfono')),
+              DataColumn(label: _buildHeaderCell('TelÃ©fono')),
               DataColumn(label: _buildHeaderCell('Cobrador')),
               DataColumn(label: _buildHeaderCell('Monto'), numeric: true),
               DataColumn(label: _buildHeaderCell('Estado')),
@@ -204,7 +204,7 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
                       ? () => setState(() => _currentPage--)
                       : null,
                 ),
-                Text('Página ${_currentPage + 1} de $totalPages'),
+                Text('PÃ¡gina ${_currentPage + 1} de $totalPages'),
                 IconButton(
                   icon: const Icon(Icons.chevron_right_rounded),
                   onPressed: _currentPage < totalPages - 1
@@ -263,3 +263,4 @@ class _EstadoChip extends StatelessWidget {
     );
   }
 }
+

@@ -39,14 +39,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [Expanded(child: _DashboardHeader())],
             ),
             const SizedBox(height: 24),
 
-            // ── KPI cards — fila 1: recaudación del día ──────────────────────
+            // â”€â”€ KPI cards â€” fila 1: recaudaciÃ³n del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             LayoutBuilder(
               builder: (context, constraints) {
                 final crossAxisCount = constraints.maxWidth > 1000
@@ -70,20 +70,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             (sum, c) => sum + (c.monto ?? 0),
                           );
                           return MetricCard(
-                            title: 'Recaudación ${filter.label}',
+                            title: 'RecaudaciÃ³n ${filter.label}',
                             value: DateFormatter.formatCurrency(totalCobrado),
                             icon: Icons.payments_rounded,
                             color: const Color(0xFF00D9A6),
                           );
                         },
                         loading: () => MetricCard(
-                          title: 'Recaudación ${filter.label}',
+                          title: 'RecaudaciÃ³n ${filter.label}',
                           value: '...',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF00D9A6),
                         ),
                         error: (_, __) => MetricCard(
-                          title: 'Recaudación ${filter.label}',
+                          title: 'RecaudaciÃ³n ${filter.label}',
                           value: 'Error',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF00D9A6),
@@ -117,7 +117,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       width: cardW,
                       child: stats.when(
                         data: (s) {
-                          print('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
+                          debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
                           return MetricCard(
                             title: 'Mercados Activos',
                             value: '${s.cantidadMercados}',
@@ -132,7 +132,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           color: Color(0xFFFF9F43),
                         ),
                         error: (err, stack) {
-                          print('❌ ERROR AL CARGAR STATS: $err\n$stack');
+                          debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
                           return const MetricCard(
                             title: 'Mercados Activos',
                             value: 'Error',
@@ -171,7 +171,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── KPI cards — fila 2: deudas y saldo a favor ───────────────────
+            // â”€â”€ KPI cards â€” fila 2: deudas y saldo a favor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             stats.when(
               data: (s) {
                 final deudaTotal = s.totalDeuda;
@@ -204,7 +204,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             icon: Icons.savings_rounded,
                             color: const Color(0xFF00D9A6),
-                            subtitle: 'Total global de créditos',
+                            subtitle: 'Total global de crÃ©ditos',
                           ),
                         ),
                       ],
@@ -217,7 +217,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Gráficos ─────────────────────────────────────────────────────
+            // â”€â”€ GrÃ¡ficos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             DashboardChartsWidget(
               cobrosHoy: cobrosHoy.value ?? [],
               locales: localesAsync.value ?? [],
@@ -227,7 +227,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             const SizedBox(height: 24),
 
-            // ── Cobros de la Fecha ───────────────────────────────────────────
+            // â”€â”€ Cobros de la Fecha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Builder(
               builder: (context) {
                 final titulo = filter.period == DashboardPeriod.hoy
@@ -251,7 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Widgets de apoyo ──────────────────────────────────────────────────────────
+// â”€â”€ Widgets de apoyo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _DashboardHeader extends ConsumerWidget {
   @override
@@ -349,7 +349,7 @@ class _DashboardHeader extends ConsumerWidget {
                     builder: (context) => AlertDialog(
                       title: const Text('Parchar y Limpiar Sistema'),
                       content: const Text(
-                        '¿Desea ejecutar el parchado integral de datos? Esto inicializará los nuevos correlativos en Mercados, limpiará campos obsoletos en Usuarios y Locales, y parchará el historial de cobros para el modo offline.',
+                        'Â¿Desea ejecutar el parchado integral de datos? Esto inicializarÃ¡ los nuevos correlativos en Mercados, limpiarÃ¡ campos obsoletos en Usuarios y Locales, y parcharÃ¡ el historial de cobros para el modo offline.',
                       ),
                       actions: [
                         TextButton(
@@ -365,6 +365,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -378,7 +379,7 @@ class _DashboardHeader extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Operación exitosa: $procesados registros parchados.',
+                              'OperaciÃ³n exitosa: $procesados registros parchados.',
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -417,9 +418,9 @@ class _DashboardHeader extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('Importación Masiva de Locales'),
+                      title: const Text('ImportaciÃ³n Masiva de Locales'),
                       content: const Text(
-                        'Se importarán 590 locales únicos al Mercado Inmaculada Concepción. ¿Desea proceder? Esta acción creará documentos en Firestore automáticamente.',
+                        'Se importarÃ¡n 590 locales Ãºnicos al Mercado Inmaculada ConcepciÃ³n. Â¿Desea proceder? Esta acciÃ³n crearÃ¡ documentos en Firestore automÃ¡ticamente.',
                       ),
                       actions: [
                         TextButton(
@@ -435,6 +436,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -483,7 +485,7 @@ class _DashboardHeader extends ConsumerWidget {
                     builder: (context) => AlertDialog(
                       title: const Text('Sincronizar Deudas'),
                       content: const Text(
-                        '¿Desea recalcular la deuda acumulada de todos los locales basándose estrictamente en su historial de cobros pendientes? Esto solucionará cualquier descuadre de datos.',
+                        'Â¿Desea recalcular la deuda acumulada de todos los locales basÃ¡ndose estrictamente en su historial de cobros pendientes? Esto solucionarÃ¡ cualquier descuadre de datos.',
                       ),
                       actions: [
                         TextButton(
@@ -499,6 +501,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -522,7 +525,7 @@ class _DashboardHeader extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Sincronización exitosa: $procesados locales y estadísticas actualizadas.',
+                              'SincronizaciÃ³n exitosa: $procesados locales y estadÃ­sticas actualizadas.',
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -562,11 +565,11 @@ class _DashboardHeader extends ConsumerWidget {
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text(
-                        '¿RESETEAR SISTEMA COMPLETO?',
+                        'Â¿RESETEAR SISTEMA COMPLETO?',
                         style: TextStyle(color: Colors.red),
                       ),
                       content: const Text(
-                        'Esta acción eliminará TODOS los cobros y reiniciará los correlativos a 1. Es irreversible. ¿Está seguro?',
+                        'Esta acciÃ³n eliminarÃ¡ TODOS los cobros y reiniciarÃ¡ los correlativos a 1. Es irreversible. Â¿EstÃ¡ seguro?',
                       ),
                       actions: [
                         TextButton(
@@ -585,6 +588,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Reseteando sistema...')),
@@ -622,7 +626,7 @@ class _DashboardHeader extends ConsumerWidget {
                 icon: const Icon(Icons.delete_forever_rounded, size: 18),
                 label: const Text('Resetear Sistema'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withOpacity(0.1),
+                  backgroundColor: Colors.red.withValues(alpha: 0.1),
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red, width: 0.5),
                   padding: const EdgeInsets.symmetric(
@@ -640,7 +644,7 @@ class _DashboardHeader extends ConsumerWidget {
                     builder: (context) => AlertDialog(
                       title: const Text('Vincular Todo a Choluteca'),
                       content: const Text(
-                        'Esta acción forzará que todos los locales, usuarios y cobros estén vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada Concepción. ¿Desea proceder?',
+                        'Esta acciÃ³n forzarÃ¡ que todos los locales, usuarios y cobros estÃ©n vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada ConcepciÃ³n. Â¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -656,6 +660,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Vinculando datos...')),
@@ -665,7 +670,7 @@ class _DashboardHeader extends ConsumerWidget {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Resultado de Vinculación'),
+                            title: const Text('Resultado de VinculaciÃ³n'),
                             content: SingleChildScrollView(child: Text(res)),
                             actions: [
                               TextButton(
@@ -779,7 +784,7 @@ class _PeriodSelector extends ConsumerWidget {
               .setPeriod(DashboardPeriod.mes),
         ),
         _PeriodChip(
-          label: 'Año',
+          label: 'AÃ±o',
           selected: filter.period == DashboardPeriod.anio,
           onSelected: () => ref
               .read(dashboardFilterProvider.notifier)
@@ -819,14 +824,15 @@ class _PeriodChip extends StatelessWidget {
       labelStyle: TextStyle(
         color: selected
             ? colorScheme.onSurface
-            : colorScheme.onSurface.withOpacity(0.54),
+            : colorScheme.onSurface.withValues(alpha: 0.54),
         fontSize: 12,
       ),
-      selectedColor: const Color(0xFF00D9A6).withOpacity(0.3),
-      backgroundColor: colorScheme.onSurface.withOpacity(0.05),
+      selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
+      backgroundColor: colorScheme.onSurface.withValues(alpha: 0.05),
       showCheckmark: false,
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }
+

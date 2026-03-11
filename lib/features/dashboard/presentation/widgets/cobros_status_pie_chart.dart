@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../cobros/domain/entities/cobro.dart';
@@ -6,7 +6,7 @@ import '../../../locales/domain/entities/local.dart';
 
 class CobrosStatusPieChart extends StatelessWidget {
   final List<Cobro>
-  cobrosHoy; // Ya no se usa para el cálculo, pero se mantiene la firma
+  cobrosHoy; // Ya no se usa para el cÃ¡lculo, pero se mantiene la firma
   final List<Local> locales;
 
   const CobrosStatusPieChart({
@@ -36,7 +36,7 @@ class CobrosStatusPieChart extends StatelessWidget {
       }
     }
 
-    // Asegurar que haya algo que mostrar incluso si todos están en 0
+    // Asegurar que haya algo que mostrar incluso si todos estÃ¡n en 0
     final hasData = totalLocales > 0;
 
     return Card(
@@ -60,7 +60,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                   child: Text(
                     'Sin locales activos',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withOpacity(0.54),
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                   ),
                 ),
@@ -123,7 +123,7 @@ class CobrosStatusPieChart extends StatelessWidget {
               children: [
                 _Indicator(
                   color: const Color(0xFF00D9A6),
-                  text: 'Al Día ($localesAlDia)',
+                  text: 'Al DÃ­a ($localesAlDia)',
                 ),
                 _Indicator(
                   color: const Color(0xFFEE5A6F),
@@ -165,10 +165,11 @@ class _Indicator extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: 12,
-            color: colorScheme.onSurface.withOpacity(0.7),
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ],
     );
   }
 }
+
