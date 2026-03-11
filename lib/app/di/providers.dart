@@ -274,11 +274,11 @@ final cobrosFiltradosProvider = StreamProvider<List<Cobro>>((ref) {
   final hoy = DateTime(now.year, now.month, now.day);
   final rangoEfectivo = rango ?? DateTimeRange(start: hoy, end: hoy);
 
-  return ds.streamPorRangoFechas(
+  return Stream.fromFuture(ds.listarPorRangoFechas(
     rangoEfectivo.start,
     rangoEfectivo.end,
     municipalidadId: user?.municipalidadId,
-  );
+  ));
 });
 
 enum DashboardPeriod { hoy, semana, mes, anio, personalizado }
