@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -100,6 +100,14 @@ class _SidebarNavigation extends ConsumerWidget {
             isExpanded: isExpanded,
             municipalidad: nombreMunicipalidad,
             nombreCompleto: usuario?.nombre ?? 'Administrador',
+            onEditSlogan: () {
+              final mun = municipalidades
+                  .where((m) => m.id == usuario?.municipalidadId)
+                  .firstOrNull;
+              if (mun != null && context.mounted) {
+                _mostrarDialogoSlogan(context, ref, mun);
+              }
+            },
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -134,6 +142,98 @@ class _SidebarNavigation extends ConsumerWidget {
               final ds = ref.read(authDatasourceProvider);
               await ds.logout();
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _mostrarDialogoSlogan(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic muni,
+  ) {
+    final sloganCtrl = TextEditingController(text: muni.slogan ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded),
+            SizedBox(width: 8),
+            Text('Slogan de Recibos'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Este texto aparecerá en el pie de página de todos los recibos y tickets de los cobradores asignados a esta municipalidad.',
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: sloganCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Slogan',
+                  hintText: 'Ej: Al servicio de nuestro pueblo',
+                  border: OutlineInputBorder(),
+                ),
+                maxLength: 60,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final ds = ref.read(municipalidadDatasourceProvider);
+              final doc = await ds.obtenerPorId(muni.id!);
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text('RAW DB: ${doc?.slogan ?? "NO EXISTE EL CAMPO SLOGAN EN DB"}'),
+                    backgroundColor: Colors.purple,
+                    duration: const Duration(seconds: 10),
+                  )
+                );
+              }
+            },
+            child: const Text('DEBUG DB', style: TextStyle(color: Colors.purple)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              final nuevoSlogan = sloganCtrl.text.trim();
+              final ds = ref.read(municipalidadDatasourceProvider);
+              await ds.actualizar(muni.id!, {
+                'slogan': nuevoSlogan.isEmpty ? null : nuevoSlogan,
+              });
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Slogan actualizado correctamente'),
+                    backgroundColor: Color(0xFF00D9A6),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.save_rounded, size: 18),
+            label: const Text('Guardar'),
           ),
         ],
       ),
@@ -264,11 +364,13 @@ class _SidebarHeader extends StatelessWidget {
   final bool isExpanded;
   final String municipalidad;
   final String nombreCompleto;
+  final VoidCallback? onEditSlogan;
 
   const _SidebarHeader({
     required this.isExpanded,
     required this.municipalidad,
     required this.nombreCompleto,
+    this.onEditSlogan,
   });
 
   @override
@@ -327,6 +429,18 @@ class _SidebarHeader extends StatelessWidget {
                 ],
               ),
             ),
+            if (onEditSlogan != null)
+              IconButton(
+                onPressed: onEditSlogan,
+                icon: Icon(
+                  Icons.settings_rounded,
+                  size: 18,
+                  color: colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+                tooltip: 'Configurar slogan de recibos',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
           ] else
             const SizedBox.shrink(),
         ],

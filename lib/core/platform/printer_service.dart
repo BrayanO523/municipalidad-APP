@@ -34,5 +34,7 @@ abstract class PrinterService {
     required String numeroBoleta,
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? slogan,
   });
 }

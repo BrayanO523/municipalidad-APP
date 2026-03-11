@@ -24,13 +24,14 @@ class MunicipalidadHiveAdapter extends TypeAdapter<MunicipalidadHive> {
       logo: fields[4] as String?,
       activa: fields[5] as bool?,
       porcentaje: fields[6] as double?,
+      slogan: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MunicipalidadHive obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class MunicipalidadHiveAdapter extends TypeAdapter<MunicipalidadHive> {
       ..writeByte(5)
       ..write(obj.activa)
       ..writeByte(6)
-      ..write(obj.porcentaje);
+      ..write(obj.porcentaje)
+      ..writeByte(7)
+      ..write(obj.slogan);
   }
 
   @override

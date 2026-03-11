@@ -521,6 +521,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
         saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
+        slogan: municipalidad?.slogan,
       );
 
     } catch (e) {

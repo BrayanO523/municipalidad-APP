@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../features/locales/domain/entities/local.dart';
 import '../../app/di/providers.dart';
 import 'date_formatter.dart';
+import 'date_range_formatter.dart';
 
 class ReceiptDispatcher {
   static Future<void> presentReceiptOptions({
@@ -24,7 +25,19 @@ class ReceiptDispatcher {
     required String? mercadoNombre,
     required String? cobradorNombre,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? slogan,
   }) async {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Local_Muni_ID: ${local.municipalidadId} | Nombre: $municipalidadNombre | slogan: ${slogan ?? "NULO"}'),
+          backgroundColor: Colors.indigo,
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
+
     return showDialog(
       context: context,
       barrierDismissible: false,
@@ -50,15 +63,14 @@ class ReceiptDispatcher {
             _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true),
             if (montoAbonadoDeuda > 0)
               _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent),
-            // Mostrar las fechas de días saldados (FIFO)
-            if (fechasSaldadas != null && fechasSaldadas.isNotEmpty)
-              _infoRow(
-                'Días cubiertos:',
-                fechasSaldadas
-                    .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}')
-                    .join(' · '),
-                color: Colors.orangeAccent.withValues(alpha: 0.9),
-              ),
+            if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
+              if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                _infoRow(
+                  'Periodo abonado:',
+                  periodoAbonadoStr ?? DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                  color: Colors.orangeAccent.withValues(alpha: 0.9),
+                ),
+            ],
             if (saldoAFavor > 0)
               _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6)),
             const SizedBox(height: 16),
@@ -90,6 +102,8 @@ class ReceiptDispatcher {
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
                       fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
+                      slogan: slogan,
                     );
                     if (context.mounted) {
                       await _compartirPdf(
@@ -106,6 +120,7 @@ class ReceiptDispatcher {
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
                         fechasSaldadas: fechasSaldadas,
+                        slogan: slogan,
                       );
                     }
                   },
@@ -138,6 +153,8 @@ class ReceiptDispatcher {
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
                       fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
+                      slogan: slogan,
                     );
                   },
                   icon: const Icon(Icons.print_rounded),
@@ -169,6 +186,7 @@ class ReceiptDispatcher {
                       merc: mercadoNombre,
                       cobrador: cobradorNombre,
                       fechasSaldadas: fechasSaldadas,
+                      slogan: slogan,
                     );
                   },
                   icon: const Icon(Icons.share_rounded),
@@ -237,6 +255,8 @@ class ReceiptDispatcher {
     required String? cobrador,
     required String boleta,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? slogan,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -254,6 +274,8 @@ class ReceiptDispatcher {
         numeroBoleta: boleta,
         anioCorrelativo: fecha.year,
         fechasSaldadas: fechasSaldadas,
+        periodoAbonadoStr: periodoAbonadoStr,
+        slogan: slogan,
       );
     } catch (_) {}
   }
@@ -272,12 +294,11 @@ class ReceiptDispatcher {
     required String? merc,
     required String? cobrador,
     List<DateTime>? fechasSaldadas,
+    String? slogan,
   }) async {
     String? diasCubiertosStr;
     if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
-      diasCubiertosStr = fechasSaldadas
-          .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}')
-          .join(', ');
+      diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
     }
 
     final doc = pw.Document();
@@ -307,14 +328,15 @@ class ReceiptDispatcher {
               if (deudaAnterior > 0) ...[
                 _pdfRow('DEUDA ANT.:', DateFormatter.formatCurrency(deudaAnterior)),
                 _pdfRow('ABONO:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
-                if (diasCubiertosStr != null)
-                  _pdfRow('DIAS CUBIERTOS:', diasCubiertosStr),
+                if (fechasSaldadas != null && fechasSaldadas.length > 1)
+                  if (diasCubiertosStr != null)
+                    _pdfRow('PERIODO ABONADO:', diasCubiertosStr),
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
               ] else if (saldoPendiente > 0)
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
               if (saldoAFavor > 0) _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
               pw.SizedBox(height: 8),
-              pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
+              pw.Text(slogan ?? '¡Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
               pw.Text(DateFormatter.formatDateTime(DateTime.now()), style: const pw.TextStyle(fontSize: 7)),
             ],
           );

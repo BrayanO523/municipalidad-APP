@@ -38,9 +38,15 @@ class MunicipalidadDatasource {
   }
 
   Future<MunicipalidadJson?> obtenerPorId(String docId) async {
-    final doc = await _collection.doc(docId).get();
-    if (!doc.exists) return null;
-    return MunicipalidadJson.fromJson(doc.data()!, docId: doc.id);
+    try {
+      final doc = await _collection.doc(docId).get().timeout(const Duration(seconds: 3));
+      if (!doc.exists) return null;
+      return MunicipalidadJson.fromJson(doc.data()!, docId: doc.id);
+    } catch (_) {
+      final docCache = await _collection.doc(docId).get(const GetOptions(source: Source.cache));
+      if (!docCache.exists) return null;
+      return MunicipalidadJson.fromJson(docCache.data()!, docId: docCache.id);
+    }
   }
 
   // UPDATE

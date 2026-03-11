@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/platform/printer_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -104,6 +105,8 @@ class BluetoothPrinterAdapter implements PrinterService {
     required String numeroBoleta,
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? slogan,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -221,13 +224,6 @@ class BluetoothPrinterAdapter implements PrinterService {
           1,
           0,
         );
-        // Fechas cubiertas (FIFO)
-        if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
-          final diasStr = fechasSaldadas
-              .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}')
-              .join(' ');
-          addText('DIAS: $diasStr', 1, 0);
-        }
         addText(
           r(
             'DEUDA ACT.:',
@@ -248,6 +244,17 @@ class BluetoothPrinterAdapter implements PrinterService {
           0,
         );
       }
+
+      // Fechas cubiertas (Ya sea por abono de deuda o pagos pre-agrupados)
+      if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-') {
+        addText('PERIODO ABONADO: $periodoAbonadoStr', 1, 0);
+      } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
+        final diasStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+        if (diasStr != null) {
+          addText('PERIODO ABONADO: $diasStr', 1, 0);
+        }
+      }
+
       if (saldoAFavor != null && saldoAFavor > 0) {
         addText(
           r(
@@ -263,7 +270,7 @@ class BluetoothPrinterAdapter implements PrinterService {
 
       // 5. PIE (Centrado)
       addText('', 1, 1); // Espacio en blanco
-      addText('Gracias por su pago!', 1, 1);
+      addText(slogan ?? 'Gracias por su pago!', 1, 1);
       bytes.addAll([10, 10, 10]); // Avance de papel para fácil corte
 
       // Enviar de una sola vez

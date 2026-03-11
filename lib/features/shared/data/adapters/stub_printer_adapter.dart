@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/platform/printer_service.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 
 
 /// Implementación para plataformas Web y Desktop que genera un PDF.
@@ -44,6 +45,8 @@ class StubPrinterAdapter implements PrinterService {
     required String numeroBoleta,
     required int anioCorrelativo,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? slogan,
   }) async {
     final doc = pw.Document();
 
@@ -122,23 +125,27 @@ class StubPrinterAdapter implements PrinterService {
               if (deudaAnterior != null && deudaAnterior > 0) ...[
                 _pdfRow('DEUDA ANTERIOR:', fCurrency.format(deudaAnterior)),
                 _pdfRow('ABONO:', fCurrency.format(montoAbonadoDeuda ?? 0)),
-                if (fechasSaldadas != null && fechasSaldadas.isNotEmpty)
-                  _pdfRow(
-                    'DIAS CUBIERTOS:',
-                    fechasSaldadas
-                        .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}')
-                        .join(', '),
-                  ),
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente ?? 0)),
               ] else if (saldoPendiente != null && saldoPendiente > 0)
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente)),
+              
+              if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-') ...[
+                _pdfRow('PERIODO ABONADO:', periodoAbonadoStr),
+              ] else if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
+                if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                  _pdfRow(
+                    'PERIODO ABONADO:',
+                    DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                  ),
+              ],
+              
               if (saldoAFavor != null && saldoAFavor > 0)
                 _pdfRow('SALDO A FAVOR:', fCurrency.format(saldoAFavor)),
               pw.SizedBox(height: 8),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 12),
               pw.Text(
-                '¡Gracias por su pago!',
+                slogan ?? '¡Gracias por su pago!',
                 style: pw.TextStyle(
                   fontSize: 10,
                   fontStyle: pw.FontStyle.italic,

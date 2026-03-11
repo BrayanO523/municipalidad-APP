@@ -26,6 +26,9 @@ class MunicipalidadHive extends HiveObject {
   @HiveField(6)
   double? porcentaje;
 
+  @HiveField(7)
+  String? slogan;
+
   MunicipalidadHive({
     this.id,
     this.nombre,
@@ -34,6 +37,7 @@ class MunicipalidadHive extends HiveObject {
     this.logo,
     this.activa,
     this.porcentaje,
+    this.slogan,
   });
 
   Municipalidad toDomain() {
@@ -45,6 +49,7 @@ class MunicipalidadHive extends HiveObject {
       logo: logo,
       activa: activa,
       porcentaje: porcentaje,
+      slogan: slogan,
     );
   }
 
@@ -57,6 +62,7 @@ class MunicipalidadHive extends HiveObject {
       logo: entity.logo,
       activa: entity.activa,
       porcentaje: entity.porcentaje?.toDouble(),
+      slogan: entity.slogan,
     );
   }
 }
