@@ -47,17 +47,17 @@ class StatsModel {
   /// Obtiene la recaudación específica del día actual local.
   num get recaudacionHoy {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final dia = diario[key] as Map<String, dynamic>?;
-    if (dia == null) return 0;
-    return (dia['recaudado'] as num?) ?? 0;
+    final obj = diario[key];
+    if (obj == null || obj is! Map) return 0;
+    return (obj['recaudado'] as num?) ?? 0;
   }
 
   /// Obtiene la cantidad de recibos emitidos el día actual local.
   int get cobrosHoy {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final dia = diario[key] as Map<String, dynamic>?;
-    if (dia == null) return 0;
-    return ((dia['cobros'] as num?) ?? 0).toInt();
+    final obj = diario[key];
+    if (obj == null || obj is! Map) return 0;
+    return ((obj['cobros'] as num?) ?? 0).toInt();
   }
 }
 
