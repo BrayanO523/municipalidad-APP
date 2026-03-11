@@ -32,7 +32,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // La sincronización inicial y la verificación de deuda se pueden disparar una vez
+    // La sincronizaciÃ³n inicial y la verificaciÃ³n de deuda se pueden disparar una vez
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _dispararSyncYVerificacion();
     });
@@ -46,7 +46,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
   Future<void> _dispararSyncYVerificacion() async {
     try {
-      // 1. Reconexión automática de impresora (Bluetooth)
+      // 1. ReconexiÃ³n automÃ¡tica de impresora (Bluetooth)
       _reconectarImpresora();
 
       final localRepo = ref.read(localRepositoryProvider);
@@ -69,10 +69,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     final mac = ref.read(connectedPrinterMacProvider);
     if (mac != null) {
-      debugPrint('Bluetooth: Intentando reconexión automática a $mac');
+      debugPrint('Bluetooth: Intentando reconexiÃ³n automÃ¡tica a $mac');
       final printer = ref.read(printerServiceProvider);
       await printer.connect(mac).catchError((e) {
-        debugPrint('Bluetooth: Error en reconexión automática: $e');
+        debugPrint('Bluetooth: Error en reconexiÃ³n automÃ¡tica: $e');
         return false;
       });
     }
@@ -97,9 +97,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     } catch (_) {}
   }
 
-  /// Ejecuta la verificación de días sin cobro en background.
-  /// Crea pendientes automáticos para los últimos 7 días.
-  /// OPTIMIZACIÓN: Solo se ejecuta una vez al día por usuario.
+  /// Ejecuta la verificaciÃ³n de dÃ­as sin cobro en background.
+  /// Crea pendientes automÃ¡ticos para los Ãºltimos 7 dÃ­as.
+  /// OPTIMIZACIÃ“N: Solo se ejecuta una vez al dÃ­a por usuario.
   Future<void> _verificarDeudaRetroactiva(List<Local> localesActivos) async {
     try {
       final usuario = ref.read(currentUsuarioProvider).value;
@@ -111,7 +111,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       
       final lastScan = prefs.getString(hoyKey);
       if (lastScan == hoyString) {
-        debugPrint('DeudaService: Salto de revisión (ya escaneado hoy). Costo: 0 lecturas.');
+        debugPrint('DeudaService: Salto de revisiÃ³n (ya escaneado hoy). Costo: 0 lecturas.');
         return;
       }
 
@@ -130,11 +130,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         cobradorId: usuario.id,
       );
 
-      // Guardar que ya se revisó hoy
+      // Guardar que ya se revisÃ³ hoy
       await prefs.setString(hoyKey, hoyString);
       
     } catch (_) {
-      // Silencioso: la verificación retroactiva no debe interrumpir la UI
+      // Silencioso: la verificaciÃ³n retroactiva no debe interrumpir la UI
     }
   }
 
@@ -156,11 +156,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar Cobro?'),
+        title: const Text('Â¿Eliminar Cobro?'),
         content: const Text(
-          'Esta acción revertirá los saldos y eliminará el registro. '
-          'Si hubo auto-pagos posteriores, también se borrarán.\n\n'
-          '¿Estás seguro?',
+          'Esta acciÃ³n revertirÃ¡ los saldos y eliminarÃ¡ el registro. '
+          'Si hubo auto-pagos posteriores, tambiÃ©n se borrarÃ¡n.\n\n'
+          'Â¿EstÃ¡s seguro?',
         ),
         actions: [
           TextButton(
@@ -170,7 +170,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Sí, Eliminar'),
+            child: const Text('SÃ­, Eliminar'),
           ),
         ],
       ),
@@ -185,13 +185,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Cobro eliminado correctamente')),
+          const SnackBar(content: Text('âœ… Cobro eliminado correctamente')),
         );
         // Ya no cargamos datos manualmente, Riverpod detecta el cambio en Firestore.
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Error al eliminar el cobro'),
+            content: Text('âŒ Error al eliminar el cobro'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -217,7 +217,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '¿El local ${local.nombreSocial ?? ""} no realizo su pago hoy?',
+              'Â¿El local ${local.nombreSocial ?? ""} no realizo su pago hoy?',
             ),
             const SizedBox(height: 8),
             Text(
@@ -279,7 +279,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📋 Sin pago registrado: ${local.nombreSocial}'),
+            content: Text('ðŸ“‹ Sin pago registrado: ${local.nombreSocial}'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -288,7 +288,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text('âŒ Error: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -302,7 +302,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final pagadoHoy = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final cuotaCubierta = pagadoHoy >= cuota;
 
-    // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crédito
+    // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crÃ©dito
     if (saldoActual >= cuota && cuota > 0 && !cuotaCubierta) {
       final confirm = await showDialog<bool>(
         context: context,
@@ -327,7 +327,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${local.nombreSocial ?? ""} tiene un crédito de:'),
+              Text('${local.nombreSocial ?? ""} tiene un crÃ©dito de:'),
               const SizedBox(height: 8),
               Text(
                 DateFormatter.formatCurrency(saldoActual),
@@ -339,7 +339,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Se descontará ${DateFormatter.formatCurrency(cuota)} de ese crédito para cubrir el día de hoy.',
+                'Se descontarÃ¡ ${DateFormatter.formatCurrency(cuota)} de ese crÃ©dito para cubrir el dÃ­a de hoy.',
               ),
             ],
           ),
@@ -361,7 +361,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       return;
     }
 
-    // Calcular cuánto falta para la cuota hoy
+    // Calcular cuÃ¡nto falta para la cuota hoy
     final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
     final montoSugerido = faltanteHoy > 0 ? faltanteHoy : cuota;
 
@@ -448,7 +448,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     labelText: 'Monto a cobrar (L)',
                     prefixIcon: const Icon(Icons.payments_rounded, size: 20),
                     helperText:
-                        'Si paga más de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
+                        'Si paga mÃ¡s de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
                     helperMaxLines: 2,
                   ),
                 ),
@@ -499,7 +499,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     );
   }
 
-  /// Aplica el saldo a favor del local para cubrir la cuota del día.
+  /// Aplica el saldo a favor del local para cubrir la cuota del dÃ­a.
   Future<void> _aplicarSaldoAFavor(Local local) async {
     final cuota = local.cuotaDiaria ?? 0;
     final now = DateTime.now();
@@ -537,14 +537,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '💰 Cobro aplicado con saldo a favor: ${local.nombreSocial}',
+              'ðŸ’° Cobro aplicado con saldo a favor: ${local.nombreSocial}',
             ),
             backgroundColor: const Color(0xFF00D9A6),
           ),
         );
       }
 
-      // --- OBTENER DATOS MAESTROS (Con soporte offline vía repositorios) ---
+      // --- OBTENER DATOS MAESTROS (Con soporte offline vÃ­a repositorios) ---
       final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
       final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
@@ -557,7 +557,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final mercadoNombre = merc?.nombre;
       // ------------------------------------------------------------------
 
-      // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // --- INTEGRACIÃ“N DE RECEIPT DISPATCHER ---
       if (mounted) {
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -579,7 +579,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text('âŒ Error: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -587,7 +587,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     }
   }
 
-  /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
+  /// LÃ³gica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
   Future<void> _guardarCobro({
     required Local local,
     required num monto,
@@ -614,7 +614,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
 
-    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL (MVVM) ---
+    // --- LÃ“GICA DE DISTRIBUCIÃ“N SECUENCIAL (MVVM) ---
     // 1. Pagar hoy (Prioridad 1)
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
@@ -624,7 +624,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       double.infinity,
     );
 
-    // 2. Pagar deuda acumulada de días anteriores (Prioridad 2)
+    // 2. Pagar deuda acumulada de dÃ­as anteriores (Prioridad 2)
     final deudaPast = local.deudaAcumulada ?? 0;
     final paraDeudaReal = montoRestanteTrasHoy > deudaPast
         ? deudaPast
@@ -717,7 +717,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       ref.invalidate(localesCobradorProvider);
       ref.invalidate(cobrosHoyCobradorProvider);
 
-      // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // --- INTEGRACIÃ“N DE RECEIPT DISPATCHER ---
       if (mounted) {
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -739,7 +739,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text('âŒ Error: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -762,7 +762,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         backgroundColor: const Color(0xFF0F1017),
         body: Center(
           child: Text(
-            '❌ Error: $e',
+            'âŒ Error: $e',
             style: const TextStyle(color: Colors.white),
           ),
         ),
@@ -773,7 +773,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         // 1. Filtrar locales activos
         final locales = todosLocales.where((l) => l.activo == true).toList();
 
-        // 2. Ordenar según rutaAsignada (mantenemos lógica UI)
+        // 2. Ordenar segÃºn rutaAsignada (mantenemos lÃ³gica UI)
         if (usuario?.rutaAsignada != null &&
             usuario!.rutaAsignada!.isNotEmpty) {
           final orden = usuario.rutaAsignada!;
@@ -787,7 +787,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           });
         }
 
-        // 3. Pre-cálculos para optimización O(N)
+        // 3. Pre-cÃ¡lculos para optimizaciÃ³n O(N)
         final routeIds = locales.map((l) => l.id ?? '').toSet();
         final Map<String, num> montosPorLocal = {};
         final Map<String, num> pagosCuotaPorLocal = {};
@@ -808,8 +808,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               final montoTotalL = montosPorLocal[l.id] ?? 0;
               final saldoFavor = l.saldoAFavor ?? 0;
               final cuota = l.cuotaDiaria ?? 0;
-              // CRITERIO: Un local deja de estar "Pendiente" si ya pagó hoy
-              // (aunque el pago se haya ido a la deuda) o si su saldo previo ya cubría hoy.
+              // CRITERIO: Un local deja de estar "Pendiente" si ya pagÃ³ hoy
+              // (aunque el pago se haya ido a la deuda) o si su saldo previo ya cubrÃ­a hoy.
               return (montoTotalL > 0) || (saldoFavor >= cuota);
             })
             .map((l) => l.id ?? '')
@@ -890,16 +890,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                     color: Colors.orangeAccent,
                                   ),
                                   tooltip:
-                                      'Limpiar Caché Local (Cobros Fantasma)',
+                                      'Limpiar CachÃ© Local (Cobros Fantasma)',
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
                                         title: const Text(
-                                          'Limpiar Caché Local',
+                                          'Limpiar CachÃ© Local',
                                         ),
                                         content: const Text(
-                                          'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
+                                          'Esto borrarÃ¡ los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. Â¿Continuar?',
                                         ),
                                         actions: [
                                           TextButton(
@@ -925,25 +925,26 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                           .limpiarCacheLocal();
                                       ref.invalidate(localesCobradorProvider);
                                       ref.invalidate(cobrosHoyCobradorProvider);
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              '🧹 Caché limpiada. Recargando...',
+                                              'ðŸ§¹ CachÃ© limpiada. Recargando...',
                                             ),
                                             backgroundColor: Colors.orange,
                                           ),
                                         );
                                       }
                                     } catch (e) {
-                                      if (mounted)
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           SnackBar(content: Text('Error: $e')),
                                         );
+                                      }
                                     }
                                   },
                                 ),
@@ -984,7 +985,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           }),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            hintText: 'Buscar local, dueño o código...',
+                            hintText: 'Buscar local, dueÃ±o o cÃ³digo...',
                             hintStyle: const TextStyle(color: Colors.white54),
                             prefixIcon: const Icon(
                               Icons.search,
@@ -1007,7 +1008,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 : null,
                             filled: true,
                             fillColor: colorScheme.surfaceContainerHighest
-                                .withOpacity(0.5),
+                                .withValues(alpha: 0.5),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
@@ -1118,7 +1119,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   onPressed: () =>
                                       setState(() => _limiteLocales += 20),
                                   icon: const Icon(Icons.expand_more_rounded),
-                                  label: const Text('Cargar más locales'),
+                                  label: const Text('Cargar mÃ¡s locales'),
                                   style: TextButton.styleFrom(
                                     foregroundColor: colorScheme.primary,
                                   ),
@@ -1210,17 +1211,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '📍 Locales Bajados: ${localesAgregados.length}',
+                  'ðŸ“ Locales Bajados: ${localesAgregados.length}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '💰 Cobros Bajados (Nube): ${cobrosNube.length}',
+                  'ðŸ’° Cobros Bajados (Nube): ${cobrosNube.length}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '⏳ Cobros Pendientes (Local): ${cobrosPendientes.length}',
+                  'â³ Cobros Pendientes (Local): ${cobrosPendientes.length}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.orange,
@@ -1261,7 +1262,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('¡Descarga Completada!'),
+        content: Text('Â¡Descarga Completada!'),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 3),
       ),
@@ -1376,13 +1377,13 @@ class _LocalCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Fila superior: ícono + info + cuota ──────────────────
+              // â”€â”€ Fila superior: Ã­cono + info + cuota â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Ícono de estado
+                    // Ãcono de estado
                     Container(
                       width: 42,
                       height: 42,
@@ -1426,7 +1427,7 @@ class _LocalCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            local.representante ?? '—',
+                            local.representante ?? 'â€”',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: Colors.white60),
                             overflow: TextOverflow.ellipsis,
@@ -1436,7 +1437,7 @@ class _LocalCard extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
-                                'Código: ${local.codigoCatastral}',
+                                'CÃ³digo: ${local.codigoCatastral}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Colors.white54,
@@ -1484,7 +1485,7 @@ class _LocalCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'por día',
+                          'por dÃ­a',
                           style: const TextStyle(
                             fontSize: 10,
                             color: Colors.white38,
@@ -1496,18 +1497,18 @@ class _LocalCard extends StatelessWidget {
                 ),
               ),
 
-              // ── Divisor ──────────────────────────────────────────────
+              // â”€â”€ Divisor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Divider(
                 height: 1,
                 thickness: 1,
                 color: colorScheme.outline.withValues(alpha: 0.2),
               ),
 
-              // ── Fila de botones abajo ────────────────────────────────
+              // â”€â”€ Fila de botones abajo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               IntrinsicHeight(
                 child: Row(
                   children: [
-                    // Botón principal: Cobrar / Cobrado
+                    // BotÃ³n principal: Cobrar / Cobrado
                     Expanded(
                       flex: 2,
                       child: _CardButton(
@@ -1527,7 +1528,7 @@ class _LocalCard extends StatelessWidget {
                       thickness: 1,
                       color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
-                    // Botón estado de cuenta
+                    // BotÃ³n estado de cuenta
                     Expanded(
                       flex: 2,
                       child: _CardButton(
@@ -1543,7 +1544,7 @@ class _LocalCard extends StatelessWidget {
                         thickness: 1,
                         color: colorScheme.outline.withValues(alpha: 0.2),
                       ),
-                      // Botón ubicación
+                      // BotÃ³n ubicaciÃ³n
                       Expanded(
                         flex: 1,
                         child: _CardButton(
@@ -1597,7 +1598,7 @@ class _LocalCard extends StatelessWidget {
   }
 }
 
-/// Botón pequeño en la barra inferior de la tarjeta.
+/// BotÃ³n pequeÃ±o en la barra inferior de la tarjeta.
 class _CardButton extends StatelessWidget {
   final VoidCallback? onTap;
   final IconData icon;
@@ -1651,7 +1652,7 @@ class _CardButton extends StatelessWidget {
   }
 }
 
-/// Badge pequeño de estado (deuda/saldo) dentro de la tarjeta.
+/// Badge pequeÃ±o de estado (deuda/saldo) dentro de la tarjeta.
 class _SmallBadge extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1724,3 +1725,4 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+

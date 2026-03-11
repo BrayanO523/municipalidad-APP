@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
@@ -91,7 +92,7 @@ class CobroDatasource {
         montoCobrado: montoCobrado,
         abonoDeuda: abonoDeuda,
         incrementoSaldo: incrementoSaldo,
-      ).catchError((e) => print('Error actualizando stats: $e'));
+      ).catchError((e) => debugPrint('Error actualizando stats: $e'));
     }
 
     return numeroBoleta;

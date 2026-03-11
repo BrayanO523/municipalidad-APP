@@ -125,12 +125,12 @@ class CobroRepositoryImpl implements CobroRepository {
     String? municipalidadId,
     String? mercadoId,
   }) {
-    return _remoteDatasource.streamPorRangoFechas(
+    return Stream.fromFuture(_remoteDatasource.listarPorRangoFechas(
       inicio,
       fin,
       municipalidadId: municipalidadId,
       mercadoId: mercadoId,
-    );
+    ));
   }
 
   @override

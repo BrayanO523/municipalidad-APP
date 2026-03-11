@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
-import '../../../../core/platform/printer_provider.dart';
+// Removed provider import
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';

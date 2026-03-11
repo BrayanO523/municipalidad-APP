@@ -431,7 +431,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.error.withOpacity(0.1),
+                          color: colorScheme.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -538,7 +538,7 @@ class _LocalDetailPanel extends ConsumerWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.15),
+              color: Colors.green.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -631,12 +631,13 @@ class _LocalDetailPanel extends ConsumerWidget {
                     url,
                     mode: LaunchMode.externalApplication,
                   )) {
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('No se pudo abrir el mapa'),
                         ),
                       );
+                    }
                   }
                 },
                 icon: const Icon(Icons.location_on_rounded),

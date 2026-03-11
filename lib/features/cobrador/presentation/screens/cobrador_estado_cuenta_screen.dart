@@ -7,7 +7,6 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/di/providers.dart';
-import '../../../../core/platform/printer_provider.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
