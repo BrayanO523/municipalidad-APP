@@ -8,6 +8,7 @@ import 'app/theme/app_theme.dart';
 import 'app/theme/theme_provider.dart';
 import 'app/di/providers.dart';
 import 'core/platform/navigation_config.dart';
+import 'features/app_update/data/adapters/app_installer_android.dart';
 
 Future<void> main() async {
   await bootstrap();
@@ -21,6 +22,10 @@ Future<void> main() async {
         ),
         printerPersistenceDataSourceProvider.overrideWithValue(
           PrinterPersistenceLocalDataSource(),
+        ),
+        // OTA: inyectar instalador Android para plataformas móviles
+        appInstallerServiceProvider.overrideWithValue(
+          AppInstallerAndroid(),
         ),
       ],
       child: const MainApp(),

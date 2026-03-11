@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -45,6 +46,13 @@ export '../../core/platform/printer_provider.dart';
 export '../../core/platform/printer_service.dart';
 export '../../features/shared/presentation/viewmodels/printer_notifier.dart';
 
+import '../../features/app_update/data/datasources/app_update_remote_datasource.dart';
+import '../../features/app_update/data/datasources/app_update_local_datasource.dart';
+import '../../features/app_update/data/repositories/app_update_repository_impl.dart';
+import '../../features/app_update/data/adapters/app_installer_stub.dart';
+import '../../features/app_update/domain/repositories/app_installer_service.dart';
+import '../../features/app_update/domain/repositories/app_update_repository.dart';
+
 // Navigation configuration provider (overridden in entry points)
 final navigationConfigProvider = Provider<NavigationConfig>((ref) {
   return DefaultNavigationConfig();
@@ -58,6 +66,41 @@ final firestoreProvider = Provider<FirebaseFirestore>(
 final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
+
+final firebaseStorageProvider = Provider<FirebaseStorage>(
+  (_) => FirebaseStorage.instance,
+);
+
+// ── App Update ──────────────────────────────────────────
+
+final appUpdateRemoteDatasourceProvider =
+    Provider<AppUpdateRemoteDatasource>((ref) {
+  return AppUpdateRemoteDatasource(
+    ref.read(firestoreProvider),
+    ref.read(firebaseStorageProvider),
+  );
+});
+
+final appUpdateLocalDatasourceProvider =
+    Provider<AppUpdateLocalDatasource>((ref) {
+  return AppUpdateLocalDatasource();
+});
+
+/// Provider del repositorio de actualizaciones.
+/// deviceId se puede personalizar; por defecto usa 'default_device'.
+final appUpdateRepositoryProvider = Provider<AppUpdateRepository>((ref) {
+  return AppUpdateRepositoryImpl(
+    ref.read(appUpdateRemoteDatasourceProvider),
+    ref.read(appUpdateLocalDatasourceProvider),
+    deviceId: 'default_device',
+  );
+});
+
+/// Servicio de instalación. Default: stub (no soportado).
+/// Se overridea en entry points para plataformas con soporte.
+final appInstallerServiceProvider = Provider<AppInstallerService>((ref) {
+  return AppInstallerStub();
+});
 
 // Auth
 final authDatasourceProvider = Provider<AuthDatasource>(

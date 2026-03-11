@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import '../features/app_update/data/models/hive/installed_version_hive.dart';
 import '../features/cobros/data/models/hive/cobro_hive.dart';
 import '../features/locales/data/models/hive/local_hive.dart';
 import '../features/mercados/data/models/hive/mercado_hive.dart';
@@ -36,5 +37,8 @@ Future<void> bootstrap() async {
   }
   if (!Hive.isAdapterRegistered(4)) {
     Hive.registerAdapter(MunicipalidadHiveAdapter());
+  }
+  if (!Hive.isAdapterRegistered(10)) {
+    Hive.registerAdapter(InstalledVersionHiveAdapter());
   }
 }
