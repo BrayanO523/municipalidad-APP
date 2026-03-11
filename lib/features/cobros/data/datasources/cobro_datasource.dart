@@ -331,12 +331,14 @@ class CobroDatasource {
     DateTime fecha, {
     String? municipalidadId,
     String? mercadoId,
+    int limite = 150, // Límite de seguridad para evitar miles de lecturas si hay picos
   }) {
     final inicio = DateTime(fecha.year, fecha.month, fecha.day);
     final fin = inicio.add(const Duration(days: 1));
     var query = _collection
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
-        .where('fecha', isLessThan: Timestamp.fromDate(fin));
+        .where('fecha', isLessThan: Timestamp.fromDate(fin))
+        .orderBy('fecha', descending: true);
 
     if (municipalidadId != null) {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
@@ -344,6 +346,9 @@ class CobroDatasource {
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
+
+    // CORRECCIÓN CRÍICA: Limitar el stream para no devorar la facturación
+    query = query.limit(limite);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -427,6 +432,9 @@ class CobroDatasource {
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
+    
+    // CORRECCIÓN CRÍTICA: Aplicar el límite a Firestore ANTES de descargar.
+    query = query.limit(limite);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
