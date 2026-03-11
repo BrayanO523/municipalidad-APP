@@ -515,14 +515,14 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
   final now = DateTime.now();
   final hoy = DateTime(now.year, now.month, now.day);
 
-  return ds.streamPorFecha(hoy, municipalidadId: user.municipalidadId).map((
-    cobros,
-  ) {
-    if (user.mercadoId != null) {
-      return cobros.where((c) => c.mercadoId == user.mercadoId).toList();
-    }
-    return cobros;
-  });
+  // OPTIMIZACIÓN MÓVIL: Le pasamos el mercadoId directamente a Firestore
+  // para que solo descargue los cobros del mercado del cobrador y no los
+  // de toda la municipalidad, ahorrando muchísimas lecturas si hay varios mercados.
+  return ds.streamPorFecha(
+    hoy,
+    municipalidadId: user.municipalidadId,
+    mercadoId: user.mercadoId,
+  );
 });
 
 @Deprecated('Usar cortesAdminPaginadosProvider para evitar fugas de lectura')
