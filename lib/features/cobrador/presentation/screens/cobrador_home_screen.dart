@@ -1096,9 +1096,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.cleaning_services_rounded,
-                                    color: Colors.orangeAccent,
+                                    color: colorScheme.secondary,
                                   ),
                                   tooltip:
                                       'Limpiar Caché Local (Cobros Fantasma)',
@@ -1167,9 +1167,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   onPressed: () => _mostrarDebugHive(context),
                                 ),
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.cloud_download_rounded,
-                                    color: Colors.blueAccent,
+                                    color: colorScheme.secondary,
                                   ),
                                   tooltip: 'Descargar Offline',
                                   onPressed: () =>
@@ -1250,7 +1250,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 label: 'Pendientes',
                                 count: pendientesCount.toString(),
                                 isSelected: _filtroEstado == 'pendientes',
-                                baseColor: Colors.orange,
+                                baseColor: AppColors.warning,
                                 icon: Icons.pending_actions_rounded,
                                 onTap: () => setState(() => _filtroEstado = 'pendientes'),
                               ),
@@ -1276,7 +1276,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               _CustomFilterChip(
                                 label: 'Frec. Todas',
                                 isSelected: _filtroFrecuencia == 'todos',
-                                baseColor: Colors.indigoAccent,
+                                baseColor: colorScheme.secondary,
                                 icon: Icons.filter_alt_outlined,
                                 onTap: () => setState(() => _filtroFrecuencia = 'todos'),
                               ),
@@ -1285,7 +1285,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Diarios',
                                   count: diariosCount.toString(),
                                   isSelected: _filtroFrecuencia == 'diaria',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'diaria'),
                                 ),
                               if (semanalesCount > 0)
@@ -1293,7 +1293,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Semanales',
                                   count: semanalesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'semanal',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'semanal'),
                                 ),
                               if (quincenalesCount > 0)
@@ -1301,7 +1301,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Quincenales',
                                   count: quincenalesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'quincenal',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'quincenal'),
                                 ),
                               if (mensualesCount > 0)
@@ -1309,7 +1309,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   label: 'Mensuales',
                                   count: mensualesCount.toString(),
                                   isSelected: _filtroFrecuencia == 'mensual',
-                                  baseColor: Colors.indigoAccent,
+                                  baseColor: colorScheme.secondary,
                                   onTap: () => setState(() => _filtroFrecuencia = 'mensual'),
                                 ),
                             ],
@@ -1319,7 +1319,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         // Monto Total Cobrado Hoy
                         Row(
                           children: [
-                            const Icon(Icons.payments_rounded, size: 16, color: Colors.blueAccent),
+                            Icon(Icons.payments_rounded, size: 16, color: colorScheme.primary),
                             const SizedBox(width: 8),
                             Text(
                               'Cobrado hoy: ${DateFormatter.formatCurrency(montoTotalHoy)}',
@@ -1584,7 +1584,7 @@ class _CustomFilterChip extends StatelessWidget {
                     child: Text(
                       count!,
                       style: TextStyle(
-                        color: isSelected ? (baseColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white) : colorScheme.onSurface.withValues(alpha: 0.8),
+                        color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface.withValues(alpha: 0.8),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1639,9 +1639,9 @@ class _LocalCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: cuotaCubierta
-                  ? AppColors.success.withValues(alpha: 0.35)
+                  ? colorScheme.primary.withValues(alpha: 0.35)
                   : cobrado
-                  ? Colors.blue.withValues(alpha: 0.4)
+                  ? colorScheme.primary.withValues(alpha: 0.4)
                   : tieneDeuda
                   ? AppColors.danger.withValues(alpha: 0.4)
                   : colorScheme.outline.withValues(alpha: 0.4),
@@ -1661,11 +1661,7 @@ class _LocalCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: cuotaCubierta
-                            ? AppColors.success.withValues(alpha: 0.15)
-                            : cobrado
-                            ? Colors.blue.withValues(alpha: 0.15)
-                            : Colors.orange.withValues(alpha: 0.15),
+                        color: colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -1674,11 +1670,7 @@ class _LocalCard extends StatelessWidget {
                             : cobrado
                             ? Icons.add_task_rounded
                             : Icons.storefront_rounded,
-                        color: cuotaCubierta
-                            ? AppColors.success
-                            : cobrado
-                            ? Colors.blue
-                            : Colors.orange,
+                        color: colorScheme.primary,
                         size: 22,
                       ),
                     ),
@@ -1729,7 +1721,7 @@ class _LocalCard extends StatelessWidget {
                               _SmallBadge(
                                 icon: Icons.schedule_rounded,
                                 label: local.frecuenciaCobro?.toUpperCase() ?? 'DIARIA',
-                                color: Colors.blueGrey,
+                                color: colorScheme.primary.withValues(alpha: 0.7),
                               ),
                               if (tieneDeuda)
                                 _SmallBadge(
@@ -1759,7 +1751,7 @@ class _LocalCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: cuotaCubierta ? AppColors.success : colorScheme.onSurface,
+                            color: cuotaCubierta ? colorScheme.primary : colorScheme.onSurface,
                           ),
                         ),
                         Text(
@@ -1795,9 +1787,7 @@ class _LocalCard extends StatelessWidget {
                             ? Icons.add_circle_outline_rounded
                             : Icons.payments_rounded,
                         label: cuotaCubierta ? 'Abonar / Adelantar' : 'Cobrar',
-                        color: cuotaCubierta
-                            ? AppColors.success
-                            : colorScheme.primary,
+                        color: colorScheme.primary,
                         filled: !cuotaCubierta,
                       ),
                     ),
@@ -1813,7 +1803,7 @@ class _LocalCard extends StatelessWidget {
                         onTap: onVerEstadoCuenta,
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Estado',
-                        color: colorScheme.secondary,
+                        color: colorScheme.primary,
                       ),
                     ),
                     if (local.latitud != null && local.longitud != null) ...[
@@ -1908,6 +1898,7 @@ class _CardButton extends StatelessWidget {
                 color: color.withValues(alpha: 0.15),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
                 ),
               )
             : null,
