@@ -913,17 +913,11 @@ class _CobroTile extends ConsumerWidget {
     final user = ref.read(currentUsuarioProvider).value;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Re-imprimiendo boleta N°${cobro.correlativo ?? "-"}...'),
-        duration: const Duration(seconds: 2),
+      const SnackBar(
+        content: Text('Por favor, acerquese a la impresora...'),
+        duration: Duration(seconds: 2),
       ),
     );
-
-    final double montoSeguro = cobro.monto?.toDouble() ?? 0.0;
-    final double saldoPendienteRaw = cobro.saldoPendiente?.toDouble() ?? 0.0;
-    final double saldoPendienteSeguro = saldoPendienteRaw > 0
-        ? saldoPendienteRaw
-        : 0.0;
 
     // --- OBTENER DATOS MAESTROS ---
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
@@ -934,21 +928,21 @@ class _CobroTile extends ConsumerWidget {
     );
     final merc = await mercadoRepo.obtenerPorId(cobro.mercadoId ?? '');
 
-    final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
-    final mercadoNombre = merc?.nombre;
     // -----------------------------
 
     final impreso = await printer.printReceipt(
-      empresa: municipalidadNombre,
-      mercado: mercadoNombre,
+      empresa: muni?.nombre ?? 'Municipalidad',
+      mercado: merc?.nombre ?? 'Mercado',
       local: local.nombreSocial ?? 'Local',
-      monto: montoSeguro,
+      monto: (cobro.monto ?? 0).toDouble(),
       fecha: cobro.fecha ?? DateTime.now(),
-      saldoPendiente: saldoPendienteSeguro,
-      saldoAFavor: null,
-      cobrador: user?.nombre ?? 'Desconocido',
-      numeroBoleta: cobro.numeroBoletaFmt,
+      numeroBoleta: '${cobro.numeroBoleta ?? cobro.correlativo ?? '0'}',
       anioCorrelativo: cobro.anioCorrelativo ?? DateTime.now().year,
+      cobrador: user?.nombre ?? 'Desconocido',
+      saldoPendiente: (cobro.saldoPendiente ?? 0).toDouble(),
+      deudaAnterior: (cobro.deudaAnterior ?? 0).toDouble(),
+      montoAbonadoDeuda: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
+      saldoAFavor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
     );
 
     if (!impreso && context.mounted) {

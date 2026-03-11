@@ -33,5 +33,6 @@ abstract class PrinterService {
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
+    List<DateTime>? fechasSaldadas,
   });
 }

@@ -103,6 +103,7 @@ class BluetoothPrinterAdapter implements PrinterService {
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
+    List<DateTime>? fechasSaldadas,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -220,6 +221,13 @@ class BluetoothPrinterAdapter implements PrinterService {
           1,
           0,
         );
+        // Fechas cubiertas (FIFO)
+        if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+          final diasStr = fechasSaldadas
+              .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}')
+              .join(' ');
+          addText('DIAS: $diasStr', 1, 0);
+        }
         addText(
           r(
             'DEUDA ACT.:',

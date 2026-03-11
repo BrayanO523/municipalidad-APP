@@ -63,8 +63,13 @@ class CobroRepositoryImpl implements CobroRepository {
     }
   }
 
+  /// Registra el cobro completo y retorna la boleta + las fechas históricas saldadas (FIFO).
   @override
-  Future<String> registrarCobroCompleto(Cobro cobro, String localId) async {
+  Future<({String numeroBoleta, List<DateTime> fechasSaldadas})> registrarCobroCompleto(
+    Cobro cobro,
+    String localId, {
+    num montoAbonadoDeuda = 0,
+  }) async {
     final cobroJson = CobroJson.fromEntity(cobro).toJson();
 
     // 1. Intentar registrar en Firestore (Offline/Online)
@@ -88,13 +93,16 @@ class CobroRepositoryImpl implements CobroRepository {
     final cobroHive = CobroHive.fromDomain(cobroFinal, syncStatus: 1);
     await _localDatasource.guardarCobro(cobroHive);
 
-    // 4. Procesar el historial de deuda local pendiente y capturar IDs saldados
+    // 4. FIFO: Procesar el historial de deuda local pendiente usando el monto abonado a deuda
     List<String> idsDeudasSaldadas = [];
-    if (cobroFinal.localId != null && cobroFinal.monto != null) {
-      idsDeudasSaldadas = await _remoteDatasource.saldarDeudaHistoria(
+    List<DateTime> fechasSaldadas = [];
+    if (cobroFinal.localId != null && montoAbonadoDeuda > 0) {
+      final resultado = await _remoteDatasource.saldarDeudaHistoria(
         cobroFinal.localId!,
-        cobroFinal.monto!,
+        montoAbonadoDeuda,
       );
+      idsDeudasSaldadas = resultado.ids;
+      fechasSaldadas = resultado.fechas;
     }
 
     // 5. Si hubo deudas saldadas, actualizar el documento del cobro con esos IDs
@@ -104,7 +112,7 @@ class CobroRepositoryImpl implements CobroRepository {
       });
     }
 
-    return numeroBoleta;
+    return (numeroBoleta: numeroBoleta, fechasSaldadas: fechasSaldadas);
   }
 
   @override

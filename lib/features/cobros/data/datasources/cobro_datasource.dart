@@ -523,14 +523,13 @@ class CobroDatasource {
     await _collection.doc(docId).delete();
   }
 
-  /// Busca los cobros pendientes más antiguos y los marca como cobrados
-  /// basándose en un monto pagado a la deuda.
-  /// Retorna la lista de IDs de documentos afectados para registro del cobro principal.
-  Future<List<String>> saldarDeudaHistoria(
+  /// Busca los cobros pendientes más antiguos (FIFO) y los marca como cobrados.
+  /// Retorna los IDs de los cobros saldados Y sus fechas para mostrar en el recibo.
+  Future<({List<String> ids, List<DateTime> fechas})> saldarDeudaHistoria(
     String localId,
     num montoASaldar,
   ) async {
-    if (montoASaldar <= 0) return [];
+    if (montoASaldar <= 0) return (ids: <String>[], fechas: <DateTime>[]);
 
     // Timeout estricto para no colgar la UI
     final connectivityResult = await Connectivity().checkConnectivity().timeout(
@@ -544,18 +543,26 @@ class CobroDatasource {
     final snapshot = await _collection
         .where('localId', isEqualTo: localId)
         .where('estado', whereIn: ['pendiente', 'abono_parcial'])
-        .orderBy('fecha', descending: false) // Los más antiguos primero
+        .orderBy('fecha', descending: false) // Los más antiguos primero (FIFO)
         .get(GetOptions(source: source));
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
     final List<String> idsSaldados = [];
+    final List<DateTime> fechasSaldadas = [];
 
     for (var doc in snapshot.docs) {
       if (restante <= 0) break;
 
       final data = doc.data();
-      final saldoPendiente = data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0;
+      final saldoPendiente = (data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0) as num;
+
+      // Capturar la fecha del cobro histórico para el recibo
+      final fechaRaw = data['fecha'];
+      DateTime? fechaDoc;
+      if (fechaRaw is Timestamp) {
+        fechaDoc = fechaRaw.toDate();
+      }
 
       if (restante >= saldoPendiente) {
         // Se salda completamente este día
@@ -568,14 +575,16 @@ class CobroDatasource {
         });
         restante -= saldoPendiente;
       } else {
-        // Se abona parcialmente
+        // Se abona parcialmente (no se considera "día cubierto" para el recibo)
         batch.update(doc.reference, {
           'estado': 'abono_parcial',
           'saldoPendiente': saldoPendiente - restante,
         });
         restante = 0;
       }
+
       idsSaldados.add(doc.id);
+      if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
     }
 
     final future = batch.commit();
@@ -587,7 +596,7 @@ class CobroDatasource {
       );
     }
 
-    return idsSaldados;
+    return (ids: idsSaldados, fechas: fechasSaldadas);
   }
 
   /// Revierte los cobros históricos que fueron saldados por un cobro que se está eliminando.

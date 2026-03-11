@@ -21,8 +21,13 @@ abstract class CobroRepository {
   Future<void> registrarCobroLocalmente(Cobro cobro);
 
   /// Intenta conseguir correlativo online (0 si offline),
-  /// guarda en caché, actualiza Hive (NoSQL) con el resultado y marca el localHistoria.
-  Future<String> registrarCobroCompleto(Cobro cobro, String localId);
+  /// aplica FIFO sobre el historial de cobros pendientes del local
+  /// y retorna la boleta generada + la lista de fechas históricas saldadas.
+  Future<({String numeroBoleta, List<DateTime> fechasSaldadas})> registrarCobroCompleto(
+    Cobro cobro,
+    String localId, {
+    num montoAbonadoDeuda,
+  });
 
   /// Elimina un cobro y revierte su impacto financiero en el local (deuda/saldo).
   Future<void> eliminarCobro(Cobro cobro);

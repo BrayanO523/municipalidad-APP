@@ -43,6 +43,7 @@ class StubPrinterAdapter implements PrinterService {
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
+    List<DateTime>? fechasSaldadas,
   }) async {
     final doc = pw.Document();
 
@@ -121,6 +122,13 @@ class StubPrinterAdapter implements PrinterService {
               if (deudaAnterior != null && deudaAnterior > 0) ...[
                 _pdfRow('DEUDA ANTERIOR:', fCurrency.format(deudaAnterior)),
                 _pdfRow('ABONO:', fCurrency.format(montoAbonadoDeuda ?? 0)),
+                if (fechasSaldadas != null && fechasSaldadas.isNotEmpty)
+                  _pdfRow(
+                    'DIAS CUBIERTOS:',
+                    fechasSaldadas
+                        .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}')
+                        .join(', '),
+                  ),
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente ?? 0)),
               ] else if (saldoPendiente != null && saldoPendiente > 0)
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente)),
