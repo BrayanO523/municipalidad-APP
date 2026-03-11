@@ -53,8 +53,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       final localRepo = ref.read(localRepositoryProvider);
       final cobroRepo = ref.read(cobroRepositoryProvider);
+      final muniRepo = ref.read(municipalidadRepositoryProvider);
+      
       localRepo.syncLocales().catchError((_) {});
       cobroRepo.syncCobros().catchError((_) {});
+      muniRepo.sincronizarLocalmente().catchError((_) {});
 
       // Esperar a que los locales carguen en background para verificar deuda
       // Se quita el `await .future` puro para no congelar el arranque
@@ -72,7 +75,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
   Future<void> _reconectarImpresora() async {
     // Solo intentamos si no estamos ya conectados
-    final isConnected = ref.read(printerConnectionProvider).value ?? false;
+    final isConnected = ref.read(printerConnectionProvider);
     if (isConnected) return;
 
     final mac = ref.read(connectedPrinterMacProvider);
@@ -712,6 +715,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       local.municipalidadId ?? '',
     );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    debugPrint('🏛️ [HOME] Municipalidad: ${muni?.nombre} | slogan: "${muni?.slogan}" | id buscado: ${local.municipalidadId}');
 
     final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
     final mercadoNombre = merc?.nombre;

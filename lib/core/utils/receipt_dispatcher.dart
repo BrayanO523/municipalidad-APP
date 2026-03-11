@@ -29,16 +29,6 @@ class ReceiptDispatcher {
     String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Local_Muni_ID: ${local.municipalidadId} | Nombre: $municipalidadNombre | slogan: ${slogan ?? "NULO"}'),
-          backgroundColor: Colors.indigo,
-          duration: const Duration(seconds: 8),
-        ),
-      );
-    }
-
     return showDialog(
       context: context,
       barrierDismissible: false,
@@ -110,7 +100,7 @@ class ReceiptDispatcher {
                       slogan: slogan,
                     );
                     if (context.mounted) {
-                      await _compartirPdf(
+                      await compartirPdf(
                         context: context,
                         local: local,
                         monto: monto,
@@ -124,6 +114,7 @@ class ReceiptDispatcher {
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
                         fechasSaldadas: fechasSaldadas,
+                        periodoAbonadoStr: periodoAbonadoStr,
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                       );
@@ -178,7 +169,7 @@ class ReceiptDispatcher {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    await _compartirPdf(
+                    await compartirPdf(
                       context: context,
                       local: local,
                       monto: monto,
@@ -192,6 +183,7 @@ class ReceiptDispatcher {
                       merc: mercadoNombre,
                       cobrador: cobradorNombre,
                       fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
                       periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                       slogan: slogan,
                     );
@@ -289,7 +281,7 @@ class ReceiptDispatcher {
     } catch (_) {}
   }
 
-  static Future<void> _compartirPdf({
+  static Future<void> compartirPdf({
     required BuildContext context,
     required Local local,
     required double monto,
@@ -303,6 +295,7 @@ class ReceiptDispatcher {
     required String? merc,
     required String? cobrador,
     List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
     String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
@@ -320,36 +313,56 @@ class ReceiptDispatcher {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             mainAxisSize: pw.MainAxisSize.min,
             children: [
-              pw.Text((muni ?? 'MUNICIPALIDAD').toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              if (merc != null) pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text((muni ?? 'MUNICIPALIDAD').toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),
-              pw.Text('Boleta No. $numeroBoleta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              if (merc != null) ...[
+                pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                pw.SizedBox(height: 4),
+              ],
+              pw.SizedBox(height: 4),
+              pw.Text('BOLETA DE PAGO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 4),
+              pw.Text('No. $numeroBoleta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 8),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
               if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
+              
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
-              pw.Text('MONTO PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-              pw.Text(DateFormatter.formatCurrency(monto), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              
+              pw.Text('MONTO PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text('L ${monto.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              
               pw.SizedBox(height: 4),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              
               if (deudaAnterior > 0) ...[
-                _pdfRow('DEUDA ANT.:', DateFormatter.formatCurrency(deudaAnterior)),
+                _pdfRow('DEUDA ANTE.:', DateFormatter.formatCurrency(deudaAnterior)),
                 _pdfRow('ABONO:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
-                if (fechasSaldadas != null && fechasSaldadas.length > 1)
-                  if (diasCubiertosStr != null)
-                    _pdfRow('PERIODO ABONADO:', diasCubiertosStr),
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
-              ] else if (saldoPendiente > 0)
-                _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
-              if (saldoAFavor > 0) _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
-              if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
-                _pdfRow('PERIODO A FAVOR:', periodoSaldoAFavorStr),
+              ] else if (saldoPendiente > 0) ...[
+                _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
+              ],
+
+              if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
+                _pdfRow('PERIODO ABONADO:', periodoAbonadoStr)
+              else if (diasCubiertosStr != null)
+                _pdfRow('PERIODO ABONADO:', diasCubiertosStr),
+              
+              if (saldoAFavor > 0) ...[
+                _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
+                if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+                  _pdfRow('PERIODO A FAVOR:', periodoSaldoAFavorStr),
+              ],
+              
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 8),
-              pw.Text(slogan ?? '¡Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
-              pw.Text(DateFormatter.formatDateTime(DateTime.now()), style: const pw.TextStyle(fontSize: 7)),
+              
+              pw.Text(slogan ?? 'Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 6),
             ],
           );
         },

@@ -13,9 +13,6 @@ import '../../../../core/utils/date_range_formatter.dart';
 /// Permite "imprimir" comprobantes abriendo el diálogo del sistema.
 class StubPrinterAdapter implements PrinterService {
   @override
-  Stream<bool> get connectionStream => Stream.value(true);
-
-  @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
     return [];
   }

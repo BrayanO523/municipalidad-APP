@@ -119,6 +119,8 @@ class MunicipalidadesPaginadasNotifier extends Notifier<MunicipalidadesPaginadas
       activa: data['activa'] ?? true,
       creadoEn: (data['creadoEn'] as Timestamp?)?.toDate(),
       creadoPor: data['creadoPor'],
+      slogan: data['slogan'],
+      logo: data['logo'],
     );
   }
 

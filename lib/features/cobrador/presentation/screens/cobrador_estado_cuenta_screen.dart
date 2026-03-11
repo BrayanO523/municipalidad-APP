@@ -10,6 +10,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
+import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
@@ -947,11 +948,19 @@ class _CobroTile extends ConsumerWidget {
     final IconData icon;
     final String label;
 
+    final esPagadoConSaldoAFavor = estado == 'cobrado' && (cobro.monto == null || cobro.monto == 0);
+
     switch (estado) {
       case 'cobrado':
-        color = Colors.green;
-        icon = Icons.check_circle_rounded;
-        label = 'Cobrado';
+        if (esPagadoConSaldoAFavor) {
+          color = Colors.green;
+          icon = Icons.savings_rounded;
+          label = 'Saldo a Favor';
+        } else {
+          color = Colors.green;
+          icon = Icons.check_circle_rounded;
+          label = 'Cobrado';
+        }
       case 'pendiente':
         color = const Color(0xFFEE5A6F);
         icon = Icons.cancel_rounded;
@@ -972,12 +981,16 @@ class _CobroTile extends ConsumerWidget {
 
     final esPendiente = estado == 'pendiente';
     final esAdelantado = estado == 'adelantado';
-    final monto = esPendiente ? cobro.saldoPendiente : cobro.monto;
+    
+    num monto = esPendiente ? (cobro.saldoPendiente ?? 0) : (cobro.monto ?? 0);
+    if (esPagadoConSaldoAFavor) {
+      monto = cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0;
+    }
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _mostrarDetalles(context, ref, color),
+        onTap: () => _mostrarDetalles(context, ref, color, esPagadoConSaldoAFavor),
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1022,6 +1035,16 @@ class _CobroTile extends ConsumerWidget {
                       Text(
                         cobro.observaciones!,
                         style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white38,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      )
+                    else if (esPagadoConSaldoAFavor)
+                      const Text(
+                        'Cuota cubierta automáticamente con saldo a favor',
+                        style: TextStyle(
                           fontSize: 10,
                           color: Colors.white38,
                         ),
@@ -1075,6 +1098,7 @@ class _CobroTile extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Color colorEstado,
+    bool esPagadoConSaldoAFavor,
   ) {
     showModalBottomSheet(
       context: context,
@@ -1119,10 +1143,21 @@ class _CobroTile extends ConsumerWidget {
                     ? DateFormatter.formatDateTime(cobro.fecha!)
                     : '-',
               ),
-              _DetalleFila(
-                label: 'Monto Pagado',
-                valor: DateFormatter.formatCurrency(cobro.monto),
-              ),
+              if (esPagadoConSaldoAFavor) ...[
+                _DetalleFila(
+                  label: 'Monto Recibido',
+                  valor: DateFormatter.formatCurrency(0),
+                ),
+                _DetalleFila(
+                  label: 'Cubierto con Saldo a Favor',
+                  valor: DateFormatter.formatCurrency(cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0),
+                ),
+              ] else ...[
+                _DetalleFila(
+                  label: 'Monto Pagado',
+                  valor: DateFormatter.formatCurrency(cobro.monto),
+                ),
+              ],
               _DetalleFila(
                 label: 'Saldo Pendiente Posterior',
                 valor: DateFormatter.formatCurrency(cobro.saldoPendiente),
@@ -1132,6 +1167,11 @@ class _CobroTile extends ConsumerWidget {
                 _DetalleFila(
                   label: 'Observaciones',
                   valor: cobro.observaciones!,
+                )
+              else if (esPagadoConSaldoAFavor)
+                const _DetalleFila(
+                  label: 'Observaciones',
+                  valor: 'Cuota cubierta automáticamente con saldo a favor',
                 ),
               if (cobro.correlativo != null)
                 _DetalleFila(
@@ -1231,123 +1271,43 @@ class _CobroTile extends ConsumerWidget {
       cobro.municipalidadId ?? '',
     );
     final merc = await mercadoRepo.obtenerPorId(cobro.mercadoId ?? '');
-
-    final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
-    final mercadoNombre = merc?.nombre;
     // -----------------------------
 
-    final doc = pw.Document();
+    String? periodoFavorStr;
+    final favorResultante = (cobro.nuevoSaldoFavor ?? 0).toDouble();
+    final cuota = (cobro.cuotaDiaria ?? 0).toDouble();
+    if (favorResultante > 0 && cuota > 0) {
+      int dias = (favorResultante / cuota).floor();
+      if (dias > 0) {
+        DateTime inicioFavor = (cobro.fecha ?? DateTime.now()).add(const Duration(days: 1));
+        final fechasSaldadas = cobro.fechasDeudasSaldadas ?? [];
+        if (fechasSaldadas.isNotEmpty) {
+           final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+           inicioFavor = sorted.last.add(const Duration(days: 1));
+        }
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+      }
+    }
 
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80, // Formato térmico de 80mm
-        build: (pw.Context ctx) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            mainAxisSize: pw.MainAxisSize.min,
-            children: [
-              pw.Text(
-                (municipalidadNombre).toUpperCase(),
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              if (mercadoNombre != null)
-                pw.Text(
-                  mercadoNombre.toUpperCase(),
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'Comprobante de Cobro',
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              if (local.nombreSocial != null) ...[
-                pw.Align(
-                  alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Local: ${local.nombreSocial}'),
-                ),
-              ],
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text(
-                  'Fecha: ${cobro.fecha != null ? DateFormatter.formatDateTime(cobro.fecha!) : "-"}',
-                ),
-              ),
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Cobrador: ${user?.nombre ?? "Desconocido"}'),
-              ),
-              if (cobro.correlativo != null)
-                pw.Align(
-                  alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Boleta N°: ${cobro.correlativo}'),
-                ),
-              pw.SizedBox(height: 8),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Monto Pagado:'),
-                  pw.Text(
-                    DateFormatter.formatCurrency(cobro.monto),
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              if (cobro.saldoPendiente != null && cobro.saldoPendiente! > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Deuda Actual:'),
-                    pw.Text(DateFormatter.formatCurrency(cobro.saldoPendiente)),
-                  ],
-                ),
-              if (cobro.fechasDeudasSaldadas != null &&
-                  cobro.fechasDeudasSaldadas!.isNotEmpty) ...[
-                if (DateRangeFormatter.formatearRangos(cobro.fechasDeudasSaldadas!) != null)
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text('Periodo Abonado:'),
-                      pw.Flexible(
-                        child: pw.Text(
-                          DateRangeFormatter.formatearRangos(cobro.fechasDeudasSaldadas!)!,
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-              pw.SizedBox(height: 8),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                '*** GRACIAS POR SU PAGO ***',
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'Comprobante_Municipalidad_${cobro.correlativo ?? "Gen"}.pdf',
-    );
+    if (context.mounted) {
+      await ReceiptDispatcher.compartirPdf(
+        context: context,
+        local: local,
+        monto: (cobro.monto ?? 0).toDouble(),
+        fecha: cobro.fecha ?? DateTime.now(),
+        saldoPendiente: (cobro.saldoPendiente ?? 0).toDouble(),
+        deudaAnterior: (cobro.deudaAnterior ?? 0).toDouble(),
+        montoAbonadoDeuda: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
+        saldoAFavor: favorResultante,
+        numeroBoleta: '${cobro.numeroBoleta ?? cobro.correlativo ?? '0'}',
+        muni: muni?.nombre ?? 'MUNICIPALIDAD',
+        merc: merc?.nombre,
+        cobrador: user?.nombre ?? 'Desconocido',
+        fechasSaldadas: cobro.fechasDeudasSaldadas,
+        periodoSaldoAFavorStr: periodoFavorStr,
+        slogan: muni?.slogan,
+      );
+    }
   }
 
   Future<void> _reimprimirBoleta(BuildContext context, WidgetRef ref) async {

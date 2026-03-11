@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../features/cobros/data/models/hive/cobro_hive.dart';
 import '../features/locales/data/models/hive/local_hive.dart';
 import '../features/mercados/data/models/hive/mercado_hive.dart';
+import '../features/municipalidades/data/models/hive/municipalidad_hive.dart';
 import '../firebase_options.dart';
 
 /// Lógica de inicialización compartida entre todas las plataformas.
@@ -32,5 +33,8 @@ Future<void> bootstrap() async {
   }
   if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(MercadoHiveAdapter());
+  }
+  if (!Hive.isAdapterRegistered(4)) {
+    Hive.registerAdapter(MunicipalidadHiveAdapter());
   }
 }

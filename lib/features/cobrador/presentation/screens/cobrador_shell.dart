@@ -193,7 +193,7 @@ class CobradorShell extends ConsumerWidget {
                     icon: Consumer(
                       builder: (context, ref, _) {
                         final isConnected =
-                            ref.watch(printerConnectionProvider).value ?? false;
+                            ref.watch(printerConnectionProvider);
                         return Icon(
                           Icons.print_rounded,
                           size: 20,

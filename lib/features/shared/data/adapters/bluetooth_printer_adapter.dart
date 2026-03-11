@@ -9,16 +9,6 @@ import 'package:flutter/foundation.dart';
 
 class BluetoothPrinterAdapter implements PrinterService {
   @override
-  Stream<bool> get connectionStream =>
-      Stream.periodic(const Duration(seconds: 2)).asyncMap((_) async {
-        try {
-          return await PrintBluetoothThermal.connectionStatus;
-        } catch (_) {
-          return false;
-        }
-      });
-
-  @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
     try {
       if (Platform.isAndroid) {
