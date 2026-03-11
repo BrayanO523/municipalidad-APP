@@ -29,8 +29,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final stats = ref.watch(statsProvider);
     final filter = ref.watch(dashboardFilterProvider);
-    final localesAsync = ref.watch(localesProvider);
-    final mercadosAsync = ref.watch(mercadosProvider);
+
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -220,9 +219,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // â”€â”€ Gráficos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             DashboardChartsWidget(
               cobrosHoy: cobrosHoy.value ?? [],
-              locales: localesAsync.value ?? [],
-              mercados: mercadosAsync.value ?? [],
             ),
+
             const SizedBox(height: 24),
 
             const SizedBox(height: 24),
