@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -21,6 +22,13 @@ Future<void> bootstrap() async {
   // 2. Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // P4: Caché offline de Firestore — sirve datos desde disco si no cambiaron.
+  // Reduce lecturas en navegación repetida entre pantallas (web: IndexedDB, mobile: LevelDB).
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
   
   // 3. Hive (Base de datos local y offline)
