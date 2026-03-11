@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -162,7 +162,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// ── Header con botón Exportar PDF ────────────────────────────────────────────────────────────
+// â”€â”€ Header con botÃ³n Exportar PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _Header extends ConsumerWidget {
   final List<Local> todos;
   const _Header({required this.todos});
@@ -184,7 +184,7 @@ class _Header extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Listado de locales con crédito prepagado disponible',
+                'Listado de locales con crÃ©dito prepagado disponible',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
@@ -222,7 +222,7 @@ class _Header extends ConsumerWidget {
   }
 }
 
-// ── Tabla ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _SaldosTable extends StatelessWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
@@ -238,13 +238,13 @@ class _SaldosTable extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
             ),
             columns: const [
               DataColumn(label: Text('Local')),
               DataColumn(label: Text('Mercado')),
               DataColumn(label: Text('Representante')),
-              DataColumn(label: Text('Teléfono')),
+              DataColumn(label: Text('TelÃ©fono')),
               DataColumn(label: Text('Saldo a Favor')),
               DataColumn(label: Text('Balance Neto')),
               DataColumn(label: Text('Acciones')),
@@ -345,7 +345,7 @@ class _SaldosTable extends StatelessWidget {
   }
 }
 
-// ── Paginación ────────────────────────────────────────────────────────────────
+// â”€â”€ PaginaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
@@ -374,11 +374,11 @@ class _PaginationBar extends StatelessWidget {
           color: onPrev != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
+          tooltip: 'PÃ¡gina anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'Página ${currentPage + 1}',
+          'PÃ¡gina ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -394,7 +394,7 @@ class _PaginationBar extends StatelessWidget {
           color: onNext != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
+          tooltip: 'PÃ¡gina siguiente',
         ),
       ],
     );

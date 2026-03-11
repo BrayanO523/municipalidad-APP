@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/platform/printer_service.dart';
+import 'package:flutter/foundation.dart';
 
 
 class BluetoothPrinterAdapter implements PrinterService {
@@ -54,26 +55,26 @@ class BluetoothPrinterAdapter implements PrinterService {
         ].request();
       }
 
-      print('--- Verificando estado de Bluetooth ---');
+      debugPrint('--- Verificando estado de Bluetooth ---');
       final bool isBluetoothEnabled =
           await PrintBluetoothThermal.bluetoothEnabled;
       if (!isBluetoothEnabled) {
-        print('--- Error: Bluetooth desactivado ---');
+        debugPrint('--- Error: Bluetooth desactivado ---');
         return false;
       }
 
       // Desconexión preventiva para limpiar sockets previos
-      print('--- Desconexión preventiva ---');
+      debugPrint('--- Desconexión preventiva ---');
       await PrintBluetoothThermal.disconnect;
 
-      print('--- Intentando conectar a impresora: $macAddress ---');
+      debugPrint('--- Intentando conectar a impresora: $macAddress ---');
       final isConnected = await PrintBluetoothThermal.connect(
         macPrinterAddress: macAddress,
       );
-      print('--- Resultado de conexión: $isConnected ---');
+      debugPrint('--- Resultado de conexión: $isConnected ---');
       return isConnected;
     } catch (e) {
-      print('--- Error fatal en connect: $e ---');
+      debugPrint('--- Error fatal en connect: $e ---');
       return false;
     }
   }

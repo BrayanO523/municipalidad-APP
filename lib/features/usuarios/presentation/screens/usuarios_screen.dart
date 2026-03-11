@@ -102,7 +102,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Cobrador'),
         content: Text(
-          '¿Estás seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acción NO se puede deshacer.',
+          'Â¿EstÃ¡s seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acciÃ³n NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -148,7 +148,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       });
     }
 
-    // Estado mutable del diálogo — se declara aquí para ser accesible por el Consumer
+    // Estado mutable del diÃ¡logo â€” se declara aquÃ­ para ser accesible por el Consumer
     String? selectedMercadoId = usuario?.mercadoId;
     final List<String> selectedLocalesIds = usuario?.rutaAsignada != null
         ? List<String>.from(usuario!.rutaAsignada!)
@@ -160,8 +160,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Consumer(
           builder: (ctx, ref, _) {
-            // ✅ FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
-            // Antes se leía con ref.read() fuera del builder, lo que daba [] si aún no cargaba
+            // âœ… FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
+            // Antes se leÃ­a con ref.read() fuera del builder, lo que daba [] si aÃºn no cargaba
             final mercados = ref.watch(mercadosProvider).value ?? [];
             final mercadosFiltrados = mercados
                 .where(
@@ -189,7 +189,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       TextField(
                         controller: codigoCtrl,
                         decoration: InputDecoration(
-                          labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
+                          labelText: isEditing ? 'CÃ³digo Cobrador' : 'CÃ³digo Cobrador (Autogenerado)',
                           hintText: 'C1',
                           filled: true,
                         ),
@@ -200,7 +200,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       TextField(
                         controller: emailCtrl,
                         decoration: const InputDecoration(
-                          labelText: 'Correo Electrónico',
+                          labelText: 'Correo ElectrÃ³nico',
                         ),
                         enabled: !isEditing,
                       ),
@@ -209,14 +209,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                         TextField(
                           controller: passCtrl,
                           decoration: const InputDecoration(
-                            labelText: 'Contraseña',
+                            labelText: 'ContraseÃ±a',
                           ),
                           obscureText: true,
                         ),
                       const SizedBox(height: 12),
-                      // Dropdown de Mercado — se refresh automático vía Consumer
+                      // Dropdown de Mercado â€” se refresh automÃ¡tico vÃ­a Consumer
                       DropdownButtonFormField<String>(
-                        value: mercadosFiltrados.any((m) => m.id == selectedMercadoId)
+                        initialValue: mercadosFiltrados.any((m) => m.id == selectedMercadoId)
                             ? selectedMercadoId
                             : null,
                         decoration: const InputDecoration(
@@ -321,7 +321,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.54),
+                                              .withValues(alpha: 0.54),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -380,7 +380,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .onSurface
-                                                      .withOpacity(0.54),
+                                                      .withValues(alpha: 0.54),
                                                 ),
                                               ),
                                             ),
@@ -388,12 +388,12 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                               child: localesDisponibles.isEmpty
                                                   ? Center(
                                                       child: Text(
-                                                        'Nada aquí',
+                                                        'Nada aquÃ­',
                                                         style: TextStyle(
                                                           color: Theme.of(context)
                                                               .colorScheme
                                                               .onSurface
-                                                              .withOpacity(0.24),
+                                                              .withValues(alpha: 0.24),
                                                           fontSize: 11,
                                                         ),
                                                       ),
@@ -455,7 +455,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                           color: Theme.of(context)
                                                               .colorScheme
                                                               .onSurface
-                                                              .withOpacity(0.24),
+                                                              .withValues(alpha: 0.24),
                                                           fontSize: 11,
                                                         ),
                                                       ),
@@ -580,7 +580,7 @@ class _UsuariosHeader extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          'Gestión de Cobradores',
+          'GestiÃ³n de Cobradores',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 24,
@@ -610,7 +610,7 @@ class _UsuariosHeader extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
               ),
-              items: ['Nombre', 'Correo Electrónico'].map((String value) {
+              items: ['Nombre', 'Correo ElectrÃ³nico'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));
               }).toList(),
               onChanged: onColumnChanged,
@@ -631,13 +631,13 @@ class _UsuariosHeader extends StatelessWidget {
               hintStyle: TextStyle(
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withOpacity(0.54),
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
               ),
               prefixIcon: Icon(
                 Icons.search,
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withOpacity(0.54),
+                ).colorScheme.onSurface.withValues(alpha: 0.54),
                 size: 18,
               ),
               filled: true,
@@ -685,7 +685,7 @@ class _UsuariosTable extends ConsumerWidget {
         itemCount: usuarios.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
         ),
         itemBuilder: (context, index) {
           final u = usuarios[index];
@@ -699,7 +699,7 @@ class _UsuariosTable extends ConsumerWidget {
               vertical: 8,
             ),
             leading: CircleAvatar(
-              backgroundColor: const Color(0xFF6C63FF).withOpacity(0.2),
+              backgroundColor: const Color(0xFF6C63FF).withValues(alpha: 0.2),
               child: Text(
                 u.nombre?.substring(0, 1).toUpperCase() ?? 'U',
                 style: const TextStyle(
@@ -719,11 +719,11 @@ class _UsuariosTable extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
+                  '${u.email} â€¢ CÃ³digo: ${u.codigoCobrador ?? 'S/C'} â€¢ Mercado: $strMercado',
                   style: TextStyle(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.54),
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                     fontSize: 12,
                   ),
                 ),
@@ -734,7 +734,7 @@ class _UsuariosTable extends ConsumerWidget {
                   style: TextStyle(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.4),
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
                     fontSize: 11,
                   ),
                 ),
@@ -748,7 +748,7 @@ class _UsuariosTable extends ConsumerWidget {
                     Icons.edit_rounded,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.54),
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                   onPressed: () => onEdit(u),
                   tooltip: 'Editar',
@@ -799,19 +799,19 @@ class _PaginationBar extends StatelessWidget {
           onPressed: isCargando ? null : onPrev,
           color:
               onPrev != null
-                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
                   : Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.24),
-          tooltip: 'Página anterior',
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          tooltip: 'PÃ¡gina anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'Página ${currentPage + 1}',
+          'PÃ¡gina ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(
               context,
-            ).colorScheme.onSurface.withOpacity(0.54),
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
             fontSize: 13,
             fontWeight: FontWeight.bold,
           ),
@@ -826,9 +826,10 @@ class _PaginationBar extends StatelessWidget {
                   : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
+          tooltip: 'PÃ¡gina siguiente',
         ),
       ],
     );
   }
 }
+

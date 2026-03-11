@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
@@ -26,7 +27,7 @@ class LocalDatasource {
         municipalidadId: municipalidadId,
         deltaLocales: 1,
         deltaDeuda: deudaInicial,
-      ).catchError((e) => print('Error actualizando stats local: $e'));
+      ).catchError((e) => debugPrint('Error actualizando stats local: $e'));
     }
   }
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -107,7 +107,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Mercado'),
         content: Text(
-          '¿Estás seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
+          'Â¿EstÃ¡s seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
         ),
         actions: [
           TextButton(
@@ -156,7 +156,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                 TextField(
                   controller: ubicacionCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Ubicación Descriptiva',
+                    labelText: 'UbicaciÃ³n Descriptiva',
                     hintText: 'Ej. Zona 1, frente al parque',
                   ),
                 ),
@@ -168,7 +168,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                   ),
                   leading: const Icon(Icons.map_rounded, color: Colors.blueAccent),
                   title: Text(
-                    'Perímetro del Mercado',
+                    'PerÃ­metro del Mercado',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
@@ -176,7 +176,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                   ),
                   subtitle: Text(
                     mercado?.perimetro != null || (mercado?.perimetro?.isNotEmpty ?? false)
-                        ? 'Área definida (${mercado!.perimetro!.length} puntos)'
+                        ? 'Ãrea definida (${mercado!.perimetro!.length} puntos)'
                         : 'Sin definir en el mapa',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
@@ -297,7 +297,7 @@ class _MercadosHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Gestión de mercados de QRecauda',
+                'GestiÃ³n de mercados de QRecauda',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
@@ -309,7 +309,7 @@ class _MercadosHeader extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
@@ -322,7 +322,7 @@ class _MercadosHeader extends StatelessWidget {
               isDense: true,
               dropdownColor: Theme.of(context).colorScheme.surface,
               style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-              items: ['Nombre', 'Ubicación'].map((String value) {
+              items: ['Nombre', 'UbicaciÃ³n'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));
               }).toList(),
               onChanged: onColumnChanged,
@@ -370,9 +370,9 @@ class _MercadosTable extends StatelessWidget {
         child: DataTable(
           columns: const [
             DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Ubicación')),
+            DataColumn(label: Text('UbicaciÃ³n')),
             DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Fecha Creación')),
+            DataColumn(label: Text('Fecha CreaciÃ³n')),
             DataColumn(label: Text('Acciones')),
           ],
           rows: mercados.map((m) {
@@ -474,11 +474,11 @@ class _PaginationBar extends StatelessWidget {
           color: onPrev != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
+          tooltip: 'PÃ¡gina anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'Página ${currentPage + 1}',
+          'PÃ¡gina ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
             fontSize: 13,
@@ -492,9 +492,10 @@ class _PaginationBar extends StatelessWidget {
           color: onNext != null
               ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
+          tooltip: 'PÃ¡gina siguiente',
         ),
       ],
     );
   }
 }
+

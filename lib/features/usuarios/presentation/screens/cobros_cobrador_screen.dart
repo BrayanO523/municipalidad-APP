@@ -29,10 +29,10 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
   Future<void> _cargarCobros() async {
     try {
       final ds = ref.read(cobroDatasourceProvider);
-      final _rawCobros = await ds.listarPorCobrador(widget.cobrador.id!, limite: 150);
+      final rawCobros = await ds.listarPorCobrador(widget.cobrador.id!, limite: 150);
       
       // Filtrar pendientes automáticos y registros virtuales sin boleta real
-      final cobrosLimpios = _rawCobros.where((c) {
+      final cobrosLimpios = rawCobros.where((c) {
         if (c.monto == 0 && c.estado == 'pendiente') return false; 
         if (c.estado == 'adelantado' || c.estado == 'cobrado_saldo') return false;
         if (c.id?.startsWith('VIRTUAL') == true) return false;

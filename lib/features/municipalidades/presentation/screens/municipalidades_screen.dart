@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -216,7 +216,7 @@ class _ScreenHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Gestión de municipalidades registradas',
+                'GestiÃ³n de municipalidades registradas',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(
@@ -232,7 +232,7 @@ class _ScreenHeader extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
@@ -390,11 +390,11 @@ class _PaginationBar extends StatelessWidget {
                   .colorScheme
                   .onSurface
                   .withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
+          tooltip: 'PÃ¡gina anterior',
         ),
         const SizedBox(width: 8),
         Text(
-          'Página ${currentPage + 1}',
+          'PÃ¡gina ${currentPage + 1}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -414,7 +414,7 @@ class _PaginationBar extends StatelessWidget {
                   .colorScheme
                   .onSurface
                   .withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
+          tooltip: 'PÃ¡gina siguiente',
         ),
       ],
     );

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -167,7 +167,7 @@ class _UserFooter extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: colorScheme.primary.withOpacity(0.2),
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
                   child: Icon(
                     Icons.person_rounded,
                     color: colorScheme.primary,
@@ -192,7 +192,7 @@ class _UserFooter extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.1),
+                          ).colorScheme.onSurface.withValues(alpha: 0.1),
                           fontSize: 10,
                           letterSpacing: 0.8,
                         ),
@@ -210,7 +210,7 @@ class _UserFooter extends ConsumerWidget {
                     size: 18,
                     color: colorScheme.error,
                   ),
-                  tooltip: 'Cerrar Sesión',
+                  tooltip: 'Cerrar SesiÃ³n',
                 ),
               ],
             )
@@ -225,7 +225,7 @@ class _UserFooter extends ConsumerWidget {
                     size: 20,
                     color: colorScheme.error,
                   ),
-                  tooltip: 'Cerrar Sesión',
+                  tooltip: 'Cerrar SesiÃ³n',
                 ),
               ],
             ),
@@ -252,7 +252,7 @@ class _ThemeToggleButton extends ConsumerWidget {
           isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
           key: ValueKey(isDark),
           size: 18,
-          color: colorScheme.onSurface.withOpacity(0.7),
+          color: colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
@@ -318,7 +318,7 @@ class _SidebarHeader extends StatelessWidget {
                   Text(
                     nombreCompleto,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.54),
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
                       fontSize: 11,
                     ),
                     maxLines: 1,
@@ -371,11 +371,11 @@ class _NavItem extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: isSelected
-                  ? colorScheme.primary.withOpacity(0.12)
+                  ? colorScheme.primary.withValues(alpha: 0.12)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: colorScheme.primary.withOpacity(0.2))
+                  ? Border.all(color: colorScheme.primary.withValues(alpha: 0.2))
                   : null,
             ),
             child: Row(
@@ -388,7 +388,7 @@ class _NavItem extends StatelessWidget {
                   size: 22,
                   color: isSelected
                       ? colorScheme.primary
-                      : colorScheme.onSurface.withOpacity(0.5),
+                      : colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 if (isExpanded) ...[
                   const SizedBox(width: 12),
@@ -397,7 +397,7 @@ class _NavItem extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: isSelected
                           ? colorScheme.onSurface
-                          : colorScheme.onSurface.withOpacity(0.7),
+                          : colorScheme.onSurface.withValues(alpha: 0.7),
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w400,
@@ -412,3 +412,4 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
+
