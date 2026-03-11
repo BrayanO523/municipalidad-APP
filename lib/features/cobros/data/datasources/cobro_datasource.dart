@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
@@ -541,14 +542,47 @@ class CobroDatasource {
       DateTime fechaCobro = DateTime.now();
       if (fechaRaw is Timestamp) fechaCobro = fechaRaw.toDate();
 
+      final estado = data['estado'] as String?;
+      final saldoPendiente = (data['saldoPendiente'] as num?) ?? 0;
+
       if (targetMuniId != null) {
-        _statsDs.revertirCobro(
-          municipalidadId: targetMuniId,
-          montoCobrado: montoCobrado,
-          abonoDeuda: abonoDeuda,
-          incrementoSaldo: incrementoSaldo,
-          fechaCobroOriginal: fechaCobro,
-        ).catchError((e) => debugPrint('Error al revertir stats por cobro eliminado: $e'));
+        if (estado == 'pendiente') {
+          // Revertir un pendiente implica quitar la deuda generada y reducir el contador de cobros
+          _statsDs.actualizarConteo(
+            municipalidadId: targetMuniId,
+            deltaDeuda: -saldoPendiente,
+          ).catchError((_) {});
+          
+          final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
+          _firestore.collection('stats').doc(targetMuniId).set({
+            'diario': {
+              key: {
+                'cobros': FieldValue.increment(-1),
+              }
+            }
+          }, SetOptions(merge: true)).catchError((_) {});
+
+        } else if (estado == 'cobrado_saldo') {
+          // Revertir un saldado implica devolver el saldo a favor consumido, no altera el efectivo
+          _firestore.collection('stats').doc(targetMuniId).set({
+            'totalSaldoAFavor': FieldValue.increment(montoCobrado), // Devolver el saldo
+            'diario': {
+              DateFormat('yyyy-MM-dd').format(fechaCobro): {
+                'cobros': FieldValue.increment(-1),
+              }
+            }
+          }, SetOptions(merge: true)).catchError((_) {});
+
+        } else {
+          // Cobro normal (CASH): revertir efectivo, abono de deuda y excedentes
+          _statsDs.revertirCobro(
+            municipalidadId: targetMuniId,
+            montoCobrado: montoCobrado,
+            abonoDeuda: abonoDeuda,
+            incrementoSaldo: incrementoSaldo,
+            fechaCobroOriginal: fechaCobro,
+          ).catchError((e) => debugPrint('Error al revertir stats por cobro eliminado: $e'));
+        }
       }
     }
 

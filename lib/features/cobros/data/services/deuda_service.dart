@@ -149,6 +149,15 @@ class DeudaService {
             });
 
             await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo);
+
+            // Descontar ese monto de las estadísticas globales del Dashboard
+            if (local.municipalidadId != null) {
+              await firestore.collection('stats').doc(local.municipalidadId).set({
+                'totalSaldoAFavor': FieldValue.increment(-aCoverirConSaldo),
+                'ultimaActualizacion': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            }
+
             faltante -= aCoverirConSaldo;
           }
 
@@ -221,5 +230,13 @@ class DeudaService {
 
     // Incrementar deuda acumulada en el local
     await localDs.actualizarDeudaAcumulada(local.id!, faltante);
+
+    // Incrementar en las estadísticas globales (Dashboard)
+    if (local.municipalidadId != null) {
+      await firestore.collection('stats').doc(local.municipalidadId).set({
+        'totalDeuda': FieldValue.increment(faltante),
+        'ultimaActualizacion': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 }

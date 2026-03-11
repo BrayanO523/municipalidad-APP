@@ -614,14 +614,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           'actualizadoEn': Timestamp.fromDate(now),
           'actualizadoPor': usuario?.id ?? 'sistema',
           'cuotaDiaria': cuota,
-          'estado': 'cobrado',
+          'estado': 'cobrado_saldo',
           'fecha': Timestamp.fromDate(now),
           'localId': local.id,
           'mercadoId': local.mercadoId,
           'municipalidadId': local.municipalidadId,
-          'monto': cuota,
+          'monto': 0, // No es efectivo real, es crédito del cliente
+          'pagoACuota': cuota,
           'observaciones': 'Pagado con saldo a favor',
           'saldoPendiente': 0,
+          'montoAbonadoDeuda': 0,
+          'nuevoSaldoFavor': -cuota, // Señal para stats: descontar del saldo global
         },
       );
       // Descontar la cuota del saldo a favor
