@@ -22,6 +22,18 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
   bool _cargando = false;
   String _log = '';
 
+  // Buscador de locales
+  final _searchController = TextEditingController();
+  final _diasController = TextEditingController(text: '10');
+  String _busqueda = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _diasController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final localesAsync = ref.watch(localesProvider);
@@ -60,71 +72,143 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Selector de local
+            // Selector de local con buscador
             const Text('Seleccionar Local:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 8),
+            // Campo de búsqueda — filtra en memoria, sin lecturas extra
+            TextField(
+              controller: _searchController,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Buscar local por nombre...',
+                hintStyle: const TextStyle(color: Colors.white38),
+                prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 18),
+                suffixIcon: _busqueda.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _busqueda = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFF1A1B27),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+                ),
+              ),
+              onChanged: (v) => setState(() => _busqueda = v.toLowerCase()),
+            ),
             const SizedBox(height: 8),
             localesAsync.when(
               data: (locales) {
+                // Filtrar en memoria sin ninguna lectura adicional de Firestore
+                final filtrados = _busqueda.isEmpty
+                    ? locales
+                    : locales.where((l) =>
+                        (l.nombreSocial ?? '').toLowerCase().contains(_busqueda)).toList();
+
+                if (filtrados.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Sin resultados', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  );
+                }
+
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  constraints: const BoxConstraints(maxHeight: 200),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1A1B27),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF1A1B27),
-                    value: _localIdSeleccionado,
-                    hint: const Text('Elige un local', style: TextStyle(color: Colors.white38)),
-                    items: locales.map((l) {
-                      return DropdownMenuItem(
-                        value: l.id,
-                        child: Text(
-                          '${l.nombreSocial ?? "Sin nombre"} (L ${l.cuotaDiaria ?? 0})',
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filtrados.length,
+                    itemBuilder: (context, index) {
+                      final l = filtrados[index];
+                      final isSelected = _localIdSeleccionado == l.id;
+                      return ListTile(
+                        dense: true,
+                        selected: isSelected,
+                        selectedColor: const Color(0xFF6C63FF),
+                        selectedTileColor: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                        title: Text(
+                          l.nombreSocial ?? 'Sin nombre',
+                          style: TextStyle(
+                            color: isSelected ? const Color(0xFF6C63FF) : Colors.white,
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
                         ),
+                        trailing: Text(
+                          'L ${(l.cuotaDiaria ?? 0).toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                        ),
+                        onTap: () => setState(() {
+                          _localIdSeleccionado = l.id;
+                          _localNombre = l.nombreSocial;
+                          _cuotaDiaria = (l.cuotaDiaria ?? 50).toDouble();
+                        }),
                       );
-                    }).toList(),
-                    onChanged: (v) {
-                      final local = locales.firstWhere((l) => l.id == v);
-                      setState(() {
-                        _localIdSeleccionado = v;
-                        _localNombre = local.nombreSocial;
-                        _cuotaDiaria = (local.cuotaDiaria ?? 50).toDouble();
-                      });
                     },
-                    underline: const SizedBox.shrink(),
                   ),
                 );
               },
-              loading: () => const CircularProgressIndicator(),
+              loading: () => const Padding(
+                padding: EdgeInsets.all(8),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
               error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
             ),
             const SizedBox(height: 20),
 
-            // Dias de deuda
+            // Días de deuda — campo editable
             Row(
               children: [
                 const Text('Dias de deuda: ', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(width: 8),
-                Container(
-                  width: 60,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1B27),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: DropdownButton<int>(
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF1A1B27),
-                    value: _diasDeDeuda,
-                    items: [3, 5, 7, 10, 15, 20, 30].map((d) {
-                      return DropdownMenuItem(value: d, child: Text('$d', style: const TextStyle(color: Colors.white)));
-                    }).toList(),
-                    onChanged: (v) => setState(() => _diasDeDeuda = v ?? 10),
-                    underline: const SizedBox.shrink(),
+                SizedBox(
+                  width: 72,
+                  child: TextField(
+                    controller: _diasController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFF1A1B27),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+                      ),
+                    ),
+                    onChanged: (v) {
+                      final parsed = int.tryParse(v);
+                      if (parsed != null && parsed > 0 && parsed <= 365) {
+                        setState(() => _diasDeDeuda = parsed);
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
