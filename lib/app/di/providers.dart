@@ -263,10 +263,27 @@ final mercadosProvider = StreamProvider.autoDispose<List<Mercado>>((ref) {
 final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(localDatasourceProvider);
-  if (user?.municipalidadId != null) {
-    return ds.streamPorMunicipalidad(user!.municipalidadId!);
+
+  if (user == null || user.municipalidadId == null) {
+     return Stream.value([]);
   }
-  return ds.streamTodos();
+
+  // AISLAMIENTO: Si es cobrador, usar la lógica restrictiva de localesCobradorProvider
+  if (user.rol == 'cobrador') {
+    if (user.mercadoId == null || user.mercadoId!.isEmpty) {
+      return Stream.value([]);
+    }
+    
+    return ds.streamPorMercado(user.mercadoId!).map((locales) {
+      if (user.rutaAsignada != null && user.rutaAsignada!.isNotEmpty) {
+        return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
+      }
+      return locales; 
+    });
+  }
+
+  // Para administradores, devolver todos los de la municipalidad
+  return ds.streamPorMunicipalidad(user.municipalidadId!);
 });
 
 final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((ref) {
@@ -447,10 +464,17 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
   final ds = ref.read(cobroDatasourceProvider);
   final filter = ref.watch(dashboardFilterProvider);
 
+  // Determinar si hay que aplicar flag de cobrador
+  final isCobrador = user.rol == 'cobrador';
+  final cobradorIdParam = isCobrador ? user.id : null;
+  final mercadoIdParam = isCobrador ? user.mercadoId : null;
+
   if (filter.period == DashboardPeriod.hoy) {
     return ds.streamPorFecha(
       filter.range.start,
       municipalidadId: user.municipalidadId,
+      mercadoId: mercadoIdParam,
+      cobradorId: cobradorIdParam,
     );
   } else {
     // Para rangos históricos, usamos listarPorRangoFechas (atómico)
@@ -460,6 +484,8 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
         filter.range.start,
         filter.range.end,
         municipalidadId: user.municipalidadId,
+        mercadoId: mercadoIdParam,
+        cobradorId: cobradorIdParam,
       ).then((list) => list.cast<Cobro>()),
     );
   }
@@ -524,6 +550,7 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
     hoy,
     municipalidadId: user.municipalidadId,
     mercadoId: user.mercadoId,
+    cobradorId: user.id, // AISLANTE DE DATOS: Solo el efectivo de este cobrador
   );
 });
 

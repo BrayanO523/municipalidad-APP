@@ -332,6 +332,7 @@ class CobroDatasource {
     DateTime fecha, {
     String? municipalidadId,
     String? mercadoId,
+    String? cobradorId, // NUEVO parámetro para aislar datos
     int limite = 150, // Límite de seguridad para evitar miles de lecturas si hay picos
   }) {
     final inicio = DateTime(fecha.year, fecha.month, fecha.day);
@@ -346,6 +347,9 @@ class CobroDatasource {
     }
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
+    if (cobradorId != null) {
+      query = query.where('creadoPor', isEqualTo: cobradorId);
     }
 
     // CORRECCIÓN CRÍICA: Limitar el stream para no devorar la facturación
@@ -364,6 +368,7 @@ class CobroDatasource {
     DateTime fin, {
     String? municipalidadId,
     String? mercadoId,
+    String? cobradorId, // NUEVO parámetro para aislar "Resumen Operativo"
     int? limite = 100, // Limitar a 100 por seguridad en dashboard
   }) async {
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
@@ -379,6 +384,9 @@ class CobroDatasource {
     }
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
+    if (cobradorId != null) {
+      query = query.where('creadoPor', isEqualTo: cobradorId);
     }
     if (limite != null) {
       query = query.limit(limite);
@@ -396,6 +404,7 @@ class CobroDatasource {
     DateTime fin, {
     String? municipalidadId,
     String? mercadoId,
+    String? cobradorId,
   }) {
     // ... (Se mantiene por compatibilidad si es necesario, pero se marcará como depre)
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
@@ -408,6 +417,7 @@ class CobroDatasource {
 
     if (municipalidadId != null) query = query.where('municipalidadId', isEqualTo: municipalidadId);
     if (mercadoId != null) query = query.where('mercadoId', isEqualTo: mercadoId);
+    if (cobradorId != null) query = query.where('creadoPor', isEqualTo: cobradorId);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs

@@ -29,80 +29,181 @@ class ReceiptDispatcher {
     String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
-    return showDialog(
+    if (!context.mounted) return;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1B27),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.receipt_long_rounded, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Comprobante de Pago', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              local.nombreSocial ?? 'Local Desconocido',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true),
-            if (local.clave != null && local.clave!.isNotEmpty)
-              _infoRow('Clave:', local.clave!),
-            if (montoAbonadoDeuda > 0)
-              _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent),
-            if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
-              if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
-                _infoRow(
-                  'Periodo abonado:',
-                  periodoAbonadoStr ?? DateRangeFormatter.formatearRangos(fechasSaldadas)!,
-                  color: Colors.orangeAccent.withValues(alpha: 0.9),
+      isDismissible: true,
+      enableDrag: true,
+      isScrollControlled: true,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-            ],
-            if (saldoAFavor > 0)
-              _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6)),
-            if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
-              _infoRow('Periodo a favor:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9)),
-            const SizedBox(height: 16),
-            const Text(
-              '¿Cómo desea entregar el comprobante?',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ],
-        ),
-        actions: [
-          Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _imprimirTicket(
-                      ref: ref,
-                      muni: municipalidadNombre ?? 'MUNICIPALIDAD',
-                      merc: mercadoNombre,
-                      localName: local.nombreSocial ?? 'Local',
-                      monto: monto,
-                      fecha: fecha,
-                      saldoP: saldoPendiente,
-                      favor: saldoAFavor,
-                      deudaAnt: deudaAnterior,
-                      abono: montoAbonadoDeuda,
-                      cobrador: cobradorNombre,
-                      boleta: numeroBoleta,
-                      fechasSaldadas: fechasSaldadas,
-                      periodoAbonadoStr: periodoAbonadoStr,
-                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
-                      slogan: slogan,
-                      clave: local.clave,
-                    );
-                    if (context.mounted) {
+                // Título
+                Row(
+                  children: [
+                    Icon(Icons.receipt_long_rounded, color: cs.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Comprobante de Pago',
+                      style: TextStyle(
+                        color: cs.onSurface,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Info del pago
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    local.nombreSocial ?? 'Local Desconocido',
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true, textColor: cs.onSurface),
+                if (local.clave != null && local.clave!.isNotEmpty)
+                  _infoRow('Clave:', local.clave!, textColor: cs.onSurface),
+                if (montoAbonadoDeuda > 0)
+                  _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent, textColor: cs.onSurface),
+                if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
+                  if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                    _infoRow(
+                      'Periodo abonado:',
+                      periodoAbonadoStr ?? DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                      color: Colors.orangeAccent.withValues(alpha: 0.9),
+                      textColor: cs.onSurface,
+                    ),
+                ],
+                if (saldoAFavor > 0)
+                  _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6), textColor: cs.onSurface),
+                if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+                  _infoRow('Periodo a favor:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9), textColor: cs.onSurface),
+                const SizedBox(height: 16),
+                Text(
+                  '¿Cómo desea entregar el comprobante?',
+                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6), fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                // Botones de acción
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _imprimirTicket(
+                        ref: ref,
+                        muni: municipalidadNombre ?? 'MUNICIPALIDAD',
+                        merc: mercadoNombre,
+                        localName: local.nombreSocial ?? 'Local',
+                        monto: monto,
+                        fecha: fecha,
+                        saldoP: saldoPendiente,
+                        favor: saldoAFavor,
+                        deudaAnt: deudaAnterior,
+                        abono: montoAbonadoDeuda,
+                        cobrador: cobradorNombre,
+                        boleta: numeroBoleta,
+                        fechasSaldadas: fechasSaldadas,
+                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                        slogan: slogan,
+                        clave: local.clave,
+                      );
+                      if (context.mounted) {
+                        await compartirPdf(
+                          context: context,
+                          local: local,
+                          monto: monto,
+                          fecha: fecha,
+                          saldoPendiente: saldoPendiente,
+                          deudaAnterior: deudaAnterior,
+                          montoAbonadoDeuda: montoAbonadoDeuda,
+                          saldoAFavor: saldoAFavor,
+                          numeroBoleta: numeroBoleta,
+                          muni: municipalidadNombre,
+                          merc: mercadoNombre,
+                          cobrador: cobradorNombre,
+                          fechasSaldadas: fechasSaldadas,
+                          periodoAbonadoStr: periodoAbonadoStr,
+                          periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                          slogan: slogan,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('AMBOS (Imprimir + PDF)'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _imprimirTicket(
+                        ref: ref,
+                        muni: municipalidadNombre ?? 'MUNICIPALIDAD',
+                        merc: mercadoNombre,
+                        localName: local.nombreSocial ?? 'Local',
+                        monto: monto,
+                        fecha: fecha,
+                        saldoP: saldoPendiente,
+                        favor: saldoAFavor,
+                        deudaAnt: deudaAnterior,
+                        abono: montoAbonadoDeuda,
+                        cobrador: cobradorNombre,
+                        boleta: numeroBoleta,
+                        fechasSaldadas: fechasSaldadas,
+                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                        slogan: slogan,
+                        clave: local.clave,
+                      );
+                    },
+                    icon: const Icon(Icons.print_rounded),
+                    label: const Text('Imprimir Ticket (Térmica)'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
                       await compartirPdf(
                         context: context,
                         local: local,
@@ -121,119 +222,44 @@ class ReceiptDispatcher {
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                       );
-                    }
-                  },
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('AMBOS (Imprimir + PDF)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C63FF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    },
+                    icon: const Icon(Icons.share_rounded),
+                    label: const Text('Compartir PDF (Digital)'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _imprimirTicket(
-                      ref: ref,
-                      muni: municipalidadNombre ?? 'MUNICIPALIDAD',
-                      merc: mercadoNombre,
-                      localName: local.nombreSocial ?? 'Local',
-                      monto: monto,
-                      fecha: fecha,
-                      saldoP: saldoPendiente,
-                      favor: saldoAFavor,
-                      deudaAnt: deudaAnterior,
-                      abono: montoAbonadoDeuda,
-                      cobrador: cobradorNombre,
-                      boleta: numeroBoleta,
-                      fechasSaldadas: fechasSaldadas,
-                      periodoAbonadoStr: periodoAbonadoStr,
-                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
-                      slogan: slogan,
-                      clave: local.clave,
-                    );
-                  },
-                  icon: const Icon(Icons.print_rounded),
-                  label: const Text('Imprimir Ticket (Térmica)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Solo Cerrar (No entregar)'),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await compartirPdf(
-                      context: context,
-                      local: local,
-                      monto: monto,
-                      fecha: fecha,
-                      saldoPendiente: saldoPendiente,
-                      deudaAnterior: deudaAnterior,
-                      montoAbonadoDeuda: montoAbonadoDeuda,
-                      saldoAFavor: saldoAFavor,
-                      numeroBoleta: numeroBoleta,
-                      muni: municipalidadNombre,
-                      merc: mercadoNombre,
-                      cobrador: cobradorNombre,
-                      fechasSaldadas: fechasSaldadas,
-                      periodoAbonadoStr: periodoAbonadoStr,
-                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
-                      slogan: slogan,
-                    );
-                  },
-                  icon: const Icon(Icons.share_rounded),
-                  label: const Text('Compartir PDF (Digital)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close_rounded),
-                  label: const Text('Solo Cerrar (No entregar)'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  static Widget _infoRow(String label, String value, {bool isBold = false, Color? color}) {
+  static Widget _infoRow(String label, String value, {bool isBold = false, Color? color, Color? textColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(label, style: TextStyle(color: textColor?.withValues(alpha: 0.7) ?? Colors.white70, fontSize: 12)),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
               style: TextStyle(
-                color: color ?? Colors.white,
+                color: color ?? textColor ?? Colors.white,
                 fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
                 fontSize: 13,
               ),

@@ -674,11 +674,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         );
       }
 
-      // --- OBTENER DATOS MAESTROS (Con soporte offline vía repositorios) ---
-      final muni = await municipalidadRepo.obtenerPorId(
-        local.municipalidadId ?? '',
-      );
-      final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+      // --- OBTENER DATOS MAESTROS EN PARALELO (optimización de velocidad) ---
+      final muniFuture = municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+      final mercFuture = mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+      final muni = await muniFuture;
+      final merc = await mercFuture;
 
       final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
       final mercadoNombre = merc?.nombre;
@@ -747,10 +747,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
     final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
-    final muni = await municipalidadRepo.obtenerPorId(
-      local.municipalidadId ?? '',
-    );
-    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+    // --- OBTENER DATOS MAESTROS EN PARALELO (optimización de velocidad) ---
+    final muniFuture = municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final mercFuture = mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+    final muni = await muniFuture;
+    final merc = await mercFuture;
 
     debugPrint('🏛️ [HOME] Municipalidad: ${muni?.nombre} | slogan: "${muni?.slogan}" | id buscado: ${local.municipalidadId}');
 
@@ -1629,6 +1630,7 @@ class _LocalCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final tieneDeuda = (local.deudaAcumulada ?? 0) > 0;
     final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
+    final cardStatusColor = (cuotaCubierta || cobrado) ? AppColors.success : AppColors.warning;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1639,13 +1641,7 @@ class _LocalCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: cuotaCubierta
-                  ? colorScheme.primary.withValues(alpha: 0.35)
-                  : cobrado
-                  ? colorScheme.primary.withValues(alpha: 0.4)
-                  : tieneDeuda
-                  ? AppColors.danger.withValues(alpha: 0.4)
-                  : colorScheme.outline.withValues(alpha: 0.4),
+              color: cardStatusColor.withValues(alpha: 0.4),
             ),
           ),
           child: Column(
@@ -1662,7 +1658,7 @@ class _LocalCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.15),
+                        color: cardStatusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -1671,7 +1667,7 @@ class _LocalCard extends StatelessWidget {
                             : cobrado
                             ? Icons.add_task_rounded
                             : Icons.storefront_rounded,
-                        color: colorScheme.primary,
+                        color: cardStatusColor,
                         size: 22,
                       ),
                     ),

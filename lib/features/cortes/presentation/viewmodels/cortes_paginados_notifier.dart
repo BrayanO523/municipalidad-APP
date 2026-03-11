@@ -13,6 +13,7 @@ class CortesPaginadosState {
   final int paginaActual;
   final List<QueryDocumentSnapshot?> snapshotsPaginas;
   final bool isAdmin;
+  final bool inicializado;
 
   CortesPaginadosState({
     this.cortes = const [],
@@ -22,6 +23,7 @@ class CortesPaginadosState {
     this.paginaActual = 1,
     this.snapshotsPaginas = const [null],
     this.isAdmin = false,
+    this.inicializado = false,
   });
 
   CortesPaginadosState copyWith({
@@ -32,6 +34,7 @@ class CortesPaginadosState {
     int? paginaActual,
     List<QueryDocumentSnapshot?>? snapshotsPaginas,
     bool? isAdmin,
+    bool? inicializado,
   }) {
     return CortesPaginadosState(
       cortes: cortes ?? this.cortes,
@@ -41,6 +44,7 @@ class CortesPaginadosState {
       paginaActual: paginaActual ?? this.paginaActual,
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
       isAdmin: isAdmin ?? this.isAdmin,
+      inicializado: inicializado ?? this.inicializado,
     );
   }
 }
@@ -113,6 +117,7 @@ class CortesPaginadosNotifier extends Notifier<CortesPaginadosState> {
         hayMas: hayMas,
         paginaActual: reiniciar ? 1 : state.paginaActual,
         snapshotsPaginas: nuevasPaginas,
+        inicializado: true,
       );
     } catch (e) {
       state = state.copyWith(

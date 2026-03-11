@@ -19,7 +19,7 @@ class CortesHistorialScreen extends ConsumerWidget {
 
     // Carga inicial
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (state.cortes.isEmpty && !state.cargando && state.errorMsg == null) {
+      if (!state.inicializado && !state.cargando && state.errorMsg == null) {
         notifier.cargarPagina();
       }
     });
