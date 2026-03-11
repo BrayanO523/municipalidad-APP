@@ -205,7 +205,7 @@ final municipalidadActualProvider = Provider<Municipalidad?>((ref) {
   );
 });
 
-final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
+final mercadosProvider = StreamProvider.autoDispose<List<Mercado>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final repo = ref.read(mercadoRepositoryProvider);
   if (user?.municipalidadId != null) {
@@ -214,7 +214,7 @@ final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
   return repo.streamTodos();
 });
 
-final localesProvider = StreamProvider<List<Local>>((ref) {
+final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(localDatasourceProvider);
   if (user?.municipalidadId != null) {
@@ -223,7 +223,7 @@ final localesProvider = StreamProvider<List<Local>>((ref) {
   return ds.streamTodos();
 });
 
-final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
+final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(tipoNegocioDatasourceProvider);
   if (user?.municipalidadId != null) {
@@ -232,12 +232,7 @@ final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
   return ds.streamTodos();
 });
 
-final cobrosRecientesProvider = StreamProvider<List<Cobro>>((ref) {
-  final user = ref.watch(currentUsuarioProvider).value;
-  if (user == null || user.municipalidadId == null) return Stream.value([]);
-  final ds = ref.read(cobroDatasourceProvider);
-  return ds.streamRecientes(municipalidadId: user.municipalidadId!);
-});
+
 
 final statsProvider = StreamProvider<StatsModel>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
@@ -397,7 +392,7 @@ final fechaDashboardProvider = Provider<DateTime>((ref) {
   return ref.watch(dashboardFilterProvider).range.start;
 });
 
-final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
+final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   if (user == null) return Stream.value([]);
 
@@ -422,24 +417,25 @@ final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
   }
 });
 
-final usuariosProvider = StreamProvider<List<Usuario>>((ref) {
+final usuariosProvider = StreamProvider.autoDispose<List<Usuario>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(authDatasourceProvider);
   return ds.streamTodos(municipalidadId: user?.municipalidadId);
 });
 
-final localStreamProvider = StreamProvider.family<Local?, String>((ref, id) {
+final localStreamProvider = StreamProvider.autoDispose.family<Local?, String>((ref, id) {
   final ds = ref.read(localDatasourceProvider);
   return ds.streamPorId(id);
 });
 
-final localCobrosStreamProvider = StreamProvider.family<List<Cobro>, String>((
-  ref,
-  id,
-) {
-  final ds = ref.read(cobroDatasourceProvider);
-  return ds.streamPorLocal(id);
-});
+final localCobrosStreamProvider = StreamProvider.autoDispose.family<List<Cobro>, String>(
+  (ref, id) {
+    final ds = ref.read(cobroDatasourceProvider);
+    // Límite de 100 cobros para evitar descargar años de historial completo.
+    // En la pantalla de historial se usa paginación si se necesitan más.
+    return ds.streamPorLocal(id, limite: 100);
+  },
+);
 
 final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
