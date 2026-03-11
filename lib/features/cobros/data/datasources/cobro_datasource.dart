@@ -513,7 +513,7 @@ class CobroDatasource {
     if (!isOffline) {
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () => {},
+        onTimeout: () {},
       );
     }
   }
@@ -538,13 +538,23 @@ class CobroDatasource {
     );
 
     final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
-    final source = isOffline ? Source.cache : Source.serverAndCache;
-
-    final snapshot = await _collection
-        .where('localId', isEqualTo: localId)
-        .where('estado', whereIn: ['pendiente', 'abono_parcial'])
-        .orderBy('fecha', descending: false) // Los más antiguos primero (FIFO)
-        .get(GetOptions(source: source));
+    
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await _collection
+          .where('localId', isEqualTo: localId)
+          .where('estado', whereIn: ['pendiente', 'abono_parcial'])
+          .orderBy('fecha', descending: false)
+          .get(GetOptions(source: isOffline ? Source.cache : Source.serverAndCache))
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Fallback a caché si expira o falla la red
+      snapshot = await _collection
+          .where('localId', isEqualTo: localId)
+          .where('estado', whereIn: ['pendiente', 'abono_parcial'])
+          .orderBy('fecha', descending: false)
+          .get(const GetOptions(source: Source.cache));
+    }
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
@@ -574,8 +584,10 @@ class CobroDatasource {
                   .trim(),
         });
         restante -= saldoPendiente;
+        // Solo agregar a fechasSaldadas si el día fue cubierto al 100%
+        if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
       } else {
-        // Se abona parcialmente (no se considera "día cubierto" para el recibo)
+        // Se abona parcialmente — el día NO está cubierto, no agregar fecha
         batch.update(doc.reference, {
           'estado': 'abono_parcial',
           'saldoPendiente': saldoPendiente - restante,
@@ -584,7 +596,6 @@ class CobroDatasource {
       }
 
       idsSaldados.add(doc.id);
-      if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
     }
 
     final future = batch.commit();
@@ -592,7 +603,7 @@ class CobroDatasource {
     if (!isOffline) {
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () => {},
+        onTimeout: () {},
       );
     }
 

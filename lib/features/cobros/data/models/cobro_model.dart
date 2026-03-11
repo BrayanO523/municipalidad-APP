@@ -28,6 +28,7 @@ class CobroJson extends Cobro {
     super.nuevoSaldoFavor,
     super.pagoACuota,
     super.idsDeudasSaldadas,
+    super.fechasDeudasSaldadas,
   });
 
   factory CobroJson.fromJson(Map<String, dynamic> json, {String? docId}) {
@@ -58,6 +59,9 @@ class CobroJson extends Cobro {
       idsDeudasSaldadas: (json['idsDeudasSaldadas'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
+      fechasDeudasSaldadas: (json['fechasDeudasSaldadas'] as List<dynamic>?)
+          ?.map((e) => (e as Timestamp).toDate())
+          .toList(),
     );
   }
 
@@ -87,6 +91,7 @@ class CobroJson extends Cobro {
       nuevoSaldoFavor: entity.nuevoSaldoFavor,
       pagoACuota: entity.pagoACuota,
       idsDeudasSaldadas: entity.idsDeudasSaldadas,
+      fechasDeudasSaldadas: entity.fechasDeudasSaldadas,
     );
   }
 
@@ -117,6 +122,8 @@ class CobroJson extends Cobro {
       'pagoACuota': pagoACuota,
       if (idsDeudasSaldadas != null && idsDeudasSaldadas!.isNotEmpty)
         'idsDeudasSaldadas': idsDeudasSaldadas,
+      if (fechasDeudasSaldadas != null && fechasDeudasSaldadas!.isNotEmpty)
+        'fechasDeudasSaldadas': fechasDeudasSaldadas!.map((d) => Timestamp.fromDate(d)).toList(),
     };
   }
 }

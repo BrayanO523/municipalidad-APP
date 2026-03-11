@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../domain/entities/cobro.dart';
@@ -105,10 +106,13 @@ class CobroRepositoryImpl implements CobroRepository {
       fechasSaldadas = resultado.fechas;
     }
 
-    // 5. Si hubo deudas saldadas, actualizar el documento del cobro con esos IDs
+    // 5. Si hubo deudas saldadas, actualizar el documento del cobro con esos IDs y fechas
     if (idsDeudasSaldadas.isNotEmpty && cobro.id != null) {
       await _remoteDatasource.actualizar(cobro.id!, {
         'idsDeudasSaldadas': idsDeudasSaldadas,
+        'fechasDeudasSaldadas': fechasSaldadas
+            .map((d) => Timestamp.fromDate(d))
+            .toList(),
       });
     }
 
