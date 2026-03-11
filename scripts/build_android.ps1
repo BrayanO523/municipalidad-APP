@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Leer pubspec.yaml
-$pubspecPath = Join-Path $PSScriptRoot ".." "pubspec.yaml"
+$pubspecPath = Join-Path $PSScriptRoot "..\pubspec.yaml"
 $pubspec = Get-Content $pubspecPath -Raw
 
 # Extraer nombre de la app
@@ -34,16 +34,17 @@ Write-Host "================================================" -ForegroundColor C
 # Construir APK
 Write-Host "`n[1/3] Construyendo APK de release..." -ForegroundColor Yellow
 $projectRoot = Join-Path $PSScriptRoot ".."
+Set-Location $projectRoot
 flutter build apk --release
 
 # Preparar directorio de salida
-$outputDir = Join-Path $projectRoot "build" "releases" "android"
+$outputDir = Join-Path $projectRoot "build\releases\android"
 if (-not (Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 }
 
 # Copiar y renombrar APK
-$sourceApk = Join-Path $projectRoot "build" "app" "outputs" "flutter-apk" "app-release.apk"
+$sourceApk = Join-Path $projectRoot "build\app\outputs\flutter-apk\app-release.apk"
 $targetName = "${appName}_${version}+${buildNumber}.apk"
 $targetPath = Join-Path $outputDir $targetName
 
