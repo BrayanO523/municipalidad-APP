@@ -286,7 +286,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         cobradorId: usuario?.id,
         observaciones: 'Sin pago - registrado por cobrador',
       );
-      ref.invalidate(cobrosHoyCobradorProvider);
+      // Riverpod se autoactualizara sin destruir los streams subyacentes.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -681,8 +681,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       if (!mounted) return;
       // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
+      // (Eliminado ref.invalidate para no destruir el Stream de Firestore y evitar re-lecturas masivas)
     } catch (e) {
       debugPrint('❌ Error en _aplicarSaldoAFavor: $e');
       if (mounted) {
@@ -880,8 +879,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       if (!mounted) return;
       // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
+      // (Eliminado ref.invalidate para no destruir el Stream de Firestore y evitar re-lecturas masivas)
     } catch (e) {
       debugPrint('❌ Error en _guardarCobro: $e');
       if (mounted) {
