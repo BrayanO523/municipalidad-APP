@@ -76,7 +76,7 @@ class RecaudacionBarChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'RecaudaciÃ³n por Mercado',
+              'Recaudación por Mercado',
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
@@ -95,7 +95,7 @@ class RecaudacionBarChart extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Sin recaudaciÃ³n hoy',
+                        'Sin recaudación hoy',
                         style: TextStyle(
                           color: colorScheme.onSurface.withValues(alpha: 0.54),
                         ),

@@ -6,7 +6,7 @@ import '../../../locales/domain/entities/local.dart';
 
 class CobrosStatusPieChart extends StatelessWidget {
   final List<Cobro>
-  cobrosHoy; // Ya no se usa para el cÃ¡lculo, pero se mantiene la firma
+  cobrosHoy; // Ya no se usa para el cálculo, pero se mantiene la firma
   final List<Local> locales;
 
   const CobrosStatusPieChart({
@@ -36,7 +36,7 @@ class CobrosStatusPieChart extends StatelessWidget {
       }
     }
 
-    // Asegurar que haya algo que mostrar incluso si todos estÃ¡n en 0
+    // Asegurar que haya algo que mostrar incluso si todos están en 0
     final hasData = totalLocales > 0;
 
     return Card(
@@ -123,7 +123,7 @@ class CobrosStatusPieChart extends StatelessWidget {
               children: [
                 _Indicator(
                   color: const Color(0xFF00D9A6),
-                  text: 'Al DÃ­a ($localesAlDia)',
+                  text: 'Al Día ($localesAlDia)',
                 ),
                 _Indicator(
                   color: const Color(0xFFEE5A6F),
