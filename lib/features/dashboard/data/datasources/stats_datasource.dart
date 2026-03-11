@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 class StatsModel {
@@ -41,7 +42,7 @@ class StatsModel {
     'cantidadLocales': cantidadLocales,
     'cantidadMercados': cantidadMercados,
     'ultimaActualizacion': FieldValue.serverTimestamp(),
-    'diario': diario, // no se suele sobreescribir completo, es para lectura local
+    'diario': diario,
   };
 
   /// Obtiene la recaudación específica del día actual local.
@@ -77,6 +78,7 @@ class StatsDatasource {
   }
 
   /// Actualización atómica de estadísticas al registrar un cobro.
+  /// Usa `update()` para que los puntos en 'diario.$key.recaudado' creen campos ANIDADOS.
   Future<void> actualizarAlCobrar({
     required String municipalidadId,
     required num montoCobrado,
@@ -85,18 +87,18 @@ class StatsDatasource {
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    await _doc(municipalidadId).set({
+    // update() interpreta puntos como rutas anidadas (diario -> key -> recaudado)
+    await _doc(municipalidadId).update({
       'totalCobrado': FieldValue.increment(montoCobrado),
       'totalDeuda': FieldValue.increment(-abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(montoCobrado),
       'diario.$key.cobros': FieldValue.increment(1),
-    }, SetOptions(merge: true));
+    });
   }
 
   /// Revierte las estadísticas al eliminar/anular un cobro.
-  /// Requiere la [fechaCobroOriginal] para descontar el contador del día correcto en el mapa `diario`.
   Future<void> revertirCobro({
     required String municipalidadId,
     required num montoCobrado,
@@ -106,17 +108,18 @@ class StatsDatasource {
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
 
-    await _doc(municipalidadId).set({
+    await _doc(municipalidadId).update({
       'totalCobrado': FieldValue.increment(-montoCobrado),
       'totalDeuda': FieldValue.increment(abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(-incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(-montoCobrado),
       'diario.$key.cobros': FieldValue.increment(-1),
-    }, SetOptions(merge: true));
+    });
   }
 
   /// Actualización al registrar o eliminar un local/mercado.
+  /// Usa set(merge:true) porque el documento puede no existir aún.
   Future<void> actualizarConteo({
     required String municipalidadId,
     int deltaLocales = 0,
@@ -130,8 +133,8 @@ class StatsDatasource {
     }, SetOptions(merge: true));
   }
 
-  /// Recalcula el mapa `diario` de hoy consultando los cobros reales en Firestore.
-  /// Repara datos corruptos por escrituras anteriores con mapas anidados.
+  /// Recalcula el mapa `diario` de hoy desde los cobros reales.
+  /// También limpia campos planos corruptos (e.g. 'diario.2026-03-11.cobros').
   Future<void> recalcularDiarioHoy(String municipalidadId) async {
     final hoy = DateTime.now();
     final inicio = DateTime(hoy.year, hoy.month, hoy.day);
@@ -155,10 +158,31 @@ class StatsDatasource {
       totalCobros++;
     }
 
-    await _doc(municipalidadId).set({
+    // 1. Limpiar campos planos corruptos creados por set(merge:true) con dot notation
+    try {
+      await _doc(municipalidadId).update({
+        'diario.$key.cobros': FieldValue.delete(),
+        'diario.$key.recaudado': FieldValue.delete(),
+      });
+    } catch (_) {
+      // Si el doc no existe o los campos no existen, ignorar
+    }
+
+    // 2. Eliminar los campos planos con nombre literal (ej: "diario.2026-03-11.cobros")
+    try {
+      await _doc(municipalidadId).update({
+        'diario.$key.cobros': FieldValue.delete(),
+        'diario.$key.recaudado': FieldValue.delete(),
+      });
+    } catch (_) {}
+
+    // 3. Escribir la estructura anidada correcta usando update()
+    await _doc(municipalidadId).update({
       'diario.$key.recaudado': totalRecaudado,
       'diario.$key.cobros': totalCobros,
-    }, SetOptions(merge: true));
+    });
+
+    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado hoy');
   }
 
 }

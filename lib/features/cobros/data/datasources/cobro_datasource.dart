@@ -554,17 +554,17 @@ class CobroDatasource {
           ).catchError((_) {});
           
           final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
-          _firestore.collection('stats').doc(targetMuniId).set({
+          _firestore.collection('stats').doc(targetMuniId).update({
             'diario.$key.cobros': FieldValue.increment(-1),
-          }, SetOptions(merge: true)).catchError((_) {});
+          }).catchError((_) {});
 
         } else if (estado == 'cobrado_saldo') {
           // Revertir un saldado implica devolver el saldo a favor consumido, no altera el efectivo
           final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
-          _firestore.collection('stats').doc(targetMuniId).set({
+          _firestore.collection('stats').doc(targetMuniId).update({
             'totalSaldoAFavor': FieldValue.increment(montoCobrado),
             'diario.$key.cobros': FieldValue.increment(-1),
-          }, SetOptions(merge: true)).catchError((_) {});
+          }).catchError((_) {});
 
         } else {
           // Cobro normal (CASH): revertir efectivo, abono de deuda y excedentes
