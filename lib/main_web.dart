@@ -14,6 +14,9 @@ void main() async {
       overrides: [
         // En la Web forzamos el DefaultNavigationConfig (sin Resumen Operativo)
         navigationConfigProvider.overrideWithValue(DefaultNavigationConfig()),
+        printerPersistenceDataSourceProvider.overrideWithValue(
+          PrinterPersistenceLocalDataSource(),
+        ),
       ],
       child: const MainApp(),
     ),

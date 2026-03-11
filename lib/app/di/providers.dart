@@ -22,8 +22,8 @@ import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
-import '../../core/platform/printer_persistence_datasource.dart';
-import '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
+export '../../core/platform/printer_persistence_datasource.dart';
+export '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
 
 import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
 import '../../features/locales/data/datasources/local_local_datasource.dart';
@@ -67,10 +67,7 @@ final authDatasourceProvider = Provider<AuthDatasource>(
   ),
 );
 
-// Printer Persistence
-final printerPersistenceDataSourceProvider = Provider<PrinterPersistenceDataSource>(
-  (_) => PrinterPersistenceLocalDataSource(),
-);
+// Printer persistence exports handled above.
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.read(firebaseAuthProvider).authStateChanges();

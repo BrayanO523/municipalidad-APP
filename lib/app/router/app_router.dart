@@ -31,6 +31,7 @@ import '../../features/cortes/presentation/screens/cortes_historial_screen.dart'
 import '../../features/cortes/presentation/screens/corte_detalle_screen.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
+import '../../features/dev/presentation/screens/firestore_viewer_screen.dart';
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -176,12 +177,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           // Solo disponible en debug, nunca en release/deploy
-          if (kDebugMode)
+          if (kDebugMode) ...[
             GoRoute(
               path: '/crear-admin',
               name: 'crear-admin',
               builder: (context, state) => const CrearAdminScreen(),
             ),
+            GoRoute(
+              path: '/dev-firestore',
+              name: 'dev-firestore',
+              builder: (context, state) => const FirestoreViewerScreen(),
+            ),
+          ],
         ],
       ),
       // Cobrador routes

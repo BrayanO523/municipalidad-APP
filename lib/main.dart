@@ -19,6 +19,9 @@ Future<void> main() async {
         navigationConfigProvider.overrideWithValue(
           kIsWeb ? DefaultNavigationConfig() : MobileNavigationConfig(),
         ),
+        printerPersistenceDataSourceProvider.overrideWithValue(
+          PrinterPersistenceLocalDataSource(),
+        ),
       ],
       child: const MainApp(),
     ),

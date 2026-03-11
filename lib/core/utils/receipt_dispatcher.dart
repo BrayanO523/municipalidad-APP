@@ -23,6 +23,7 @@ class ReceiptDispatcher {
     required String? municipalidadNombre,
     required String? mercadoNombre,
     required String? cobradorNombre,
+    List<DateTime>? fechasSaldadas,
   }) async {
     return showDialog(
       context: context,
@@ -49,6 +50,15 @@ class ReceiptDispatcher {
             _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true),
             if (montoAbonadoDeuda > 0)
               _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent),
+            // Mostrar las fechas de días saldados (FIFO)
+            if (fechasSaldadas != null && fechasSaldadas.isNotEmpty)
+              _infoRow(
+                'Días cubiertos:',
+                fechasSaldadas
+                    .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}')
+                    .join(' · '),
+                color: Colors.orangeAccent.withValues(alpha: 0.9),
+              ),
             if (saldoAFavor > 0)
               _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6)),
             const SizedBox(height: 16),
@@ -66,7 +76,6 @@ class ReceiptDispatcher {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    // Primero imprimimos
                     await _imprimirTicket(
                       ref: ref,
                       muni: municipalidadNombre ?? 'MUNICIPALIDAD',
@@ -80,8 +89,8 @@ class ReceiptDispatcher {
                       abono: montoAbonadoDeuda,
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
+                      fechasSaldadas: fechasSaldadas,
                     );
-                    // Inmediatamente después disparamos compartir
                     if (context.mounted) {
                       await _compartirPdf(
                         context: context,
@@ -96,6 +105,7 @@ class ReceiptDispatcher {
                         muni: municipalidadNombre,
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
+                        fechasSaldadas: fechasSaldadas,
                       );
                     }
                   },
@@ -127,6 +137,7 @@ class ReceiptDispatcher {
                       abono: montoAbonadoDeuda,
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
+                      fechasSaldadas: fechasSaldadas,
                     );
                   },
                   icon: const Icon(Icons.print_rounded),
@@ -157,6 +168,7 @@ class ReceiptDispatcher {
                       muni: municipalidadNombre,
                       merc: mercadoNombre,
                       cobrador: cobradorNombre,
+                      fechasSaldadas: fechasSaldadas,
                     );
                   },
                   icon: const Icon(Icons.share_rounded),
@@ -195,12 +207,15 @@ class ReceiptDispatcher {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          Text(
-            value,
-            style: TextStyle(
-              color: color ?? Colors.white,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: color ?? Colors.white,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -221,6 +236,7 @@ class ReceiptDispatcher {
     required double abono,
     required String? cobrador,
     required String boleta,
+    List<DateTime>? fechasSaldadas,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -237,6 +253,7 @@ class ReceiptDispatcher {
         cobrador: cobrador,
         numeroBoleta: boleta,
         anioCorrelativo: fecha.year,
+        fechasSaldadas: fechasSaldadas,
       );
     } catch (_) {}
   }
@@ -254,7 +271,15 @@ class ReceiptDispatcher {
     required String? muni,
     required String? merc,
     required String? cobrador,
+    List<DateTime>? fechasSaldadas,
   }) async {
+    String? diasCubiertosStr;
+    if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+      diasCubiertosStr = fechasSaldadas
+          .map((d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}')
+          .join(', ');
+    }
+
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
@@ -282,6 +307,8 @@ class ReceiptDispatcher {
               if (deudaAnterior > 0) ...[
                 _pdfRow('DEUDA ANT.:', DateFormatter.formatCurrency(deudaAnterior)),
                 _pdfRow('ABONO:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
+                if (diasCubiertosStr != null)
+                  _pdfRow('DIAS CUBIERTOS:', diasCubiertosStr),
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
               ] else if (saldoPendiente > 0)
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),

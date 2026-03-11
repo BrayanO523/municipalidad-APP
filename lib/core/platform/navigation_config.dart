@@ -77,12 +77,18 @@ class DefaultNavigationConfig implements NavigationConfig {
         path: '/deudores',
       ),
       // Solo visible en modo debug (flutter run). En deploy de Firebase no aparece.
-      if (kDebugMode)
+      if (kDebugMode) ...[
         const NavItemConfig(
           icon: Icons.admin_panel_settings,
           label: '[DEV] Crear Admin',
           path: '/crear-admin',
         ),
+        const NavItemConfig(
+          icon: Icons.data_object_rounded,
+          label: '[DEV] Visor DB',
+          path: '/dev-firestore',
+        ),
+      ]
     ];
   }
 }
