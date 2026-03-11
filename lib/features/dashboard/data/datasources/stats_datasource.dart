@@ -78,6 +78,7 @@ class StatsDatasource {
     await _doc(municipalidadId).set({
       'cantidadLocales': FieldValue.increment(deltaLocales),
       'cantidadMercados': FieldValue.increment(deltaMercados),
+      'totalDeuda': FieldValue.increment(deltaDeuda),
     }, SetOptions(merge: true));
   }
 

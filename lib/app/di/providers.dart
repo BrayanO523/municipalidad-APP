@@ -107,7 +107,10 @@ final municipalidadDatasourceProvider = Provider<MunicipalidadDatasource>(
 );
 
 final mercadoDatasourceProvider = Provider<MercadoDatasource>(
-  (ref) => MercadoDatasource(ref.read(firestoreProvider)),
+  (ref) => MercadoDatasource(
+    ref.read(firestoreProvider),
+    ref.read(statsDatasourceProvider),
+  ),
 );
 
 final statsDatasourceProvider = Provider<StatsDatasource>(

@@ -506,6 +506,25 @@ class LocalDatasource {
 
   // DELETE
   Future<void> eliminar(String docId) async {
+    // 1. Obtener los datos del local a eliminar para restarlo de las stats
+    final docSnap = await _collection.doc(docId).get();
+    
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      final municipalidadId = data['municipalidadId'] as String?;
+      if (municipalidadId != null) {
+        final deudaActual = (data['deudaAcumulada'] as num?) ?? 0;
+        
+        // 2. Restar 1 local, y restar su deuda (con valor negativo)
+        _statsDs.actualizarConteo(
+          municipalidadId: municipalidadId,
+          deltaLocales: -1,
+          deltaDeuda: -deudaActual,
+        ).catchError((e) => debugPrint('Error al restar stats por local eliminado: $e'));
+      }
+    }
+
+    // 3. Finalmente eliminar el documento del local
     await _collection.doc(docId).delete();
   }
 
