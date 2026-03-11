@@ -7,7 +7,6 @@ import '../../../../core/widgets/scrollable_table.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
-import '../../../usuarios/domain/entities/usuario.dart';
 
 class RecentCobrosTable extends ConsumerWidget {
   const RecentCobrosTable({super.key});
@@ -15,13 +14,15 @@ class RecentCobrosTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cobrosRecientes = ref.watch(cobrosHoyProvider);
+    // Solo locales y mercados con autoDispose ya aplicado en providers.dart.
+    // Usuarios eliminado: no se requiere descargar la lista completa de usuarios
+    // solo para mostrar el nombre del cobrador en 5 filas de tabla.
     final localesState = ref.watch(localesProvider);
-    final usuariosState = ref.watch(usuariosProvider);
     final mercadosState = ref.watch(mercadosProvider);
 
     final locales = localesState.value ?? [];
-    final usuarios = usuariosState.value ?? [];
     final mercados = mercadosState.value ?? [];
+
 
     return Card(
       child: cobrosRecientes.when(
@@ -36,7 +37,7 @@ class RecentCobrosTable extends ConsumerWidget {
                     style: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.54),
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                   ),
                 ),
@@ -46,7 +47,6 @@ class RecentCobrosTable extends ConsumerWidget {
           return _CobrosDataTable(
             cobros: cobros,
             locales: locales,
-            usuarios: usuarios,
             mercados: mercados,
           );
         },
@@ -71,13 +71,11 @@ class RecentCobrosTable extends ConsumerWidget {
 class _CobrosDataTable extends StatefulWidget {
   final List<Cobro> cobros;
   final List<Local> locales;
-  final List<Usuario> usuarios;
   final List<Mercado> mercados;
 
   const _CobrosDataTable({
     required this.cobros,
     required this.locales,
-    required this.usuarios,
     required this.mercados,
   });
 
@@ -119,22 +117,15 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
               DataColumn(label: _buildHeaderCell('Mercado')),
               DataColumn(label: _buildHeaderCell('Representante')),
               DataColumn(label: _buildHeaderCell('Teléfono')),
-              DataColumn(label: _buildHeaderCell('Cobrador')),
               DataColumn(label: _buildHeaderCell('Monto'), numeric: true),
               DataColumn(label: _buildHeaderCell('Estado')),
             ],
+
             rows: displayedCobros.map((cobro) {
               final localMatches = widget.locales.where(
                 (l) => l.id == cobro.localId,
               );
               final local = localMatches.isNotEmpty ? localMatches.first : null;
-
-              final cobradorMatches = widget.usuarios.where(
-                (u) => u.id == cobro.cobradorId,
-              );
-              final cobrador = cobradorMatches.isNotEmpty
-                  ? cobradorMatches.first
-                  : null;
 
               final mercadoName =
                   widget.mercados
@@ -168,20 +159,6 @@ class _CobrosDataTableState extends State<_CobrosDataTable> {
                   ),
                   DataCell(Text(local?.representante ?? '-')),
                   DataCell(Text(local?.telefonoRepresentante ?? '-')),
-                  DataCell(
-                    cobrador != null
-                        ? Text(cobrador.nombre ?? '-')
-                        : Text(
-                            'Sin asignar',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withAlpha(97),
-                              fontStyle: FontStyle.italic,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ),
                   DataCell(Text(DateFormatter.formatCurrency(cobro.monto))),
                   DataCell(_EstadoChip(estado: cobro.estado)),
                 ],
@@ -263,3 +240,4 @@ class _EstadoChip extends StatelessWidget {
     );
   }
 }
+

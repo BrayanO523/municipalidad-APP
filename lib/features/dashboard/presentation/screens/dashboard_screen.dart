@@ -29,8 +29,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final stats = ref.watch(statsProvider);
     final filter = ref.watch(dashboardFilterProvider);
-    final localesAsync = ref.watch(localesProvider);
-    final mercadosAsync = ref.watch(mercadosProvider);
+
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -39,14 +38,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [Expanded(child: _DashboardHeader())],
             ),
             const SizedBox(height: 24),
 
-            // ── KPI cards — fila 1: recaudación del día ──────────────────────
+            // â”€â”€ KPI cards â€” fila 1: recaudación del día â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             LayoutBuilder(
               builder: (context, constraints) {
                 final crossAxisCount = constraints.maxWidth > 1000
@@ -117,7 +116,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       width: cardW,
                       child: stats.when(
                         data: (s) {
-                          print('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
+                          debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
                           return MetricCard(
                             title: 'Mercados Activos',
                             value: '${s.cantidadMercados}',
@@ -132,7 +131,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           color: Color(0xFFFF9F43),
                         ),
                         error: (err, stack) {
-                          print('❌ ERROR AL CARGAR STATS: $err\n$stack');
+                          debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
                           return const MetricCard(
                             title: 'Mercados Activos',
                             value: 'Error',
@@ -171,7 +170,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── KPI cards — fila 2: deudas y saldo a favor ───────────────────
+            // â”€â”€ KPI cards â€” fila 2: deudas y saldo a favor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             stats.when(
               data: (s) {
                 final deudaTotal = s.totalDeuda;
@@ -217,17 +216,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Gráficos ─────────────────────────────────────────────────────
+            // â”€â”€ Gráficos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             DashboardChartsWidget(
               cobrosHoy: cobrosHoy.value ?? [],
-              locales: localesAsync.value ?? [],
-              mercados: mercadosAsync.value ?? [],
             ),
-            const SizedBox(height: 24),
 
             const SizedBox(height: 24),
 
-            // ── Cobros de la Fecha ───────────────────────────────────────────
+            const SizedBox(height: 24),
+
+            // â”€â”€ Cobros de la Fecha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Builder(
               builder: (context) {
                 final titulo = filter.period == DashboardPeriod.hoy
@@ -251,7 +249,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Widgets de apoyo ──────────────────────────────────────────────────────────
+// â”€â”€ Widgets de apoyo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _DashboardHeader extends ConsumerWidget {
   @override
@@ -365,6 +363,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -435,6 +434,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -474,86 +474,8 @@ class _DashboardHeader extends ConsumerWidget {
                 ),
               ),
 
-            const SizedBox(width: 8),
-            if (kDebugMode)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Sincronizar Deudas'),
-                      content: const Text(
-                        '¿Desea recalcular la deuda acumulada de todos los locales basándose estrictamente en su historial de cobros pendientes? Esto solucionará cualquier descuadre de datos.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Sincronizar'),
-                        ),
-                      ],
-                    ),
-                  );
 
-                  if (confirm == true) {
-                    try {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Sincronizando deudas con historial...',
-                          ),
-                        ),
-                      );
-                      final repo = ref.read(localRepositoryProvider);
-                      final statsDs = ref.read(statsDatasourceProvider);
-                      final user = ref.read(currentUsuarioProvider).value;
 
-                      final procesados = await repo
-                          .recalcularDeudasBasadoEnHistorial();
-                      
-                      if (user?.municipalidadId != null) {
-                        await statsDs.recalcularTodo(user!.municipalidadId!);
-                      }
-
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sincronización exitosa: $procesados locales y estadísticas actualizadas.',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        ref.invalidate(statsProvider);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error al sincronizar: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
-                      }
-                    }
-                  }
-                },
-                icon: const Icon(Icons.sync_problem_rounded, size: 18),
-                label: const Text('Sincronizar Deudas'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
             const SizedBox(width: 8),
             if (kDebugMode)
               ElevatedButton.icon(
@@ -585,6 +507,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Reseteando sistema...')),
@@ -622,7 +545,7 @@ class _DashboardHeader extends ConsumerWidget {
                 icon: const Icon(Icons.delete_forever_rounded, size: 18),
                 label: const Text('Resetear Sistema'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withOpacity(0.1),
+                  backgroundColor: Colors.red.withValues(alpha: 0.1),
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red, width: 0.5),
                   padding: const EdgeInsets.symmetric(
@@ -656,6 +579,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Vinculando datos...')),
@@ -819,14 +743,15 @@ class _PeriodChip extends StatelessWidget {
       labelStyle: TextStyle(
         color: selected
             ? colorScheme.onSurface
-            : colorScheme.onSurface.withOpacity(0.54),
+            : colorScheme.onSurface.withValues(alpha: 0.54),
         fontSize: 12,
       ),
-      selectedColor: const Color(0xFF00D9A6).withOpacity(0.3),
-      backgroundColor: colorScheme.onSurface.withOpacity(0.05),
+      selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
+      backgroundColor: colorScheme.onSurface.withValues(alpha: 0.05),
       showCheckmark: false,
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }
+

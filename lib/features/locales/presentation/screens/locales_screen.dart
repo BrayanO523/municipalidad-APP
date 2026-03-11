@@ -193,14 +193,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           r'https://console\.firebase\.google\.com[^\s]+',
                         ).firstMatch(text);
                         if (match != null) {
-                          print(
+                          debugPrint(
                             '\n\n🚨 FALTAN ÍNDICES EN FIRESTORE (MERCADOS) 🚨',
                           );
-                          print(
+                          debugPrint(
                             '👇 ENLACE PARA CREARLOS 👇\n\n${match.group(0)}\n\n',
                           );
                         } else {
-                          print(
+                          debugPrint(
                             '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
                           );
                         }
@@ -697,6 +697,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     String? selectedMercadoId = local?.mercadoId ?? _mercadoSeleccionado?.id;
     String? selectedTipoNegocioId = local?.tipoNegocioId;
+    String selectedFrecuenciaCobro = local?.frecuenciaCobro ?? 'diaria';
 
     showDialog(
       context: context,
@@ -848,6 +849,24 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedFrecuenciaCobro,
+                            decoration: const InputDecoration(
+                              labelText: 'Preferencia de Pago / Frecuencia',
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'diaria', child: Text('Diaria')),
+                              DropdownMenuItem(value: 'semanal', child: Text('Semanal')),
+                              DropdownMenuItem(value: 'quincenal', child: Text('Quincenal')),
+                              DropdownMenuItem(value: 'mensual', child: Text('Mensual')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setDialogState(() => selectedFrecuenciaCobro = v);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
                           Row(
                             children: [
                               Expanded(
@@ -922,6 +941,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                                 final lits = await repo.obtenerPorMercado(selectedMercadoId!);
                                 setDialogState(() => currentLocs = lits);
                               }
+
+                              if (!context.mounted) return;
 
                               if (selectedMercadoId == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1094,6 +1115,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           codigoCatastralLower: codigoCatastralCtrl.text.isNotEmpty 
                               ? codigoCatastralCtrl.text.toLowerCase() 
                               : null,
+                          frecuenciaCobro: selectedFrecuenciaCobro,
                         );
 
                         final jsonData = model.toJson();
@@ -1152,7 +1174,7 @@ class _LocalesListView extends ConsumerWidget {
           horizontalMargin: 16,
           columnSpacing: 16,
           headingRowColor: WidgetStateProperty.all(
-            Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
           ),
           columns: const [
             DataColumn(label: Text('Local')),
@@ -1386,3 +1408,4 @@ class _EmptyStateWidget extends StatelessWidget {
     );
   }
 }
+

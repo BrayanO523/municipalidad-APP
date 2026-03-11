@@ -26,7 +26,7 @@ abstract class AppTheme {
       error: _errorColor,
       surface: _surfaceDark,
       onSurface: Colors.white,
-      outline: Colors.white.withOpacity(0.12),
+      outline: Colors.white.withValues(alpha: 0.12),
     );
 
     return ThemeData(
@@ -41,7 +41,7 @@ abstract class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.06)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -59,20 +59,20 @@ abstract class AppTheme {
         backgroundColor: _surfaceDark,
         selectedIconTheme: const IconThemeData(color: _primaryColor),
         unselectedIconTheme: IconThemeData(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
         ),
-        indicatorColor: _primaryColor.withOpacity(0.15),
+        indicatorColor: _primaryColor.withValues(alpha: 0.15),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _cardDark,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -98,7 +98,7 @@ abstract class AppTheme {
         headingRowColor: WidgetStateProperty.all(_cardDark),
         dataRowColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.hovered)) {
-            return _primaryColor.withOpacity(0.05);
+            return _primaryColor.withValues(alpha: 0.05);
           }
           return Colors.transparent;
         }),
@@ -137,7 +137,7 @@ abstract class AppTheme {
       error: _errorColor,
       surface: _surfaceLight,
       onSurface: const Color(0xFF1A1A2E),
-      outline: const Color(0xFF1A1A2E).withOpacity(0.12),
+      outline: const Color(0xFF1A1A2E).withValues(alpha: 0.12),
     );
 
     return ThemeData(
@@ -152,7 +152,7 @@ abstract class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: const Color(0xFF1A1A2E).withOpacity(0.08)),
+          side: BorderSide(color: const Color(0xFF1A1A2E).withValues(alpha: 0.08)),
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -171,9 +171,9 @@ abstract class AppTheme {
         backgroundColor: _surfaceLight,
         selectedIconTheme: const IconThemeData(color: _primaryColor),
         unselectedIconTheme: IconThemeData(
-          color: const Color(0xFF1A1A2E).withOpacity(0.5),
+          color: const Color(0xFF1A1A2E).withValues(alpha: 0.5),
         ),
-        indicatorColor: _primaryColor.withOpacity(0.12),
+        indicatorColor: _primaryColor.withValues(alpha: 0.12),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -181,13 +181,13 @@ abstract class AppTheme {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFF1A1A2E).withOpacity(0.1),
+            color: const Color(0xFF1A1A2E).withValues(alpha: 0.1),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFF1A1A2E).withOpacity(0.1),
+            color: const Color(0xFF1A1A2E).withValues(alpha: 0.1),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -214,7 +214,7 @@ abstract class AppTheme {
         headingRowColor: WidgetStateProperty.all(_cardLight),
         dataRowColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.hovered)) {
-            return _primaryColor.withOpacity(0.05);
+            return _primaryColor.withValues(alpha: 0.05);
           }
           return Colors.transparent;
         }),

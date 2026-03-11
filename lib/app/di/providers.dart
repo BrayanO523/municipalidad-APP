@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -22,8 +23,8 @@ import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
-import '../../core/platform/printer_persistence_datasource.dart';
-import '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
+export '../../core/platform/printer_persistence_datasource.dart';
+export '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
 
 import '../../features/cobros/data/datasources/cobro_local_datasource.dart';
 import '../../features/locales/data/datasources/local_local_datasource.dart';
@@ -45,6 +46,13 @@ export '../../core/platform/printer_provider.dart';
 export '../../core/platform/printer_service.dart';
 export '../../features/shared/presentation/viewmodels/printer_notifier.dart';
 
+import '../../features/app_update/data/datasources/app_update_remote_datasource.dart';
+import '../../features/app_update/data/datasources/app_update_local_datasource.dart';
+import '../../features/app_update/data/repositories/app_update_repository_impl.dart';
+import '../../features/app_update/data/adapters/app_installer_stub.dart';
+import '../../features/app_update/domain/repositories/app_installer_service.dart';
+import '../../features/app_update/domain/repositories/app_update_repository.dart';
+
 // Navigation configuration provider (overridden in entry points)
 final navigationConfigProvider = Provider<NavigationConfig>((ref) {
   return DefaultNavigationConfig();
@@ -59,6 +67,41 @@ final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
 
+final firebaseStorageProvider = Provider<FirebaseStorage>(
+  (_) => FirebaseStorage.instance,
+);
+
+// ── App Update ──────────────────────────────────────────
+
+final appUpdateRemoteDatasourceProvider =
+    Provider<AppUpdateRemoteDatasource>((ref) {
+  return AppUpdateRemoteDatasource(
+    ref.read(firestoreProvider),
+    ref.read(firebaseStorageProvider),
+  );
+});
+
+final appUpdateLocalDatasourceProvider =
+    Provider<AppUpdateLocalDatasource>((ref) {
+  return AppUpdateLocalDatasource();
+});
+
+/// Provider del repositorio de actualizaciones.
+/// deviceId se puede personalizar; por defecto usa 'default_device'.
+final appUpdateRepositoryProvider = Provider<AppUpdateRepository>((ref) {
+  return AppUpdateRepositoryImpl(
+    ref.read(appUpdateRemoteDatasourceProvider),
+    ref.read(appUpdateLocalDatasourceProvider),
+    deviceId: 'default_device',
+  );
+});
+
+/// Servicio de instalación. Default: stub (no soportado).
+/// Se overridea en entry points para plataformas con soporte.
+final appInstallerServiceProvider = Provider<AppInstallerService>((ref) {
+  return AppInstallerStub();
+});
+
 // Auth
 final authDatasourceProvider = Provider<AuthDatasource>(
   (ref) => AuthDatasource(
@@ -67,21 +110,18 @@ final authDatasourceProvider = Provider<AuthDatasource>(
   ),
 );
 
-// Printer Persistence
-final printerPersistenceDataSourceProvider = Provider<PrinterPersistenceDataSource>(
-  (_) => PrinterPersistenceLocalDataSource(),
-);
+// Printer persistence exports handled above.
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.read(firebaseAuthProvider).authStateChanges();
 });
 
-final currentUsuarioProvider = FutureProvider<Usuario?>((ref) async {
+final currentUsuarioProvider = StreamProvider<Usuario?>((ref) {
   final authState = ref.watch(authStateProvider);
   final user = authState.value;
-  if (user == null) return null;
+  if (user == null) return Stream.value(null);
   final ds = ref.read(authDatasourceProvider);
-  return ds.obtenerUsuario(user.uid);
+  return ds.streamUsuario(user.uid);
 });
 
 // Local Datasources (Hive)
@@ -110,7 +150,10 @@ final municipalidadDatasourceProvider = Provider<MunicipalidadDatasource>(
 );
 
 final mercadoDatasourceProvider = Provider<MercadoDatasource>(
-  (ref) => MercadoDatasource(ref.read(firestoreProvider)),
+  (ref) => MercadoDatasource(
+    ref.read(firestoreProvider),
+    ref.read(statsDatasourceProvider),
+  ),
 );
 
 final statsDatasourceProvider = Provider<StatsDatasource>(
@@ -208,7 +251,7 @@ final municipalidadActualProvider = Provider<Municipalidad?>((ref) {
   );
 });
 
-final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
+final mercadosProvider = StreamProvider.autoDispose<List<Mercado>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final repo = ref.read(mercadoRepositoryProvider);
   if (user?.municipalidadId != null) {
@@ -217,7 +260,7 @@ final mercadosProvider = StreamProvider<List<Mercado>>((ref) {
   return repo.streamTodos();
 });
 
-final localesProvider = StreamProvider<List<Local>>((ref) {
+final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(localDatasourceProvider);
   if (user?.municipalidadId != null) {
@@ -226,7 +269,7 @@ final localesProvider = StreamProvider<List<Local>>((ref) {
   return ds.streamTodos();
 });
 
-final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
+final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(tipoNegocioDatasourceProvider);
   if (user?.municipalidadId != null) {
@@ -235,12 +278,7 @@ final tiposNegocioProvider = StreamProvider<List<TipoNegocio>>((ref) {
   return ds.streamTodos();
 });
 
-final cobrosRecientesProvider = StreamProvider<List<Cobro>>((ref) {
-  final user = ref.watch(currentUsuarioProvider).value;
-  if (user == null || user.municipalidadId == null) return Stream.value([]);
-  final ds = ref.read(cobroDatasourceProvider);
-  return ds.streamRecientes(municipalidadId: user.municipalidadId!);
-});
+
 
 final statsProvider = StreamProvider<StatsModel>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
@@ -274,11 +312,11 @@ final cobrosFiltradosProvider = StreamProvider<List<Cobro>>((ref) {
   final hoy = DateTime(now.year, now.month, now.day);
   final rangoEfectivo = rango ?? DateTimeRange(start: hoy, end: hoy);
 
-  return ds.streamPorRangoFechas(
+  return Stream.fromFuture(ds.listarPorRangoFechas(
     rangoEfectivo.start,
     rangoEfectivo.end,
     municipalidadId: user?.municipalidadId,
-  );
+  ));
 });
 
 enum DashboardPeriod { hoy, semana, mes, anio, personalizado }
@@ -400,7 +438,7 @@ final fechaDashboardProvider = Provider<DateTime>((ref) {
   return ref.watch(dashboardFilterProvider).range.start;
 });
 
-final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
+final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   if (user == null) return Stream.value([]);
 
@@ -425,24 +463,25 @@ final cobrosHoyProvider = StreamProvider<List<Cobro>>((ref) {
   }
 });
 
-final usuariosProvider = StreamProvider<List<Usuario>>((ref) {
+final usuariosProvider = StreamProvider.autoDispose<List<Usuario>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(authDatasourceProvider);
   return ds.streamTodos(municipalidadId: user?.municipalidadId);
 });
 
-final localStreamProvider = StreamProvider.family<Local?, String>((ref, id) {
+final localStreamProvider = StreamProvider.autoDispose.family<Local?, String>((ref, id) {
   final ds = ref.read(localDatasourceProvider);
   return ds.streamPorId(id);
 });
 
-final localCobrosStreamProvider = StreamProvider.family<List<Cobro>, String>((
-  ref,
-  id,
-) {
-  final ds = ref.read(cobroDatasourceProvider);
-  return ds.streamPorLocal(id);
-});
+final localCobrosStreamProvider = StreamProvider.autoDispose.family<List<Cobro>, String>(
+  (ref, id) {
+    final ds = ref.read(cobroDatasourceProvider);
+    // Límite de 100 cobros para evitar descargar años de historial completo.
+    // En la pantalla de historial se usa paginación si se necesitan más.
+    return ds.streamPorLocal(id, limite: 100);
+  },
+);
 
 final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
@@ -476,14 +515,14 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
   final now = DateTime.now();
   final hoy = DateTime(now.year, now.month, now.day);
 
-  return ds.streamPorFecha(hoy, municipalidadId: user.municipalidadId).map((
-    cobros,
-  ) {
-    if (user.mercadoId != null) {
-      return cobros.where((c) => c.mercadoId == user.mercadoId).toList();
-    }
-    return cobros;
-  });
+  // OPTIMIZACIÓN MÓVIL: Le pasamos el mercadoId directamente a Firestore
+  // para que solo descargue los cobros del mercado del cobrador y no los
+  // de toda la municipalidad, ahorrando muchísimas lecturas si hay varios mercados.
+  return ds.streamPorFecha(
+    hoy,
+    municipalidadId: user.municipalidadId,
+    mercadoId: user.mercadoId,
+  );
 });
 
 @Deprecated('Usar cortesAdminPaginadosProvider para evitar fugas de lectura')

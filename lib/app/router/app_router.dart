@@ -31,16 +31,24 @@ import '../../features/cortes/presentation/screens/cortes_historial_screen.dart'
 import '../../features/cortes/presentation/screens/corte_detalle_screen.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
+import '../../features/dev/presentation/screens/firestore_viewer_screen.dart';
+import '../../features/dev/presentation/screens/dev_seeder_screen.dart';
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
-  final usuarioAsync = ref.watch(currentUsuarioProvider);
+  
+  // Usamos .select para observar ÚNICAMENTE el estado de carga y el rol.
+  // Así evitamos que la aplicación reconstruya el GoRouter (cerrando modales como el recibo)
+  // cuando cambian datos irrelevantes para el ruteo en el currentUsuarioProvider 
+  // (por ejemplo, cuando se actualiza el 'correlativoReciboActual' tras un cobro).
+  final isUsuarioLoading = ref.watch(currentUsuarioProvider.select((data) => data.isLoading));
+  final esCobrador = ref.watch(currentUsuarioProvider.select((data) => data.value?.esCobrador));
 
   return GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      if (authState.isLoading || usuarioAsync.isLoading) {
+      if (authState.isLoading || isUsuarioLoading) {
         return '/splash';
       }
 
@@ -48,20 +56,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isGoingToLogin = state.uri.toString() == '/login';
       final isGoingToSplash = state.uri.toString() == '/splash';
 
-      if (!isLoggedIn && !isGoingToLogin) return '/login';
-
-      if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
-        final usuario = usuarioAsync.value;
-        if (usuario != null && usuario.esCobrador) return '/cobrador';
-        return '/dashboard';
+      if (!isLoggedIn && !isGoingToLogin) {
+        return '/login';
       }
 
-      // Cobrador trying to access admin routes
-      final usuario = usuarioAsync.value;
-      if (usuario != null && usuario.esCobrador) {
-        final path = state.uri.toString();
-        if (!path.startsWith('/cobrador') && path != '/login') {
-          return '/cobrador';
+      // Si está logueado pero intenta ir al login o splash, redirigir según su rol.
+      if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
+        if (esCobrador == true) return '/cobrador';
+        return '/dashboard'; // Default admin
+      }
+
+      // Protección de rutas: Si es cobrador intentando acceder a admin
+      if (isLoggedIn) {
+        if (esCobrador == true) {
+          final path = state.uri.toString();
+          if (!path.startsWith('/cobrador') && path != '/login') {
+            return '/cobrador';
+          }
         }
       }
 
@@ -176,12 +187,23 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           // Solo disponible en debug, nunca en release/deploy
-          if (kDebugMode)
+          if (kDebugMode) ...[
             GoRoute(
               path: '/crear-admin',
               name: 'crear-admin',
               builder: (context, state) => const CrearAdminScreen(),
             ),
+            GoRoute(
+              path: '/dev-firestore',
+              name: 'dev-firestore',
+              builder: (context, state) => const FirestoreViewerScreen(),
+            ),
+            GoRoute(
+              path: '/dev-seeder',
+              name: 'dev-seeder',
+              builder: (context, state) => const DevSeederScreen(),
+            ),
+          ],
         ],
       ),
       // Cobrador routes

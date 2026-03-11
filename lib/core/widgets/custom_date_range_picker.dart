@@ -83,7 +83,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
           border: Border.all(color: Colors.white10),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -201,7 +201,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                             elevation: 0,
                           ).copyWith(
                             overlayColor: WidgetStateProperty.all(
-                              Colors.black.withOpacity(0.1),
+                              Colors.black.withValues(alpha: 0.1),
                             ),
                           ),
                       child: const Text(
@@ -264,7 +264,7 @@ class _DateInputField extends StatelessWidget {
             border: InputBorder.none,
             hintText: 'dd/mm/yyyy',
             hintStyle: TextStyle(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               fontSize: 13,
             ),
           ),
@@ -409,7 +409,7 @@ class _CalendarGrid extends StatelessWidget {
                   color: isSelected
                       ? Color(0xFF00D9A6)
                       : isInRange
-                      ? Color(0xFF00D9A6).withOpacity(0.1)
+                      ? Color(0xFF00D9A6).withValues(alpha: 0.1)
                       : null,
                   borderRadius: BorderRadius.circular(8),
                 ),

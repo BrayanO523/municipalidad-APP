@@ -136,7 +136,10 @@ class LocalRepositoryImpl implements LocalRepository {
   }
 
   @override
+  // ignore: deprecated_member_use_from_same_package
+  @Deprecated('Ver LocalDatasource.recalcularDeudasBasadoEnHistorial')
   Future<int> recalcularDeudasBasadoEnHistorial() async {
+    // ignore: deprecated_member_use
     return await _remoteDatasource.recalcularDeudasBasadoEnHistorial();
   }
 }

@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
@@ -91,7 +92,7 @@ class CobroDatasource {
         montoCobrado: montoCobrado,
         abonoDeuda: abonoDeuda,
         incrementoSaldo: incrementoSaldo,
-      ).catchError((e) => print('Error actualizando stats: $e'));
+      ).catchError((e) => debugPrint('Error actualizando stats: $e'));
     }
 
     return numeroBoleta;
@@ -512,7 +513,7 @@ class CobroDatasource {
     if (!isOffline) {
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () => {},
+        onTimeout: () {},
       );
     }
   }
@@ -522,14 +523,13 @@ class CobroDatasource {
     await _collection.doc(docId).delete();
   }
 
-  /// Busca los cobros pendientes más antiguos y los marca como cobrados
-  /// basándose en un monto pagado a la deuda.
-  /// Retorna la lista de IDs de documentos afectados para registro del cobro principal.
-  Future<List<String>> saldarDeudaHistoria(
+  /// Busca los cobros pendientes más antiguos (FIFO) y los marca como cobrados.
+  /// Retorna los IDs de los cobros saldados Y sus fechas para mostrar en el recibo.
+  Future<({List<String> ids, List<DateTime> fechas})> saldarDeudaHistoria(
     String localId,
     num montoASaldar,
   ) async {
-    if (montoASaldar <= 0) return [];
+    if (montoASaldar <= 0) return (ids: <String>[], fechas: <DateTime>[]);
 
     // Timeout estricto para no colgar la UI
     final connectivityResult = await Connectivity().checkConnectivity().timeout(
@@ -538,23 +538,41 @@ class CobroDatasource {
     );
 
     final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
-    final source = isOffline ? Source.cache : Source.serverAndCache;
-
-    final snapshot = await _collection
-        .where('localId', isEqualTo: localId)
-        .where('estado', whereIn: ['pendiente', 'abono_parcial'])
-        .orderBy('fecha', descending: false) // Los más antiguos primero
-        .get(GetOptions(source: source));
+    
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await _collection
+          .where('localId', isEqualTo: localId)
+          .where('estado', whereIn: ['pendiente', 'abono_parcial'])
+          .orderBy('fecha', descending: false)
+          .get(GetOptions(source: isOffline ? Source.cache : Source.serverAndCache))
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Fallback a caché si expira o falla la red
+      snapshot = await _collection
+          .where('localId', isEqualTo: localId)
+          .where('estado', whereIn: ['pendiente', 'abono_parcial'])
+          .orderBy('fecha', descending: false)
+          .get(const GetOptions(source: Source.cache));
+    }
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
     final List<String> idsSaldados = [];
+    final List<DateTime> fechasSaldadas = [];
 
     for (var doc in snapshot.docs) {
       if (restante <= 0) break;
 
       final data = doc.data();
-      final saldoPendiente = data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0;
+      final saldoPendiente = (data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0) as num;
+
+      // Capturar la fecha del cobro histórico para el recibo
+      final fechaRaw = data['fecha'];
+      DateTime? fechaDoc;
+      if (fechaRaw is Timestamp) {
+        fechaDoc = fechaRaw.toDate();
+      }
 
       if (restante >= saldoPendiente) {
         // Se salda completamente este día
@@ -566,14 +584,17 @@ class CobroDatasource {
                   .trim(),
         });
         restante -= saldoPendiente;
+        // Solo agregar a fechasSaldadas si el día fue cubierto al 100%
+        if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
       } else {
-        // Se abona parcialmente
+        // Se abona parcialmente — el día NO está cubierto, no agregar fecha
         batch.update(doc.reference, {
           'estado': 'abono_parcial',
           'saldoPendiente': saldoPendiente - restante,
         });
         restante = 0;
       }
+
       idsSaldados.add(doc.id);
     }
 
@@ -582,11 +603,11 @@ class CobroDatasource {
     if (!isOffline) {
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () => {},
+        onTimeout: () {},
       );
     }
 
-    return idsSaldados;
+    return (ids: idsSaldados, fechas: fechasSaldadas);
   }
 
   /// Revierte los cobros históricos que fueron saldados por un cobro que se está eliminando.

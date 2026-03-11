@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../cobros/domain/entities/cobro.dart';
@@ -60,7 +60,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                   child: Text(
                     'Sin locales activos',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withOpacity(0.54),
+                      color: colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                   ),
                 ),
@@ -165,10 +165,11 @@ class _Indicator extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: 12,
-            color: colorScheme.onSurface.withOpacity(0.7),
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ],
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -162,7 +162,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// ── Header con botón Exportar PDF ────────────────────────────────────────────────────────────
+// â”€â”€ Header con botón Exportar PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _Header extends ConsumerWidget {
   final List<Local> todos;
   const _Header({required this.todos});
@@ -222,7 +222,7 @@ class _Header extends ConsumerWidget {
   }
 }
 
-// ── Tabla ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _SaldosTable extends StatelessWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
@@ -238,7 +238,7 @@ class _SaldosTable extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
             ),
             columns: const [
               DataColumn(label: Text('Local')),
@@ -345,7 +345,7 @@ class _SaldosTable extends StatelessWidget {
   }
 }
 
-// ── Paginación ────────────────────────────────────────────────────────────────
+// â”€â”€ Paginación â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;

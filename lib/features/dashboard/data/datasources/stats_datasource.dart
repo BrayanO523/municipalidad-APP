@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/constants/firestore_collections.dart';
 
 class StatsModel {
   final num totalCobrado;
@@ -79,50 +78,8 @@ class StatsDatasource {
     await _doc(municipalidadId).set({
       'cantidadLocales': FieldValue.increment(deltaLocales),
       'cantidadMercados': FieldValue.increment(deltaMercados),
+      'totalDeuda': FieldValue.increment(deltaDeuda),
     }, SetOptions(merge: true));
   }
 
-  /// Recalcula todas las estadísticas globales recorriendo las colecciones.
-  /// Útil para inicializar el sistema o corregir descuadres.
-  Future<void> recalcularTodo(String municipalidadId) async {
-    // 1. Contar Mercados (sin filtro de activo para evitar problemas de campos nulos)
-    final mercados = await _firestore
-        .collection(FirestoreCollections.mercados)
-        .where('municipalidadId', isEqualTo: municipalidadId)
-        .get();
-
-    // 2. Contar Locales y sumar saldos/deudas
-    final locales = await _firestore
-        .collection(FirestoreCollections.locales)
-        .where('municipalidadId', isEqualTo: municipalidadId)
-        .get();
-
-    num totalDeuda = 0;
-    num totalSaldoAFavor = 0;
-    for (var l in locales.docs) {
-      final data = l.data();
-      totalDeuda += (data['deudaAcumulada'] ?? 0);
-      totalSaldoAFavor += (data['saldoAFavor'] ?? 0);
-    }
-
-    // 3. Obtener el total recaudado histórico de los cobros
-    final cobros = await _firestore
-        .collection(FirestoreCollections.cobros)
-        .where('municipalidadId', isEqualTo: municipalidadId)
-        .get();
-    
-    num totalRecaudado = 0;
-    for (var c in cobros.docs) {
-      totalRecaudado += (c.data()['monto'] ?? 0);
-    }
-
-    await _doc(municipalidadId).set({
-      'cantidadMercados': mercados.docs.length,
-      'cantidadLocales': locales.docs.length,
-      'totalDeuda': totalDeuda,
-      'totalSaldoAFavor': totalSaldoAFavor,
-      'totalCobrado': totalRecaudado,
-      'ultimaActualizacion': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
 }

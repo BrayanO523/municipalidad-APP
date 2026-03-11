@@ -2,20 +2,12 @@ import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/platform/printer_service.dart';
+import 'package:flutter/foundation.dart';
 
 
 class BluetoothPrinterAdapter implements PrinterService {
-  @override
-  Stream<bool> get connectionStream =>
-      Stream.periodic(const Duration(seconds: 2)).asyncMap((_) async {
-        try {
-          return await PrintBluetoothThermal.connectionStatus;
-        } catch (_) {
-          return false;
-        }
-      });
-
   @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
     try {
@@ -54,26 +46,26 @@ class BluetoothPrinterAdapter implements PrinterService {
         ].request();
       }
 
-      print('--- Verificando estado de Bluetooth ---');
+      debugPrint('--- Verificando estado de Bluetooth ---');
       final bool isBluetoothEnabled =
           await PrintBluetoothThermal.bluetoothEnabled;
       if (!isBluetoothEnabled) {
-        print('--- Error: Bluetooth desactivado ---');
+        debugPrint('--- Error: Bluetooth desactivado ---');
         return false;
       }
 
       // Desconexión preventiva para limpiar sockets previos
-      print('--- Desconexión preventiva ---');
+      debugPrint('--- Desconexión preventiva ---');
       await PrintBluetoothThermal.disconnect;
 
-      print('--- Intentando conectar a impresora: $macAddress ---');
+      debugPrint('--- Intentando conectar a impresora: $macAddress ---');
       final isConnected = await PrintBluetoothThermal.connect(
         macPrinterAddress: macAddress,
       );
-      print('--- Resultado de conexión: $isConnected ---');
+      debugPrint('--- Resultado de conexión: $isConnected ---');
       return isConnected;
     } catch (e) {
-      print('--- Error fatal en connect: $e ---');
+      debugPrint('--- Error fatal en connect: $e ---');
       return false;
     }
   }
@@ -102,6 +94,11 @@ class BluetoothPrinterAdapter implements PrinterService {
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
+    String? slogan,
+    String? clave,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -188,6 +185,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       // 2. CUERPO (Alineado a la izquierda = 0)
       final fechaStr = DateFormatter.formatDateTime(fecha);
       addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
+      if (clave != null && clave.isNotEmpty) addText(r('CLAVE:', clave, normalWidth), 1, 0);
       addText(r('FECHA:', fechaStr, normalWidth), 1, 0);
       if (cobrador != null) {
         addText(r('COBRADOR:', cobrador.toUpperCase(), normalWidth), 1, 0);
@@ -239,6 +237,17 @@ class BluetoothPrinterAdapter implements PrinterService {
           0,
         );
       }
+
+      // Fechas cubiertas (Ya sea por abono de deuda o pagos pre-agrupados)
+      if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-') {
+        addText('PERIODO ABONADO: $periodoAbonadoStr', 1, 0);
+      } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
+        final diasStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+        if (diasStr != null) {
+          addText('PERIODO ABONADO: $diasStr', 1, 0);
+        }
+      }
+
       if (saldoAFavor != null && saldoAFavor > 0) {
         addText(
           r(
@@ -249,12 +258,18 @@ class BluetoothPrinterAdapter implements PrinterService {
           1,
           0,
         );
+        if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty) {
+          addText('PERIODO A FAVOR: $periodoSaldoAFavorStr', 1, 0);
+        }
       }
       addText(d, 1, 1);
 
       // 5. PIE (Centrado)
       addText('', 1, 1); // Espacio en blanco
-      addText('Gracias por su pago!', 1, 1);
+      addText('¡Gracias por su pago!', 1, 1);
+      if (slogan != null && slogan.trim().isNotEmpty) {
+        addText(slogan.trim(), 1, 1);
+      }
       bytes.addAll([10, 10, 10]); // Avance de papel para fácil corte
 
       // Enviar de una sola vez

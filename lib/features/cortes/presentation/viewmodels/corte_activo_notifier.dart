@@ -50,6 +50,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
   @override
   CorteActivoState build() {
     final cobrosAsync = ref.watch(cobrosHoyCobradorProvider);
+    // ignore: deprecated_member_use_from_same_package
     final historialAsync = ref.watch(cortesHistorialCobradorProvider);
 
     final cobros = cobrosAsync.value ?? [];

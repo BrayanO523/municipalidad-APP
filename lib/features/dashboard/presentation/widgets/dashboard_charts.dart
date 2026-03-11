@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../app/di/providers.dart';
 import '../../../cobros/domain/entities/cobro.dart';
-import '../../../locales/domain/entities/local.dart';
-import '../../../mercados/domain/entities/mercado.dart';
 import 'cobros_status_pie_chart.dart';
 import 'recaudacion_bar_chart.dart';
 
-class DashboardChartsWidget extends StatelessWidget {
+class DashboardChartsWidget extends ConsumerWidget {
   final List<Cobro> cobrosHoy;
-  final List<Local> locales;
-  final List<Mercado> mercados;
 
   const DashboardChartsWidget({
     super.key,
     required this.cobrosHoy,
-    required this.locales,
-    required this.mercados,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Los streams de locales y mercados se obtienen aquí, no en el DashboardScreen,
+    // para que el screen principal no los abra al cargar la primera vista.
+    final locales = ref.watch(localesProvider).value ?? [];
+    final mercados = ref.watch(mercadosProvider).value ?? [];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
-          // Como el contenedor ahora es de ancho completo, usamos Row
           return Row(
             children: [
               Expanded(
@@ -47,7 +47,6 @@ class DashboardChartsWidget extends StatelessWidget {
             ],
           );
         } else {
-          // Pantalla pequeña, apilados verticalmente
           return Column(
             children: [
               SizedBox(
@@ -74,3 +73,4 @@ class DashboardChartsWidget extends StatelessWidget {
     );
   }
 }
+

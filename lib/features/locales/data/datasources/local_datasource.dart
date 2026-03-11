@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
@@ -26,7 +27,7 @@ class LocalDatasource {
         municipalidadId: municipalidadId,
         deltaLocales: 1,
         deltaDeuda: deudaInicial,
-      ).catchError((e) => print('Error actualizando stats local: $e'));
+      ).catchError((e) => debugPrint('Error actualizando stats local: $e'));
     }
   }
 
@@ -333,40 +334,43 @@ class LocalDatasource {
     int limit = 10,
   }) async {
     final lower = prefijo.toLowerCase();
-    Query<Map<String, dynamic>> baseQuery = _collection;
 
-    if (mercadoId != null) {
-      baseQuery = baseQuery.where('mercadoId', isEqualTo: mercadoId);
-    } else if (municipalidadId != null) {
-      baseQuery = baseQuery.where('municipalidadId', isEqualTo: municipalidadId);
-    }
-
-    final queryNombre = baseQuery
+    // Consultamos por nombre sin filtros de igualdad para EVITAR requerir nuevos
+    // índices compuestos en Firestore. Filtramos la municipalidad/mercado en memoria.
+    final queryNombre = _collection
         .where('nombreSocialLower', isGreaterThanOrEqualTo: lower)
         .where('nombreSocialLower', isLessThanOrEqualTo: '$lower\uf8ff')
-        .limit(limit);
+        .limit(limit * 4); // Pedimos más para que luego del filter in-memory no nos quedemos escasos
 
+    // Hacemos lo mismo con código
     final queryCodigo = _collection
         .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
         .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
-        .limit(limit * 3);
+        .limit(limit * 4);
 
     final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
     
     final Map<String, LocalJson> merged = {};
+    
+    // Función helper para validar si un doc cumple los filtros en memoria
+    bool cumpleFiltros(Map<String, dynamic> data) {
+      if (mercadoId != null && data['mercadoId'] != mercadoId) return false;
+      if (municipalidadId != null && data['municipalidadId'] != municipalidadId) return false;
+      return true;
+    }
+
+    // Agregar resultados de nombres que cumplan el filtro
     for (var doc in results[0].docs) {
-      if (!merged.containsKey(doc.id)) {
-        merged[doc.id] = LocalJson.fromJson(doc.data(), docId: doc.id);
+      final data = doc.data();
+      if (cumpleFiltros(data) && !merged.containsKey(doc.id)) {
+        merged[doc.id] = LocalJson.fromJson(data, docId: doc.id);
       }
     }
     
+    // Agregar resultados de códigos que cumplan el filtro
     for (var doc in results[1].docs) {
       final data = doc.data();
-      bool match = true;
-      if (mercadoId != null && data['mercadoId'] != mercadoId) match = false;
-      if (municipalidadId != null && data['municipalidadId'] != municipalidadId) match = false;
-      
-      if (match && !merged.containsKey(doc.id)) {
+      if (cumpleFiltros(data) && !merged.containsKey(doc.id)) {
         merged[doc.id] = LocalJson.fromJson(data, docId: doc.id);
       }
     }
@@ -480,8 +484,7 @@ class LocalDatasource {
       // Si hay internet, garantizamos que se envíe o falle en 1.5 segundos
       await future.timeout(
         const Duration(milliseconds: 1500),
-        onTimeout: () =>
-            {}, // Si tarda mucho, que siga de largo sin quebrar (background sync)
+        onTimeout: () {}, // Si tarda mucho, que siga de largo sin quebrar (background sync)
       );
     }
   }
@@ -503,6 +506,25 @@ class LocalDatasource {
 
   // DELETE
   Future<void> eliminar(String docId) async {
+    // 1. Obtener los datos del local a eliminar para restarlo de las stats
+    final docSnap = await _collection.doc(docId).get();
+    
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      final municipalidadId = data['municipalidadId'] as String?;
+      if (municipalidadId != null) {
+        final deudaActual = (data['deudaAcumulada'] as num?) ?? 0;
+        
+        // 2. Restar 1 local, y restar su deuda (con valor negativo)
+        _statsDs.actualizarConteo(
+          municipalidadId: municipalidadId,
+          deltaLocales: -1,
+          deltaDeuda: -deudaActual,
+        ).catchError((e) => debugPrint('Error al restar stats por local eliminado: $e'));
+      }
+    }
+
+    // 3. Finalmente eliminar el documento del local
     await _collection.doc(docId).delete();
   }
 
@@ -587,9 +609,13 @@ class LocalDatasource {
     return migrated;
   }
 
-  /// Reparación de Datos: Recalcula la deuda acumulada de todos los locales
-  /// basándose en la cantidad real de registros "pendientes" en su historial.
-  /// Útil si se eliminaron cobros manualmente o hubo desincronización.
+  /// ⚠️ PELIGRO: Esta función descarga todos los locales y hace N queries
+  /// individuales a Firestore (una por local). Con 600 locales = ~6,000 lecturas.
+  /// El botón que la llamaba fue eliminado. No volver a llamar esta función.
+  @Deprecated(
+    'Causa fuga masiva de lecturas en Firestore (N queries por local). '
+    'Usar actualizaciones incrementales via StatsDatasource.actualizarConteo() en su lugar.',
+  )
   Future<int> recalcularDeudasBasadoEnHistorial() async {
     final localesDoc = await _collection.get();
     int corregidos = 0;

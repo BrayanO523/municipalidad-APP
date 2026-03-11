@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/date_formatter.dart';
@@ -55,7 +55,7 @@ class RecaudacionBarChart extends StatelessWidget {
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
                 toY: maxY == 0 ? 100 : maxY * 1.25,
-                color: colorScheme.onSurface.withOpacity(0.05),
+                color: colorScheme.onSurface.withValues(alpha: 0.05),
               ),
             ),
           ],
@@ -141,7 +141,7 @@ class RecaudacionBarChart extends StatelessWidget {
                                 child: Text(
                                   xAxisTitles[idx],
                                   style: TextStyle(
-                                    color: colorScheme.onSurface.withOpacity(
+                                    color: colorScheme.onSurface.withValues(alpha: 
                                       0.54,
                                     ),
                                     fontSize: 11,
@@ -163,7 +163,7 @@ class RecaudacionBarChart extends StatelessWidget {
                               return Text(
                                 DateFormatter.formatCurrency(value),
                                 style: TextStyle(
-                                  color: colorScheme.onSurface.withOpacity(0.7),
+                                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                                   fontSize: 9,
                                 ),
                               );
@@ -182,7 +182,7 @@ class RecaudacionBarChart extends StatelessWidget {
                         drawVerticalLine: false,
                         horizontalInterval: maxY > 0 ? (maxY / 4) : 25,
                         getDrawingHorizontalLine: (_) => FlLine(
-                          color: colorScheme.onSurface.withOpacity(0.1),
+                          color: colorScheme.onSurface.withValues(alpha: 0.1),
                           strokeWidth: 1,
                           dashArray: [4, 4],
                         ),
@@ -198,3 +198,4 @@ class RecaudacionBarChart extends StatelessWidget {
     );
   }
 }
+

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
@@ -29,7 +30,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.start();
+    // MobileScanner autoinicia el controlador internamente.
   }
 
   @override
@@ -46,22 +47,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       _yaEscaneado = false;
       _isRegistering = false;
     });
-    _controller.start();
+    // Ya no hacemos _controller.start() manualmente.
+    // El widget MobileScanner lo hace automáticamente en su ciclo de vida,
+    // y si nunca salió del widget tree, nunca se detuvo.
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_buscando || _localEncontrado != null) return;
+    if (_buscando || _localEncontrado != null || _yaEscaneado) return;
 
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isEmpty) return;
 
     final String? qrData = barcodes.first.rawValue;
-    if (qrData == null || !qrData.startsWith('LOCAL-')) {
+    // Si no tiene datos o es menor a un ID típico de Firestore (~20 chars) = Error
+    if (qrData == null || qrData.length < 15) {
       setState(() {
-        _error = 'QR inválido. Asegúrate de escanear un QR de local.';
+        _error = 'QR invalido. Asegurate de escanear un QR de local válido.';
         _yaEscaneado = true;
       });
-      _controller.stop();
       return;
     }
 
@@ -70,7 +73,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       _error = null;
       _yaEscaneado = true;
     });
-    _controller.stop();
+    // Ya no detenemos el hardware manualmente para evitar conflictos de estado.
+    // La bandera _yaEscaneado impide que se procesen frames adicionales.
 
     try {
       final localId = qrData.split('LOCAL-').last;
@@ -229,8 +233,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   }) async {
     setState(() => _isRegistering = true);
 
+    // Leer providers síncronamente antes de los await para evitar Bad state
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
+    final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
     final muni = await municipalidadRepo.obtenerPorId(
       local.municipalidadId ?? '',
@@ -241,23 +247,37 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final mercadoNombre = merc?.nombre;
 
     final cuota = local.cuotaDiaria ?? 0;
+    final num saldoFavorExistente = local.saldoAFavor ?? 0;
 
-    // 1. Pagar DEUDA ACUMULADA (Prioridad 1 - FIFO)
-    final deudaPast = local.deudaAcumulada ?? 0;
-    final paraDeudaReal = monto > deudaPast ? deudaPast : monto;
-    final num montoRestanteTrasDeuda = (monto - paraDeudaReal).clamp(0, double.infinity);
-
-    // 2. Pagar HOY (Prioridad 2)
+    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL ---
+    // 1. Pagar cuota de hoy con EFECTIVO (Prioridad 1)
     final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
-    final pagoACuota = montoRestanteTrasDeuda > faltanteHoy ? faltanteHoy : montoRestanteTrasDeuda;
-    final num montoRestanteTrasHoy = (montoRestanteTrasDeuda - pagoACuota).clamp(0, double.infinity);
+    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
+    final num montoRestanteTrasHoy = (monto - pagoACuota).clamp(0, double.infinity);
 
-    // 3. Cualquier excedente va a saldo a favor (Prioridad 3)
-    final paraSaldoFavorReal = montoRestanteTrasHoy;
+    // 2. Pagar deuda acumulada con excedente de EFECTIVO (Prioridad 2)
+    final deudaPast = local.deudaAcumulada ?? 0;
+    final paraDeudaReal = montoRestanteTrasHoy > deudaPast
+        ? deudaPast
+        : montoRestanteTrasHoy;
+    final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
+        .clamp(0, double.infinity);
+
+    // 3. Excedente de efectivo a Saldo a Favor (Prioridad 3)
+    final paraSaldoFavorReal = montoRestanteTrasDeuda;
+
+    // 4. Si el efectivo NO alcanzó para la cuota, complementar con saldo a favor
+    final num faltanteTrasEfectivo = (faltanteHoy - pagoACuota).clamp(0, double.infinity);
+    final num saldoConsumido = faltanteTrasEfectivo > saldoFavorExistente
+        ? saldoFavorExistente
+        : faltanteTrasEfectivo;
+
+    // Delta neto del saldo: nuevo excedente - saldo consumido
+    final num deltaSaldoFavor = paraSaldoFavorReal - saldoConsumido;
 
     // Estado resultante de la jornada de hoy
-    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuota);
-    final cuotaTotalHoy = pagadoHoy + pagoACuota;
+    final saldoHoy = (faltanteHoy - pagoACuota - saldoConsumido).clamp(0, cuota);
+    final cuotaTotalHoy = pagadoHoy + pagoACuota + saldoConsumido;
     final estado = cuotaTotalHoy >= cuota
         ? 'cobrado'
         : cuotaTotalHoy > 0
@@ -272,10 +292,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         paraDeudaReal.toDouble() +
         saldoHoy.toDouble();
     final double favorResultante =
-        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
+        (local.saldoAFavor ?? 0).toDouble() + deltaSaldoFavor.toDouble();
 
     try {
-      final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
       final nuevoCobro = Cobro(
         id: docId,
@@ -302,6 +321,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                   final hoyStr = '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
                   partes.add('L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr');
                 }
+                if (saldoConsumido > 0) {
+                  partes.add('L ${saldoConsumido.toStringAsFixed(2)} de saldo a favor');
+                }
                 if (paraSaldoFavorReal > 0) {
                   partes.add('L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor');
                 }
@@ -316,18 +338,31 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         telefonoRepresentante: local.telefonoRepresentante,
       );
 
-      final String? correlativoAsignado = await cobroViewModel.registrarPago(
+      final resultado = await cobroViewModel.registrarPago(
         cobro: nuevoCobro,
-        mercadoId: local.mercadoId!,
         localId: local.id!,
         montoAbonadoDeuda: paraDeudaReal,
-        incrementoSaldoFavor: paraSaldoFavorReal,
+        incrementoSaldoFavor: deltaSaldoFavor,
       );
 
-      final String correlativoStr = correlativoAsignado ?? '0';
+      final String correlativoStr = resultado.numeroBoleta ?? '0';
+      final List<DateTime> fechasSaldadas = resultado.fechasSaldadas;
 
       if (mounted) {
         setState(() => _isRegistering = false);
+        String? periodoFavorStr;
+        if (favorResultante > 0 && cuota > 0) {
+          int dias = (favorResultante / cuota).floor();
+          if (dias > 0) {
+            DateTime inicioFavor = now.add(const Duration(days: 1));
+            if (fechasSaldadas.isNotEmpty) {
+               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+               inicioFavor = sorted.last.add(const Duration(days: 1));
+            }
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -342,6 +377,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          fechasSaldadas: fechasSaldadas,
+          periodoSaldoAFavorStr: periodoFavorStr,
+          slogan: muni?.slogan,
         );
         _resetScanner();
       }
@@ -431,7 +469,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.error.withOpacity(0.1),
+                          color: colorScheme.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -538,7 +576,7 @@ class _LocalDetailPanel extends ConsumerWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.15),
+              color: Colors.green.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -631,12 +669,13 @@ class _LocalDetailPanel extends ConsumerWidget {
                     url,
                     mode: LaunchMode.externalApplication,
                   )) {
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('No se pudo abrir el mapa'),
                         ),
                       );
+                    }
                   }
                 },
                 icon: const Icon(Icons.location_on_rounded),

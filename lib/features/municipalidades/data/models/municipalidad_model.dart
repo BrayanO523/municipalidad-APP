@@ -15,6 +15,7 @@ class MunicipalidadJson extends Municipalidad {
     super.municipio,
     super.nombre,
     super.porcentaje,
+    super.slogan,
   });
 
   factory MunicipalidadJson.fromJson(
@@ -41,6 +42,7 @@ class MunicipalidadJson extends Municipalidad {
       municipio: json['municipio'],
       nombre: json['nombre'],
       porcentaje: parseNum(json['porcentaje']),
+      slogan: json['slogan'],
     );
   }
 
@@ -57,6 +59,7 @@ class MunicipalidadJson extends Municipalidad {
       municipio: entity.municipio,
       nombre: entity.nombre,
       porcentaje: entity.porcentaje,
+      slogan: entity.slogan,
     );
   }
 
@@ -74,6 +77,7 @@ class MunicipalidadJson extends Municipalidad {
       'municipio': municipio,
       'nombre': nombre,
       'porcentaje': porcentaje,
+      'slogan': slogan,
     };
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -6,14 +6,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/platform/printer_service.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
-
+import '../../../../core/utils/date_range_formatter.dart';
 
 /// Implementación para plataformas Web y Desktop que genera un PDF.
 /// Permite "imprimir" comprobantes abriendo el diálogo del sistema.
 class StubPrinterAdapter implements PrinterService {
-  @override
-  Stream<bool> get connectionStream => Stream.value(true);
-
   @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
     return [];
@@ -43,7 +40,16 @@ class StubPrinterAdapter implements PrinterService {
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
+    String? slogan,
+    String? clave,
   }) async {
+    debugPrint(
+      'StubPrinterAdapter: Emulando impresión de ${empresa.toUpperCase()}',
+    );
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -124,13 +130,27 @@ class StubPrinterAdapter implements PrinterService {
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente ?? 0)),
               ] else if (saldoPendiente != null && saldoPendiente > 0)
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente)),
+
+              if (periodoAbonadoStr != null &&
+                  periodoAbonadoStr.isNotEmpty &&
+                  periodoAbonadoStr != '-') ...[
+                _pdfRow('PERIODO ABONADO:', periodoAbonadoStr),
+              ] else if (fechasSaldadas != null &&
+                  fechasSaldadas.length > 1) ...[
+                if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                  _pdfRow(
+                    'PERIODO ABONADO:',
+                    DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                  ),
+              ],
+
               if (saldoAFavor != null && saldoAFavor > 0)
                 _pdfRow('SALDO A FAVOR:', fCurrency.format(saldoAFavor)),
               pw.SizedBox(height: 8),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 12),
               pw.Text(
-                '¡Gracias por su pago!',
+                slogan ?? '¡Gracias por su pago!',
                 style: pw.TextStyle(
                   fontSize: 10,
                   fontStyle: pw.FontStyle.italic,

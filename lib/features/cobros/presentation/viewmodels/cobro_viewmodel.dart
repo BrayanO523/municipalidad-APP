@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../domain/entities/cobro.dart';
@@ -20,10 +21,10 @@ class CobroViewModel extends AsyncNotifier<void> {
   }
 
   /// Realiza todo el flujo de registro de un cobro garantizando MVVM
-  /// y usando el almacenamiento Offline NoSQL (Hive)
-  Future<String?> registrarPago({
+  /// y usando el almacenamiento Offline NoSQL (Hive).
+  /// Retorna la boleta y las fechas históricas saldadas (FIFO).
+  Future<({String? numeroBoleta, List<DateTime> fechasSaldadas})> registrarPago({
     required Cobro cobro,
-    required String mercadoId,
     required String localId,
     required num montoAbonadoDeuda,
     required num incrementoSaldoFavor,
@@ -31,9 +32,13 @@ class CobroViewModel extends AsyncNotifier<void> {
     try {
       state = const AsyncValue.loading();
 
-      // 1. Ejecutar registro de cobro y actualización de balances en paralelo
+      // 1. Ejecutar registro de cobro (con FIFO) y actualización de balances en paralelo
       final results = await Future.wait([
-        _cobroRepository.registrarCobroCompleto(cobro, localId),
+        _cobroRepository.registrarCobroCompleto(
+          cobro,
+          localId,
+          montoAbonadoDeuda: montoAbonadoDeuda,
+        ),
         _localRepository.procesarPagoOfflineSafe(
           localId,
           montoAbonadoDeuda,
@@ -41,12 +46,14 @@ class CobroViewModel extends AsyncNotifier<void> {
         ),
       ]);
 
-      final String? correlativo = results[0] as String?;
+      final resultado = results[0] as ({String numeroBoleta, List<DateTime> fechasSaldadas});
       state = const AsyncValue.data(null);
-      return correlativo;
+      return (numeroBoleta: resultado.numeroBoleta, fechasSaldadas: resultado.fechasSaldadas);
     } catch (e, st) {
+      debugPrint('🚨 ERROR CRÍTICO EN registrarPago: $e');
+      debugPrint('STACKTRACE: $st');
       state = AsyncValue.error(e, st);
-      return null;
+      return (numeroBoleta: null, fechasSaldadas: <DateTime>[]);
     }
   }
 

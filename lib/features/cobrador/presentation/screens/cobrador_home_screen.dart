@@ -13,6 +13,7 @@ import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 
@@ -24,7 +25,8 @@ class CobradorHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
-  String _filtroActivo = 'todos'; // 'todos', 'pendientes', 'cobrados'
+  String _filtroEstado = 'todos'; // 'todos', 'pendientes', 'cobrados'
+  String _filtroFrecuencia = 'todos'; // 'todos', 'diaria', 'semanal', 'quincenal', 'mensual'
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   int _limiteLocales = 20;
@@ -51,20 +53,29 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       final localRepo = ref.read(localRepositoryProvider);
       final cobroRepo = ref.read(cobroRepositoryProvider);
+      final muniRepo = ref.read(municipalidadRepositoryProvider);
+      
       localRepo.syncLocales().catchError((_) {});
       cobroRepo.syncCobros().catchError((_) {});
+      muniRepo.sincronizarLocalmente().catchError((_) {});
 
-      // Esperar a que los locales carguen para verificar deuda
-      final locales = await ref.read(localesCobradorProvider.future);
-      if (mounted && locales.isNotEmpty) {
-        _verificarDeudaRetroactiva(locales);
-      }
-    } catch (_) {}
+      // Esperar a que los locales carguen en background para verificar deuda
+      // Se quita el `await .future` puro para no congelar el arranque
+      ref.read(localesCobradorProvider.future).then((locales) {
+        if (mounted && locales.isNotEmpty) {
+          _verificarDeudaRetroactiva(locales);
+        }
+      }).catchError((e) {
+        debugPrint('Error en carga background de locales: $e');
+      });
+    } catch (e) {
+      debugPrint('Excepción en dispararSync: $e');
+    }
   }
 
   Future<void> _reconectarImpresora() async {
     // Solo intentamos si no estamos ya conectados
-    final isConnected = ref.read(printerConnectionProvider).value ?? false;
+    final isConnected = ref.read(printerConnectionProvider);
     if (isConnected) return;
 
     final mac = ref.read(connectedPrinterMacProvider);
@@ -363,139 +374,218 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     // Calcular cuánto falta para la cuota hoy
     final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
-    final montoSugerido = faltanteHoy > 0 ? faltanteHoy : cuota;
 
-    final montoCtrl = TextEditingController(text: montoSugerido.toString());
+    final montoCtrl = TextEditingController(
+      text: cuotaCubierta ? '' : faltanteHoy.toStringAsFixed(0),
+    );
     final obsCtrl = TextEditingController();
-    final usuario = ref.read(currentUsuarioProvider).value;
+
+    // Variables para saldo a favor
+    bool usarSaldoFavor = false;
+    final montoSaldoFavorCtrl = TextEditingController();
+
+    if (!mounted) return;
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              cuotaCubierta
-                  ? Icons.add_circle_outline_rounded
-                  : Icons.receipt_long_rounded,
-              size: 22,
-              color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                cuotaCubierta
-                    ? 'Abono Extra - ${local.nombreSocial ?? ""}'
-                    : 'Cobrar - ${local.nombreSocial ?? ""}',
-                style: const TextStyle(fontSize: 16),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return AlertDialog(
+            title: Row(
               children: [
-                if (!cuotaCubierta)
-                  _InfoRow(
-                    label: 'Cuota diaria',
-                    value: DateFormatter.formatCurrency(cuota),
-                  ),
-                if (pagadoHoy > 0)
-                  _InfoRow(
-                    label: 'Pagado hoy',
-                    value: DateFormatter.formatCurrency(pagadoHoy),
-                    color: Colors.green,
-                  ),
-                if (faltanteHoy > 0 && pagadoHoy > 0)
-                  _InfoRow(
-                    label: 'Faltante cuota',
-                    value: DateFormatter.formatCurrency(faltanteHoy),
-                    color: Colors.orange,
-                  ),
-                _InfoRow(
-                  label: 'Representante',
-                  value: local.representante ?? '-',
+                Icon(
+                  cuotaCubierta
+                      ? Icons.add_circle_outline_rounded
+                      : Icons.receipt_long_rounded,
+                  size: 22,
+                  color: cuotaCubierta ? const Color(0xFF00D9A6) : null,
                 ),
-                if (saldoActual > 0)
-                  _InfoRow(
-                    label: 'Saldo a favor',
-                    value: DateFormatter.formatCurrency(saldoActual),
-                    color: const Color(0xFF00D9A6),
-                  ),
-                if ((local.deudaAcumulada ?? 0) > 0)
-                  _InfoRow(
-                    label: 'Deuda Acumulada',
-                    value: DateFormatter.formatCurrency(local.deudaAcumulada),
-                    color: const Color(0xFFEE5A6F),
-                  ),
-                _InfoRow(
-                  label: 'Balance Neto',
-                  value: DateFormatter.formatCurrency(local.balanceNeto),
-                  color: local.balanceNeto >= 0
-                      ? const Color(0xFF00D9A6)
-                      : const Color(0xFFEE5A6F),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: montoCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Monto a cobrar (L)',
-                    prefixIcon: const Icon(Icons.payments_rounded, size: 20),
-                    helperText:
-                        'Si paga más de L ${cuota.toStringAsFixed(0)}, el excedente queda como saldo a favor',
-                    helperMaxLines: 2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: obsCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Observaciones (opcional)',
-                    prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    cuotaCubierta
+                        ? 'Abono Extra - ${local.nombreSocial ?? ""}'
+                        : 'Cobrar - ${local.nombreSocial ?? ""}',
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Registrar'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!cuotaCubierta)
+                      _InfoRow(
+                        label: 'Cuota diaria',
+                        value: DateFormatter.formatCurrency(cuota),
+                      ),
+                    if (pagadoHoy > 0)
+                      _InfoRow(
+                        label: 'Pagado hoy',
+                        value: DateFormatter.formatCurrency(pagadoHoy),
+                        color: Colors.green,
+                      ),
+                    if (faltanteHoy > 0 && pagadoHoy > 0)
+                      _InfoRow(
+                        label: 'Faltante cuota',
+                        value: DateFormatter.formatCurrency(faltanteHoy),
+                        color: Colors.orange,
+                      ),
+                    _InfoRow(
+                      label: 'Representante',
+                      value: local.representante ?? '-',
+                    ),
+                    if (saldoActual > 0)
+                      _InfoRow(
+                        label: 'Saldo a favor Total',
+                        value: DateFormatter.formatCurrency(saldoActual),
+                        color: const Color(0xFF00D9A6),
+                      ),
+                    if ((local.deudaAcumulada ?? 0) > 0)
+                      _InfoRow(
+                        label: 'Deuda Acumulada',
+                        value: DateFormatter.formatCurrency(local.deudaAcumulada),
+                        color: const Color(0xFFEE5A6F),
+                      ),
+                    _InfoRow(
+                      label: 'Balance Neto',
+                      value: DateFormatter.formatCurrency(local.balanceNeto),
+                      color: local.balanceNeto >= 0
+                          ? const Color(0xFF00D9A6)
+                          : const Color(0xFFEE5A6F),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: montoCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Efectivo Recibido (L)',
+                        prefixIcon: const Icon(Icons.payments_rounded, size: 20),
+                        helperText:
+                            'Si deposita más de su deuda total, se acumulará saldo a favor',
+                        helperMaxLines: 2,
+                      ),
+                    ),
+                    if (saldoActual > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    '¿Usar Saldo a Favor Disponible?',
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                  ),
+                                ),
+                                Switch(
+                                  value: usarSaldoFavor,
+                                  onChanged: (val) {
+                                    setModalState(() {
+                                      usarSaldoFavor = val;
+                                      if (val) {
+                                        montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                      } else {
+                                        montoSaldoFavorCtrl.clear();
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (usarSaldoFavor) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: montoSaldoFavorCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Monto a Extraer (L)',
+                                  prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
+                                  isDense: true,
+                                ),
+                                onChanged: (val) {
+                                  final parsed = double.tryParse(val) ?? 0;
+                                  if (parsed > saldoActual) {
+                                    montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                    montoSaldoFavorCtrl.selection = TextSelection.fromPosition(
+                                      TextPosition(offset: montoSaldoFavorCtrl.text.length),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: obsCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Observaciones (opcional)',
+                        prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Registrar'),
+                    ),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
 
     if (result != true || !mounted) return;
 
-    final monto = num.tryParse(montoCtrl.text) ?? 0;
+    final montoEfectivo = num.tryParse(montoCtrl.text) ?? 0;
+    final saldoAExtraer = usarSaldoFavor ? (num.tryParse(montoSaldoFavorCtrl.text) ?? 0) : 0;
+    
+    if (montoEfectivo <= 0 && saldoAExtraer <= 0) return;
+
+    final cobrosHoyActual = ref.read(cobrosHoyCobradorProvider).value ?? [];
+    final usuario = ref.read(currentUsuarioProvider).value;
+
     await _guardarCobro(
       local: local,
-      monto: monto,
+      montoEfectivo: montoEfectivo,
+      saldoAExtraer: saldoAExtraer,
       observaciones: obsCtrl.text,
       usuario: usuario,
-      cobrosHoy: cobrosHoy,
+      cobrosHoy: cobrosHoyActual,
     );
   }
 
@@ -505,9 +595,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final now = DateTime.now();
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
     final usuario = ref.read(currentUsuarioProvider).value;
+
+    // Leer providers síncronamente antes de los await
+    final cobroDs = ref.read(cobroDatasourceProvider);
+    final localDs = ref.read(localDatasourceProvider);
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
     try {
-      final cobroDs = ref.read(cobroDatasourceProvider);
-      final localDs = ref.read(localDatasourceProvider);
 
       final String correlativoStr = await cobroDs.crearCobroConCorrelativo(
         cobroId: docId,
@@ -531,8 +626,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       );
       // Descontar la cuota del saldo a favor
       await localDs.actualizarSaldoAFavor(local.id!, -cuota);
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -545,9 +638,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       }
 
       // --- OBTENER DATOS MAESTROS (Con soporte offline vía repositorios) ---
-      final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
-      final mercadoRepo = ref.read(mercadoRepositoryProvider);
-
       final muni = await municipalidadRepo.obtenerPorId(
         local.municipalidadId ?? '',
       );
@@ -558,7 +648,18 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       // ------------------------------------------------------------------
 
       // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // Mostrar recibo ANTES de invalidar providers para evitar rebuild prematuro
       if (mounted) {
+        String? periodoFavorStr;
+        final saldoFinal = (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
+        if (saldoFinal > 0 && cuota > 0) {
+          int dias = (saldoFinal / cuota).floor();
+          if (dias > 0) {
+            final fechaInicio = now.add(const Duration(days: 1));
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(fechaInicio, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -568,14 +669,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: (local.deudaAcumulada ?? 0).toDouble(),
           deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
           montoAbonadoDeuda: 0, // En este caso fue saldo a favor
-          saldoAFavor: (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble(),
+          saldoAFavor: saldoFinal,
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          periodoSaldoAFavorStr: periodoFavorStr,
+          slogan: muni?.slogan,
         );
       }
+
+      if (!mounted) return;
+      // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
+      ref.invalidate(localesCobradorProvider);
+      ref.invalidate(cobrosHoyCobradorProvider);
     } catch (e) {
+      debugPrint('❌ Error en _aplicarSaldoAFavor: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -588,21 +697,26 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
+  /// Acepta montoEfectivo (cash) y saldoAExtraer (crédito explícito del saldo a favor).
   Future<void> _guardarCobro({
     required Local local,
-    required num monto,
+    required num montoEfectivo,
+    required num saldoAExtraer,
     required String observaciones,
     required dynamic usuario,
     required List<Cobro> cobrosHoy,
   }) async {
-    // --- OBTENER DATOS MAESTROS (Con soporte offline via repositorios) ---
+    // --- OBTENER DATOS MAESTROS síncronamente ---
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
+    final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
     final muni = await municipalidadRepo.obtenerPorId(
       local.municipalidadId ?? '',
     );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    debugPrint('🏛️ [HOME] Municipalidad: ${muni?.nombre} | slogan: "${muni?.slogan}" | id buscado: ${local.municipalidadId}');
 
     final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
     final mercadoNombre = merc?.nombre;
@@ -614,17 +728,20 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
 
-    // --- LÓGICA DE DISTRIBUCIÓN SECUENCIAL (MVVM) ---
-    // 1. Pagar hoy (Prioridad 1)
+    // --- BOLSA TOTAL = Efectivo + Saldo a Extraer ---
+    final num bolsaTotal = montoEfectivo + saldoAExtraer;
+
+    // --- LÓGICA DE DISTRIBUCIÓN EN CASCADA ---
+    // 1. Pagar cuota de hoy (Prioridad 1)
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
-    final pagoACuota = monto > faltanteHoy ? faltanteHoy : monto;
-    final num montoRestanteTrasHoy = (monto - pagoACuota).clamp(
+    final pagoACuota = bolsaTotal > faltanteHoy ? faltanteHoy : bolsaTotal;
+    final num montoRestanteTrasHoy = (bolsaTotal - pagoACuota).clamp(
       0,
       double.infinity,
     );
 
-    // 2. Pagar deuda acumulada de días anteriores (Prioridad 2)
+    // 2. Pagar deuda acumulada con excedente (Prioridad 2)
     final deudaPast = local.deudaAcumulada ?? 0;
     final paraDeudaReal = montoRestanteTrasHoy > deudaPast
         ? deudaPast
@@ -632,10 +749,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
         .clamp(0, double.infinity);
 
-    // 3. Excedente a Saldo a Favor (Prioridad 3)
+    // 3. Excedente a Nuevo Saldo a Favor (Prioridad 3)
     final paraSaldoFavorReal = montoRestanteTrasDeuda;
 
-    // Totales calculados para el registro y balances
+    // Delta neto del saldo: nuevo excedente generado - saldo explícitamente extraído
+    final num deltaSaldoFavor = paraSaldoFavorReal - saldoAExtraer;
+
+    // Totales
     final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuotaHoy);
     final cuotaTotalHoy = pagadoHoyPrev + pagoACuota;
     final estado = cuotaTotalHoy >= cuotaHoy
@@ -649,11 +769,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         paraDeudaReal.toDouble() +
         saldoHoy.toDouble();
     final double favorResultante =
-        (local.saldoAFavor ?? 0).toDouble() + paraSaldoFavorReal.toDouble();
+        (local.saldoAFavor ?? 0).toDouble() + deltaSaldoFavor.toDouble();
+
+    // Monto registrado en el cobro: solo el efectivo
+    final num monto = montoEfectivo;
 
     try {
       // ====== MVVM REFACTOR: Utilizar CobroViewModel y Repositorios ======
-      final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
       final nuevoCobro = Cobro(
         id: docId,
@@ -685,6 +807,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     'L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr',
                   );
                 }
+                if (saldoAExtraer > 0) {
+                  partes.add(
+                    'L ${saldoAExtraer.toStringAsFixed(2)} de saldo a favor',
+                  );
+                }
                 if (paraSaldoFavorReal > 0) {
                   partes.add(
                     'L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor',
@@ -703,22 +830,34 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         telefonoRepresentante: local.telefonoRepresentante,
       );
 
-      final String? correlativoAsignado = await cobroViewModel.registrarPago(
+      final resultado = await cobroViewModel.registrarPago(
         cobro: nuevoCobro,
-        mercadoId: local.mercadoId!,
         localId: local.id!,
         montoAbonadoDeuda: paraDeudaReal,
-        incrementoSaldoFavor: paraSaldoFavorReal,
+        incrementoSaldoFavor: deltaSaldoFavor,
       );
 
-      final String correlativoStr = correlativoAsignado ?? '0';
+      final String correlativoStr = resultado.numeroBoleta ?? '0';
+      final List<DateTime> fechasSaldadas = resultado.fechasSaldadas;
       // ====== END MVVM REFACTOR ======
 
-      ref.invalidate(localesCobradorProvider);
-      ref.invalidate(cobrosHoyCobradorProvider);
-
       // --- INTEGRACIÓN DE RECEIPT DISPATCHER ---
+      // IMPORTANTE: Mostrar el recibo ANTES de invalidar los providers,
+      // porque ref.invalidate provoca rebuild y puede desmontar el widget.
       if (mounted) {
+        String? periodoFavorStr;
+        if (favorResultante > 0 && cuotaHoy > 0) {
+          int dias = (favorResultante / cuotaHoy).floor();
+          if (dias > 0) {
+            DateTime inicioFavor = now.add(const Duration(days: 1));
+            if (fechasSaldadas.isNotEmpty) {
+               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+               inicioFavor = sorted.last.add(const Duration(days: 1));
+            }
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+          }
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -728,14 +867,23 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: saldoResultante,
           deudaAnterior: deudaTotalInicial.toDouble(),
           montoAbonadoDeuda: paraDeudaReal.toDouble(),
-          saldoAFavor: favorResultante,
+          saldoAFavor: favorResultante.toDouble(),
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
+          fechasSaldadas: fechasSaldadas,
+          periodoSaldoAFavorStr: periodoFavorStr,
+          slogan: muni?.slogan,
         );
       }
+
+      if (!mounted) return;
+      // Refrescar datos DESPUÉS de que el usuario cierre el diálogo del recibo
+      ref.invalidate(localesCobradorProvider);
+      ref.invalidate(cobrosHoyCobradorProvider);
     } catch (e) {
+      debugPrint('❌ Error en _guardarCobro: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -823,29 +971,61 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
         final localesFiltrados = locales.where((l) {
           final cuotaCubierta = idsCuotaCubiertaSet.contains(l.id ?? '');
+          
+          // Filtro por Estado
           bool pasaFiltroEstado = true;
-          if (_filtroActivo == 'pendientes') pasaFiltroEstado = !cuotaCubierta;
-          if (_filtroActivo == 'cobrados') pasaFiltroEstado = cuotaCubierta;
+          if (_filtroEstado == 'pendientes') pasaFiltroEstado = !cuotaCubierta;
+          if (_filtroEstado == 'cobrados') pasaFiltroEstado = cuotaCubierta;
 
+          // Filtro por Frecuencia
+          bool pasaFiltroFrecuencia = true;
+          if (_filtroFrecuencia != 'todos') {
+            final freqStr = l.frecuenciaCobro ?? 'diaria';
+            pasaFiltroFrecuencia = freqStr == _filtroFrecuencia;
+          }
+
+          // Filtro de Búsqueda
           bool pasaFiltroTexto = true;
           if (_searchQuery.isNotEmpty) {
             final q = _searchQuery.toLowerCase();
             final nombre = (l.nombreSocial ?? '').toLowerCase();
             final rep = (l.representante ?? '').toLowerCase();
-            final corr = (l.clave?.toString() ?? '');
-            final cat = (l.codigoCatastral ?? '').toLowerCase();
+            final currClave = (l.clave ?? '').toLowerCase();
             pasaFiltroTexto =
                 nombre.contains(q) ||
                 rep.contains(q) ||
-                corr.toLowerCase().contains(q) ||
-                cat.contains(q);
+                currClave.contains(q);
           }
 
-          return pasaFiltroEstado && pasaFiltroTexto;
+          return pasaFiltroEstado && pasaFiltroFrecuencia && pasaFiltroTexto;
         }).toList();
 
-        final int totalTotal = locales.length;
+        // --- Cálculos de Contadores para Chips ---
+        // Estados
+        final int totalesCount = locales.length;
         final int cobradosCount = idsCuotaCubiertaSet.length;
+        final int pendientesCount = totalesCount - cobradosCount;
+
+        // Frecuencias
+        int diariosCount = 0;
+        int semanalesCount = 0;
+        int quincenalesCount = 0;
+        int mensualesCount = 0;
+
+        for (var loc in locales) {
+          final f = loc.frecuenciaCobro ?? 'diaria';
+          if (f == 'diaria') {
+            diariosCount++;
+          } else if (f == 'semanal') {
+            semanalesCount++;
+          } else if (f == 'quincenal') {
+            quincenalesCount++;
+          } else if (f == 'mensual') {
+            mensualesCount++;
+          }
+        }
+        // ----------------------------------------
+
         final colorScheme = Theme.of(context).colorScheme;
 
         final localesPaginados = localesFiltrados.take(_limiteLocales).toList();
@@ -896,10 +1076,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                       context: context,
                                       builder: (ctx) => AlertDialog(
                                         title: const Text(
-                                          'Limpiar Caché Local',
+                            'Limpiar Caché Local',
                                         ),
                                         content: const Text(
-                                          'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
+                            'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
                                         ),
                                         actions: [
                                           TextButton(
@@ -925,7 +1105,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                           .limpiarCacheLocal();
                                       ref.invalidate(localesCobradorProvider);
                                       ref.invalidate(cobrosHoyCobradorProvider);
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
@@ -938,12 +1118,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         );
                                       }
                                     } catch (e) {
-                                      if (mounted)
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           SnackBar(content: Text('Error: $e')),
                                         );
+                                      }
                                     }
                                   },
                                 ),
@@ -1007,7 +1188,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 : null,
                             filled: true,
                             fillColor: colorScheme.surfaceContainerHighest
-                                .withOpacity(0.5),
+                                .withValues(alpha: 0.5),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
@@ -1019,54 +1200,102 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // Filtros
+                        // Filtros en formato Chips Scrolleables
+                        SizedBox(
+                          height: 48,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            children: [
+                              // --- Bloque 1: Estados ---
+                              _CustomFilterChip(
+                                label: 'Todos',
+                                count: totalesCount.toString(),
+                                isSelected: _filtroEstado == 'todos',
+                                baseColor: colorScheme.primary,
+                                icon: Icons.list_alt_rounded,
+                                onTap: () => setState(() => _filtroEstado = 'todos'),
+                              ),
+                              _CustomFilterChip(
+                                label: 'Pendientes',
+                                count: pendientesCount.toString(),
+                                isSelected: _filtroEstado == 'pendientes',
+                                baseColor: Colors.orange,
+                                icon: Icons.pending_actions_rounded,
+                                onTap: () => setState(() => _filtroEstado = 'pendientes'),
+                              ),
+                              _CustomFilterChip(
+                                label: 'Cobrados',
+                                count: cobradosCount.toString(),
+                                isSelected: _filtroEstado == 'cobrados',
+                                baseColor: Colors.green,
+                                icon: Icons.check_circle_rounded,
+                                onTap: () => setState(() => _filtroEstado = 'cobrados'),
+                              ),
+
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                color: Colors.white24,
+                              ),
+                              const SizedBox(width: 12),
+
+                              // --- Bloque 2: Frecuencias ---
+                              _CustomFilterChip(
+                                label: 'Frec. Todas',
+                                isSelected: _filtroFrecuencia == 'todos',
+                                baseColor: Colors.indigoAccent,
+                                icon: Icons.filter_alt_outlined,
+                                onTap: () => setState(() => _filtroFrecuencia = 'todos'),
+                              ),
+                              if (diariosCount > 0)
+                                _CustomFilterChip(
+                                  label: 'Diarios',
+                                  count: diariosCount.toString(),
+                                  isSelected: _filtroFrecuencia == 'diaria',
+                                  baseColor: Colors.indigoAccent,
+                                  onTap: () => setState(() => _filtroFrecuencia = 'diaria'),
+                                ),
+                              if (semanalesCount > 0)
+                                _CustomFilterChip(
+                                  label: 'Semanales',
+                                  count: semanalesCount.toString(),
+                                  isSelected: _filtroFrecuencia == 'semanal',
+                                  baseColor: Colors.indigoAccent,
+                                  onTap: () => setState(() => _filtroFrecuencia = 'semanal'),
+                                ),
+                              if (quincenalesCount > 0)
+                                _CustomFilterChip(
+                                  label: 'Quincenales',
+                                  count: quincenalesCount.toString(),
+                                  isSelected: _filtroFrecuencia == 'quincenal',
+                                  baseColor: Colors.indigoAccent,
+                                  onTap: () => setState(() => _filtroFrecuencia = 'quincenal'),
+                                ),
+                              if (mensualesCount > 0)
+                                _CustomFilterChip(
+                                  label: 'Mensuales',
+                                  count: mensualesCount.toString(),
+                                  isSelected: _filtroFrecuencia == 'mensual',
+                                  baseColor: Colors.indigoAccent,
+                                  onTap: () => setState(() => _filtroFrecuencia = 'mensual'),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Monto Total Cobrado Hoy
                         Row(
                           children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: _StatChip(
-                                  icon: Icons.check_circle_rounded,
-                                  label:
-                                      '$cobradosCount / $totalTotal\ncobrados',
-                                  color: Colors.green,
-                                  isSelected: _filtroActivo == 'cobrados',
-                                  onTap: () => setState(() {
-                                    _filtroActivo = _filtroActivo == 'cobrados'
-                                        ? 'todos'
-                                        : 'cobrados';
-                                    _limiteLocales = 20;
-                                  }),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: _StatChip(
-                                  icon: Icons.payments_rounded,
-                                  label: DateFormatter.formatCurrency(
-                                    montoTotalHoy,
-                                  ),
-                                  color: colorScheme.primary,
-                                  isSelected: true,
-                                  onTap: null,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: _StatChip(
-                                icon: Icons.pending_actions_rounded,
-                                label:
-                                    '${totalTotal - cobradosCount}\npendientes',
-                                color: Colors.orange,
-                                isSelected: _filtroActivo == 'pendientes',
-                                onTap: () => setState(
-                                  () => _filtroActivo =
-                                      _filtroActivo == 'pendientes'
-                                      ? 'todos'
-                                      : 'pendientes',
-                                ),
+                            const Icon(Icons.payments_rounded, size: 16, color: Colors.blueAccent),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Cobrado hoy: ${DateFormatter.formatCurrency(montoTotalHoy)}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.white70,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -1118,7 +1347,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   onPressed: () =>
                                       setState(() => _limiteLocales += 20),
                                   icon: const Icon(Icons.expand_more_rounded),
-                                  label: const Text('Cargar más locales'),
+                                   label: const Text('Cargar más locales'),
                                   style: TextButton.styleFrom(
                                     foregroundColor: colorScheme.primary,
                                   ),
@@ -1210,7 +1439,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '📍 Locales Bajados: ${localesAgregados.length}',
+                  '📂 Locales Bajados: ${localesAgregados.length}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
@@ -1269,55 +1498,77 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
+class _CustomFilterChip extends StatelessWidget {
   final String label;
-  final Color color;
+  final String? count;
   final bool isSelected;
-  final VoidCallback? onTap;
+  final Color baseColor;
+  final VoidCallback onTap;
+  final IconData? icon;
 
-  const _StatChip({
-    required this.icon,
+  const _CustomFilterChip({
     required this.label,
-    required this.color,
-    this.isSelected = true,
-    this.onTap,
+    this.count,
+    required this.isSelected,
+    required this.baseColor,
+    required this.onTap,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: isSelected ? 1.0 : 0.4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: isSelected ? baseColor.withValues(alpha: 0.15) : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: isSelected ? baseColor : Colors.white24,
+                width: 1,
+              ),
             ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 16, color: color),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: isSelected ? baseColor : Colors.white54),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? baseColor : Colors.white70,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                if (count != null && count!.isNotEmpty) ...[
                   const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isSelected ? baseColor : Colors.white12,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      count!,
+                      style: TextStyle(
+                        color: isSelected ? Colors.black87 : Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
         ),
@@ -1431,12 +1682,12 @@ class _LocalCard extends StatelessWidget {
                                 ?.copyWith(color: Colors.white60),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (local.codigoCatastral != null &&
-                              local.codigoCatastral!.isNotEmpty)
+                          if (local.clave != null &&
+                              local.clave!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
-                                'Código: ${local.codigoCatastral}',
+                                'Clave: ${local.clave}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Colors.white54,
@@ -1447,11 +1698,16 @@ class _LocalCard extends StatelessWidget {
                               ),
                             ),
                           const SizedBox(height: 4),
-                          // Badges de deuda / saldo
+                          // Badges de deuda / saldo / frecuencia
                           Wrap(
                             spacing: 6,
                             runSpacing: 4,
                             children: [
+                              _SmallBadge(
+                                icon: Icons.schedule_rounded,
+                                label: local.frecuenciaCobro?.toUpperCase() ?? 'DIARIA',
+                                color: Colors.blueGrey,
+                              ),
                               if (tieneDeuda)
                                 _SmallBadge(
                                   icon: Icons.warning_amber_rounded,
@@ -1496,7 +1752,7 @@ class _LocalCard extends StatelessWidget {
                 ),
               ),
 
-              // ── Divisor ──────────────────────────────────────────────
+              // ── Divisor ──────────────────────────────────────────────â”€
               Divider(
                 height: 1,
                 thickness: 1,
@@ -1724,3 +1980,4 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+

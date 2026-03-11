@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 Future<void> main() async {
-  print('=== VERIFICANDO COLECCIÓN STATS ===');
+  debugPrint('=== VERIFICANDO COLECCIÓN STATS ===');
   
   // No podemos usar FirebaseFirestore.instance en un script puro de Dart 
   // que no esté inicializado dentro del contexto de Flutter.

@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
+import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/mercado_model.dart';
 
 class MercadoDatasource {
   final FirebaseFirestore _firestore;
+  final StatsDatasource _statsDs;
 
-  MercadoDatasource(this._firestore);
+  MercadoDatasource(this._firestore, this._statsDs);
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(FirestoreCollections.mercados);
@@ -14,6 +17,15 @@ class MercadoDatasource {
   // CREATE
   Future<void> crear(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).set(data);
+    
+    // Actualizar estadísticas (Suma atómica)
+    final municipalidadId = data['municipalidadId'] as String?;
+    if (municipalidadId != null) {
+      _statsDs.actualizarConteo(
+        municipalidadId: municipalidadId,
+        deltaMercados: 1,
+      ).catchError((e) => debugPrint('Error actualizando stats mercado: $e'));
+    }
   }
 
   // READ
@@ -134,9 +146,15 @@ class MercadoDatasource {
   }
 
   Future<MercadoJson?> obtenerPorId(String docId) async {
-    final doc = await _collection.doc(docId).get();
-    if (!doc.exists) return null;
-    return MercadoJson.fromJson(doc.data()!, docId: doc.id);
+    try {
+      final doc = await _collection.doc(docId).get().timeout(const Duration(seconds: 3));
+      if (!doc.exists) return null;
+      return MercadoJson.fromJson(doc.data()!, docId: doc.id);
+    } catch (_) {
+      final docCache = await _collection.doc(docId).get(const GetOptions(source: Source.cache));
+      if (!docCache.exists) return null;
+      return MercadoJson.fromJson(docCache.data()!, docId: docCache.id);
+    }
   }
 
   // UPDATE
@@ -146,6 +164,21 @@ class MercadoDatasource {
 
   // DELETE
   Future<void> eliminar(String docId) async {
+    // 1. Obtener datos antes de eliminar para restarlo de las stats
+    final docSnap = await _collection.doc(docId).get();
+    
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      final municipalidadId = data['municipalidadId'] as String?;
+      if (municipalidadId != null) {
+        _statsDs.actualizarConteo(
+          municipalidadId: municipalidadId,
+          deltaMercados: -1,
+        ).catchError((e) => debugPrint('Error al restar stats por mercado eliminado: $e'));
+      }
+    }
+
+    // 2. Eliminar el documento
     await _collection.doc(docId).delete();
   }
 

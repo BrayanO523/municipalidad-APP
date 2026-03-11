@@ -37,6 +37,7 @@ class LocalHiveAdapter extends TypeAdapter<LocalHive> {
       longitud: fields[17] as double?,
       saldoAFavor: fields[18] as double?,
       deudaAcumulada: fields[19] as double?,
+      frecuenciaCobro: fields[24] as String?,
       perimetroJson: fields[20] as String?,
       clave: fields[21] as String?,
       codigoCatastral: fields[22] as String?,
@@ -47,7 +48,7 @@ class LocalHiveAdapter extends TypeAdapter<LocalHive> {
   @override
   void write(BinaryWriter writer, LocalHive obj) {
     writer
-      ..writeByte(24)
+      ..writeByte(25)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -95,7 +96,9 @@ class LocalHiveAdapter extends TypeAdapter<LocalHive> {
       ..writeByte(22)
       ..write(obj.codigoCatastral)
       ..writeByte(23)
-      ..write(obj.codigoCatastralLower);
+      ..write(obj.codigoCatastralLower)
+      ..writeByte(24)
+      ..write(obj.frecuenciaCobro);
   }
 
   @override

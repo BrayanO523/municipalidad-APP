@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../features/locales/domain/entities/local.dart';
 import '../../app/di/providers.dart';
 import 'date_formatter.dart';
+import 'date_range_formatter.dart';
 
 class ReceiptDispatcher {
   static Future<void> presentReceiptOptions({
@@ -23,6 +24,10 @@ class ReceiptDispatcher {
     required String? municipalidadNombre,
     required String? mercadoNombre,
     required String? cobradorNombre,
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
+    String? slogan,
   }) async {
     return showDialog(
       context: context,
@@ -47,10 +52,22 @@ class ReceiptDispatcher {
             ),
             const SizedBox(height: 8),
             _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true),
+            if (local.clave != null && local.clave!.isNotEmpty)
+              _infoRow('Clave:', local.clave!),
             if (montoAbonadoDeuda > 0)
               _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent),
+            if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
+              if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                _infoRow(
+                  'Periodo abonado:',
+                  periodoAbonadoStr ?? DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                  color: Colors.orangeAccent.withValues(alpha: 0.9),
+                ),
+            ],
             if (saldoAFavor > 0)
               _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6)),
+            if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+              _infoRow('Periodo a favor:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9)),
             const SizedBox(height: 16),
             const Text(
               '¿Cómo desea entregar el comprobante?',
@@ -66,7 +83,6 @@ class ReceiptDispatcher {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    // Primero imprimimos
                     await _imprimirTicket(
                       ref: ref,
                       muni: municipalidadNombre ?? 'MUNICIPALIDAD',
@@ -80,10 +96,14 @@ class ReceiptDispatcher {
                       abono: montoAbonadoDeuda,
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
+                      fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                      slogan: slogan,
+                      clave: local.clave,
                     );
-                    // Inmediatamente después disparamos compartir
                     if (context.mounted) {
-                      await _compartirPdf(
+                      await compartirPdf(
                         context: context,
                         local: local,
                         monto: monto,
@@ -96,6 +116,10 @@ class ReceiptDispatcher {
                         muni: municipalidadNombre,
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
+                        fechasSaldadas: fechasSaldadas,
+                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                        slogan: slogan,
                       );
                     }
                   },
@@ -127,6 +151,11 @@ class ReceiptDispatcher {
                       abono: montoAbonadoDeuda,
                       cobrador: cobradorNombre,
                       boleta: numeroBoleta,
+                      fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                      slogan: slogan,
+                      clave: local.clave,
                     );
                   },
                   icon: const Icon(Icons.print_rounded),
@@ -144,7 +173,7 @@ class ReceiptDispatcher {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    await _compartirPdf(
+                    await compartirPdf(
                       context: context,
                       local: local,
                       monto: monto,
@@ -157,6 +186,10 @@ class ReceiptDispatcher {
                       muni: municipalidadNombre,
                       merc: mercadoNombre,
                       cobrador: cobradorNombre,
+                      fechasSaldadas: fechasSaldadas,
+                      periodoAbonadoStr: periodoAbonadoStr,
+                      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+                      slogan: slogan,
                     );
                   },
                   icon: const Icon(Icons.share_rounded),
@@ -195,12 +228,15 @@ class ReceiptDispatcher {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          Text(
-            value,
-            style: TextStyle(
-              color: color ?? Colors.white,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: color ?? Colors.white,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -221,6 +257,11 @@ class ReceiptDispatcher {
     required double abono,
     required String? cobrador,
     required String boleta,
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
+    String? slogan,
+    String? clave,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -237,11 +278,16 @@ class ReceiptDispatcher {
         cobrador: cobrador,
         numeroBoleta: boleta,
         anioCorrelativo: fecha.year,
+        fechasSaldadas: fechasSaldadas,
+        periodoAbonadoStr: periodoAbonadoStr,
+        periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+        slogan: slogan,
+        clave: clave,
       );
     } catch (_) {}
   }
 
-  static Future<void> _compartirPdf({
+  static Future<void> compartirPdf({
     required BuildContext context,
     required Local local,
     required double monto,
@@ -254,7 +300,16 @@ class ReceiptDispatcher {
     required String? muni,
     required String? merc,
     required String? cobrador,
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+    String? periodoSaldoAFavorStr,
+    String? slogan,
   }) async {
+    String? diasCubiertosStr;
+    if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+      diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+    }
+
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
@@ -264,31 +319,62 @@ class ReceiptDispatcher {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             mainAxisSize: pw.MainAxisSize.min,
             children: [
-              pw.Text((muni ?? 'MUNICIPALIDAD').toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              if (merc != null) pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text((muni ?? 'MUNICIPALIDAD').toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),
-              pw.Text('Boleta No. $numeroBoleta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              if (merc != null) ...[
+                pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                pw.SizedBox(height: 4),
+              ],
+              pw.SizedBox(height: 4),
+              pw.Text('BOLETA DE PAGO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 4),
+              pw.Text('No. $numeroBoleta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 8),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
+              if (local.clave != null && local.clave!.isNotEmpty)
+                _pdfRow('CLAVE:', local.clave!),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
               if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
+              
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
-              pw.Text('MONTO PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-              pw.Text(DateFormatter.formatCurrency(monto), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              
+              pw.Text('MONTO PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text('L ${monto.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              
               pw.SizedBox(height: 4),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              
               if (deudaAnterior > 0) ...[
-                _pdfRow('DEUDA ANT.:', DateFormatter.formatCurrency(deudaAnterior)),
+                _pdfRow('DEUDA ANTE.:', DateFormatter.formatCurrency(deudaAnterior)),
                 _pdfRow('ABONO:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
                 _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
-              ] else if (saldoPendiente > 0)
-                _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
-              if (saldoAFavor > 0) _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
+              ] else if (saldoPendiente > 0) ...[
+                _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
+              ],
+
+              if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
+                _pdfRow('PERIODO ABONADO:', periodoAbonadoStr)
+              else if (diasCubiertosStr != null)
+                _pdfRow('PERIODO ABONADO:', diasCubiertosStr),
+              
+              if (saldoAFavor > 0) ...[
+                _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
+                if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+                  _pdfRow('PERIODO A FAVOR:', periodoSaldoAFavorStr),
+              ],
+              
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 8),
-              pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic)),
-              pw.Text(DateFormatter.formatDateTime(DateTime.now()), style: const pw.TextStyle(fontSize: 7)),
+              
+              pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              if (slogan != null && slogan.trim().isNotEmpty) ...[
+                pw.SizedBox(height: 4),
+                pw.Text(slogan, style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+              ],
+              pw.SizedBox(height: 6),
             ],
           );
         },

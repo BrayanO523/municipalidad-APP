@@ -23,6 +23,7 @@ class Cobro {
   final num? nuevoSaldoFavor;
   final num? pagoACuota;
   final List<String>? idsDeudasSaldadas;
+  final List<DateTime>? fechasDeudasSaldadas;
 
   const Cobro({
     this.cobradorId,
@@ -49,6 +50,7 @@ class Cobro {
     this.nuevoSaldoFavor,
     this.pagoACuota,
     this.idsDeudasSaldadas,
+    this.fechasDeudasSaldadas,
   });
 
   Cobro copyWith({
@@ -76,6 +78,7 @@ class Cobro {
     num? nuevoSaldoFavor,
     num? pagoACuota,
     List<String>? idsDeudasSaldadas,
+    List<DateTime>? fechasDeudasSaldadas,
   }) {
     return Cobro(
       cobradorId: cobradorId ?? this.cobradorId,
@@ -103,6 +106,7 @@ class Cobro {
       nuevoSaldoFavor: nuevoSaldoFavor ?? this.nuevoSaldoFavor,
       pagoACuota: pagoACuota ?? this.pagoACuota,
       idsDeudasSaldadas: idsDeudasSaldadas ?? this.idsDeudasSaldadas,
+      fechasDeudasSaldadas: fechasDeudasSaldadas ?? this.fechasDeudasSaldadas,
     );
   }
 

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
-import '../../../../core/platform/printer_provider.dart';
+// Removed provider import
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
@@ -521,6 +521,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
         saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
+        slogan: municipalidad?.slogan,
       );
 
     } catch (e) {
@@ -536,20 +537,20 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     showDialog(
       context: context,
       builder:
-          (_) => AlertDialog(
+          (dialogCtx) => AlertDialog(
             title: const Text('Eliminar Cobro'),
             content: Text(
               '¿Estás seguro de eliminar este cobro de L. ${c.monto}? Esto revertirá los saldos y deudas asociados.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('Cancelar'),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: Colors.red),
                 onPressed: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogCtx);
                   try {
                     await ref
                         .read(cobrosPaginadosProvider.notifier)

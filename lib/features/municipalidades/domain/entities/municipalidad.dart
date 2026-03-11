@@ -10,6 +10,7 @@ class Municipalidad {
   final String? municipio;
   final String? nombre;
   final num? porcentaje;
+  final String? slogan;
 
   const Municipalidad({
     this.activa,
@@ -23,5 +24,6 @@ class Municipalidad {
     this.municipio,
     this.nombre,
     this.porcentaje,
+    this.slogan,
   });
 }

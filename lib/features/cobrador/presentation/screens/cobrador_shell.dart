@@ -3,17 +3,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../app_update/presentation/viewmodels/app_update_viewmodel.dart';
+import '../../../app_update/presentation/widgets/app_update_dialog.dart';
 import '../widgets/printer_config_dialog.dart';
 
-class CobradorShell extends ConsumerWidget {
+class CobradorShell extends ConsumerStatefulWidget {
   final Widget child;
 
   const CobradorShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CobradorShell> createState() => _CobradorShellState();
+}
+
+class _CobradorShellState extends ConsumerState<CobradorShell> {
+  bool _dialogShown = false;
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final usuario = ref.watch(currentUsuarioProvider).value;
+    final updateState = ref.watch(appUpdateNotifierProvider);
+
+    // Mostrar diálogo automáticamente cuando hay actualización disponible
+    ref.listen<AppUpdateState>(appUpdateNotifierProvider, (prev, next) {
+      if (next.availableRelease != null &&
+          !next.isPostponed &&
+          next.status == AppUpdateStatus.idle &&
+          !_dialogShown) {
+        _dialogShown = true;
+        AppUpdateDialog.show(context);
+      }
+      // Reset flag cuando se postpone o se completa
+      if (next.status == AppUpdateStatus.postponed ||
+          (next.availableRelease == null && _dialogShown)) {
+        _dialogShown = false;
+      }
+    });
+
+    final hasUpdate = updateState.availableRelease != null;
 
     return Scaffold(
       drawer: Drawer(
@@ -86,6 +114,37 @@ class CobradorShell extends ConsumerWidget {
               onTap: () {
                 Navigator.pop(context);
                 context.push('/cobrador/cortes-historial');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: Badge(
+                isLabelVisible: hasUpdate,
+                backgroundColor: colorScheme.error,
+                smallSize: 8,
+                child: Icon(Icons.system_update_rounded, color: colorScheme.primary),
+              ),
+              title: const Text('Actualización'),
+              subtitle: hasUpdate
+                  ? Text(
+                      'v${updateState.availableRelease!.version} disponible',
+                      style: TextStyle(color: colorScheme.primary, fontSize: 12),
+                    )
+                  : const Text(
+                      'Sin actualizaciones',
+                      style: TextStyle(fontSize: 12),
+                    ),
+              onTap: () {
+                Navigator.pop(context);
+                if (hasUpdate) {
+                  AppUpdateDialog.show(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ La aplicación está actualizada'),
+                    ),
+                  );
+                }
               },
             ),
           ],
@@ -193,7 +252,7 @@ class CobradorShell extends ConsumerWidget {
                     icon: Consumer(
                       builder: (context, ref, _) {
                         final isConnected =
-                            ref.watch(printerConnectionProvider).value ?? false;
+                            ref.watch(printerConnectionProvider);
                         return Icon(
                           Icons.print_rounded,
                           size: 20,
@@ -223,7 +282,7 @@ class CobradorShell extends ConsumerWidget {
                 ],
               ),
             ),
-            Expanded(child: child),
+            Expanded(child: widget.child),
           ],
         ),
       ),
