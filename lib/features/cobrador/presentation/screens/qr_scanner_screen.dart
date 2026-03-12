@@ -106,11 +106,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final cobrosHoy = ref.read(cobrosHoyCobradorProvider).value ?? [];
     final pagadoHoy = cobrosHoy
         .where((c) => c.localId == local.id)
-        .fold<num>(0, (sum, c) => sum + (c.pagoACuota ?? 0));
+        .fold<num>(0, (sum, c) => sum + (c.monto ?? 0)); // Suman TODO el dinero recaudado hoy
 
-    final montoCtrl = TextEditingController(
-      text: local.cuotaDiaria?.toStringAsFixed(0),
-    );
+    final montoCtrl = TextEditingController(text: '');
     final obsCtrl = TextEditingController();
     await showModalBottomSheet(
       context: context,
@@ -138,8 +136,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                     Text(
                       local.nombreSocial ?? 'Local Reconocido',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -147,121 +145,226 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                       label: 'Cuota Diaria:',
                       value: DateFormatter.formatCurrency(local.cuotaDiaria),
                     ),
-                    _InfoRow(
-                      label: 'Pagado hoy:',
-                      value: DateFormatter.formatCurrency(pagadoHoy),
-                      color: AppColors.success,
-                    ),
                     const SizedBox(height: 8),
                     // --- PANEL SUPERIOR REACTIVO ---
-                    Builder(builder: (context) {
-                      final currMonto = double.tryParse(montoCtrl.text) ?? 0;
-                      
-                      final dist = CalculadoraDistribucionPago.calcular(
-                        montoEfectivo: currMonto,
-                        deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
-                        cuotaDiaria: local.cuotaDiaria ?? 0,
-                        pagadoHoyPreviamente: pagadoHoy,
-                        saldoFavorInicial: local.saldoAFavor ?? 0,
-                        fechaReferencia: DateTime.now(),
-                        autoComplementarCuotaConSaldo: true,
-                      );
+                    Builder(
+                      builder: (context) {
+                        final currMonto = double.tryParse(montoCtrl.text) ?? 0;
 
-                      Widget buildDynamicRow({required String label, required String value, String? subtitle, Color? valueColor}) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14)),
-                                    if (subtitle != null && subtitle.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4, right: 8),
-                                        child: Text(subtitle, style: TextStyle(fontSize: 12, color: valueColor, fontWeight: FontWeight.w500)),
+                        final dist = CalculadoraDistribucionPago.calcular(
+                          montoEfectivo: currMonto,
+                          deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+                          cuotaDiaria: local.cuotaDiaria ?? 0,
+                          pagadoHoyPreviamente: pagadoHoy,
+                          saldoFavorInicial: local.saldoAFavor ?? 0,
+                          fechaReferencia: DateTime.now(),
+                          autoComplementarCuotaConSaldo: false, // Alineando con la pantalla de inicio
+                        );
+
+                        Widget buildDynamicRow({
+                          required String label,
+                          required String value,
+                          String? subtitle,
+                          Color? valueColor,
+                        }) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        label,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey,
+                                          fontSize: 14,
+                                        ),
                                       ),
-                                  ],
+                                      if (subtitle != null &&
+                                          subtitle.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                            right: 8,
+                                          ),
+                                          child: Text(
+                                            subtitle,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: valueColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        valueColor ??
+                                        Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        // Formatear proyecciones de tiempo
+                        String rangoDeudaStr = '';
+                        if (dist.diasAtrasadosSaldados > 0 &&
+                            dist.inicioDeudaPagada != null &&
+                            dist.finDeudaPagada != null) {
+                          final ini =
+                              '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.year}';
+                          final fin =
+                              '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.year}';
+                          rangoDeudaStr = dist.diasAtrasadosSaldados == 1
+                              ? 'Cubre el $ini'
+                              : 'Cubre del $ini al $fin';
+                        }
+
+                        String rangoAdelantoStr = '';
+                        if (dist.diasAdelantados > 0 &&
+                            dist.inicioDiasAdelantados != null &&
+                            dist.finDiasAdelantados != null) {
+                          final ini =
+                              '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.year}';
+                          final fin =
+                              '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.year}';
+                          rangoAdelantoStr = dist.diasAdelantados == 1
+                              ? 'Adelanta el $ini'
+                              : 'Adelanta del $ini al $fin';
+                        }
+
+                        final isTyping = currMonto > 0;
+                        final realFaltanteHoy =
+                            ((local.cuotaDiaria ?? 0) - pagadoHoy).clamp(
+                              0,
+                              (local.cuotaDiaria ?? 0),
+                            );
+
+                        final cuotaLocal = local.cuotaDiaria ?? 0;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (!isTyping) ...[
+                              // === ESTADO REAL (sin teclear) ===
+                              if ((local.saldoAFavor ?? 0) > 0)
+                                buildDynamicRow(
+                                  label: 'Saldo a favor',
+                                  value: DateFormatter.formatCurrency(
+                                    local.saldoAFavor ?? 0,
+                                  ),
+                                  valueColor: AppColors.success,
+                                ),
+                              if ((local.deudaAcumulada ?? 0) > 0)
+                                buildDynamicRow(
+                                  label: 'Deuda acumulada',
+                                  value: DateFormatter.formatCurrency(
+                                    local.deudaAcumulada ?? 0,
+                                  ),
+                                  valueColor: AppColors.danger,
+                                ),
+                              buildDynamicRow(
+                                label: 'Cuota de hoy',
+                                value: realFaltanteHoy == 0
+                                    ? (cuotaLocal > 0 ? 'Saldada' : 'N/A')
+                                    : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}',
+                                valueColor: realFaltanteHoy == 0
+                                    ? Theme.of(context).colorScheme.primary
+                                    : AppColors.warning,
+                              ),
+                            ] else ...[
+                              // === DISTRIBUCIÓN DEL PAGO (tecleando) ===
+                              if (dist.paraDeudaReal > 0)
+                                buildDynamicRow(
+                                  label: 'Abono a deuda',
+                                  value: DateFormatter.formatCurrency(
+                                    dist.paraDeudaReal,
+                                  ),
+                                  subtitle: rangoDeudaStr,
+                                  valueColor: AppColors.danger,
+                                ),
+                              if (dist.deudaFinalResultante > 0)
+                                buildDynamicRow(
+                                  label: 'Deuda restante',
+                                  value: DateFormatter.formatCurrency(
+                                    dist.deudaFinalResultante,
+                                  ),
+                                  valueColor: AppColors.danger,
+                                ),
+                            buildDynamicRow(
+                              label: 'Cuota de hoy',
+                              value: dist.estadoCuotaHoy == 0 && cuotaLocal > 0
+                                  ? 'Completa'
+                                  : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
+                              subtitle: dist.pagoACuotaHoy > 0
+                                  ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
+                                  : (dist.paraDeudaReal > 0 ? 'El pago fue a deuda antigua' : null),
+                              valueColor: dist.estadoCuotaHoy == 0 ? Theme.of(context).colorScheme.primary : AppColors.warning,
+                            ),
+                              if (dist.saldoFavorFinalResultante > 0)
+                                buildDynamicRow(
+                                  label: 'Saldo a favor',
+                                  value: DateFormatter.formatCurrency(
+                                    dist.saldoFavorFinalResultante,
+                                  ),
+                                  subtitle: rangoAdelantoStr,
+                                  valueColor: AppColors.success,
+                                ),
+                            ],
+
+                            if (dist.saldoFavorConsumido > 0 && isTyping)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 4.0,
+                                  bottom: 8.0,
+                                ),
+                                child: Text(
+                                  'Se auto-complementará L${dist.saldoFavorConsumido.toStringAsFixed(2)} del saldo previo.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.warning,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.right,
                                 ),
                               ),
-                              Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: valueColor ?? Theme.of(context).colorScheme.onSurface, fontSize: 15)),
-                            ],
-                          ),
+                          ],
                         );
-                      }
-
-                      // Formatear proyecciones de tiempo
-                      String rangoDeudaStr = '';
-                      if (dist.diasAtrasadosSaldados > 0 && dist.inicioDeudaPagada != null && dist.finDeudaPagada != null) {
-                        final ini = '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}';
-                        final fin = '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}';
-                        rangoDeudaStr = dist.diasAtrasadosSaldados == 1 ? 'Cubre el $ini' : 'Cubre del $ini al $fin';
-                      }
-
-                      String rangoAdelantoStr = '';
-                      if (dist.diasAdelantados > 0 && dist.inicioDiasAdelantados != null && dist.finDiasAdelantados != null) {
-                        final ini = '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}';
-                        final fin = '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}';
-                        rangoAdelantoStr = dist.diasAdelantados == 1 ? 'Adelanta el $ini' : 'Adelanta del $ini al $fin';
-                      }
-
-                      final isTyping = currMonto > 0;
-                      final realFaltanteHoy = ((local.cuotaDiaria ?? 0) - pagadoHoy).clamp(0, (local.cuotaDiaria ?? 0));
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (dist.saldoFavorFinalResultante > 0 || (local.saldoAFavor ?? 0) > 0)
-                            buildDynamicRow(
-                              label: 'Saldo a favor Total',
-                              value: DateFormatter.formatCurrency(isTyping ? dist.saldoFavorFinalResultante : (local.saldoAFavor ?? 0)),
-                              subtitle: isTyping ? rangoAdelantoStr : null,
-                              valueColor: AppColors.success,
-                            ),
-                            
-                          if (dist.deudaFinalResultante > 0 || (local.deudaAcumulada ?? 0) > 0)
-                            buildDynamicRow(
-                              label: 'Deuda Acumulada',
-                              value: DateFormatter.formatCurrency(isTyping ? dist.deudaFinalResultante : (local.deudaAcumulada ?? 0)),
-                              subtitle: isTyping ? rangoDeudaStr : null,
-                              valueColor: AppColors.danger,
-                            ),
-
-                          buildDynamicRow(
-                            label: 'Cuota de Hoy',
-                            value: isTyping 
-                                ? (dist.estadoCuotaHoy == 0 ? ((local.cuotaDiaria ?? 0) > 0 ? 'Saldará' : 'N/A') : 'Faltará ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}')
-                                : (realFaltanteHoy == 0 ? ((local.cuotaDiaria ?? 0) > 0 ? 'Saldada' : 'N/A') : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}'),
-                            valueColor: (isTyping ? dist.estadoCuotaHoy == 0 : realFaltanteHoy == 0) ? Theme.of(context).colorScheme.primary : AppColors.warning,
-                          ),
-                          
-                          if (dist.saldoFavorConsumido > 0 && isTyping)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-                              child: Text(
-                                'Se auto-complementará L${dist.saldoFavorConsumido.toStringAsFixed(2)} del saldo previo.',
-                                style: TextStyle(fontSize: 12, color: AppColors.warning, fontWeight: FontWeight.w600),
-                                textAlign: TextAlign.right,
-                              ),
-                            ),
-                        ],
-                      );
-                    }),
+                      },
+                    ),
                     // --- FIN PANEL SUPERIOR ---
                     const SizedBox(height: 20),
                     TextField(
                       controller: montoCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
                       onChanged: (_) => setModalState(() {}),
                       decoration: const InputDecoration(
                         labelText: 'Monto a Cobrar',
                         prefixText: 'L ',
                       ),
                     ),
+
+                    const SizedBox(height: 16),
 
                     TextField(
                       controller: obsCtrl,
@@ -287,7 +390,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                               final monto = num.tryParse(montoCtrl.text) ?? 0;
                               if (monto <= 0) return;
                               Navigator.pop(ctx);
-                              final usuario = ref.read(currentUsuarioProvider).value;
+                              final usuario = ref
+                                  .read(currentUsuarioProvider)
+                                  .value;
                               await _guardarCobro(
                                 local: local,
                                 monto: monto,
@@ -333,17 +438,22 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
     final mercadoNombre = merc?.nombre;
 
+    // CONGELAR VALORES INICIALES (Evita que la vista lea el objeto mutado post-await)
+    final num deudaTotalInicial = local.deudaAcumulada ?? 0;
+
     final cuota = local.cuotaDiaria ?? 0;
-    final num saldoFavorExistente = local.saldoAFavor ?? 0;
+    final saldoFavorExistente = local.saldoAFavor ?? 0;
+
+    final now = DateTime.now();
 
     // Usamos la calculadora centralizada que aplica FIFO y auto-complemento de cuota
     final dist = CalculadoraDistribucionPago.calcular(
       montoEfectivo: monto,
-      deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+      deudaAcumuladaInicial: deudaTotalInicial,
       cuotaDiaria: cuota,
       pagadoHoyPreviamente: pagadoHoy,
       saldoFavorInicial: saldoFavorExistente,
-      fechaReferencia: DateTime.now(),
+      fechaReferencia: now,
       autoComplementarCuotaConSaldo: true,
     );
 
@@ -355,14 +465,12 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         ? 'abono_parcial'
         : 'pendiente';
 
-    final now = DateTime.now();
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
 
     final double saldoResultante = dist.deudaFinalResultante.toDouble();
     final double favorResultante = dist.saldoFavorFinalResultante.toDouble();
 
     try {
-
       final nuevoCobro = Cobro(
         id: docId,
         cobradorId: usuario?.id ?? '',
@@ -382,19 +490,30 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             ? () {
                 final partes = <String>[];
                 if (dist.paraDeudaReal > 0) {
-                  partes.add('L ${dist.paraDeudaReal.toStringAsFixed(2)} a deuda anterior');
+                  partes.add(
+                    'L ${dist.paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
+                  );
                 }
                 if (dist.pagoACuotaHoy > 0) {
-                  final hoyStr = '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
-                  partes.add('L ${dist.pagoACuotaHoy.toStringAsFixed(2)} cuota del $hoyStr');
+                  final hoyStr =
+                      '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
+                  partes.add(
+                    'L ${dist.pagoACuotaHoy.toStringAsFixed(2)} cuota del $hoyStr',
+                  );
                 }
                 if (dist.saldoFavorConsumido > 0) {
-                  partes.add('L ${dist.saldoFavorConsumido.toStringAsFixed(2)} de saldo a favor');
+                  partes.add(
+                    'L ${dist.saldoFavorConsumido.toStringAsFixed(2)} de saldo a favor',
+                  );
                 }
                 if (dist.paraNuevoSaldoFavor > 0) {
-                  partes.add('L ${dist.paraNuevoSaldoFavor.toStringAsFixed(2)} a favor');
+                  partes.add(
+                    'L ${dist.paraNuevoSaldoFavor.toStringAsFixed(2)} a favor',
+                  );
                 }
-                final prefijo = observaciones.isNotEmpty ? '$observaciones | ' : '';
+                final prefijo = observaciones.isNotEmpty
+                    ? '$observaciones | '
+                    : '';
                 return '${prefijo}Distribuido: ${partes.join(", ")}';
               }()
             : observaciones,
@@ -423,11 +542,19 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           if (dias > 0) {
             DateTime inicioFavor = now.add(const Duration(days: 1));
             if (fechasSaldadas.isNotEmpty) {
-               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
-               inicioFavor = sorted.last.add(const Duration(days: 1));
+              final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+              inicioFavor = sorted.last.add(const Duration(days: 1));
             }
-            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+              inicioFavor,
+              dias,
+            );
           }
+        }
+        // Calcular rango de fechas cubiertas (deuda abonada)
+        String? periodoAbonadoStr;
+        if (fechasSaldadas.isNotEmpty) {
+          periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
         }
 
         await ReceiptDispatcher.presentReceiptOptions(
@@ -445,6 +572,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
           fechasSaldadas: fechasSaldadas,
+          periodoAbonadoStr: periodoAbonadoStr,
           periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
         );
@@ -572,7 +700,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                         child: Text(
                           'Apunta la cámara al código QR del local',
                           style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
+                              ?.copyWith(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
                         ),
                       ),
                   ],
@@ -585,7 +717,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                    CircularProgressIndicator(color: AppColors.success),
+                  CircularProgressIndicator(color: AppColors.success),
                   SizedBox(height: 16),
                   Text(
                     'Registrando cobro...',
@@ -785,11 +917,22 @@ class _DetailRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+          Icon(
+            icon,
+            size: 18,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
           const SizedBox(width: 10),
           Text(
             '$label:',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -811,9 +954,8 @@ class _DetailRow extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final Color? color;
 
-  const _InfoRow({required this.label, required this.value, this.color});
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -824,7 +966,12 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -833,7 +980,7 @@ class _InfoRow extends StatelessWidget {
               textAlign: TextAlign.end,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: color ?? Theme.of(context).colorScheme.onSurface,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),

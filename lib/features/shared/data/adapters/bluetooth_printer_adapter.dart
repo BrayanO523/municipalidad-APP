@@ -100,6 +100,7 @@ class BluetoothPrinterAdapter implements PrinterService {
     String? slogan,
     String? clave,
     String? codigoLocal,
+    String? codigoCatastral,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -188,6 +189,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
       if (clave != null && clave.isNotEmpty) addText(r('CLAVE:', clave, normalWidth), 1, 0);
       if (codigoLocal != null && codigoLocal.isNotEmpty) addText(r('CODIGO:', codigoLocal, normalWidth), 1, 0);
+      if (codigoCatastral != null && codigoCatastral.isNotEmpty) addText(r('COD.CATA:', codigoCatastral, normalWidth), 1, 0);
       addText(r('FECHA:', fechaStr, normalWidth), 1, 0);
       if (cobrador != null) {
         addText(r('COBRADOR:', cobrador.toUpperCase(), normalWidth), 1, 0);
@@ -203,7 +205,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       if (deudaAnterior != null && deudaAnterior > 0) {
         addText(
           r(
-            'DEUDA ANTE.:',
+            'DEUDA ANTERIOR:',
             DateFormatter.formatCurrency(deudaAnterior),
             normalWidth,
           ),
@@ -212,7 +214,7 @@ class BluetoothPrinterAdapter implements PrinterService {
         );
         addText(
           r(
-            'ABONO:',
+            'ABONO A DEUDA:',
             DateFormatter.formatCurrency(montoAbonadoDeuda ?? 0),
             normalWidth,
           ),
@@ -221,7 +223,7 @@ class BluetoothPrinterAdapter implements PrinterService {
         );
         addText(
           r(
-            'DEUDA ACT.:',
+            'DEUDA ACTUAL:',
             DateFormatter.formatCurrency(saldoPendiente ?? 0),
             normalWidth,
           ),
@@ -240,20 +242,22 @@ class BluetoothPrinterAdapter implements PrinterService {
         );
       }
 
-      // Fechas cubiertas (Ya sea por abono de deuda o pagos pre-agrupados)
+      // Fechas cubiertas
       if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-') {
-        addText('PERIODO ABONADO: $periodoAbonadoStr', 1, 0);
+        addText('FECHAS CUBIERTAS:', 1, 0);
+        addText(periodoAbonadoStr, 1, 0);
       } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
         final diasStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
         if (diasStr != null) {
-          addText('PERIODO ABONADO: $diasStr', 1, 0);
+          addText('FECHAS CUBIERTAS:', 1, 0);
+          addText(diasStr, 1, 0);
         }
       }
 
       if (saldoAFavor != null && saldoAFavor > 0) {
         addText(
           r(
-            'SALDO FAVOR:',
+            'SALDO A FAVOR:',
             DateFormatter.formatCurrency(saldoAFavor),
             normalWidth,
           ),
@@ -261,7 +265,8 @@ class BluetoothPrinterAdapter implements PrinterService {
           0,
         );
         if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty) {
-          addText('PERIODO A FAVOR: $periodoSaldoAFavorStr', 1, 0);
+          addText('FECHAS ADELANTADAS:', 1, 0);
+          addText(periodoSaldoAFavorStr, 1, 0);
         }
       }
       addText(d, 1, 1);

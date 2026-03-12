@@ -35,5 +35,6 @@ abstract class PrinterService {  /// Obtiene la lista de dispositivos Bluetooth 
     String? slogan,
     String? clave,
     String? codigoLocal,
+    String? codigoCatastral,
   });
 }

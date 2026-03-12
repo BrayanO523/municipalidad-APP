@@ -126,8 +126,8 @@ class CalculadoraDistribucionPago {
     // Estado resultante de la jornada de hoy (lo que quedó sin pagar de la cuota de HOY)
     final estadoCuotaHoy = (faltanteHoy - pagoACuotaHoy - saldoConsumidoAuto).clamp(0, cuotaDiaria);
 
-    // Proyecciones finales para el Local
-    final num deudaFinalResultante = deudaAcumuladaInicial - paraDeudaReal + estadoCuotaHoy;
+    // Proyecciones finales para el Local (NO suma el faltante de hoy para no confundir la matemática visual)
+    final num deudaFinalResultante = deudaAcumuladaInicial - paraDeudaReal;
     final num saldoFavorFinalResultante = saldoFavorInicial + deltaSaldoFavor;
 
     // --- PROYECCIÓN DE FECHAS (UI) ---

@@ -91,23 +91,31 @@ class ReceiptDispatcher {
                 _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true, textColor: cs.onSurface),
                 if (local.clave != null && local.clave!.isNotEmpty)
                   _infoRow('Clave:', local.clave!, textColor: cs.onSurface),
+                if (local.codigo != null && local.codigo!.isNotEmpty)
+                  _infoRow('Código:', local.codigo!, textColor: cs.onSurface),
                 if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
-                  _infoRow('Código:', local.codigoCatastral!, textColor: cs.onSurface),
+                  _infoRow('Cód. Catastral:', local.codigoCatastral!, textColor: cs.onSurface),
+                if (deudaAnterior > 0)
+                  _infoRow('Deuda anterior:', DateFormatter.formatCurrency(deudaAnterior), color: Colors.redAccent, textColor: cs.onSurface),
                 if (montoAbonadoDeuda > 0)
-                  _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent, textColor: cs.onSurface),
-                if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
+                  _infoRow('Abono a deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent, textColor: cs.onSurface),
+                if (saldoPendiente > 0)
+                  _infoRow('Deuda actual:', DateFormatter.formatCurrency(saldoPendiente), color: Colors.redAccent, textColor: cs.onSurface),
+                if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
+                  _infoRow('Fechas cubiertas:', periodoAbonadoStr, color: Colors.orangeAccent.withValues(alpha: 0.9), textColor: cs.onSurface)
+                else if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
                   if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
                     _infoRow(
-                      'Periodo abonado:',
-                      periodoAbonadoStr ?? DateRangeFormatter.formatearRangos(fechasSaldadas)!,
+                      'Fechas cubiertas:',
+                      DateRangeFormatter.formatearRangos(fechasSaldadas)!,
                       color: Colors.orangeAccent.withValues(alpha: 0.9),
                       textColor: cs.onSurface,
                     ),
                 ],
                 if (saldoAFavor > 0)
-                  _infoRow('Nuevo Saldo:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6), textColor: cs.onSurface),
+                  _infoRow('Saldo a favor:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6), textColor: cs.onSurface),
                 if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
-                  _infoRow('Periodo a favor:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9), textColor: cs.onSurface),
+                  _infoRow('Fechas adelantadas:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9), textColor: cs.onSurface),
                 const SizedBox(height: 16),
                 Text(
                   '¿Cómo desea entregar el comprobante?',
@@ -138,7 +146,8 @@ class ReceiptDispatcher {
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
-                        codigoLocal: local.codigoCatastral,
+                        codigoLocal: local.codigo,
+                        codigoCatastral: local.codigoCatastral,
                       );
                       if (context.mounted) {
                         await compartirPdf(
@@ -192,7 +201,8 @@ class ReceiptDispatcher {
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
-                        codigoLocal: local.codigoCatastral,
+                        codigoLocal: local.codigo,
+                        codigoCatastral: local.codigoCatastral,
                       );
                     },
                     icon: const Icon(Icons.print_rounded),
@@ -293,6 +303,7 @@ class ReceiptDispatcher {
     String? slogan,
     String? clave,
     String? codigoLocal,
+    String? codigoCatastral,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -315,6 +326,7 @@ class ReceiptDispatcher {
         slogan: slogan,
         clave: clave,
         codigoLocal: codigoLocal,
+        codigoCatastral: codigoCatastral,
       );
     } catch (_) {}
   }
@@ -367,8 +379,10 @@ class ReceiptDispatcher {
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
               if (local.clave != null && local.clave!.isNotEmpty)
                 _pdfRow('CLAVE:', local.clave!),
+              if (local.codigo != null && local.codigo!.isNotEmpty)
+                _pdfRow('CÓDIGO:', local.codigo!),
               if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
-                _pdfRow('CÓDIGO:', local.codigoCatastral!),
+                _pdfRow('CÓD. CATASTRAL:', local.codigoCatastral!),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
               if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
               
@@ -382,22 +396,22 @@ class ReceiptDispatcher {
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               
               if (deudaAnterior > 0) ...[
-                _pdfRow('DEUDA ANTE.:', DateFormatter.formatCurrency(deudaAnterior)),
-                _pdfRow('ABONO:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
-                _pdfRow('DEUDA ACT.:', DateFormatter.formatCurrency(saldoPendiente)),
+                _pdfRow('DEUDA ANTERIOR:', DateFormatter.formatCurrency(deudaAnterior)),
+                _pdfRow('ABONO A DEUDA:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
+                _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
               ] else if (saldoPendiente > 0) ...[
                 _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
               ],
 
               if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
-                _pdfRow('PERIODO ABONADO:', periodoAbonadoStr)
+                _pdfRow('FECHAS CUBIERTAS:', periodoAbonadoStr)
               else if (diasCubiertosStr != null)
-                _pdfRow('PERIODO ABONADO:', diasCubiertosStr),
+                _pdfRow('FECHAS CUBIERTAS:', diasCubiertosStr),
               
               if (saldoAFavor > 0) ...[
-                _pdfRow('SALDO FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
+                _pdfRow('SALDO A FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
                 if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
-                  _pdfRow('PERIODO A FAVOR:', periodoSaldoAFavorStr),
+                  _pdfRow('FECHAS ADELANTADAS:', periodoSaldoAFavorStr),
               ],
               
               pw.Divider(borderStyle: pw.BorderStyle.dashed),

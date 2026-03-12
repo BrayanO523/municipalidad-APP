@@ -160,7 +160,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   num _montoPagadoHoy(String localId, List<Cobro> cobrosHoy) {
     return cobrosHoy
         .where((c) => c.localId == localId)
-        .fold<num>(0, (acc, c) => acc + (c.pagoACuota ?? 0));
+        .fold<num>(0, (acc, c) => acc + (c.monto ?? 0));
   }
 
   Cobro? _cobroDelLocal(String localId, List<Cobro> cobrosHoy) {
@@ -465,18 +465,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       label: 'Cuota diaria',
                       value: DateFormatter.formatCurrency(cuota),
                     ),
-                  if (pagadoHoy > 0)
-                    _InfoRow(
-                      label: 'Pagado hoy',
-                      value: DateFormatter.formatCurrency(pagadoHoy),
-                      color: AppColors.success,
-                    ),
-                  if (faltanteHoy > 0 && pagadoHoy > 0)
-                    _InfoRow(
-                      label: 'Faltante cuota',
-                      value: DateFormatter.formatCurrency(faltanteHoy),
-                      color: AppColors.warning,
-                    ),
                   _InfoRow(
                     label: 'Representante',
                     value: local.representante ?? '-',
@@ -524,15 +512,15 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
                     String rangoDeudaStr = '';
                     if (dist.diasAtrasadosSaldados > 0 && dist.inicioDeudaPagada != null && dist.finDeudaPagada != null) {
-                      final ini = '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}';
-                      final fin = '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}';
+                      final ini = '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.year}';
+                      final fin = '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.year}';
                       rangoDeudaStr = dist.diasAtrasadosSaldados == 1 ? 'Cubre el $ini' : 'Cubre del $ini al $fin';
                     }
 
                     String rangoAdelantoStr = '';
                     if (dist.diasAdelantados > 0 && dist.inicioDiasAdelantados != null && dist.finDiasAdelantados != null) {
-                      final ini = '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}';
-                      final fin = '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}';
+                      final ini = '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.year}';
+                      final fin = '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.year}';
                       rangoAdelantoStr = dist.diasAdelantados == 1 ? 'Adelanta el $ini' : 'Adelanta del $ini al $fin';
                     }
 
@@ -542,29 +530,60 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (dist.saldoFavorFinalResultante > 0 || saldoActual > 0)
+                        if (!isTyping) ...[
+                          // === ESTADO REAL (sin teclear) ===
+                          if (saldoActual > 0)
+                            buildDynamicRow(
+                              label: 'Saldo a favor',
+                              value: DateFormatter.formatCurrency(saldoActual),
+                              valueColor: AppColors.success,
+                            ),
+                          if ((local.deudaAcumulada ?? 0) > 0)
+                            buildDynamicRow(
+                              label: 'Deuda acumulada',
+                              value: DateFormatter.formatCurrency(local.deudaAcumulada ?? 0),
+                              valueColor: AppColors.danger,
+                            ),
                           buildDynamicRow(
-                            label: 'Saldo a favor Total',
-                            value: DateFormatter.formatCurrency(isTyping ? dist.saldoFavorFinalResultante : saldoActual),
-                            subtitle: isTyping ? rangoAdelantoStr : null,
-                            valueColor: AppColors.success,
+                            label: 'Cuota de hoy',
+                            value: realFaltanteHoy == 0
+                                ? (cuota > 0 ? 'Saldada' : 'N/A')
+                                : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}',
+                            valueColor: realFaltanteHoy == 0 ? cs.primary : AppColors.warning,
                           ),
-                          
-                        if (dist.deudaFinalResultante > 0 || (local.deudaAcumulada ?? 0) > 0)
+                        ] else ...[
+                          // === DISTRIBUCIÓN DEL PAGO (tecleando) ===
+                          if (dist.paraDeudaReal > 0)
+                            buildDynamicRow(
+                              label: 'Abono a deuda',
+                              value: DateFormatter.formatCurrency(dist.paraDeudaReal),
+                              subtitle: rangoDeudaStr,
+                              valueColor: AppColors.danger,
+                            ),
+                          if (dist.deudaFinalResultante > 0)
+                            buildDynamicRow(
+                              label: 'Deuda restante',
+                              value: DateFormatter.formatCurrency(dist.deudaFinalResultante),
+                              valueColor: AppColors.danger,
+                            ),
                           buildDynamicRow(
-                            label: 'Deuda Acumulada',
-                            value: DateFormatter.formatCurrency(isTyping ? dist.deudaFinalResultante : (local.deudaAcumulada ?? 0)),
-                            subtitle: isTyping ? rangoDeudaStr : null,
-                            valueColor: AppColors.danger,
+                            label: 'Cuota de hoy',
+                            value: dist.estadoCuotaHoy == 0 && cuota > 0
+                                ? 'Completa'
+                                : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
+                            subtitle: dist.pagoACuotaHoy > 0
+                                ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
+                                : (dist.paraDeudaReal > 0 ? 'El pago fue a deuda antigua' : null),
+                            valueColor: dist.estadoCuotaHoy == 0 ? cs.primary : AppColors.warning,
                           ),
-
-                        buildDynamicRow(
-                          label: 'Cuota de Hoy',
-                          value: isTyping 
-                              ? (dist.estadoCuotaHoy == 0 ? (cuota > 0 ? 'Saldará' : 'N/A') : 'Faltará ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}')
-                              : (realFaltanteHoy == 0 ? (cuota > 0 ? 'Saldada' : 'N/A') : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}'),
-                          valueColor: (isTyping ? dist.estadoCuotaHoy == 0 : realFaltanteHoy == 0) ? cs.primary : AppColors.warning,
-                        ),
+                          if (dist.saldoFavorFinalResultante > 0)
+                            buildDynamicRow(
+                              label: 'Saldo a favor',
+                              value: DateFormatter.formatCurrency(dist.saldoFavorFinalResultante),
+                              subtitle: rangoAdelantoStr,
+                              valueColor: AppColors.success,
+                            ),
+                        ],
                       ],
                     );
                   }),
@@ -955,6 +974,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           }
         }
 
+        // Calcular rango de fechas cubiertas (deuda abonada)
+        String? periodoAbonadoStr;
+        if (fechasSaldadas.isNotEmpty) {
+          periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+        }
+
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
           ref: ref,
@@ -970,6 +995,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
           fechasSaldadas: fechasSaldadas,
+          periodoAbonadoStr: periodoAbonadoStr,
           periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
         );
@@ -2045,9 +2071,8 @@ class _SmallBadge extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final Color? color;
 
-  const _InfoRow({required this.label, required this.value, this.color});
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -2064,10 +2089,9 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: color,
               ),
             ),
           ),

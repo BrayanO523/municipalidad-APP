@@ -7,6 +7,7 @@ import '../../../../app/di/providers.dart';
 // Removed provider import
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../../../core/widgets/scrollable_table.dart';
@@ -512,6 +513,36 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
     try {
       final municipalidad = ref.read(municipalidadActualProvider);
+
+      // Buscar el local para obtener clave/código
+      final localObj = locales.cast<Local?>().firstWhere(
+        (l) => l?.id == c.localId,
+        orElse: () => null,
+      );
+
+      // Calcular periodoAbonadoStr
+      String? periodoAbonadoStr;
+      final fechasSaldadas = c.fechasDeudasSaldadas;
+      if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+        periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+      }
+
+      // Calcular periodoSaldoAFavorStr
+      String? periodoFavorStr;
+      final favorResultante = (c.nuevoSaldoFavor ?? 0).toDouble();
+      final cuota = (c.cuotaDiaria ?? 0).toDouble();
+      if (favorResultante > 0 && cuota > 0) {
+        int dias = (favorResultante / cuota).floor();
+        if (dias > 0) {
+          DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
+          if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+            final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+            inicioFavor = sorted.last.add(const Duration(days: 1));
+          }
+          periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+        }
+      }
+
       await printer.printReceipt(
         empresa: municipalidad?.nombre ?? 'Municipalidad',
         mercado: nombreMercado(c.mercadoId, mercados),
@@ -524,8 +555,14 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
-        saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
+        saldoAFavor: favorResultante,
+        fechasSaldadas: fechasSaldadas,
+        periodoAbonadoStr: periodoAbonadoStr,
+        periodoSaldoAFavorStr: periodoFavorStr,
         slogan: municipalidad?.slogan,
+        clave: localObj?.clave,
+        codigoLocal: localObj?.codigo,
+        codigoCatastral: localObj?.codigoCatastral,
       );
 
     } catch (e) {

@@ -46,6 +46,7 @@ class StubPrinterAdapter implements PrinterService {
     String? slogan,
     String? clave,
     String? codigoLocal,
+    String? codigoCatastral,
   }) async {
     debugPrint(
       'StubPrinterAdapter: Emulando impresión de ${empresa.toUpperCase()}',
@@ -104,6 +105,8 @@ class StubPrinterAdapter implements PrinterService {
                 _pdfRow('CLAVE:', clave),
               if (codigoLocal != null && codigoLocal.isNotEmpty)
                 _pdfRow('CÓDIGO:', codigoLocal),
+              if (codigoCatastral != null && codigoCatastral.isNotEmpty)
+                _pdfRow('CÓD. CATASTRAL:', codigoCatastral),
               _pdfRow('FECHA:', fDate.format(fecha)),
               if (cobrador != null)
                 _pdfRow('COBRADOR:', cobrador.toUpperCase()),
