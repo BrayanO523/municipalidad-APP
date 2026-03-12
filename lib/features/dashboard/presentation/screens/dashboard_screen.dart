@@ -367,8 +367,10 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Inicializando correlativos...'),
@@ -438,8 +440,10 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Importando locales...'),
@@ -511,8 +515,10 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Reseteando sistema...')),
                       );
@@ -584,8 +590,10 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Vinculando datos...')),
                       );

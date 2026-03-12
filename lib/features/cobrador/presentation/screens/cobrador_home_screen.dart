@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../locales/presentation/widgets/local_form_dialog.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
@@ -1405,6 +1406,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           cuotaCubierta: cuotaCubierta,
                           cobroExistente: ultimoCobro,
                           onCobrar: () => _registrarCobro(local, cobrosHoy),
+                          onEditar: () => showLocalFormDialog(
+                            context,
+                            local: local,
+                            onSuccess: () => ref.invalidate(localesCobradorProvider),
+                          ),
                           onSinPago: cobradoHoy
                               ? null
                               : () => _registrarSinPago(local, cobrosHoy),
@@ -1612,6 +1618,7 @@ class _LocalCard extends StatelessWidget {
   final VoidCallback? onVerHistorial;
   final VoidCallback? onVerEstadoCuenta;
   final VoidCallback? onEliminar;
+  final VoidCallback? onEditar;
 
   const _LocalCard({
     required this.local,
@@ -1623,6 +1630,7 @@ class _LocalCard extends StatelessWidget {
     this.onVerHistorial,
     this.onVerEstadoCuenta,
     this.onEliminar,
+    this.onEditar,
   });
 
   @override
@@ -1677,15 +1685,39 @@ class _LocalCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            local.nombreSocial ?? 'Sin nombre',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  decoration: cuotaCubierta
-                                      ? TextDecoration.lineThrough
-                                      : null,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  local.nombreSocial ?? 'Sin nombre',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        decoration: cuotaCubierta
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                      ),
                                 ),
+                              ),
+                              if (onEditar != null)
+                                InkWell(
+                                  onTap: onEditar,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.edit_rounded,
+                                      size: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
