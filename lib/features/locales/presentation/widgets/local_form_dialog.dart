@@ -130,6 +130,7 @@ Future<void> showLocalFormDialog(
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: selectedMercadoId,
                           decoration: const InputDecoration(
                             labelText: 'Mercado',
@@ -138,7 +139,10 @@ Future<void> showLocalFormDialog(
                               .map(
                                 (m) => DropdownMenuItem(
                                   value: m.id,
-                                  child: Text(m.nombre ?? '-'),
+                                  child: Text(
+                                    m.nombre ?? '-',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -147,6 +151,7 @@ Future<void> showLocalFormDialog(
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: selectedTipoNegocioId,
                           decoration: const InputDecoration(
                             labelText: 'Tipo de Negocio',
@@ -157,7 +162,10 @@ Future<void> showLocalFormDialog(
                                   ?.map(
                                     (t) => DropdownMenuItem(
                                       value: t.id,
-                                      child: Text(t.nombre ?? '-'),
+                                      child: Text(
+                                        t.nombre ?? '-',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   )
                                   .toList() ??
@@ -191,19 +199,20 @@ Future<void> showLocalFormDialog(
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: selectedFrecuenciaCobro,
                           decoration: const InputDecoration(
                             labelText: 'Preferencia de Pago / Frecuencia',
                           ),
                           items: const [
                             DropdownMenuItem(
-                                value: 'diaria', child: Text('Diaria')),
+                                value: 'diaria', child: Text('Diaria', overflow: TextOverflow.ellipsis)),
                             DropdownMenuItem(
-                                value: 'semanal', child: Text('Semanal')),
+                                value: 'semanal', child: Text('Semanal', overflow: TextOverflow.ellipsis)),
                             DropdownMenuItem(
-                                value: 'quincenal', child: Text('Quincenal')),
+                                value: 'quincenal', child: Text('Quincenal', overflow: TextOverflow.ellipsis)),
                             DropdownMenuItem(
-                                value: 'mensual', child: Text('Mensual')),
+                                value: 'mensual', child: Text('Mensual', overflow: TextOverflow.ellipsis)),
                           ],
                           onChanged: (v) {
                             if (v != null) {
