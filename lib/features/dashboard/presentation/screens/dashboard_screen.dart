@@ -531,6 +531,7 @@ class _DashboardHeader extends ConsumerWidget {
                         ref.invalidate(cobrosHoyProvider);
                         ref.invalidate(mercadosProvider);
                         ref.invalidate(localesProvider);
+                        ref.invalidate(statsProvider);
                       }
                     } catch (e) {
                       if (context.mounted) {

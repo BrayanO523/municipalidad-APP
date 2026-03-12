@@ -4,7 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
@@ -566,23 +565,19 @@ class CobroDatasource {
       if (targetMuniId != null) {
         if (estado == 'pendiente') {
           // Revertir un pendiente implica quitar la deuda generada y reducir el contador de cobros
-          _statsDs.actualizarConteo(
+          _statsDs.revertirPendiente(
             municipalidadId: targetMuniId,
-            deltaDeuda: -saldoPendiente,
+            saldoPendiente: saldoPendiente,
+            fechaCobroOriginal: fechaCobro,
           ).catchError((_) {});
-          
-          final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
-          _firestore.collection('stats').doc(targetMuniId).update({
-            'diario.$key.cobros': FieldValue.increment(-1),
-          }).catchError((_) {});
 
         } else if (estado == 'cobrado_saldo') {
           // Revertir un saldado implica devolver el saldo a favor consumido, no altera el efectivo
-          final key = DateFormat('yyyy-MM-dd').format(fechaCobro);
-          _firestore.collection('stats').doc(targetMuniId).update({
-            'totalSaldoAFavor': FieldValue.increment(montoCobrado),
-            'diario.$key.cobros': FieldValue.increment(-1),
-          }).catchError((_) {});
+          _statsDs.revertirCobroSaldo(
+            municipalidadId: targetMuniId,
+            montoConsumido: montoCobrado,
+            fechaCobroOriginal: fechaCobro,
+          ).catchError((_) {});
 
         } else {
           // Cobro normal (CASH): revertir efectivo, abono de deuda y excedentes
@@ -1043,6 +1038,8 @@ class CobroDatasource {
         'deudaAcumulada': 0,
         'saldoAFavor': 0,
         'ultimaTransaccion': FieldValue.serverTimestamp(),
+        // Marcar fecha de creación como HOY para que no se generen deudas de días anteriores
+        'creadoEn': Timestamp.now(),
       });
       localesReset++;
       if (localesReset % 450 == 0) {
@@ -1054,7 +1051,27 @@ class CobroDatasource {
       await batch.commit();
     }
 
-    // 4. Limpiar caché local de cobros (Mobile)
+    // 4. Resetear Stats a ceros (documento limpio)
+    // Buscamos todas las municipalidades involucradas para limpiar sus stats
+    final Set<String> muniIds = {};
+    for (var l in locales.docs) {
+      final mid = l.data()['municipalidadId'] as String?;
+      if (mid != null) muniIds.add(mid);
+    }
+    for (final mid in muniIds) {
+      await _firestore.collection('stats').doc(mid).set({
+        'totalCobrado': 0,
+        'totalDeuda': 0,
+        'totalSaldoAFavor': 0,
+        'totalCuotaDiaria': 0,
+        'cantidadLocales': locales.docs.length,
+        'cantidadMercados': 0,
+        'diario': {},
+        'ultimaActualizacion': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 5. Limpiar caché local de cobros (Mobile)
     await limpiarCacheLocal();
 
     return cobrosBorrados;
