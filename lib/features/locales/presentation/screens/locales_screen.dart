@@ -34,6 +34,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Key _searchKey = UniqueKey();
   Timer? _debounce;
   Mercado? _mercadoSeleccionado;
+  Local? _localSeleccionado;
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
@@ -433,6 +434,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               onPressed: () {
                 setState(() {
                   _mercadoSeleccionado = null;
+                  _localSeleccionado = null;
                   _searchKey = UniqueKey(); // Fuerza reset del Autocomplete UI
                 });
                 _debounce?.cancel();
@@ -501,12 +503,22 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       );
     }
 
-    return Column(
+    final mainList = Column(
       children: [
         Expanded(
           child: _LocalesListView(
             locales: state.locales,
+            selectedLocalId: _localSeleccionado?.id,
             scrollController: _scrollCtrl,
+            onSelect: (l) {
+              setState(() {
+                if (_localSeleccionado?.id == l.id) {
+                  _localSeleccionado = null;
+                } else {
+                  _localSeleccionado = l;
+                }
+              });
+            },
             onEdit: (l) => _showFormDialog(context, local: l),
             onViewQr: (l) => _showQrDialog(context, l),
             onDelete: (l) => _confirmDelete(context, l),
@@ -530,9 +542,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 IconButton(
                   icon: const Icon(Icons.chevron_left_rounded),
                   onPressed: (!state.cargando && state.paginaActual > 1)
-                      ? () => ref
-                          .read(localesPaginadosProvider.notifier)
-                          .irAPaginaAnterior()
+                      ? () {
+                          setState(() => _localSeleccionado = null);
+                          ref.read(localesPaginadosProvider.notifier).irAPaginaAnterior();
+                        }
                       : null,
                   tooltip: 'Página anterior',
                 ),
@@ -546,9 +559,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 IconButton(
                   icon: const Icon(Icons.chevron_right_rounded),
                   onPressed: (!state.cargando && state.hayMas)
-                      ? () => ref
-                          .read(localesPaginadosProvider.notifier)
-                          .irAPaginaSiguiente()
+                      ? () {
+                          setState(() => _localSeleccionado = null);
+                          ref.read(localesPaginadosProvider.notifier).irAPaginaSiguiente();
+                        }
                       : null,
                   tooltip: 'Página siguiente',
                 ),
@@ -556,6 +570,148 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             ),
           ),
       ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showPanel = _localSeleccionado != null;
+        final isWide = constraints.maxWidth > 800;
+
+        if (showPanel && isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: mainList,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: _buildPanelDetalle(context, _localSeleccionado!),
+              ),
+            ],
+          );
+        }
+
+        // Si la pantalla es pequeña, quizás convenga mostrar el panel encima o usar un bottom sheet.
+        // Por ahora mantenemos la vista principal si no cabe al lado (el usuario igual puede editar usando las acciones directas de la tabla o ver en vertical).
+        // Simplificamos omitiendo el panel si la pantalla es estrecha, pero el usuario pidió esto asumiendo un dashboard web.
+        return showPanel 
+            ? Column(
+                children: [
+                  Expanded(flex: 2, child: mainList),
+                  const SizedBox(height: 16),
+                  Expanded(flex: 3, child: _buildPanelDetalle(context, _localSeleccionado!)),
+                ],
+              )
+            : mainList;
+      },
+    );
+  }
+
+  Widget _buildPanelDetalle(BuildContext context, Local local) {
+    final usuarios = ref.watch(usuariosProvider).value ?? [];
+    final tipos = ref.watch(tiposNegocioProvider).value ?? [];
+
+    final enRuta = usuarios.where(
+      (u) => u.esCobrador && (u.rutaAsignada?.contains(local.id) ?? false),
+    );
+
+    String? cobradorNombre;
+    if (enRuta.isNotEmpty) {
+      cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
+    } else {
+      final enMercado = usuarios
+          .where((u) => u.esCobrador && u.mercadoId == local.mercadoId)
+          .toList();
+      if (enMercado.length == 1) {
+        cobradorNombre = enMercado.first.nombre;
+      }
+    }
+
+    final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
+    final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    local.nombreSocial ?? 'Detalles del Local',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => setState(() => _localSeleccionado = null),
+                  tooltip: 'Cerrar detalle',
+                )
+              ],
+            ),
+            const Divider(height: 32),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
+                    _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
+                    _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
+                    _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
+                    _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
+                    _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
+                    _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
+                    _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
+                    _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showQrDialog(context, local),
+                  icon: const Icon(Icons.qr_code_rounded, size: 18),
+                  label: const Text('QR'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/locales/${local.id}/historial', extra: local),
+                  icon: const Icon(Icons.history_rounded, size: 18),
+                  label: const Text('Historial'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _showFormDialog(context, local: local),
+                  icon: const Icon(Icons.edit_rounded, size: 18),
+                  label: const Text('Editar'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                  onPressed: () => _confirmDelete(context, local),
+                  icon: const Icon(Icons.delete_rounded, size: 18),
+                  label: const Text('Eliminar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1149,14 +1305,18 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 /// Vista de la lista de locales con scroll infinito.
 class _LocalesListView extends ConsumerWidget {
   final List<Local> locales;
+  final String? selectedLocalId;
   final ScrollController scrollController;
+  final ValueChanged<Local> onSelect;
   final ValueChanged<Local> onEdit;
   final ValueChanged<Local> onViewQr;
   final ValueChanged<Local> onDelete;
 
   const _LocalesListView({
     required this.locales,
+    this.selectedLocalId,
     required this.scrollController,
+    required this.onSelect,
     required this.onEdit,
     required this.onViewQr,
     required this.onDelete,
@@ -1165,13 +1325,12 @@ class _LocalesListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pagadosHoy = ref.watch(localesPaginadosProvider).localesPagadosHoy;
-    final usuarios = ref.watch(usuariosProvider).value ?? [];
-    final tipos = ref.watch(tiposNegocioProvider).value ?? [];
 
     return Card(
       child: ScrollableTable(
         verticalController: scrollController,
         child: DataTable(
+          showCheckboxColumn: false, // Desactiva la columna de checkboxes por defecto
           horizontalMargin: 16,
           columnSpacing: 16,
           headingRowColor: WidgetStateProperty.all(
@@ -1179,59 +1338,21 @@ class _LocalesListView extends ConsumerWidget {
           ),
           columns: const [
             DataColumn(label: Text('Local')),
-            DataColumn(label: Text('Código Local')),
-            DataColumn(label: Text('Clave')),
-            DataColumn(label: Text('Representante')),
-            DataColumn(label: Text('Teléfono')),
-            DataColumn(label: Text('Cobrador')),
-            DataColumn(label: Text('Tipo')),
-            DataColumn(label: Text('m²')),
             DataColumn(label: Text('Cuota')),
             DataColumn(label: Text('Deuda')),
             DataColumn(label: Text('Saldo')),
-            DataColumn(label: Text('Creación')),
             DataColumn(label: Text('QR')),
             DataColumn(label: Text('Hist.')),
             DataColumn(label: Text('Acciones')),
           ],
             rows: locales.map((l) {
-              // Buscar si hay algún cobrador asignado por Mercado o por Ruta
-              // Lógica de asignación: Priorizar Ruta > Mercado (si es único)
-              final enRuta = usuarios.where(
-                (u) =>
-                    u.esCobrador && (u.rutaAsignada?.contains(l.id) ?? false),
-              );
-
-              String? cobradorNombre;
-              if (enRuta.isNotEmpty) {
-                // Si el local está en rutas específicas, mostramos esos nombres
-                cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
-              } else {
-                // Si no hay ruta específica, verificamos los del mercado
-                final enMercado = usuarios
-                    .where(
-                      (u) =>
-                          u.esCobrador &&
-                          u.mercadoId != null &&
-                          u.mercadoId == l.mercadoId,
-                    )
-                    .toList();
-
-                // REGLA: Solo mostrar si hay EXACTAMENTE UNO asignado al mercado completo.
-                // Si hay más de uno, la asignación es ambigua (cada uno tiene su propia ruta).
-                if (enMercado.length == 1) {
-                  cobradorNombre = enMercado.first.nombre;
-                }
-              }
-
-              final tipoIndex = tipos.indexWhere(
-                (t) => t.id == l.tipoNegocioId,
-              );
-              final strTipo = tipoIndex >= 0
-                  ? (tipos[tipoIndex].nombre ?? l.tipoNegocioId ?? '-')
-                  : (l.tipoNegocioId ?? '-');
+              final isSelected = selectedLocalId == l.id;
 
               return DataRow(
+                selected: isSelected,
+                onSelectChanged: (selected) {
+                  onSelect(l);
+                },
                 cells: [
                   DataCell(
                     Text(
@@ -1239,55 +1360,6 @@ class _LocalesListView extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
-                  DataCell(
-                    Text(
-                      l.codigoCatastral ?? '-',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      l.clave ?? '-',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataCell(Text(l.representante ?? '-')),
-                  DataCell(
-                    Text(
-                      l.telefonoRepresentante ?? '-',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ),
-                  DataCell(
-                    cobradorNombre != null
-                        ? Text(cobradorNombre)
-                        : Text(
-                            'Sin asignar',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.38),
-                              fontStyle: FontStyle.italic,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ),
-                  DataCell(Text(strTipo, style: const TextStyle(fontSize: 12))),
-                  DataCell(Text('${l.espacioM2 ?? 0}')),
                   DataCell(Text(DateFormatter.formatCurrency(l.cuotaDiaria))),
                   DataCell(
                     Builder(
@@ -1322,13 +1394,6 @@ class _LocalesListView extends ConsumerWidget {
                     ),
                   ),
                   DataCell(
-                    Text(
-                      l.creadoEn != null
-                          ? DateFormatter.formatDate(l.creadoEn!)
-                          : '-',
-                    ),
-                  ),
-                  DataCell(
                     IconButton(
                       icon: const Icon(Icons.qr_code_rounded, size: 20),
                       onPressed: () => onViewQr(l),
@@ -1349,7 +1414,10 @@ class _LocalesListView extends ConsumerWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          onPressed: () => onEdit(l),
+                          onPressed: () {
+                            if (!isSelected) onSelect(l);
+                            onEdit(l);
+                          },
                           tooltip: 'Editar',
                         ),
                         IconButton(
@@ -1368,6 +1436,45 @@ class _LocalesListView extends ConsumerWidget {
               );
             }).toList(),
         ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetailRow({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                ),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
