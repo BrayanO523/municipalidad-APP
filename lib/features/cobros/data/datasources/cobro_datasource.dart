@@ -982,99 +982,24 @@ class CobroDatasource {
     return patched;
   }
 
-  /// Acción DESTRUCTIVA: Borra todos los cobros y reinicia correlativos de mercados a 0.
-  Future<int> resetearSistemaCompleto() async {
-    // 1. Borrar todos los cobros
-    final cobros = await _collection.get();
-    WriteBatch batch = _firestore.batch();
-    int cobrosBorrados = 0;
+  /// Soft-Reset del sistema: en vez de borrar miles de documentos (costoso),
+  /// marca una fecha de inicio de operaciones en el doc de stats.
+  /// La app ignorará todo cobro/deuda anterior a esa fecha.
+  /// Costo total: 1 escritura en Firestore (vs ~29k lecturas del enfoque anterior).
+  Future<void> softResetSistema(String municipalidadId) async {
+    // 1. Escribir fechaInicioOperaciones + stats limpios (1 sola escritura)
+    await _firestore.collection('stats').doc(municipalidadId).set({
+      'totalCobrado': 0,
+      'totalDeuda': 0,
+      'totalSaldoAFavor': 0,
+      'totalCuotaDiaria': 0,
+      'diario': {},
+      'fechaInicioOperaciones': Timestamp.now(),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
-    for (var doc in cobros.docs) {
-      batch.delete(doc.reference);
-      cobrosBorrados++;
-      if (cobrosBorrados % 450 == 0) {
-        await batch.commit();
-        batch = _firestore.batch();
-      }
-    }
-    if (cobrosBorrados % 450 != 0 && cobrosBorrados > 0) {
-      await batch.commit();
-    }
-
-    // 2. Reiniciar correlativos en Usuarios (Cobradores)
-    final usuarios = await _firestore
-        .collection(FirestoreCollections.usuarios)
-        .where('rol', isEqualTo: 'cobrador')
-        .get();
-
-    batch = _firestore.batch();
-    int usuariosReset = 0;
-
-    for (var u in usuarios.docs) {
-      batch.update(u.reference, {
-        'ultimoCorrelativo': 0,
-        'anioCorrelativo': DateTime.now().year,
-      });
-      usuariosReset++;
-      if (usuariosReset % 450 == 0) {
-        await batch.commit();
-        batch = _firestore.batch();
-      }
-    }
-    if (usuariosReset % 450 != 0 && usuariosReset > 0) {
-      await batch.commit();
-    }
-
-    // 3. Limpiar saldos y deudas en TODOS los Locales
-    final locales = await _firestore
-        .collection(FirestoreCollections.locales)
-        .get();
-
-    batch = _firestore.batch();
-    int localesReset = 0;
-
-    for (var l in locales.docs) {
-      batch.update(l.reference, {
-        'deudaAcumulada': 0,
-        'saldoAFavor': 0,
-        'ultimaTransaccion': FieldValue.serverTimestamp(),
-        // Marcar fecha de creación como HOY para que no se generen deudas de días anteriores
-        'creadoEn': Timestamp.now(),
-      });
-      localesReset++;
-      if (localesReset % 450 == 0) {
-        await batch.commit();
-        batch = _firestore.batch();
-      }
-    }
-    if (localesReset % 450 != 0 && localesReset > 0) {
-      await batch.commit();
-    }
-
-    // 4. Resetear Stats a ceros (documento limpio)
-    // Buscamos todas las municipalidades involucradas para limpiar sus stats
-    final Set<String> muniIds = {};
-    for (var l in locales.docs) {
-      final mid = l.data()['municipalidadId'] as String?;
-      if (mid != null) muniIds.add(mid);
-    }
-    for (final mid in muniIds) {
-      await _firestore.collection('stats').doc(mid).set({
-        'totalCobrado': 0,
-        'totalDeuda': 0,
-        'totalSaldoAFavor': 0,
-        'totalCuotaDiaria': 0,
-        'cantidadLocales': locales.docs.length,
-        'cantidadMercados': 0,
-        'diario': {},
-        'ultimaActualizacion': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // 5. Limpiar caché local de cobros (Mobile)
+    // 2. Limpiar caché local (SharedPreferences + Hive) — costo: 0 lecturas Firestore
     await limpiarCacheLocal();
-
-    return cobrosBorrados;
   }
 
   /// Limpia la caché local de cobros (Hive + SharedPreferences).

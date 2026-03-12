@@ -523,13 +523,17 @@ class _DashboardHeader extends ConsumerWidget {
                         const SnackBar(content: Text('Reseteando sistema...')),
                       );
                       final ds = ref.read(cobroDatasourceProvider);
-                      final borrados = await ds.resetearSistemaCompleto();
+                      final user = ref.read(currentUsuarioProvider).value;
+                      if (user?.municipalidadId == null) {
+                        throw Exception('No se pudo obtener la municipalidad del usuario');
+                      }
+                      await ds.softResetSistema(user!.municipalidadId!);
 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text(
-                              'Sistema reseteado: $borrados cobros eliminados.',
+                              'Sistema reseteado. Las operaciones inician a partir de hoy.',
                             ),
                             backgroundColor: Colors.orange,
                           ),

@@ -11,6 +11,10 @@ class StatsModel {
   final int cantidadMercados;
   final DateTime? ultimaActualizacion;
   
+  /// Fecha a partir de la cual la app considera operaciones válidas.
+  /// Cualquier cobro o deuda anterior a esta fecha es ignorado (Soft-Reset).
+  final DateTime? fechaInicioOperaciones;
+  
   // Mapa agrupado por "yyyy-MM-dd"
   final Map<String, dynamic> diario;
 
@@ -22,6 +26,7 @@ class StatsModel {
     this.cantidadLocales = 0,
     this.cantidadMercados = 0,
     this.ultimaActualizacion,
+    this.fechaInicioOperaciones,
     this.diario = const {},
   });
 
@@ -34,6 +39,7 @@ class StatsModel {
       cantidadLocales: (json['cantidadLocales'] as num?)?.toInt() ?? 0,
       cantidadMercados: (json['cantidadMercados'] as num?)?.toInt() ?? 0,
       ultimaActualizacion: (json['ultimaActualizacion'] as Timestamp?)?.toDate(),
+      fechaInicioOperaciones: (json['fechaInicioOperaciones'] as Timestamp?)?.toDate(),
       diario: json['diario'] as Map<String, dynamic>? ?? {},
     );
   }

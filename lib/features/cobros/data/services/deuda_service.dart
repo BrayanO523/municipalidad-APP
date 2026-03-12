@@ -47,13 +47,25 @@ class DeudaService {
     required List<Local> localesActivos,
     int diasAtras = 7,
     String? cobradorId,
+    DateTime? fechaInicioOperaciones,
   }) async {
     if (localesActivos.isEmpty) return 0;
 
     int creados = 0;
     final hoy = DateTime.now();
     final now = Timestamp.now();
-    final fechaInicio = DateTime(hoy.year, hoy.month, hoy.day - diasAtras);
+    // Limitar retroactividad: nunca ir más atrás de fechaInicioOperaciones
+    DateTime fechaLimite = DateTime(hoy.year, hoy.month, hoy.day - diasAtras);
+    if (fechaInicioOperaciones != null) {
+      final inicioNormalizado = DateTime(
+        fechaInicioOperaciones.year,
+        fechaInicioOperaciones.month,
+        fechaInicioOperaciones.day,
+      );
+      if (inicioNormalizado.isAfter(fechaLimite)) {
+        fechaLimite = inicioNormalizado;
+      }
+    }
     final fechaFin = DateTime(hoy.year, hoy.month, hoy.day - 1);
 
     // 1. CARGA MASIVA: Traer todos los cobros de la semana para estos locales
@@ -62,9 +74,12 @@ class DeudaService {
         .map((l) => l.id!)
         .toList();
     
+    // Si la fechaLimite es posterior al fechaFin, no hay nada que revisar
+    if (fechaLimite.isAfter(fechaFin)) return 0;
+
     final todosLosCobros = await cobroDs.listarPorLocalesYRango(
       localIds: localIds,
-      inicio: fechaInicio,
+      inicio: fechaLimite,
       fin: fechaFin,
     );
 
@@ -80,9 +95,8 @@ class DeudaService {
       pagosDia[fechaKey] = (pagosDia[fechaKey] ?? 0) + (c.monto ?? 0);
     }
 
-    // 3. Procesar deudas en memoria
-    for (int d = 1; d <= diasAtras; d++) {
-      final fecha = DateTime(hoy.year, hoy.month, hoy.day - d);
+    // 3. Procesar: iterar desde fechaLimite hasta ayer
+    for (DateTime fecha = fechaLimite; !fecha.isAfter(fechaFin); fecha = fecha.add(const Duration(days: 1))) {
       final fechaKey = "${fecha.year}${fecha.month}${fecha.day}";
 
       for (final local in localesActivos) {
