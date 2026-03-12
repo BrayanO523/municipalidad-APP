@@ -148,134 +148,278 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     bool isMobile = false,
     ScrollController? scrollController,
   }) {
-    return Container(
-      color: isMobile ? null : Theme.of(context).colorScheme.surfaceContainerHighest,
-      padding: EdgeInsets.all(isMobile ? 20 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Diseño de Rutas',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: isMobile ? 20 : 24,
-              fontWeight: FontWeight.bold,
-            ),
+    // Shared widgets: header controls (mercado, cobrador, ruta header)
+    List<Widget> buildHeaderControls() {
+      return [
+        Text(
+          'Diseño de Rutas',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: isMobile ? 18 : 24,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 16),
-
-          // Select Mercado
-          Text(
-            '1. Mercado',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '1. Mercado',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 13,
           ),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _selectedMercadoId,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).cardTheme.color,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: mercados
-                .map(
-                  (m) => DropdownMenuItem(
-                    value: m.id as String,
-                    child: Text(m.nombre ?? '', overflow: TextOverflow.ellipsis),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          initialValue: _selectedMercadoId,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Theme.of(context).cardTheme.color,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: mercados
+              .map(
+                (m) => DropdownMenuItem(
+                  value: m.id as String,
+                  child: Text(m.nombre ?? '', overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedMercadoId = val;
+              _selectedCobradorId = null;
+              _rutaActual = [];
+              _centrarMapaEnLocales(
+                localesData.where((l) => l.mercadoId == val).toList(),
+              );
+            });
+          },
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '2. Cobrador',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          initialValue: _selectedCobradorId,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Theme.of(context).cardTheme.color,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          hint: const Text('Elija un cobrador'),
+          items: cobradores
+              .map(
+                (c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.nombre ?? '', overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (val) {
+            if (val == null) return;
+            final cobrador = cobradores.firstWhere((c) => c.id == val);
+            setState(() {
+              _selectedCobradorId = val;
+              _rutaActual = List<String>.from(cobrador.rutaAsignada ?? []);
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        Divider(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '3. Ordenar Ruta',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
                   ),
-                )
-                .toList(),
-            onChanged: (val) {
-              setState(() {
-                _selectedMercadoId = val;
-                _selectedCobradorId = null;
-                _rutaActual = [];
-                _centrarMapaEnLocales(
-                  localesData.where((l) => l.mercadoId == val).toList(),
-                );
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Select Cobrador
-          Text(
-            '2. Cobrador',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _selectedCobradorId,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).cardTheme.color,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            hint: const Text('Elija un cobrador'),
-            items: cobradores
-                .map(
-                  (c) => DropdownMenuItem(
-                    value: c.id,
-                    child: Text(c.nombre ?? '', overflow: TextOverflow.ellipsis),
+                ),
+                Text(
+                  'Arrastre para ordenar',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    fontSize: 11,
                   ),
-                )
-                .toList(),
-            onChanged: (val) {
-              if (val == null) return;
-              final cobrador = cobradores.firstWhere((c) => c.id == val);
-              setState(() {
-                _selectedCobradorId = val;
-                _rutaActual = List<String>.from(cobrador.rutaAsignada ?? []);
-              });
-            },
-          ),
-          const SizedBox(height: 20),
-          Divider(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-          ),
-          const SizedBox(height: 12),
+                ),
+              ],
+            ),
+            if (isMobile && _rutaActual.isNotEmpty)
+              IconButton.filledTonal(
+                onPressed: _guardarRuta,
+                icon: const Icon(Icons.save, size: 18),
+                tooltip: 'Guardar',
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ];
+    }
 
-          // Reorderable list header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    // Builds the route items list
+    List<Widget> buildRouteItems() {
+      if (_rutaActual.isEmpty) {
+        return [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'Seleccione mercado y cobrador',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
+              ),
+            ),
+          ),
+        ];
+      }
+      return _rutaActual
+          .where((id) => mapLocales.containsKey(id))
+          .map((locId) {
+        final loc = mapLocales[locId]!;
+        final index = _rutaActual.indexOf(locId);
+        return Card(
+          key: ValueKey(locId),
+          color: Colors.blueAccent.withValues(alpha: 0.05),
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: Colors.blueAccent.withValues(alpha: 0.1),
+            ),
+          ),
+          child: ListTile(
+            dense: true,
+            leading: CircleAvatar(
+              maxRadius: 12,
+              backgroundColor: Colors.blueAccent,
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(fontSize: 10, color: Colors.white),
+              ),
+            ),
+            title: Text(
+              loc.nombreSocial ?? 'Local',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+              ),
+            ),
+            trailing: Icon(
+              Icons.drag_handle,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3),
+            ),
+          ),
+        );
+      }).toList();
+    }
+
+    // ──── MOBILE layout: everything scrollable ────
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: _rutaActual.isEmpty
+            ? ListView(
+                controller: scrollController,
                 children: [
-                  Text(
-                    '3. Ordenar Ruta',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Arrastre para ordenar',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-                      fontSize: 11,
+                  ...buildHeaderControls(),
+                  ...buildRouteItems(),
+                ],
+              )
+            : Column(
+                children: [
+                  // Controls at top (non-scrollable)
+                  ...buildHeaderControls(),
+                  // Reorderable list fills remaining space
+                  Expanded(
+                    child: ReorderableListView(
+                      scrollController: scrollController,
+                      buildDefaultDragHandles: false,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          final item = _rutaActual.removeAt(oldIndex);
+                          _rutaActual.insert(newIndex, item);
+                        });
+                      },
+                      children: _rutaActual
+                          .where((id) => mapLocales.containsKey(id))
+                          .map((locId) {
+                        final loc = mapLocales[locId]!;
+                        final index = _rutaActual.indexOf(locId);
+                        return ReorderableDragStartListener(
+                          key: ValueKey(locId),
+                          index: index,
+                          child: Card(
+                            color: Colors.blueAccent.withValues(alpha: 0.05),
+                            elevation: 0,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: Colors.blueAccent.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                maxRadius: 12,
+                                backgroundColor: Colors.blueAccent,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                                ),
+                              ),
+                              title: Text(
+                                loc.nombreSocial ?? 'Local',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: Icon(
+                                Icons.drag_handle,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
               ),
-              if (isMobile && _rutaActual.isNotEmpty)
-                IconButton.filledTonal(
-                  onPressed: _guardarRuta,
-                  icon: const Icon(Icons.save, size: 18),
-                  tooltip: 'Guardar',
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
+      );
+    }
 
+    // ──── DESKTOP layout: fixed sidebar with Expanded list ────
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...buildHeaderControls(),
           Expanded(
             child: _rutaActual.isEmpty
                 ? Center(
@@ -344,15 +488,12 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     }).toList(),
                   ),
           ),
-
-          if (!isMobile) ...[
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.save),
-              label: const Text('Guardar Ruta Asignada'),
-              onPressed: _selectedCobradorId == null ? null : _guardarRuta,
-            ),
-          ],
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save),
+            label: const Text('Guardar Ruta Asignada'),
+            onPressed: _selectedCobradorId == null ? null : _guardarRuta,
+          ),
         ],
       ),
     );
