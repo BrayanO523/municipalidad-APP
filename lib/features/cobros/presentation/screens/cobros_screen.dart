@@ -158,94 +158,164 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
     final theme = Theme.of(context);
     final descripcion = _getDescripcion(ref);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Título + descripción
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 800;
+
+        if (isMobile) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cobros',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                descripcion,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _PeriodChip(
+                    label: 'Hoy',
+                    selected: _periodo == _CobrosPeriod.hoy,
+                    onSelected: () => _aplicar(_CobrosPeriod.hoy),
+                  ),
+                  _PeriodChip(
+                    label: 'Semana',
+                    selected: _periodo == _CobrosPeriod.semana,
+                    onSelected: () => _aplicar(_CobrosPeriod.semana),
+                  ),
+                  _PeriodChip(
+                    label: 'Mes',
+                    selected: _periodo == _CobrosPeriod.mes,
+                    onSelected: () => _aplicar(_CobrosPeriod.mes),
+                  ),
+                  _PeriodChip(
+                    label: 'Año',
+                    selected: _periodo == _CobrosPeriod.anio,
+                    onSelected: () => _aplicar(_CobrosPeriod.anio),
+                  ),
+                  _PeriodChip(
+                    label: 'Personalizado',
+                    selected: _periodo == _CobrosPeriod.personalizado,
+                    onSelected: () => _aplicar(_CobrosPeriod.personalizado),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                    label: const Text('Exportar PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: theme.colorScheme.onSurface,
+                    ),
+                    onPressed: widget.cobros.isEmpty ? null : _exportPdf,
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Cobros',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+            // Título + descripción
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cobros',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    descripcion,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              descripcion,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
+            const SizedBox(width: 16),
+            // Chips de período
+            Wrap(
+              spacing: 8,
+              children: [
+                _PeriodChip(
+                  label: 'Hoy',
+                  selected: _periodo == _CobrosPeriod.hoy,
+                  onSelected: () => _aplicar(_CobrosPeriod.hoy),
+                ),
+                _PeriodChip(
+                  label: 'Semana',
+                  selected: _periodo == _CobrosPeriod.semana,
+                  onSelected: () => _aplicar(_CobrosPeriod.semana),
+                ),
+                _PeriodChip(
+                  label: 'Mes',
+                  selected: _periodo == _CobrosPeriod.mes,
+                  onSelected: () => _aplicar(_CobrosPeriod.mes),
+                ),
+                _PeriodChip(
+                  label: 'Año',
+                  selected: _periodo == _CobrosPeriod.anio,
+                  onSelected: () => _aplicar(_CobrosPeriod.anio),
+                ),
+                _PeriodChip(
+                  label: 'Personalizado',
+                  selected: _periodo == _CobrosPeriod.personalizado,
+                  onSelected: () => _aplicar(_CobrosPeriod.personalizado),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: const Text('Exportar PDF'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: theme.colorScheme.onSurface,
               ),
+              onPressed: widget.cobros.isEmpty ? null : _exportPdf,
             ),
           ],
-        ),
-        // Chips de período
-        Wrap(
-          spacing: 8,
-          children: [
-            _PeriodChip(
-              label: 'Hoy',
-              selected: _periodo == _CobrosPeriod.hoy,
-              onSelected: () => _aplicar(_CobrosPeriod.hoy),
-            ),
-            _PeriodChip(
-              label: 'Semana',
-              selected: _periodo == _CobrosPeriod.semana,
-              onSelected: () => _aplicar(_CobrosPeriod.semana),
-            ),
-            _PeriodChip(
-              label: 'Mes',
-              selected: _periodo == _CobrosPeriod.mes,
-              onSelected: () => _aplicar(_CobrosPeriod.mes),
-            ),
-            _PeriodChip(
-              label: 'Año',
-              selected: _periodo == _CobrosPeriod.anio,
-              onSelected: () => _aplicar(_CobrosPeriod.anio),
-            ),
-            _PeriodChip(
-              label: 'Personalizado',
-              selected: _periodo == _CobrosPeriod.personalizado,
-              onSelected: () => _aplicar(_CobrosPeriod.personalizado),
-            ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-          label: const Text('Exportar PDF'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4F46E5),
-            foregroundColor: Theme.of(context).colorScheme.onSurface,
-          ),
-          onPressed:
-              widget.cobros.isEmpty
-                  ? null
-                  : () async {
-                    final locales = ref.read(localesProvider).value ?? [];
-                    final mercados = ref.read(mercadosProvider).value ?? [];
-                    final bytes = await ReportePdfGenerator.generarReporteCobros(
-                      cobros: widget.cobros,
-                      locales: locales,
-                      mercados: mercados,
-                      periodoLabel: descripcion,
-                    );
-                    if (kIsWeb) {
-                      await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
-                    } else {
-                      await Printing.layoutPdf(
-                        onLayout: (_) async => bytes,
-                        name: 'Reporte_Cobros',
-                      );
-                    }
-                  },
-        ),
-      ],
+        );
+      },
     );
+  }
+
+  Future<void> _exportPdf() async {
+    final descripcion = _getDescripcion(ref);
+    final locales = ref.read(localesProvider).value ?? [];
+    final mercados = ref.read(mercadosProvider).value ?? [];
+    final bytes = await ReportePdfGenerator.generarReporteCobros(
+      cobros: widget.cobros,
+      locales: locales,
+      mercados: mercados,
+      periodoLabel: descripcion,
+    );
+    if (kIsWeb) {
+      await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: 'Reporte_Cobros',
+      );
+    }
   }
 }
 
@@ -332,42 +402,48 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
               ).colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.search_rounded, size: 20, color: Colors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar cobros...',
-                    border: InputBorder.none,
-                    hintStyle: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMini = constraints.maxWidth < 450;
+              return Row(
+                children: [
+                  const Icon(Icons.search_rounded, size: 20, color: Colors.blue),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                      decoration: InputDecoration(
+                        hintText: isMini ? 'Buscar...' : 'Buscar cobros...',
+                        border: InputBorder.none,
+                        isDense: true,
+                        hintStyle: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.4),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              DropdownButton<String>(
-                value: _searchColumn,
-                underline: const SizedBox(),
-                items:
-                    [
-                      'Local',
-                      'Mercado',
-                      'Estado',
-                      'Cobrador',
-                      'Teléfono',
-                      'Observaciones',
-                    ].map((c) {
-                      return DropdownMenuItem(value: c, child: Text(c));
-                    }).toList(),
-                onChanged: (v) => setState(() => _searchColumn = v!),
-              ),
-            ],
+                  const SizedBox(width: 16),
+                  DropdownButton<String>(
+                    value: _searchColumn,
+                    underline: const SizedBox(),
+                    items:
+                        [
+                          'Local',
+                          'Mercado',
+                          'Estado',
+                          'Cobrador',
+                          'Teléfono',
+                          'Observaciones',
+                        ].map((c) {
+                          return DropdownMenuItem(value: c, child: Text(c));
+                        }).toList(),
+                    onChanged: (v) => setState(() => _searchColumn = v!),
+                  ),
+                ],
+              );
+            },
           ),
         ),
 
@@ -503,9 +579,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
   void _imprimirCobro(BuildContext context, WidgetRef ref, Cobro c) async {
     final printer = ref.read(printerServiceProvider);
-    // printerServiceProvider actualmente no tiene una propiedad isConnected expuesta directamente de la misma forma que Notifier, 
-    // pero podemos intentar usar el servicio.
-
+    
     final locales = ref.read(localesProvider).value ?? [];
     final mercados = ref.read(mercadosProvider).value ?? [];
     final usuarios = ref.read(usuariosProvider).value ?? [];
@@ -556,9 +630,6 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                 onPressed: () async {
                   Navigator.pop(dialogCtx);
                   try {
-                    await ref
-                        .read(cobrosPaginadosProvider.notifier)
-                        .recargar(); // Recargar después de eliminar si se desea, o llamar al service directamente
                     await ref.read(cobroViewModelProvider.notifier).eliminarCobro(c);
                     ref.read(cobrosPaginadosProvider.notifier).recargar();
                   } catch (e) {
