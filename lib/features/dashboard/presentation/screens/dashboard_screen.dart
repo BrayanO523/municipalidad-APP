@@ -646,6 +646,84 @@ class _DashboardHeader extends ConsumerWidget {
             const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Recalcular Estadísticas'),
+                      ],
+                    ),
+                    content: const Text(
+                      'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Recalcular'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  if (!context.mounted) return;
+                  try {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Recalculando estadísticas globales...')),
+                    );
+                    
+                    final ds = ref.read(statsDatasourceProvider);
+                    final user = ref.read(currentUsuarioProvider).value;
+                    if (user?.municipalidadId == null) {
+                      throw Exception('No se pudo identificar la municipalidad');
+                    }
+
+                    await ds.recalcularTodo(user!.municipalidadId!);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ Estadísticas sincronizadas con éxito.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      // Refrescar el provider de stats
+                      ref.invalidate(statsProvider);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Error al recalcular: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              icon: const Icon(Icons.sync_problem_rounded, size: 18),
+              label: const Text('Recalcular Stats'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.withValues(alpha: 0.1),
+                foregroundColor: Colors.orange,
+                side: const BorderSide(color: Colors.orange, width: 0.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () async {
                 final cobros = ref.read(cobrosHoyProvider).value ?? [];
                 final locales = ref.read(localesProvider).value ?? [];
                 final mercados = ref.read(mercadosProvider).value ?? [];

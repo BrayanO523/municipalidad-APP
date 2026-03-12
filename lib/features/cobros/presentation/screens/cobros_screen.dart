@@ -224,12 +224,15 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
           );
         }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
+        return Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             // Título + descripción
-            Expanded(
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 200, maxWidth: 400),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -250,10 +253,10 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
                 ],
               ),
             ),
-            const SizedBox(width: 16),
             // Chips de período
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 _PeriodChip(
                   label: 'Hoy',
@@ -280,17 +283,17 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
                   selected: _periodo == _CobrosPeriod.personalizado,
                   onSelected: () => _aplicar(_CobrosPeriod.personalizado),
                 ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: const Text('Exportar PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: widget.cobros.isEmpty ? null : _exportPdf,
+                ),
               ],
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: const Text('Exportar PDF'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: theme.colorScheme.onSurface,
-              ),
-              onPressed: widget.cobros.isEmpty ? null : _exportPdf,
             ),
           ],
         );
