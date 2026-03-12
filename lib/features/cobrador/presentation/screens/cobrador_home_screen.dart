@@ -131,8 +131,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final cobroDs = ref.read(cobroDatasourceProvider);
       final localDs = ref.read(localDatasourceProvider);
       
-      // Obtener fechaInicioOperaciones del stats (costo: 0 lecturas extra, ya está en cache de Riverpod)
-      final stats = ref.read(statsProvider).value;
+      // CRÍTICO: Esperar a que stats cargue para obtener fechaInicioOperaciones.
+      // Si no esperamos, stats.value puede ser null y el DeudaService
+      // generaría pendientes de 7 días atrás erróneamente.
+      final stats = await ref.read(statsProvider.future);
       
       final service = DeudaService(
         cobroDs: cobroDs,
@@ -144,7 +146,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         localesActivos: localesActivos,
         diasAtras: 7,
         cobradorId: usuario.id,
-        fechaInicioOperaciones: stats?.fechaInicioOperaciones,
+        fechaInicioOperaciones: stats.fechaInicioOperaciones,
       );
 
       // Guardar que ya se revisó hoy

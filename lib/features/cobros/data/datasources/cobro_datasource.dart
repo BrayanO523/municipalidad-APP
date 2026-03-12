@@ -1050,7 +1050,8 @@ class CobroDatasource {
             k.startsWith('claveON_') ||
             k.startsWith('claveOFF_') ||
             k.startsWith('prefijo_') ||
-            k.startsWith('correlativo_'),
+            k.startsWith('correlativo_') ||
+            k.startsWith('last_debt_scan_'),
       );
       for (final k in keysToRemove) {
         await prefs.remove(k);
