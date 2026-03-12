@@ -224,41 +224,49 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     }
   }
 
-  /// Verifica en una sola consulta cuáles de los locales cargados tienen pago hoy.
+  /// Verifica consultando el último cobro de cada local.
   Future<void> _verificarPagosHoy(List<Local> locales) async {
     if (locales.isEmpty) return;
 
     final ahora = DateTime.now();
-    final hoyStr =
-        '${ahora.year}${ahora.month.toString().padLeft(2, "0")}${ahora.day.toString().padLeft(2, "0")}';
-
-    final idsPorVerificar =
-        locales
-            .map((l) => 'COB-${l.id}-$hoyStr')
-            .where((id) => !id.contains('null'))
-            .toList();
-
-    if (idsPorVerificar.isEmpty) return;
+    final hoyInicio = DateTime(ahora.year, ahora.month, ahora.day);
 
     try {
       final firestore = FirebaseFirestore.instance;
-      // Consultamos los registros de hoy para estos locales.
-      // Firebase tiene límite de 30 en whereIn. Nuestros lotes son de 20.
-      final snapshot =
-          await firestore
-              .collection('cobros')
-              .where(FieldPath.documentId, whereIn: idsPorVerificar)
-              .get();
-
       final Map<String, bool> pagaronHoy = {};
-      for (var doc in snapshot.docs) {
-        // El docId es COB-localId-fecha
-        final parts = doc.id.split('-');
-        if (parts.length >= 2) {
-          final localId = parts[1];
-          pagaronHoy[localId] = true;
+
+      // Usamos limit(3) y orderBy('fecha', descending: true) para aprovechar
+      // el índice compuesto que ya existe para el historial de cobros.
+      // Limit 3 previene que una "Deuda" automática tape al "Cobro" del día de hoy
+      // si pasaron los dos eventos el mismo día.
+      await Future.wait(locales.map((l) async {
+        final localId = l.id;
+        if (localId == null) return;
+
+        final snapshot = await firestore
+            .collection('cobros')
+            .where('localId', isEqualTo: localId)
+            .orderBy('fecha', descending: true)
+            .limit(3)
+            .get();
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final fechaObj = data['fecha'];
+          if (fechaObj is Timestamp) {
+            final fecha = fechaObj.toDate();
+            // Si el cobro fue hecho hoy (después de las 00:00) y es un cobro real
+            if (!fecha.isBefore(hoyInicio)) {
+              if (data['estado'] == 'cobrado' || (data['monto'] ?? 0) > 0) {
+                pagaronHoy[localId] = true;
+                break; // Encontramos un pago, pasamos al siguiente local
+              }
+            } else {
+              break; // Como está ordenado DESC, si ya pasamos a ayer, no hay más para buscar
+            }
+          }
         }
-      }
+      }));
 
       state = state.copyWith(localesPagadosHoy: pagaronHoy);
     } catch (e) {
