@@ -314,7 +314,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     ),
                     PolylineLayer(
                       polylines: [
-                        if (_rutaActual.isNotEmpty)
+                        if (_rutaActual.any((id) => mapLocales.containsKey(id)))
                           Polyline(
                             points: _rutaActual
                                 .where((id) => mapLocales.containsKey(id))
