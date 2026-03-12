@@ -577,33 +577,77 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         final isWide = constraints.maxWidth > 800;
 
         if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: mainList,
+          return Card(
+            elevation: 2,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: _localSeleccionado != null
-                    ? _buildPanelDetalle(context, _localSeleccionado!)
-                    : const _PanelDetalleVacio(),
-              ),
-            ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 13,
+                  child: mainList,
+                ),
+                VerticalDivider(
+                  width: 1, 
+                  thickness: 1,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+                Expanded(
+                  flex: 9,
+                  child: _localSeleccionado != null
+                      ? _buildPanelDetalle(context, _localSeleccionado!)
+                      : const _PanelDetalleVacio(),
+                ),
+              ],
+            ),
           );
         }
 
         return _localSeleccionado != null 
             ? Column(
                 children: [
-                   Expanded(flex: 2, child: mainList),
+                   Expanded(
+                     flex: 2, 
+                     child: Card(
+                       elevation: 2,
+                       clipBehavior: Clip.antiAlias,
+                       shape: RoundedRectangleBorder(
+                         borderRadius: BorderRadius.circular(16),
+                         side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                       ),
+                       child: mainList,
+                     ),
+                   ),
                    const SizedBox(height: 16),
-                   Expanded(flex: 3, child: _buildPanelDetalle(context, _localSeleccionado!)),
+                   Expanded(
+                     flex: 3, 
+                     child: Card(
+                       elevation: 2,
+                       clipBehavior: Clip.antiAlias,
+                       shape: RoundedRectangleBorder(
+                         borderRadius: BorderRadius.circular(16),
+                         side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                       ),
+                       child: _buildPanelDetalle(context, _localSeleccionado!),
+                     ),
+                   ),
                 ],
               )
-            : mainList;
+            : Card(
+                elevation: 2,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                ),
+                child: mainList,
+              );
       },
     );
   }
@@ -631,9 +675,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
     final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -1291,7 +1334,8 @@ class _LocalesListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pagadosHoy = ref.watch(localesPaginadosProvider).localesPagadosHoy;
 
-    return Card(
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
       child: ScrollableTable(
         verticalController: scrollController,
         child: DataTable(
@@ -1487,9 +1531,8 @@ class _PanelDetalleVacio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Center(
