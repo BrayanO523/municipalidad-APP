@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -33,71 +33,78 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ScreenHeader(
-              onSearch: (q) => ref.read(municipalidadesPaginadasProvider.notifier).buscar(q),
-              onAdd: () => _showFormDialog(context),
-              selectedColumn: _searchColumn,
-              onColumnChanged: (val) {
-                if (val != null) {
-                  setState(() => _searchColumn = val);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: state.cargando && state.municipalidades.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.errorMsg != null
-                      ? Center(
-                          child: Text(
-                            state.errorMsg!,
-                            style: const TextStyle(color: Colors.redAccent),
-                          ),
-                        )
-                      : state.municipalidades.isEmpty
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ScreenHeader(
+                  onSearch: (q) => ref.read(municipalidadesPaginadasProvider.notifier).buscar(q),
+                  onAdd: () => _showFormDialog(context),
+                  selectedColumn: _searchColumn,
+                  onColumnChanged: (val) {
+                    if (val != null) {
+                      setState(() => _searchColumn = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: state.cargando && state.municipalidades.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : state.errorMsg != null
                           ? Center(
                               child: Text(
-                                'No se encontraron municipalidades',
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.54)),
+                                state.errorMsg!,
+                                style: const TextStyle(color: Colors.redAccent),
                               ),
                             )
-                          : Column(
-                              children: [
-                                Expanded(
-                                  child: _MunicipalidadesTable(
-                                    municipalidades: state.municipalidades,
-                                    onEdit: (m) => _showFormDialog(context, municipalidad: m),
+                          : state.municipalidades.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No se encontraron municipalidades',
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.54)),
                                   ),
+                                )
+                              : Column(
+                                  children: [
+                                    Expanded(
+                                      child: _MunicipalidadesTable(
+                                        municipalidades: state.municipalidades,
+                                        onEdit: (m) => _showFormDialog(context, municipalidad: m),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _PaginationBar(
+                                      currentPage: state.paginaActual - 1,
+                                      onPrev: state.paginaActual > 1
+                                          ? () => ref
+                                              .read(municipalidadesPaginadasProvider.notifier)
+                                              .irAPaginaAnterior()
+                                          : null,
+                                      onNext: state.hayMas
+                                          ? () => ref
+                                              .read(municipalidadesPaginadasProvider.notifier)
+                                              .irAPaginaSiguiente()
+                                          : null,
+                                      isCargando: state.cargando,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                _PaginationBar(
-                                  currentPage: state.paginaActual - 1,
-                                  onPrev: state.paginaActual > 1
-                                      ? () => ref
-                                          .read(municipalidadesPaginadasProvider.notifier)
-                                          .irAPaginaAnterior()
-                                      : null,
-                                  onNext: state.hayMas
-                                      ? () => ref
-                                          .read(municipalidadesPaginadasProvider.notifier)
-                                          .irAPaginaSiguiente()
-                                      : null,
-                                  isCargando: state.cargando,
-                                ),
-                              ],
-                            ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -202,82 +209,152 @@ class _ScreenHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        if (isMobile) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Municipalidades',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Gestión de municipalidades registradas',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.54)),
+                'Gestión de municipalidades',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedColumn,
+                        icon: Icon(Icons.arrow_drop_down,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                        isDense: true,
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                        items: ['Nombre', 'Municipio', 'Departamento'].map((String value) {
+                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        }).toList(),
+                        onChanged: onColumnChanged,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Agregar'),
+                  ),
+                ],
               ),
             ],
-          ),
-        ),
-        Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedColumn,
-              icon: Icon(Icons.arrow_drop_down,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.54)),
-              isDense: true,
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-              items: ['Nombre', 'Municipio', 'Departamento'].map((
-                String value,
-              ) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: onColumnChanged,
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Municipalidades',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Gestión de municipalidades registradas',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.54)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 260,
-          child: TextField(
-            onChanged: onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Buscar...',
-              prefixIcon: Icon(Icons.search_rounded, size: 20),
-              isDense: true,
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedColumn,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.54)),
+                  isDense: true,
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                  items: ['Nombre', 'Municipio', 'Departamento'].map((
+                    String value,
+                  ) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: onColumnChanged,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Agregar'),
-        ),
-      ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 260,
+              child: TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
