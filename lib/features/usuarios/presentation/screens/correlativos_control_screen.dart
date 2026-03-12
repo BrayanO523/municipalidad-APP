@@ -31,30 +31,37 @@ class _CorrelativosControlScreenState extends ConsumerState<CorrelativosControlS
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _HeaderSection(),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  if (state.cargando && state.usuarios.isEmpty) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (state.errorMsg != null && state.usuarios.isEmpty) {
-                    return Center(child: Text('Error: ${state.errorMsg}'));
-                  }
-                  return _CorrelativosTable(
-                    usuarios: state.usuarios.where((u) => u.esCobrador).toList(),
-                  );
-                },
-              ),
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HeaderSection(),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      if (state.cargando && state.usuarios.isEmpty) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (state.errorMsg != null && state.usuarios.isEmpty) {
+                        return Center(child: Text('Error: ${state.errorMsg}'));
+                      }
+                      return _CorrelativosTable(
+                        usuarios: state.usuarios.where((u) => u.esCobrador).toList(),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -63,35 +70,46 @@ class _CorrelativosControlScreenState extends ConsumerState<CorrelativosControlS
 class _HeaderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          Icons.tag_rounded,
-          color: Theme.of(context).colorScheme.onSurface,
-          size: 28,
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 500;
+        return Row(
           children: [
-            Text(
-              'Control de Correlativos',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            Icon(
+              Icons.tag_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: isMobile ? 22 : 28,
             ),
-            Text(
-              'Supervisión de prefijos y numeración por cobrador',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
-                fontSize: 14,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isMobile ? 'Correlativos' : 'Control de Correlativos',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: isMobile ? 18 : 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    isMobile
+                        ? 'Prefijos y numeración'
+                        : 'Supervisión de prefijos y numeración por cobrador',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                      fontSize: isMobile ? 12 : 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

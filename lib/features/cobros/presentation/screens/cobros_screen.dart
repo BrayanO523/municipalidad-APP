@@ -29,39 +29,46 @@ class CobrosScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _CobrosHeader(cobros: state.cobros),
-            const SizedBox(height: 20),
-            Expanded(
-              child:
-                  state.cargando && state.cobros.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : state.errorMsg != null
-                      ? Center(
-                        child: Text(
-                          state.errorMsg!,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      )
-                      : state.cobros.isEmpty
-                      ? Center(
-                        child: Text(
-                          'No hay cobros registrados aun',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.54),
-                          ),
-                        ),
-                      )
-                      : _CobrosFullTable(state: state),
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobilePadding = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobilePadding
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CobrosHeader(cobros: state.cobros),
+                const SizedBox(height: 20),
+                Expanded(
+                  child:
+                      state.cargando && state.cobros.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : state.errorMsg != null
+                          ? Center(
+                            child: Text(
+                              state.errorMsg!,
+                              style: const TextStyle(color: Colors.redAccent),
+                            ),
+                          )
+                          : state.cobros.isEmpty
+                          ? Center(
+                            child: Text(
+                              'No hay cobros registrados aun',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                              ),
+                            ),
+                          )
+                          : _CobrosFullTable(state: state),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -450,107 +457,248 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
           ),
         ),
 
-        // ── Tabla ─────────────────────────────────────────────────────────
+        // ── Tabla / Cards ─────────────────────────────────────────────
         Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
-              ),
-              border: Border.all(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outline.withValues(alpha: 0.1),
-              ),
-            ),
-            child: ScrollableTable(
-              child: DataTable(
-                headingRowHeight: 48,
-                dataRowMinHeight: 48,
-                dataRowMaxHeight: 56,
-                columnSpacing: 24,
-                headingTextStyle: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+          child: LayoutBuilder(
+            builder: (context, tableConstraints) {
+              final isMobileView = tableConstraints.maxWidth < 600;
+
+              if (isMobileView) {
+                // ── Vista de tarjetas para móvil ──
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(12),
+                    ),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Sin resultados',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final c = filtered[index];
+                            return Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Fila 1: Local + Monto
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            nombreLocal(c.localId, locales),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'L. ${c.monto?.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    // Fila 2: Mercado + Cobrador
+                                    Text(
+                                      '${nombreMercado(c.mercadoId, mercados)} • ${nombreCobrador(c.cobradorId, usuarios)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Fila 3: Fecha + Estado + Boleta + Acciones
+                                    Row(
+                                      children: [
+                                        Icon(Icons.calendar_today, size: 12,
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          DateFormatter.formatDateTime(c.fecha),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        _EstadoChip(estado: c.estado),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            c.numeroBoletaFmt,
+                                            style: const TextStyle(
+                                              color: Colors.blue,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        SizedBox(
+                                          width: 32, height: 32,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.print_rounded, size: 16),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () => _imprimirCobro(context, ref, c),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 32, height: 32,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 16),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () => _confirmarEliminacion(context, ref, c),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                );
+              }
+
+              // ── Vista de tabla para desktop ──
+              return Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(12),
+                  ),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                  ),
                 ),
-                columns: const [
-                  DataColumn(label: Text('Fecha')),
-                  DataColumn(label: Text('Mercado')),
-                  DataColumn(label: Text('Local')),
-                  DataColumn(label: Text('Monto')),
-                  DataColumn(label: Text('Estado')),
-                  DataColumn(label: Text('Cobrador')),
-                  DataColumn(label: Text('Boleta')),
-                  DataColumn(label: Text('Acciones')),
-                ],
-                rows:
-                    filtered.map((c) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
-                          DataCell(Text(nombreMercado(c.mercadoId, mercados))),
-                          DataCell(Text(nombreLocal(c.localId, locales))),
-                          DataCell(
-                            Text(
-                              'L. ${c.monto?.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          DataCell(_EstadoChip(estado: c.estado)),
-                          DataCell(Text(nombreCobrador(c.cobradorId, usuarios))),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                c.numeroBoletaFmt,
-                                style: const TextStyle(
-                                  color: Colors.blue,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.print_rounded,
-                                    size: 20,
+                child: ScrollableTable(
+                  child: DataTable(
+                    headingRowHeight: 48,
+                    dataRowMinHeight: 48,
+                    dataRowMaxHeight: 56,
+                    columnSpacing: 24,
+                    headingTextStyle: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    columns: const [
+                      DataColumn(label: Text('Fecha')),
+                      DataColumn(label: Text('Mercado')),
+                      DataColumn(label: Text('Local')),
+                      DataColumn(label: Text('Monto')),
+                      DataColumn(label: Text('Estado')),
+                      DataColumn(label: Text('Cobrador')),
+                      DataColumn(label: Text('Boleta')),
+                      DataColumn(label: Text('Acciones')),
+                    ],
+                    rows:
+                        filtered.map((c) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
+                              DataCell(Text(nombreMercado(c.mercadoId, mercados))),
+                              DataCell(Text(nombreLocal(c.localId, locales))),
+                              DataCell(
+                                Text(
+                                  'L. ${c.monto?.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  onPressed: () => _imprimirCobro(context, ref, c),
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_forever_rounded,
-                                    color: Colors.redAccent,
-                                    size: 20,
+                              ),
+                              DataCell(_EstadoChip(estado: c.estado)),
+                              DataCell(Text(nombreCobrador(c.cobradorId, usuarios))),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
                                   ),
-                                  tooltip: 'Eliminar cobro',
-                                  onPressed:
-                                      () =>
-                                          _confirmarEliminacion(context, ref, c),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    c.numeroBoletaFmt,
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-              ),
-            ),
+                              ),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.print_rounded,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => _imprimirCobro(context, ref, c),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_forever_rounded,
+                                        color: Colors.redAccent,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Eliminar cobro',
+                                      onPressed:
+                                          () =>
+                                              _confirmarEliminacion(context, ref, c),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
         ),
 

@@ -60,7 +60,7 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Asumiendo estilo dashboard
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -78,6 +78,8 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
                 fontWeight: FontWeight.bold,
                 color: colorScheme.onSurface,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               'Cobrador: ${widget.cobrador.nombre} (${widget.cobrador.codigoCobrador ?? "Sin cod"})',
@@ -85,12 +87,19 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
                 fontSize: 14,
                 color: colorScheme.onSurface.withAlpha(150),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
         child: Container(
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHighest.withAlpha(77),
@@ -172,6 +181,8 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
                           },
                         ),
         ),
+          );
+        },
       ),
     );
   }

@@ -30,68 +30,75 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _UsuariosHeader(
-              onSearch: (q) => ref.read(usuariosPaginadosProvider.notifier).buscar(q),
-              onAdd: () => _showFormDialog(context),
-              selectedColumn: _searchColumn,
-              onColumnChanged: (val) {
-                if (val != null) {
-                  setState(() => _searchColumn = val);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: state.cargando && state.usuarios.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.errorMsg != null
-                      ? Center(
-                          child: Text(
-                            state.errorMsg!,
-                            style: const TextStyle(color: Colors.redAccent),
-                          ),
-                        )
-                      : state.usuarios.isEmpty
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _UsuariosHeader(
+                  onSearch: (q) => ref.read(usuariosPaginadosProvider.notifier).buscar(q),
+                  onAdd: () => _showFormDialog(context),
+                  selectedColumn: _searchColumn,
+                  onColumnChanged: (val) {
+                    if (val != null) {
+                      setState(() => _searchColumn = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: state.cargando && state.usuarios.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : state.errorMsg != null
                           ? Center(
                               child: Text(
-                                'No se encontraron usuarios',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                                ),
+                                state.errorMsg!,
+                                style: const TextStyle(color: Colors.redAccent),
                               ),
                             )
-                          : Column(
-                              children: [
-                                Expanded(
-                                  child: _UsuariosTable(
-                                    usuarios: state.usuarios,
-                                    onEdit: (u) => _showFormDialog(context, usuario: u),
-                                    onDelete: (u) => _confirmDelete(context, u),
+                          : state.usuarios.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No se encontraron usuarios',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                                    ),
                                   ),
+                                )
+                              : Column(
+                                  children: [
+                                    Expanded(
+                                      child: _UsuariosTable(
+                                        usuarios: state.usuarios,
+                                        onEdit: (u) => _showFormDialog(context, usuario: u),
+                                        onDelete: (u) => _confirmDelete(context, u),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _PaginationBar(
+                                      currentPage: state.paginaActual - 1,
+                                      onPrev: state.paginaActual > 1
+                                          ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaAnterior()
+                                          : null,
+                                      onNext: state.hayMas
+                                          ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaSiguiente()
+                                          : null,
+                                      isCargando: state.cargando,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                _PaginationBar(
-                                  currentPage: state.paginaActual - 1,
-                                  onPrev: state.paginaActual > 1
-                                      ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaAnterior()
-                                      : null,
-                                  onNext: state.hayMas
-                                      ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaSiguiente()
-                                      : null,
-                                  isCargando: state.cargando,
-                                ),
-                              ],
-                            ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -736,92 +743,191 @@ class _UsuariosHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          Icons.people_alt_rounded,
-          color: Theme.of(context).colorScheme.onSurface,
-          size: 28,
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Gestión de Cobradores',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const Spacer(),
-        Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedColumn,
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        if (isMobile) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.people_alt_rounded,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Cobradores',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Crear', style: TextStyle(fontSize: 13)),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
               ),
-              isDense: true,
-              dropdownColor: Theme.of(context).colorScheme.surface,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedColumn,
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
+                        isDense: true,
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 12,
+                        ),
+                        items: ['Nombre', 'Correo Electrónico'].map((String value) {
+                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        }).toList(),
+                        onChanged: onColumnChanged,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: TextField(
+                        onChanged: onSearch,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 13,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar...',
+                          hintStyle: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                            size: 18,
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).cardTheme.color,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        // Desktop layout
+        return Row(
+          children: [
+            Icon(
+              Icons.people_alt_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Gestión de Cobradores',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 13,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
-              items: ['Nombre', 'Correo Electrónico'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
-              }).toList(),
-              onChanged: onColumnChanged,
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 250,
-          child: TextField(
-            onChanged: onSearch,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 13,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Buscar cobrador...',
-              hintStyle: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
-              ),
-              prefixIcon: Icon(
-                Icons.search,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
-                size: 18,
-              ),
-              filled: true,
-              fillColor: Theme.of(context).cardTheme.color,
-              border: OutlineInputBorder(
+            const Spacer(),
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedColumn,
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  isDense: true,
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
+                  items: ['Nombre', 'Correo Electrónico'].map((String value) {
+                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: onColumnChanged,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Crear Cobrador'),
-        ),
-      ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 250,
+              child: TextField(
+                onChanged: onSearch,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 13,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Buscar cobrador...',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    size: 18,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).cardTheme.color,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Crear Cobrador'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -880,30 +986,64 @@ class _UsuariosTable extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  u.creadoEn != null
-                      ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
-                      : 'Creado: -',
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.4),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            subtitle: LayoutBuilder(
+              builder: (context, subtitleConstraints) {
+                final isNarrow = subtitleConstraints.maxWidth < 300;
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        u.email ?? '',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Código: ${u.codigoCobrador ?? 'S/C'} • $strMercado',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (u.creadoEn != null)
+                        Text(
+                          'Creado: ${DateFormatter.formatDate(u.creadoEn!)}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                            fontSize: 11,
+                          ),
+                        ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      u.creadoEn != null
+                          ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
+                          : 'Creado: -',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
