@@ -31,22 +31,34 @@ class ShellScreen extends ConsumerWidget {
         final isMobile = constraints.maxWidth <= 700;
 
         if (isMobile) {
+          final mobileColorScheme = Theme.of(context).colorScheme;
           return Scaffold(
             appBar: AppBar(
-              title: const Text('QRecauda Admin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              title: Text(
+                'QRecauda Admin',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: mobileColorScheme.onSurface,
+                ),
+              ),
               elevation: 0,
-              scrolledUnderElevation: 0,
+              scrolledUnderElevation: 1,
+              actions: [
+                _ThemeToggleButton(
+                  isDark: Theme.of(context).brightness == Brightness.dark,
+                ),
+                const SizedBox(width: 4),
+              ],
             ),
             drawer: Drawer(
               child: _SidebarContent(isExpanded: true, isDrawer: true),
             ),
             body: Stack(
               children: [
-                SafeArea(
-                  child: IgnorePointer(
-                    ignoring: isLoading,
-                    child: child,
-                  ),
+                IgnorePointer(
+                  ignoring: isLoading,
+                  child: child,
                 ),
                 if (isLoading)
                   const Positioned(
@@ -104,15 +116,15 @@ class _SidebarNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
 
+    final sidebarColorScheme = Theme.of(context).colorScheme;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
       width: isExpanded ? 260 : 72,
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(right: BorderSide(color: colorScheme.outline, width: 1)),
+        color: sidebarColorScheme.surface,
+        border: Border(right: BorderSide(color: sidebarColorScheme.outline, width: 1)),
       ),
       child: _SidebarContent(isExpanded: isExpanded),
     );
@@ -131,7 +143,6 @@ class _SidebarContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.toString();
-    final colorScheme = Theme.of(context).colorScheme;
     final usuario = ref.watch(currentUsuarioProvider).value;
     final municipalidades = ref.watch(municipalidadesProvider).value ?? [];
 

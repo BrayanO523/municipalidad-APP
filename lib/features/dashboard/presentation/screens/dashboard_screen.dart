@@ -33,8 +33,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          final pagePadding = isMobile
+              ? const EdgeInsets.all(16)
+              : const EdgeInsets.all(24);
+          return SingleChildScrollView(
+            padding: pagePadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -248,6 +254,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const RecentCobrosTable(),
           ],
         ),
+      );
+        },
       ),
     );
   }
