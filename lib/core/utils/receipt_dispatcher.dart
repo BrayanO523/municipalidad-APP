@@ -91,6 +91,8 @@ class ReceiptDispatcher {
                 _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true, textColor: cs.onSurface),
                 if (local.clave != null && local.clave!.isNotEmpty)
                   _infoRow('Clave:', local.clave!, textColor: cs.onSurface),
+                if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
+                  _infoRow('Código:', local.codigoCatastral!, textColor: cs.onSurface),
                 if (montoAbonadoDeuda > 0)
                   _infoRow('Abono Deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent, textColor: cs.onSurface),
                 if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
@@ -136,6 +138,7 @@ class ReceiptDispatcher {
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
+                        codigoLocal: local.codigoCatastral,
                       );
                       if (context.mounted) {
                         await compartirPdf(
@@ -189,6 +192,7 @@ class ReceiptDispatcher {
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
+                        codigoLocal: local.codigoCatastral,
                       );
                     },
                     icon: const Icon(Icons.print_rounded),
@@ -288,6 +292,7 @@ class ReceiptDispatcher {
     String? periodoSaldoAFavorStr,
     String? slogan,
     String? clave,
+    String? codigoLocal,
   }) async {
     try {
       final printer = ref.read(printerServiceProvider);
@@ -309,6 +314,7 @@ class ReceiptDispatcher {
         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
         slogan: slogan,
         clave: clave,
+        codigoLocal: codigoLocal,
       );
     } catch (_) {}
   }
@@ -361,6 +367,8 @@ class ReceiptDispatcher {
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
               if (local.clave != null && local.clave!.isNotEmpty)
                 _pdfRow('CLAVE:', local.clave!),
+              if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
+                _pdfRow('CÓDIGO:', local.codigoCatastral!),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
               if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
               

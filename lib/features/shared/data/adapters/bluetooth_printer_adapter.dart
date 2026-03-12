@@ -99,6 +99,7 @@ class BluetoothPrinterAdapter implements PrinterService {
     String? periodoSaldoAFavorStr,
     String? slogan,
     String? clave,
+    String? codigoLocal,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -186,6 +187,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       final fechaStr = DateFormatter.formatDateTime(fecha);
       addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
       if (clave != null && clave.isNotEmpty) addText(r('CLAVE:', clave, normalWidth), 1, 0);
+      if (codigoLocal != null && codigoLocal.isNotEmpty) addText(r('CODIGO:', codigoLocal, normalWidth), 1, 0);
       addText(r('FECHA:', fechaStr, normalWidth), 1, 0);
       if (cobrador != null) {
         addText(r('COBRADOR:', cobrador.toUpperCase(), normalWidth), 1, 0);
