@@ -83,8 +83,12 @@ class DeudaService {
       fin: fechaFin,
     );
 
-    // 2. Indexar cobros en memoria para búsqueda rápida: Map<localId, Map<fechaKey, totalPagado>>
+    // 2. Indexar cobros en memoria:
+    //    mapaPagos: cuánto se pagó (para calcular faltante)
+    //    mapaExistencia: si YA EXISTE cualquier registro (pagado o pendiente)
+    //    Esto evita duplicar pendientes y consumir saldo a favor erróneamente.
     final Map<String, Map<String, num>> mapaPagos = {};
+    final Map<String, Set<String>> mapaExistencia = {};
     for (final c in todosLosCobros) {
       if (c.localId == null || c.fecha == null) continue;
       final f = c.fecha!;
@@ -93,6 +97,10 @@ class DeudaService {
       mapaPagos.putIfAbsent(c.localId!, () => {});
       final pagosDia = mapaPagos[c.localId!]!;
       pagosDia[fechaKey] = (pagosDia[fechaKey] ?? 0) + (c.monto ?? 0);
+      
+      // Registrar que EXISTE un cobro (sin importar el monto)
+      mapaExistencia.putIfAbsent(c.localId!, () => {});
+      mapaExistencia[c.localId!]!.add(fechaKey);
     }
 
     // 3. Procesar: iterar desde fechaLimite hasta ayer
@@ -113,7 +121,12 @@ class DeudaService {
           if (fecha.isBefore(fechaCreacion)) continue;
         }
 
-        // 4. Consultar pago desde el mapa en memoria (Costo 0 lecturas)
+        // 4. Si ya existe CUALQUIER registro para este local+fecha, saltar
+        //    (evita duplicar pendientes y consumir saldo a favor incorrectamente)
+        final yaExisteRegistro = mapaExistencia[lid]?.contains(fechaKey) ?? false;
+        if (yaExisteRegistro) continue;
+
+        // 5. Calcular faltante
         final pagadoEseDia = mapaPagos[lid]?[fechaKey] ?? 0;
         final cuota = local.cuotaDiaria!;
 
