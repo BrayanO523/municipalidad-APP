@@ -11,6 +11,9 @@ import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../../../core/widgets/scrollable_table.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
+import '../../../usuarios/domain/entities/usuario.dart';
 import '../viewmodels/cobro_viewmodel.dart';
 import '../viewmodels/cobros_paginados_notifier.dart';
 
@@ -259,27 +262,24 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
   String _searchQuery = '';
   String _searchColumn = 'Local';
 
-  String nombreLocal(String? id) {
+  String nombreLocal(String? id, List<Local> locales) {
     if (id == null) return '-';
-    final locales = ref.read(localesProvider).value ?? [];
     return locales
         .where((l) => l.id == id)
         .map((l) => l.nombreSocial ?? '-')
         .firstWhere((_) => true, orElse: () => 'Desconocido');
   }
 
-  String nombreMercado(String? id) {
+  String nombreMercado(String? id, List<Mercado> mercados) {
     if (id == null) return '-';
-    final mercados = ref.read(mercadosProvider).value ?? [];
     return mercados
         .where((m) => m.id == id)
         .map((m) => m.nombre ?? '-')
         .firstWhere((_) => true, orElse: () => 'Desconocido');
   }
 
-  String nombreCobrador(String? id) {
+  String nombreCobrador(String? id, List<Usuario> usuarios) {
     if (id == null) return '-';
-    final usuarios = ref.read(usuariosProvider).value ?? [];
     return usuarios
         .where((u) => u.id == id)
         .map((u) => u.nombre ?? '-')
@@ -288,6 +288,11 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
   @override
   Widget build(BuildContext context) {
+    // Escuchar activamente los datos maestros para que la tabla reaccione
+    final locales = ref.watch(localesProvider).value ?? [];
+    final mercados = ref.watch(mercadosProvider).value ?? [];
+    final usuarios = ref.watch(usuariosProvider).value ?? [];
+
     final q = _searchQuery.toLowerCase();
     final filtered =
         q.isEmpty
@@ -295,13 +300,13 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             : widget.state.cobros.where((c) {
               switch (_searchColumn) {
                 case 'Local':
-                  return nombreLocal(c.localId).toLowerCase().contains(q);
+                  return nombreLocal(c.localId, locales).toLowerCase().contains(q);
                 case 'Mercado':
-                  return nombreMercado(c.mercadoId).toLowerCase().contains(q);
+                  return nombreMercado(c.mercadoId, mercados).toLowerCase().contains(q);
                 case 'Estado':
                   return (c.estado ?? '').toLowerCase().contains(q);
                 case 'Cobrador':
-                  return nombreCobrador(c.cobradorId).toLowerCase().contains(q);
+                  return nombreCobrador(c.cobradorId, usuarios).toLowerCase().contains(q);
                 case 'Teléfono':
                   return (c.telefonoRepresentante ?? '')
                       .toLowerCase()
@@ -406,8 +411,8 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                       return DataRow(
                         cells: [
                           DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
-                          DataCell(Text(nombreMercado(c.mercadoId))),
-                          DataCell(Text(nombreLocal(c.localId))),
+                          DataCell(Text(nombreMercado(c.mercadoId, mercados))),
+                          DataCell(Text(nombreLocal(c.localId, locales))),
                           DataCell(
                             Text(
                               'L. ${c.monto?.toStringAsFixed(2)}',
@@ -417,7 +422,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                             ),
                           ),
                           DataCell(_EstadoChip(estado: c.estado)),
-                          DataCell(Text(nombreCobrador(c.cobradorId))),
+                          DataCell(Text(nombreCobrador(c.cobradorId, usuarios))),
                           DataCell(
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -503,20 +508,19 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
     final locales = ref.read(localesProvider).value ?? [];
     final mercados = ref.read(mercadosProvider).value ?? [];
-    final local = locales.firstWhere((l) => l.id == c.localId);
-    final mcd = mercados.firstWhere((m) => m.id == c.mercadoId);
+    final usuarios = ref.read(usuariosProvider).value ?? [];
 
     try {
       final municipalidad = ref.read(municipalidadActualProvider);
       await printer.printReceipt(
         empresa: municipalidad?.nombre ?? 'Municipalidad',
-        mercado: mcd.nombre ?? 'Mercado',
-        local: local.nombreSocial ?? 'Local',
+        mercado: nombreMercado(c.mercadoId, mercados),
+        local: nombreLocal(c.localId, locales),
         monto: (c.monto ?? 0).toDouble(),
         fecha: c.fecha ?? DateTime.now(),
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         anioCorrelativo: c.anioCorrelativo ?? DateTime.now().year,
-        cobrador: nombreCobrador(c.cobradorId),
+        cobrador: nombreCobrador(c.cobradorId, usuarios),
         saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
