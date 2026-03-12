@@ -574,10 +574,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final showPanel = _localSeleccionado != null;
         final isWide = constraints.maxWidth > 800;
 
-        if (showPanel && isWide) {
+        if (isWide) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -588,21 +587,20 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               const SizedBox(width: 16),
               Expanded(
                 flex: 2,
-                child: _buildPanelDetalle(context, _localSeleccionado!),
+                child: _localSeleccionado != null
+                    ? _buildPanelDetalle(context, _localSeleccionado!)
+                    : const _PanelDetalleVacio(),
               ),
             ],
           );
         }
 
-        // Si la pantalla es pequeña, quizás convenga mostrar el panel encima o usar un bottom sheet.
-        // Por ahora mantenemos la vista principal si no cabe al lado (el usuario igual puede editar usando las acciones directas de la tabla o ver en vertical).
-        // Simplificamos omitiendo el panel si la pantalla es estrecha, pero el usuario pidió esto asumiendo un dashboard web.
-        return showPanel 
+        return _localSeleccionado != null 
             ? Column(
                 children: [
-                  Expanded(flex: 2, child: mainList),
-                  const SizedBox(height: 16),
-                  Expanded(flex: 3, child: _buildPanelDetalle(context, _localSeleccionado!)),
+                   Expanded(flex: 2, child: mainList),
+                   const SizedBox(height: 16),
+                   Expanded(flex: 3, child: _buildPanelDetalle(context, _localSeleccionado!)),
                 ],
               )
             : mainList;
@@ -675,39 +673,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   ],
                 ),
               ),
-            ),
-            const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _showQrDialog(context, local),
-                  icon: const Icon(Icons.qr_code_rounded, size: 18),
-                  label: const Text('QR'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/locales/${local.id}/historial', extra: local),
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('Historial'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () => _showFormDialog(context, local: local),
-                  icon: const Icon(Icons.edit_rounded, size: 18),
-                  label: const Text('Editar'),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-                  onPressed: () => _confirmDelete(context, local),
-                  icon: const Icon(Icons.delete_rounded, size: 18),
-                  label: const Text('Eliminar'),
-                ),
-              ],
             ),
           ],
         ),
@@ -1512,6 +1477,38 @@ class _EmptyStateWidget extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PanelDetalleVacio extends StatelessWidget {
+  const _PanelDetalleVacio();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.touch_app_rounded, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+              const SizedBox(height: 16),
+              Text(
+                'Selecciona un local de la tabla\npara ver su información completa.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  fontSize: 15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
