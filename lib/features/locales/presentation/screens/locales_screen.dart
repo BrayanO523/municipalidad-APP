@@ -71,8 +71,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context),
-            const SizedBox(height: 16),
             _buildFiltros(context),
             const SizedBox(height: 16),
             Expanded(child: _buildContenido(context, paginacion)),
@@ -82,42 +80,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final paginacion = ref.watch(localesPaginadosProvider);
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Locales Comerciales',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                paginacion.mercadoSeleccionadoId != null
-                    ? 'Página ${paginacion.paginaActual} · ${paginacion.locales.length} locales mostrados'
-                    : 'Selecciona un mercado para ver sus locales',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                ),
-              ),
-            ],
-          ),
-        ),
-        ElevatedButton.icon(
-          onPressed: () => _showFormDialog(context),
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Agregar Local'),
-        ),
-      ],
-    );
-  }
 
   Widget _buildFiltros(BuildContext context) {
     final user = ref.watch(currentUsuarioProvider).value;
@@ -125,335 +87,429 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final state = ref.watch(localesPaginadosProvider);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Filtro Jerárquico: selector de mercado con búsqueda integrada.
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filtrar por Mercado',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.54),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownSearch<Mercado>(
-                    asyncItems: (filter) async {
-                      try {
-                        final ds = ref.read(mercadoDatasourceProvider);
-                        if (filter.isEmpty) {
-                          // Sin texto: carga los primeros 30 del municipio.
-                          final result = await ds.listarPagina(
-                            municipalidadId: municipalidadId,
-                            limit: 30,
-                          );
-                          return result.items
-                              .map(
-                                (m) => Mercado(
-                                  id: m.id,
-                                  nombre: m.nombre,
-                                  ubicacion: m.ubicacion,
-                                  latitud: m.latitud,
-                                  longitud: m.longitud,
-                                  perimetro: m.perimetro,
-                                  activo: m.activo,
-                                ),
-                              )
-                              .toList();
-                        }
-                        // Con texto: búsqueda por prefijo.
-                        final resultados = await ds.buscarPorPrefijo(
-                          prefijo: filter,
-                          municipalidadId: municipalidadId,
-                          limit: 15,
-                        );
-                        return resultados
-                            .map(
-                              (m) => Mercado(
-                                id: m.id,
-                                nombre: m.nombre,
-                                ubicacion: m.ubicacion,
-                                latitud: m.latitud,
-                                longitud: m.longitud,
-                                perimetro: m.perimetro,
-                                activo: m.activo,
-                              ),
-                            )
-                            .toList();
-                      } catch (e) {
-                        final text = e.toString();
-                        final match = RegExp(
-                          r'https://console\.firebase\.google\.com[^\s]+',
-                        ).firstMatch(text);
-                        if (match != null) {
-                          debugPrint(
-                            '\n\n🚨 FALTAN ÍNDICES EN FIRESTORE (MERCADOS) 🚨',
-                          );
-                          debugPrint(
-                            '👇 ENLACE PARA CREARLOS 👇\n\n${match.group(0)}\n\n',
-                          );
-                        } else {
-                          debugPrint(
-                            '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
-                          );
-                        }
-                        throw Exception(text);
-                      }
-                    },
-                    itemAsString: (m) => m.nombre ?? m.id ?? '-',
-                    compareFn: (a, b) => a.id == b.id,
-                    selectedItem: _mercadoSeleccionado,
-                    onChanged: (mercado) {
-                      setState(() => _mercadoSeleccionado = mercado);
-                      ref
-                          .read(localesPaginadosProvider.notifier)
-                          .seleccionarMercado(mercado);
-                    },
-                    popupProps: PopupProps.menu(
-                      showSearchBox: true,
-                      searchFieldProps: const TextFieldProps(
-                        decoration: InputDecoration(
-                          hintText: 'Buscar mercado...',
-                          prefixIcon: Icon(Icons.search_rounded, size: 18),
-                          isDense: true,
-                        ),
-                      ),
-                      menuProps: MenuProps(
-                        backgroundColor:
-                            Theme.of(context).cardTheme.color ??
-                            Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        elevation: 8,
-                      ),
-                      fit: FlexFit.loose,
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      emptyBuilder: (ctx, text) => Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          'No se encontraron mercados',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.54),
-                          ),
-                        ),
-                      ),
-                    ),
-                    dropdownDecoratorProps: const DropDownDecoratorProps(
-                      dropdownSearchDecoration: InputDecoration(
-                        hintText: 'Todos los mercados',
-                        prefixIcon: Icon(Icons.store_rounded, size: 18),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                    ),
-                    clearButtonProps: const ClearButtonProps(isVisible: true),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 16),
-
-            // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Buscar Local',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.54),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Autocomplete<Local>(
-                    key: _searchKey,
-                    optionsBuilder: (textEditingValue) async {
-                      final patron = textEditingValue.text;
-                      if (patron.length < 2) return [];
-                      final ds = ref.read(localDatasourceProvider);
-                      final results = await ds.buscarPorPrefijo(
-                        prefijo: patron,
-                        mercadoId: _mercadoSeleccionado?.id,
-                        municipalidadId: municipalidadId,
-                        limit: 8,
-                      );
-                      return results.cast<Local>();
-                    },
-                    displayStringForOption: (local) => local.nombreSocial ?? '',
-                    fieldViewBuilder:
-                        (ctx, controller, focusNode, onFieldSubmitted) {
-                          // Escuchar cambios para filtrar la lista principal (DataTable)
-                          controller.addListener(() {
-                            // Sincronizamos con el buscador del provider
-                            _onSearchChanged(controller.text);
-                          });
-                          return TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: const InputDecoration(
-                              hintText: 'Nombre o Código local...',
-                              prefixIcon: Icon(Icons.search_rounded, size: 18),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                            ),
-                          );
-                        },
-                    optionsViewBuilder: (ctx, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 8,
-                          borderRadius: BorderRadius.circular(8),
-                          color: Theme.of(context).colorScheme.surface,
-                          child: SizedBox(
-                            width: 350,
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              padding: EdgeInsets.zero,
-                              itemCount: options.length,
-                              itemBuilder: (ctx, index) {
-                                final local = options.elementAt(index);
-                                return ListTile(
-                                  dense: true,
-                                  leading: Icon(
-                                    Icons.storefront_rounded,
-                                    size: 16,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.54),
-                                  ),
-                                  title: Text(
-                                    local.nombreSocial ?? '-',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                  subtitle: Text(
-                                    local.representante ??
-                                        local.mercadoId ??
-                                        '',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.7),
-                                    ),
-                                  ),
-                                  onTap: () => onSelected(local),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    onSelected: (local) {
-                      _debounce?.cancel();
-                      ref
-                          .read(localesPaginadosProvider.notifier)
-                          .aplicarBusqueda(local.nombreSocial ?? '');
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 16),
-
-            // Filtro de Deuda / Saldos
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Filtrar por Estado',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                SegmentedButton<LocalFiltroDeuda>(
-                  segments: const [
-                    ButtonSegment(
-                      value: LocalFiltroDeuda.todos,
-                      label: Text('Todos'),
-                      icon: Icon(Icons.list_rounded, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: LocalFiltroDeuda.soloDeudores,
-                      label: Text('Deudores'),
-                      icon: Icon(Icons.trending_down_rounded, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: LocalFiltroDeuda.soloSaldosAFavor,
-                      label: Text('Saldos +'),
-                      icon: Icon(Icons.trending_up_rounded, size: 16),
-                    ),
-                  ],
-                  selected: {state.filtroDeuda},
-                  onSelectionChanged: (newSelection) {
-                    ref
-                        .read(localesPaginadosProvider.notifier)
-                        .cambiarFiltroDeuda(newSelection.first);
-                  },
-                  showSelectedIcon: false,
-                  style: SegmentedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(width: 12),
-
-            // Botón de limpiar filtros.
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _mercadoSeleccionado = null;
-                  _localSeleccionado = null;
-                  _searchKey = UniqueKey(); // Fuerza reset del Autocomplete UI
-                });
-                _debounce?.cancel();
-                ref.read(localesPaginadosProvider.notifier).recargar();
-              },
-              icon: const Icon(Icons.filter_list_off_rounded),
-              tooltip: 'Limpiar filtros',
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.1),
-                foregroundColor: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
         ),
       ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 1100;
+
+            final List<Widget> filterContent = [
+              // 1. Título y Subtítulo integrados
+              if (isWide)
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Locales Comerciales',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        state.mercadoSeleccionadoId != null
+                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
+                            : 'Selecciona un mercado...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SizedBox(
+                  width: 200,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Locales Comerciales',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        state.mercadoSeleccionadoId != null
+                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
+                            : 'Selecciona un mercado...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              
+              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+
+              // 2. Filtro Jerárquico: selector de mercado con búsqueda integrada.
+              if (isWide) Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId))
+              else SizedBox(width: 220, child: _buildMercadoDropdown(context, municipalidadId)),
+
+
+              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+
+              // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
+              if (isWide) Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId))
+              else SizedBox(width: 220, child: _buildLocalSearch(context, municipalidadId)),
+
+              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+
+              // Filtro de Deuda / Saldos
+              _buildFiltroEstado(context, state),
+
+              if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
+
+              // Botón de limpiar filtros.
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _mercadoSeleccionado = null;
+                    _localSeleccionado = null;
+                    _searchKey = UniqueKey(); // Fuerza reset del Autocomplete UI
+                  });
+                  _debounce?.cancel();
+                  ref.read(localesPaginadosProvider.notifier).recargar();
+                },
+                icon: const Icon(Icons.filter_list_off_rounded),
+                tooltip: 'Limpiar filtros',
+                style: IconButton.styleFrom(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.1),
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+
+              if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
+
+              // Botón Agregar Local
+              ElevatedButton.icon(
+                onPressed: () => _showFormDialog(context),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Agregar'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ];
+
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: filterContent,
+              );
+            } else {
+              return Wrap(
+                spacing: 8,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: filterContent,
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMercadoDropdown(BuildContext context, String? municipalidadId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Filtrar por Mercado',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownSearch<Mercado>(
+          asyncItems: (filter) async {
+            try {
+              final ds = ref.read(mercadoDatasourceProvider);
+              if (filter.isEmpty) {
+                // Sin texto: carga los primeros 30 del municipio.
+                final result = await ds.listarPagina(
+                  municipalidadId: municipalidadId,
+                  limit: 30,
+                );
+                return result.items
+                    .map(
+                      (m) => Mercado(
+                        id: m.id,
+                        nombre: m.nombre,
+                        ubicacion: m.ubicacion,
+                        latitud: m.latitud,
+                        longitud: m.longitud,
+                        perimetro: m.perimetro,
+                        activo: m.activo,
+                      ),
+                    )
+                    .toList();
+              }
+              // Con texto: búsqueda por prefijo.
+              final resultados = await ds.buscarPorPrefijo(
+                prefijo: filter,
+                municipalidadId: municipalidadId,
+                limit: 15,
+              );
+              return resultados
+                  .map(
+                    (m) => Mercado(
+                      id: m.id,
+                      nombre: m.nombre,
+                      ubicacion: m.ubicacion,
+                      latitud: m.latitud,
+                      longitud: m.longitud,
+                      perimetro: m.perimetro,
+                      activo: m.activo,
+                    ),
+                  )
+                  .toList();
+            } catch (e) {
+              final text = e.toString();
+              debugPrint('\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n');
+              throw Exception(text);
+            }
+          },
+          itemAsString: (m) => m.nombre ?? m.id ?? '-',
+          compareFn: (a, b) => a.id == b.id,
+          selectedItem: _mercadoSeleccionado,
+          onChanged: (mercado) {
+            setState(() => _mercadoSeleccionado = mercado);
+            ref
+                .read(localesPaginadosProvider.notifier)
+                .seleccionarMercado(mercado);
+          },
+          popupProps: PopupProps.menu(
+            showSearchBox: true,
+            searchFieldProps: const TextFieldProps(
+              decoration: InputDecoration(
+                hintText: 'Buscar mercado...',
+                prefixIcon: Icon(Icons.search_rounded, size: 18),
+                isDense: true,
+              ),
+            ),
+            menuProps: MenuProps(
+              backgroundColor:
+                  Theme.of(context).cardTheme.color ??
+                  Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              elevation: 8,
+            ),
+            fit: FlexFit.loose,
+            constraints: const BoxConstraints(maxHeight: 300),
+            emptyBuilder: (ctx, text) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No se encontraron mercados',
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
+              ),
+            ),
+          ),
+          dropdownDecoratorProps: const DropDownDecoratorProps(
+            dropdownSearchDecoration: InputDecoration(
+              hintText: 'Todos los mercados',
+              prefixIcon: Icon(Icons.store_rounded, size: 18),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+            ),
+          ),
+          clearButtonProps: const ClearButtonProps(isVisible: true),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocalSearch(BuildContext context, String? municipalidadId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Buscar Local',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Autocomplete<Local>(
+          key: _searchKey,
+          optionsBuilder: (textEditingValue) async {
+            final patron = textEditingValue.text;
+            if (patron.length < 2) return [];
+            final ds = ref.read(localDatasourceProvider);
+            final results = await ds.buscarPorPrefijo(
+              prefijo: patron,
+              mercadoId: _mercadoSeleccionado?.id,
+              municipalidadId: municipalidadId,
+              limit: 8,
+            );
+            return results.cast<Local>();
+          },
+          displayStringForOption: (local) => local.nombreSocial ?? '',
+          fieldViewBuilder:
+              (ctx, controller, focusNode, onFieldSubmitted) {
+                // Escuchar cambios para filtrar la lista principal (DataTable)
+                controller.addListener(() {
+                  // Sincronizamos con el buscador del provider
+                  _onSearchChanged(controller.text);
+                });
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    hintText: 'Nombre o Código local...',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                );
+              },
+          optionsViewBuilder: (ctx, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(8),
+                color: Theme.of(context).colorScheme.surface,
+                child: SizedBox(
+                  width: 350,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: options.length,
+                    itemBuilder: (ctx, index) {
+                      final local = options.elementAt(index);
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.storefront_rounded,
+                          size: 16,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.54),
+                        ),
+                        title: Text(
+                          local.nombreSocial ?? '-',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        subtitle: Text(
+                          local.representante ??
+                              local.mercadoId ??
+                              '',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.7),
+                          ),
+                        ),
+                        onTap: () => onSelected(local),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          onSelected: (local) {
+            _debounce?.cancel();
+            ref
+                .read(localesPaginadosProvider.notifier)
+                .aplicarBusqueda(local.nombreSocial ?? '');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltroEstado(BuildContext context, LocalesPaginadosState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Filtrar por Estado',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        SegmentedButton<LocalFiltroDeuda>(
+          segments: const [
+            ButtonSegment(
+              value: LocalFiltroDeuda.todos,
+              label: Text('Todos'),
+              icon: Icon(Icons.list_rounded, size: 16),
+            ),
+            ButtonSegment(
+              value: LocalFiltroDeuda.soloDeudores,
+              label: Text('Deudores'),
+              icon: Icon(Icons.trending_down_rounded, size: 16),
+            ),
+            ButtonSegment(
+              value: LocalFiltroDeuda.soloSaldosAFavor,
+              label: Text('Saldos +'),
+              icon: Icon(Icons.trending_up_rounded, size: 16),
+            ),
+          ],
+          selected: {state.filtroDeuda},
+          onSelectionChanged: (newSelection) {
+            ref
+                .read(localesPaginadosProvider.notifier)
+                .cambiarFiltroDeuda(newSelection.first);
+          },
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            textStyle: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 
