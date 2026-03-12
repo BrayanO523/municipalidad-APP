@@ -174,16 +174,24 @@ class CobroDatasource {
   Future<List<CobroJson>> listarPorIds(List<String> ids) async {
     if (ids.isEmpty) return [];
     
-    final List<CobroJson> results = [];
     // Firestore whereIn supports up to 30 elements.
+    final List<List<String>> batches = [];
     for (var i = 0; i < ids.length; i += 30) {
-      final batchIds = ids.sublist(
+      batches.add(ids.sublist(
         i,
         i + 30 > ids.length ? ids.length : i + 30,
-      );
-      final snapshot = await _collection
+      ));
+    }
+
+    // Ejecutar todas las peticiones en paralelo
+    final snapshots = await Future.wait(
+      batches.map((batchIds) => _collection
           .where(FieldPath.documentId, whereIn: batchIds)
-          .get();
+          .get())
+    );
+
+    final List<CobroJson> results = [];
+    for (final snapshot in snapshots) {
       results.addAll(
         snapshot.docs.map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id)),
       );

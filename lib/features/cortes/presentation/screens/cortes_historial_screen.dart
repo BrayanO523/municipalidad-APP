@@ -38,72 +38,77 @@ class CortesHistorialScreen extends ConsumerWidget {
                   : Column(
                       children: [
                         Expanded(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(8.0),
-                            itemCount: _getSortedKeys(_groupCortes(state.cortes)).length,
-                            itemBuilder: (context, index) {
+                          child: Builder(
+                            builder: (context) {
                               final grouped = _groupCortes(state.cortes);
                               final sortedKeys = _getSortedKeys(grouped);
-                              final dateKey = sortedKeys[index];
-                              final dayCortes = grouped[dateKey]!;
+                              
+                              return ListView.builder(
+                                padding: const EdgeInsets.all(8.0),
+                                itemCount: sortedKeys.length,
+                                itemBuilder: (context, index) {
+                                  final dateKey = sortedKeys[index];
+                                  final dayCortes = grouped[dateKey]!;
 
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                                    child: Text(
-                                      DateFormat('EEEE, d MMMM yyyy', 'es_ES')
-                                          .format(DateTime.parse(dateKey))
-                                          .toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.8),
-                                        letterSpacing: 1.1,
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                                        child: Text(
+                                          DateFormat('EEEE, d MMMM yyyy', 'es_ES')
+                                              .format(DateTime.parse(dateKey))
+                                              .toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.8),
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  ...dayCortes.map((corte) => Card(
-                                        elevation: 1,
-                                        margin: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                          horizontal: 8,
-                                        ),
-                                        child: ListTile(
-                                          leading: CircleAvatar(
-                                            backgroundColor: Theme.of(context)
-                                                .primaryColor
-                                                .withValues(alpha: 0.1),
-                                            child: Icon(Icons.receipt_long,
-                                                color: Theme.of(context).primaryColor),
-                                          ),
-                                          title: Text(
-                                            'L. ${corte.totalCobrado.toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold),
-                                          ),
-                                          subtitle: Text(
-                                              'Hora: ${DateFormat('hh:mm a').format(corte.fechaCorte)} • '
-                                              '${corte.cantidadRegistros} cobros'
-                                              '${isAdmin ? '\nCobrador: ${corte.cobradorNombre}' : ''}'),
-                                          trailing: const Icon(
-                                              Icons.arrow_forward_ios_rounded,
-                                              size: 16),
-                                          onTap: () {
-                                            context.push(
-                                              isAdmin
-                                                  ? '/corte-detalle'
-                                                  : '/cobrador/corte-detalle',
-                                              extra: corte,
-                                            );
-                                          },
-                                        ),
-                                      )),
-                                ],
+                                      ...dayCortes.map((corte) => Card(
+                                            elevation: 1,
+                                            margin: const EdgeInsets.symmetric(
+                                              vertical: 4,
+                                              horizontal: 8,
+                                            ),
+                                            child: ListTile(
+                                              leading: CircleAvatar(
+                                                backgroundColor: Theme.of(context)
+                                                    .primaryColor
+                                                    .withValues(alpha: 0.1),
+                                                child: Icon(Icons.receipt_long,
+                                                    color: Theme.of(context).primaryColor),
+                                              ),
+                                              title: Text(
+                                                'L. ${corte.totalCobrado.toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold),
+                                              ),
+                                              subtitle: Text(
+                                                  'Hora: ${DateFormat('hh:mm a').format(corte.fechaCorte)} • '
+                                                  '${corte.cantidadRegistros} cobros'
+                                                  '${isAdmin ? '\nCobrador: ${corte.cobradorNombre}' : ''}'),
+                                              trailing: const Icon(
+                                                  Icons.arrow_forward_ios_rounded,
+                                                  size: 16),
+                                              onTap: () {
+                                                context.push(
+                                                  isAdmin
+                                                      ? '/corte-detalle'
+                                                      : '/cobrador/corte-detalle',
+                                                  extra: corte,
+                                                );
+                                              },
+                                            ),
+                                          )),
+                                    ],
+                                  );
+                                },
                               );
                             },
                           ),
