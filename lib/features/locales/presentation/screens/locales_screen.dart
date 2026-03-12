@@ -67,16 +67,23 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFiltros(context),
-            const SizedBox(height: 16),
-            Expanded(child: _buildContenido(context, paginacion)),
-          ],
-        ),
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobilePadding = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobilePadding
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFiltros(context),
+                const SizedBox(height: 16),
+                Expanded(child: _buildContenido(context, paginacion)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -101,6 +108,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth > 1100;
+            final isMobile = constraints.maxWidth < 500;
 
             final List<Widget> filterContent = [
               // 1. Título y Subtítulo integrados
@@ -133,7 +141,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 )
               else
                 SizedBox(
-                  width: 200,
+                  width: isMobile ? double.infinity : 200,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -163,14 +171,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
               // 2. Filtro Jerárquico: selector de mercado con búsqueda integrada.
               if (isWide) Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId))
-              else SizedBox(width: 220, child: _buildMercadoDropdown(context, municipalidadId)),
+              else SizedBox(width: isMobile ? double.infinity : 220, child: _buildMercadoDropdown(context, municipalidadId)),
 
 
               if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
 
               // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
               if (isWide) Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId))
-              else SizedBox(width: 220, child: _buildLocalSearch(context, municipalidadId)),
+              else SizedBox(width: isMobile ? double.infinity : 220, child: _buildLocalSearch(context, municipalidadId)),
 
               if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
 
@@ -565,13 +573,37 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       selectedLocalId: _localSeleccionado?.id,
       scrollController: _scrollCtrl,
       onSelect: (l) {
-        setState(() {
-          if (_localSeleccionado?.id == l.id) {
-            _localSeleccionado = null;
-          } else {
-            _localSeleccionado = l;
-          }
-        });
+        final isWide = MediaQuery.of(context).size.width > 800;
+        if (isWide) {
+          setState(() {
+            if (_localSeleccionado?.id == l.id) {
+              _localSeleccionado = null;
+            } else {
+              _localSeleccionado = l;
+            }
+          });
+        } else {
+          // Móvil: mostrar detalle como bottom sheet
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (_) => DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (ctx, scrollCtrl) => SingleChildScrollView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                child: _buildPanelDetalleContent(ctx, l),
+              ),
+            ),
+          );
+        }
       },
       onEdit: (l) => _showFormDialog(context, local: l),
       onViewQr: (l) => _showQrDialog(context, l),
@@ -672,45 +704,15 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         return Column(
           children: [
             Expanded(
-              child: _localSeleccionado != null 
-                  ? Column(
-                      children: [
-                         Expanded(
-                           flex: 2, 
-                           child: Card(
-                             elevation: 2,
-                             clipBehavior: Clip.antiAlias,
-                             shape: RoundedRectangleBorder(
-                               borderRadius: BorderRadius.circular(16),
-                               side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                             ),
-                             child: mainList,
-                           ),
-                         ),
-                         const SizedBox(height: 16),
-                         Expanded(
-                           flex: 3, 
-                           child: Card(
-                             elevation: 2,
-                             clipBehavior: Clip.antiAlias,
-                             shape: RoundedRectangleBorder(
-                               borderRadius: BorderRadius.circular(16),
-                               side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                             ),
-                             child: _buildPanelDetalle(context, _localSeleccionado!),
-                           ),
-                         ),
-                      ],
-                    )
-                  : Card(
-                      elevation: 2,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                      ),
-                      child: mainList,
-                    ),
+              child: Card(
+                elevation: 2,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                ),
+                child: mainList,
+              ),
             ),
             panelPaginacion,
           ],
@@ -742,51 +744,117 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
     final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
 
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 200;
+        final pd = compact ? 12.0 : 24.0;
+        return Container(
+          color: Theme.of(context).colorScheme.surface,
+          child: Padding(
+            padding: EdgeInsets.all(pd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    local.nombreSocial ?? 'Detalles del Local',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => setState(() => _localSeleccionado = null),
-                  tooltip: 'Cerrar detalle',
-                )
-              ],
-            ),
-            const Divider(height: 32),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
-                    _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
-                    _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
-                    _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
-                    _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
-                    _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
-                    _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
-                    _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
-                    _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+                    Expanded(
+                      child: Text(
+                        local.nombreSocial ?? 'Detalles del Local',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => setState(() => _localSeleccionado = null),
+                      tooltip: 'Cerrar detalle',
+                    )
                   ],
                 ),
-              ),
+                const Divider(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
+                        _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
+                        _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
+                        _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
+                        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
+                        _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
+                        _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
+                        _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
+                        _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Versión "flat" del panel de detalle (sin Expanded) — para bottom sheet en móvil.
+  Widget _buildPanelDetalleContent(BuildContext context, Local local) {
+    final usuarios = ref.watch(usuariosProvider).value ?? [];
+    final tipos = ref.watch(tiposNegocioProvider).value ?? [];
+
+    final enRuta = usuarios.where(
+      (u) => u.esCobrador && (u.rutaAsignada?.contains(local.id) ?? false),
+    );
+
+    String? cobradorNombre;
+    if (enRuta.isNotEmpty) {
+      cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
+    } else {
+      final enMercado = usuarios
+          .where((u) => u.esCobrador && u.mercadoId == local.mercadoId)
+          .toList();
+      if (enMercado.length == 1) {
+        cobradorNombre = enMercado.first.nombre;
+      }
+    }
+
+    final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
+    final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Handle bar
+        Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ),
-      ),
+        Text(
+          local.nombreSocial ?? 'Detalles del Local',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const Divider(height: 24),
+        _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
+        _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
+        _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
+        _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
+        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
+        _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
+        _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
+        _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
+        _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+      ],
     );
   }
 
