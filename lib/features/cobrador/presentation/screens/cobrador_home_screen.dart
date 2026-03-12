@@ -1032,10 +1032,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             final nombre = (l.nombreSocial ?? '').toLowerCase();
             final rep = (l.representante ?? '').toLowerCase();
             final currClave = (l.clave ?? '').toLowerCase();
+            final codigoCatastral = (l.codigoCatastral ?? '').toLowerCase();
             pasaFiltroTexto =
                 nombre.contains(q) ||
                 rep.contains(q) ||
-                currClave.contains(q);
+                currClave.contains(q) ||
+                codigoCatastral.contains(q);
           }
 
           return pasaFiltroEstado && pasaFiltroFrecuencia && pasaFiltroTexto;
