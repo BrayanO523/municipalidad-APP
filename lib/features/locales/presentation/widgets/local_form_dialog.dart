@@ -68,57 +68,43 @@ Future<void> showLocalFormDialog(
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                controller: representanteCtrl,
-                                decoration: const InputDecoration(
-                                  labelText: 'Representante',
-                                ),
-                              ),
+                        TextField(
+                          controller: representanteCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Representante',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: codigoCatastralCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Código Local',
+                            helperText: 'Opcional, Búsqueda libre',
+                            helperStyle: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.5),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 1,
-                              child: TextField(
-                                controller: codigoCatastralCtrl,
-                                decoration: InputDecoration(
-                                  labelText: 'Código Local',
-                                  helperText: 'Opcional, Búsqueda libre',
-                                  helperStyle: TextStyle(
-                                    fontSize: 10,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: claveCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Clave (Ej. 22-37-01-01)',
+                            helperText: 'Autogenerado si vacío',
+                            helperStyle: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.5),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 1,
-                              child: TextField(
-                                controller: claveCtrl,
-                                decoration: InputDecoration(
-                                  labelText: 'Clave (Ej. 22-37-01-01)',
-                                  helperText: 'Autogenerado si vacío',
-                                  helperStyle: TextStyle(
-                                    fontSize: 10,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                ),
-                                maxLength: 20,
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                              ),
-                            ),
-                          ],
+                          ),
+                          maxLength: 20,
+                          textCapitalization: TextCapitalization.characters,
                         ),
                         const SizedBox(height: 12),
                         TextField(
