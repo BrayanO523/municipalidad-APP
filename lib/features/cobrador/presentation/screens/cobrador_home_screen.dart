@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+import '../../../cobros/domain/utils/calculadora_distribucion.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../locales/presentation/widgets/local_form_dialog.dart';
 import '../../../../app/di/providers.dart';
@@ -159,7 +160,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   num _montoPagadoHoy(String localId, List<Cobro> cobrosHoy) {
     return cobrosHoy
         .where((c) => c.localId == localId)
-        .fold<num>(0, (acc, c) => acc + (c.monto ?? 0));
+        .fold<num>(0, (acc, c) => acc + (c.pagoACuota ?? 0));
   }
 
   Cobro? _cobroDelLocal(String localId, List<Cobro> cobrosHoy) {
@@ -480,30 +481,100 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     label: 'Representante',
                     value: local.representante ?? '-',
                   ),
-                  if (saldoActual > 0)
-                    _InfoRow(
-                      label: 'Saldo a favor Total',
-                      value: DateFormatter.formatCurrency(saldoActual),
-                      color: AppColors.success,
-                    ),
-                  if ((local.deudaAcumulada ?? 0) > 0)
-                    _InfoRow(
-                      label: 'Deuda Acumulada',
-                      value: DateFormatter.formatCurrency(local.deudaAcumulada),
-                      color: AppColors.danger,
-                    ),
-                  _InfoRow(
-                    label: 'Balance Neto',
-                    value: DateFormatter.formatCurrency(local.balanceNeto),
-                    color: local.balanceNeto >= 0
-                        ? AppColors.success
-                        : AppColors.danger,
-                  ),
+                  // --- PANEL SUPERIOR REACTIVO ---
+                  Builder(builder: (context) {
+                    final currMonto = double.tryParse(montoCtrl.text) ?? 0;
+                    final currExtraer = usarSaldoFavor ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0) : 0;
+                    
+                    final dist = CalculadoraDistribucionPago.calcular(
+                      montoEfectivo: currMonto,
+                      deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+                      cuotaDiaria: cuota,
+                      pagadoHoyPreviamente: pagadoHoy,
+                      saldoFavorInicial: saldoActual,
+                      fechaReferencia: DateTime.now(),
+                      saldoAExtraer: currExtraer,
+                    );
+
+                    Widget buildDynamicRow({required String label, required String value, String? subtitle, Color? valueColor}) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14)),
+                                  if (subtitle != null && subtitle.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4, right: 8),
+                                      child: Text(subtitle, style: TextStyle(fontSize: 12, color: valueColor, fontWeight: FontWeight.w500)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: valueColor ?? cs.onSurface, fontSize: 15)),
+                          ],
+                        ),
+                      );
+                    }
+
+                    String rangoDeudaStr = '';
+                    if (dist.diasAtrasadosSaldados > 0 && dist.inicioDeudaPagada != null && dist.finDeudaPagada != null) {
+                      final ini = '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}';
+                      final fin = '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}';
+                      rangoDeudaStr = dist.diasAtrasadosSaldados == 1 ? 'Cubre el $ini' : 'Cubre del $ini al $fin';
+                    }
+
+                    String rangoAdelantoStr = '';
+                    if (dist.diasAdelantados > 0 && dist.inicioDiasAdelantados != null && dist.finDiasAdelantados != null) {
+                      final ini = '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}';
+                      final fin = '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}';
+                      rangoAdelantoStr = dist.diasAdelantados == 1 ? 'Adelanta el $ini' : 'Adelanta del $ini al $fin';
+                    }
+
+                    final isTyping = (currMonto > 0 || currExtraer > 0);
+                    final realFaltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (dist.saldoFavorFinalResultante > 0 || saldoActual > 0)
+                          buildDynamicRow(
+                            label: 'Saldo a favor Total',
+                            value: DateFormatter.formatCurrency(isTyping ? dist.saldoFavorFinalResultante : saldoActual),
+                            subtitle: isTyping ? rangoAdelantoStr : null,
+                            valueColor: AppColors.success,
+                          ),
+                          
+                        if (dist.deudaFinalResultante > 0 || (local.deudaAcumulada ?? 0) > 0)
+                          buildDynamicRow(
+                            label: 'Deuda Acumulada',
+                            value: DateFormatter.formatCurrency(isTyping ? dist.deudaFinalResultante : (local.deudaAcumulada ?? 0)),
+                            subtitle: isTyping ? rangoDeudaStr : null,
+                            valueColor: AppColors.danger,
+                          ),
+
+                        buildDynamicRow(
+                          label: 'Cuota de Hoy',
+                          value: isTyping 
+                              ? (dist.estadoCuotaHoy == 0 ? (cuota > 0 ? 'Saldará' : 'N/A') : 'Faltará ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}')
+                              : (realFaltanteHoy == 0 ? (cuota > 0 ? 'Saldada' : 'N/A') : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}'),
+                          valueColor: (isTyping ? dist.estadoCuotaHoy == 0 : realFaltanteHoy == 0) ? cs.primary : AppColors.warning,
+                        ),
+                      ],
+                    );
+                  }),
+                  // --- FIN PANEL SUPERIOR ---
                   const SizedBox(height: 16),
                   TextField(
                     controller: montoCtrl,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    onChanged: (_) => setModalState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Efectivo Recibido (L)',
                       prefixIcon: const Icon(Icons.payments_rounded, size: 20),
@@ -566,6 +637,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                     TextPosition(offset: montoSaldoFavorCtrl.text.length),
                                   );
                                 }
+                                setModalState(() {});
                               },
                             ),
                           ],
@@ -573,10 +645,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 12),
+
+                  const SizedBox(height: 16),
                   TextField(
                     controller: obsCtrl,
                     maxLines: 2,
+                    onChanged: (_) => setModalState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Observaciones (opcional)',
                       prefixIcon: Icon(Icons.notes_rounded, size: 20),
@@ -770,49 +844,29 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     final deudaTotalInicial = (local.deudaAcumulada ?? 0);
     final cuotaHoy = local.cuotaDiaria ?? 0;
-
-    // --- BOLSA TOTAL = Efectivo + Saldo a Extraer ---
-    final num bolsaTotal = montoEfectivo + saldoAExtraer;
-
-    // --- LÓGICA DE DISTRIBUCIÓN EN CASCADA ---
-    // 1. Pagar cuota de hoy (Prioridad 1)
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
-    final num faltanteHoy = (cuotaHoy - pagadoHoyPrev).clamp(0, cuotaHoy);
-    final pagoACuota = bolsaTotal > faltanteHoy ? faltanteHoy : bolsaTotal;
-    final num montoRestanteTrasHoy = (bolsaTotal - pagoACuota).clamp(
-      0,
-      double.infinity,
+    final saldoInicial = local.saldoAFavor ?? 0;
+
+    // Usar la calculadora centralizada
+    final dist = CalculadoraDistribucionPago.calcular(
+      montoEfectivo: montoEfectivo,
+      deudaAcumuladaInicial: deudaTotalInicial,
+      cuotaDiaria: cuotaHoy,
+      pagadoHoyPreviamente: pagadoHoyPrev,
+      saldoFavorInicial: saldoInicial,
+      fechaReferencia: now,
     );
 
-    // 2. Pagar deuda acumulada con excedente (Prioridad 2)
-    final deudaPast = local.deudaAcumulada ?? 0;
-    final paraDeudaReal = montoRestanteTrasHoy > deudaPast
-        ? deudaPast
-        : montoRestanteTrasHoy;
-    final num montoRestanteTrasDeuda = (montoRestanteTrasHoy - paraDeudaReal)
-        .clamp(0, double.infinity);
-
-    // 3. Excedente a Nuevo Saldo a Favor (Prioridad 3)
-    final paraSaldoFavorReal = montoRestanteTrasDeuda;
-
-    // Delta neto del saldo: nuevo excedente generado - saldo explícitamente extraído
-    final num deltaSaldoFavor = paraSaldoFavorReal - saldoAExtraer;
-
-    // Totales
-    final saldoHoy = (faltanteHoy - pagoACuota).clamp(0, cuotaHoy);
-    final cuotaTotalHoy = pagadoHoyPrev + pagoACuota;
+    // Totales y estado
+    final cuotaTotalHoy = pagadoHoyPrev + dist.pagoACuotaHoy;
     final estado = cuotaTotalHoy >= cuotaHoy
         ? 'cobrado'
         : cuotaTotalHoy > 0
         ? 'abono_parcial'
         : 'pendiente';
 
-    final double saldoResultante =
-        (local.deudaAcumulada ?? 0).toDouble() -
-        paraDeudaReal.toDouble() +
-        saldoHoy.toDouble();
-    final double favorResultante =
-        (local.saldoAFavor ?? 0).toDouble() + deltaSaldoFavor.toDouble();
+    final double saldoResultante = dist.deudaFinalResultante.toDouble();
+    final double favorResultante = dist.saldoFavorFinalResultante.toDouble();
 
     // Monto registrado en el cobro: solo el efectivo
     final num monto = montoEfectivo;
@@ -834,20 +888,20 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         mercadoId: local.mercadoId,
         municipalidadId: local.municipalidadId,
         monto: monto,
-        pagoACuota: pagoACuota,
+        pagoACuota: dist.pagoACuotaHoy,
         observaciones: monto > 0
             ? () {
                 final partes = <String>[];
-                if (paraDeudaReal > 0) {
+                if (dist.paraDeudaReal > 0) {
                   partes.add(
-                    'L ${paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
+                    'L ${dist.paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
                   );
                 }
-                if (pagoACuota > 0) {
+                if (dist.pagoACuotaHoy > 0) {
                   final hoyStr =
                       '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
                   partes.add(
-                    'L ${pagoACuota.toStringAsFixed(2)} cuota del $hoyStr',
+                    'L ${dist.pagoACuotaHoy.toStringAsFixed(2)} cuota del $hoyStr',
                   );
                 }
                 if (saldoAExtraer > 0) {
@@ -855,9 +909,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     'L ${saldoAExtraer.toStringAsFixed(2)} de saldo a favor',
                   );
                 }
-                if (paraSaldoFavorReal > 0) {
+                if (dist.paraNuevoSaldoFavor > 0) {
                   partes.add(
-                    'L ${paraSaldoFavorReal.toStringAsFixed(2)} a favor',
+                    'L ${dist.paraNuevoSaldoFavor.toStringAsFixed(2)} a favor',
                   );
                 }
                 final prefijo = observaciones.isNotEmpty
@@ -866,9 +920,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 return '${prefijo}Distribuido: ${partes.join(", ")}';
               }()
             : observaciones,
-        saldoPendiente: saldoHoy,
+        saldoPendiente: dist.estadoCuotaHoy,
         deudaAnterior: deudaTotalInicial,
-        montoAbonadoDeuda: paraDeudaReal,
+        montoAbonadoDeuda: dist.paraDeudaReal,
         nuevoSaldoFavor: favorResultante,
         telefonoRepresentante: local.telefonoRepresentante,
       );
@@ -876,8 +930,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final resultado = await cobroViewModel.registrarPago(
         cobro: nuevoCobro,
         localId: local.id!,
-        montoAbonadoDeuda: paraDeudaReal,
-        incrementoSaldoFavor: deltaSaldoFavor,
+        montoAbonadoDeuda: dist.paraDeudaReal,
+        incrementoSaldoFavor: dist.deltaSaldoFavor,
       );
 
       final String correlativoStr = resultado.numeroBoleta ?? '0';
@@ -909,7 +963,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           fecha: now,
           saldoPendiente: saldoResultante,
           deudaAnterior: deudaTotalInicial.toDouble(),
-          montoAbonadoDeuda: paraDeudaReal.toDouble(),
+          montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
           saldoAFavor: favorResultante.toDouble(),
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
@@ -993,12 +1047,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
         final idsCuotaCubiertaSet = locales
             .where((l) {
-              final montoTotalL = montosPorLocal[l.id] ?? 0;
+              final pagoCuotaL = pagosCuotaPorLocal[l.id] ?? 0;
               final saldoFavor = l.saldoAFavor ?? 0;
               final cuota = l.cuotaDiaria ?? 0;
-              // CRITERIO: Un local deja de estar "Pendiente" si ya pagó hoy
-              // (aunque el pago se haya ido a la deuda) o si su saldo previo ya cubría hoy.
-              return (montoTotalL > 0) || (saldoFavor >= cuota);
+              // CRITERIO: Un local deja de estar "Pendiente" si la cuota de HOY
+              // está cubierta (por pagos directos a cuota o saldo a favor previo).
+              // Un pago que fue 100% a deuda antigua NO cubre la cuota de hoy.
+              return (pagoCuotaL >= cuota) || (saldoFavor >= cuota);
             })
             .map((l) => l.id ?? '')
             .toSet();
@@ -1011,7 +1066,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           }
         }
 
-        // IDs que tienen al menos un pago hoy
+        // IDs que tienen al menos un pago hoy (para UI de la tarjeta - Abono parcial)
         final idsCobradosHoySet = locales
             .where((l) => (montosPorLocal[l.id] ?? 0) > 0)
             .map((l) => l.id ?? '')
@@ -1019,16 +1074,18 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
         final localesFiltrados = locales.where((l) {
           final id = l.id ?? '';
-          final pagoHoy = idsCobradosHoySet.contains(id);
+          final cuotaCubiertaHoy = idsCuotaCubiertaSet.contains(id);
           final conDeuda = idsConDeudaSet.contains(id);
           
           // Filtro por Estado
           bool pasaFiltroEstado = true;
           if (_filtroEstado == 'pendiente_hoy') {
-            // Pendiente hoy = No ha pagado hoy
-            pasaFiltroEstado = !pagoHoy;
+            // Pendiente hoy = La cuota de HOY no ha sido cubierta
+            pasaFiltroEstado = !cuotaCubiertaHoy;
           } else if (_filtroEstado == 'con_deuda') {
             pasaFiltroEstado = conDeuda;
+          } else if (_filtroEstado == 'saldados') {
+            pasaFiltroEstado = cuotaCubiertaHoy && !conDeuda;
           }
 
           // Filtro de Búsqueda
@@ -1038,21 +1095,32 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             final nombre = (l.nombreSocial ?? '').toLowerCase();
             final rep = (l.representante ?? '').toLowerCase();
             final currClave = (l.clave ?? '').toLowerCase();
+            final codigo = (l.codigo ?? '').toLowerCase();
             final codigoCatastral = (l.codigoCatastral ?? '').toLowerCase();
             pasaFiltroTexto =
                 nombre.contains(q) ||
                 rep.contains(q) ||
                 currClave.contains(q) ||
+                codigo.contains(q) ||
                 codigoCatastral.contains(q);
           }
+
 
           return pasaFiltroEstado && pasaFiltroTexto;
         }).toList();
 
         // --- Cálculos de Contadores para Chips ---
         final int totalesCount = locales.length;
-        final int pendientesHoyCount = totalesCount - idsCobradosHoySet.length;
+        final int pendientesHoyCount = totalesCount - idsCuotaCubiertaSet.length;
         final int conDeudaCount = idsConDeudaSet.length;
+        
+        int saldadosCount = 0;
+        for (var l in locales) {
+          final id = l.id ?? '';
+          if (idsCuotaCubiertaSet.contains(id) && !idsConDeudaSet.contains(id)) {
+            saldadosCount++;
+          }
+        }
 
         final colorScheme = Theme.of(context).colorScheme;
 
@@ -1257,6 +1325,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 baseColor: const Color(0xFFEE5A6F), // Rojo (consistente con el donut)
                                 icon: Icons.error_outline_rounded,
                                 onTap: () => setState(() => _filtroEstado = 'con_deuda'),
+                              ),
+                              _CustomFilterChip(
+                                label: 'Saldados',
+                                count: saldadosCount.toString(),
+                                isSelected: _filtroEstado == 'saldados',
+                                baseColor: AppColors.success, // Verde
+                                icon: Icons.check_circle_outline_rounded,
+                                onTap: () => setState(() => _filtroEstado = 'saldados'),
                               ),
                             ],
                           ),
@@ -1643,23 +1719,7 @@ class _LocalCard extends StatelessWidget {
                                       ),
                                 ),
                               ),
-                              if (onEditar != null)
-                                InkWell(
-                                  onTap: onEditar,
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primary.withValues(alpha: 0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.edit_rounded,
-                                      size: 16,
-                                      color: colorScheme.primary,
-                                    ),
-                                  ),
-                                ),
+                              // El botón de editar se movió a la fila inferior
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -1675,6 +1735,37 @@ class _LocalCard extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
                                 'Clave: ${local.clave}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          if (local.codigo != null &&
+                              local.codigo!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Código: ${local.codigo}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          // codigoCatastral mantenido por retrocompatibilidad visual si existe
+                          if (local.codigoCatastral != null &&
+                              local.codigoCatastral!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Cód. Catastral: ${local.codigoCatastral}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: colorScheme.onSurface.withValues(alpha: 0.5),
@@ -1778,6 +1869,23 @@ class _LocalCard extends StatelessWidget {
                         color: colorScheme.primary,
                       ),
                     ),
+                    if (onEditar != null) ...[
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        color: colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                      // Botón editar
+                      Expanded(
+                        flex: 2,
+                        child: _CardButton(
+                          onTap: onEditar,
+                          icon: Icons.edit_rounded,
+                          label: 'Editar',
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
                     if (local.latitud != null && local.longitud != null) ...[
                       VerticalDivider(
                         width: 1,
