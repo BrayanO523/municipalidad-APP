@@ -179,14 +179,22 @@ class _SelectorMercado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (mercados.isEmpty) {
+      return const Center(child: Text('No hay mercados disponibles.'));
+    }
+
+    final selectedId = seleccionado?.id;
+    // Asegurarse de que el ID seleccionado realmente exista en la lista cargada
+    final idValido = mercados.any((m) => m.id == selectedId) ? selectedId : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Seleccionar Mercado',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
-        DropdownButtonFormField<Mercado>(
-        initialValue: seleccionado,
+        DropdownButtonFormField<String>(
+          initialValue: idValido,
           hint: const Text('Selecciona un mercado'),
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.storefront_rounded),
@@ -195,13 +203,16 @@ class _SelectorMercado extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           items: mercados
-              .map((m) => DropdownMenuItem(
-                    value: m,
+              .map((m) => DropdownMenuItem<String>(
+                    value: m.id,
                     child: Text(m.nombre ?? 'Sin nombre'),
                   ))
               .toList(),
-          onChanged: (m) {
-            if (m != null) onSeleccionado(m);
+          onChanged: (id) {
+            if (id != null) {
+              final m = mercados.firstWhere((element) => element.id == id);
+              onSeleccionado(m);
+            }
           },
         ),
       ],
