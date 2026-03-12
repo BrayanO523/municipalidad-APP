@@ -27,8 +27,7 @@ class CobradorHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
-  String _filtroEstado = 'todos'; // 'todos', 'pendientes', 'cobrados'
-  String _filtroFrecuencia = 'todos'; // 'todos', 'diaria', 'semanal', 'quincenal', 'mensual'
+  String _filtroEstado = 'todos'; // 'todos', 'pendiente_hoy', 'con_deuda'
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   int _limiteLocales = 20;
@@ -1004,6 +1003,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             .map((l) => l.id ?? '')
             .toSet();
 
+        // IDs de locales con deuda acumulada
+        final Set<String> idsConDeudaSet = {};
+        for (var l in locales) {
+          if ((l.deudaAcumulada ?? 0) > 0) {
+            idsConDeudaSet.add(l.id ?? '');
+          }
+        }
+
         // IDs que tienen al menos un pago hoy
         final idsCobradosHoySet = locales
             .where((l) => (montosPorLocal[l.id] ?? 0) > 0)
@@ -1011,18 +1018,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             .toSet();
 
         final localesFiltrados = locales.where((l) {
-          final cuotaCubierta = idsCuotaCubiertaSet.contains(l.id ?? '');
+          final id = l.id ?? '';
+          final pagoHoy = idsCobradosHoySet.contains(id);
+          final conDeuda = idsConDeudaSet.contains(id);
           
           // Filtro por Estado
           bool pasaFiltroEstado = true;
-          if (_filtroEstado == 'pendientes') pasaFiltroEstado = !cuotaCubierta;
-          if (_filtroEstado == 'cobrados') pasaFiltroEstado = cuotaCubierta;
-
-          // Filtro por Frecuencia
-          bool pasaFiltroFrecuencia = true;
-          if (_filtroFrecuencia != 'todos') {
-            final freqStr = l.frecuenciaCobro ?? 'diaria';
-            pasaFiltroFrecuencia = freqStr == _filtroFrecuencia;
+          if (_filtroEstado == 'pendiente_hoy') {
+            // Pendiente hoy = No ha pagado hoy
+            pasaFiltroEstado = !pagoHoy;
+          } else if (_filtroEstado == 'con_deuda') {
+            pasaFiltroEstado = conDeuda;
           }
 
           // Filtro de Búsqueda
@@ -1040,34 +1046,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 codigoCatastral.contains(q);
           }
 
-          return pasaFiltroEstado && pasaFiltroFrecuencia && pasaFiltroTexto;
+          return pasaFiltroEstado && pasaFiltroTexto;
         }).toList();
 
         // --- Cálculos de Contadores para Chips ---
-        // Estados
         final int totalesCount = locales.length;
-        final int cobradosCount = idsCuotaCubiertaSet.length;
-        final int pendientesCount = totalesCount - cobradosCount;
-
-        // Frecuencias
-        int diariosCount = 0;
-        int semanalesCount = 0;
-        int quincenalesCount = 0;
-        int mensualesCount = 0;
-
-        for (var loc in locales) {
-          final f = loc.frecuenciaCobro ?? 'diaria';
-          if (f == 'diaria') {
-            diariosCount++;
-          } else if (f == 'semanal') {
-            semanalesCount++;
-          } else if (f == 'quincenal') {
-            quincenalesCount++;
-          } else if (f == 'mensual') {
-            mensualesCount++;
-          }
-        }
-        // ----------------------------------------
+        final int pendientesHoyCount = totalesCount - idsCobradosHoySet.length;
+        final int conDeudaCount = idsConDeudaSet.length;
 
         final colorScheme = Theme.of(context).colorScheme;
 
@@ -1258,71 +1243,21 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 onTap: () => setState(() => _filtroEstado = 'todos'),
                               ),
                               _CustomFilterChip(
-                                label: 'Pendientes',
-                                count: pendientesCount.toString(),
-                                isSelected: _filtroEstado == 'pendientes',
-                                baseColor: AppColors.warning,
+                                label: 'Pendiente Pago Hoy',
+                                count: pendientesHoyCount.toString(),
+                                isSelected: _filtroEstado == 'pendiente_hoy',
+                                baseColor: const Color(0xFFFF9F43), // Naranja (consistente con el donut)
                                 icon: Icons.pending_actions_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'pendientes'),
+                                onTap: () => setState(() => _filtroEstado = 'pendiente_hoy'),
                               ),
                               _CustomFilterChip(
-                                label: 'Cobrados',
-                                count: cobradosCount.toString(),
-                                isSelected: _filtroEstado == 'cobrados',
-                                baseColor: AppColors.success,
-                                icon: Icons.check_circle_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'cobrados'),
+                                label: 'Con Deuda',
+                                count: conDeudaCount.toString(),
+                                isSelected: _filtroEstado == 'con_deuda',
+                                baseColor: const Color(0xFFEE5A6F), // Rojo (consistente con el donut)
+                                icon: Icons.error_outline_rounded,
+                                onTap: () => setState(() => _filtroEstado = 'con_deuda'),
                               ),
-
-                              const SizedBox(width: 8),
-                              Container(
-                                width: 1,
-                                height: 30,
-                                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // --- Bloque 2: Frecuencias ---
-                              _CustomFilterChip(
-                                label: 'Frec. Todas',
-                                isSelected: _filtroFrecuencia == 'todos',
-                                baseColor: colorScheme.secondary,
-                                icon: Icons.filter_alt_outlined,
-                                onTap: () => setState(() => _filtroFrecuencia = 'todos'),
-                              ),
-                              if (diariosCount > 0)
-                                _CustomFilterChip(
-                                  label: 'Diarios',
-                                  count: diariosCount.toString(),
-                                  isSelected: _filtroFrecuencia == 'diaria',
-                                  baseColor: colorScheme.secondary,
-                                  onTap: () => setState(() => _filtroFrecuencia = 'diaria'),
-                                ),
-                              if (semanalesCount > 0)
-                                _CustomFilterChip(
-                                  label: 'Semanales',
-                                  count: semanalesCount.toString(),
-                                  isSelected: _filtroFrecuencia == 'semanal',
-                                  baseColor: colorScheme.secondary,
-                                  onTap: () => setState(() => _filtroFrecuencia = 'semanal'),
-                                ),
-                              if (quincenalesCount > 0)
-                                _CustomFilterChip(
-                                  label: 'Quincenales',
-                                  count: quincenalesCount.toString(),
-                                  isSelected: _filtroFrecuencia == 'quincenal',
-                                  baseColor: colorScheme.secondary,
-                                  onTap: () => setState(() => _filtroFrecuencia = 'quincenal'),
-                                ),
-                              if (mensualesCount > 0)
-                                _CustomFilterChip(
-                                  label: 'Mensuales',
-                                  count: mensualesCount.toString(),
-                                  isSelected: _filtroFrecuencia == 'mensual',
-                                  baseColor: colorScheme.secondary,
-                                  onTap: () => setState(() => _filtroFrecuencia = 'mensual'),
-                                ),
                             ],
                           ),
                         ),
