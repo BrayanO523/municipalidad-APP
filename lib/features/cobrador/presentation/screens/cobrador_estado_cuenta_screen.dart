@@ -522,15 +522,15 @@ class _CobrosList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cobros.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_rounded, size: 48, color: Colors.white24),
-            SizedBox(height: 12),
+            Icon(Icons.receipt_long_rounded, size: 48, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24)),
+            const SizedBox(height: 12),
             Text(
               'Sin registros',
-              style: TextStyle(color: Colors.white38, fontSize: 14),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
             ),
           ],
         ),
@@ -600,15 +600,15 @@ class _GrupoSaldadoCard extends ConsumerWidget {
           ),
           title: Text(
             rangoStr,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           subtitle: Text(
             '${cobros.length} dias saldados por abono · ${DateFormatter.formatCurrency(montoTotal)}',
-            style: const TextStyle(fontSize: 10, color: Colors.white38),
+            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
           ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -625,8 +625,8 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               ),
             ),
           ),
-          iconColor: Colors.white38,
-          collapsedIconColor: Colors.white38,
+          iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+          collapsedIconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
           children: [
             ...cobros.map((c) {
               final fechaStr = c.fecha != null
@@ -640,12 +640,12 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Text(
                       fechaStr,
-                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                     ),
                     const Spacer(),
                     Text(
                       DateFormatter.formatCurrency(c.cuotaDiaria ?? c.monto ?? 0),
-                      style: const TextStyle(fontSize: 11, color: Colors.white38),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
                     ),
                   ],
                 ),
@@ -1026,29 +1026,29 @@ class _CobroTile extends ConsumerWidget {
                       cobro.fecha != null
                           ? DateFormatter.formatDateTime(cobro.fecha!)
                           : '—',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     if (cobro.observaciones != null &&
                         cobro.observaciones!.isNotEmpty)
                       Text(
                         cobro.observaciones!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
-                          color: Colors.white38,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       )
                     else if (esPagadoConSaldoAFavor)
-                      const Text(
+                      Text(
                         'Cuota cubierta automáticamente con saldo a favor',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.white38,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -1064,7 +1064,7 @@ class _CobroTile extends ConsumerWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
-                      color: esPendiente ? color : Colors.white,
+                      color: esPendiente ? color : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1120,16 +1120,16 @@ class _CobroTile extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Detalles del Cobro',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
+                    icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -1198,7 +1198,7 @@ class _CobroTile extends ConsumerWidget {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorEstado.withValues(alpha: 0.8),
-                      foregroundColor: Colors.white,
+                      foregroundColor: Colors.white, // Mantener blanco porque los botones tienen fondos con color primario/estado
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1237,10 +1237,10 @@ class _CobroTile extends ConsumerWidget {
                   ),
                 ),
               ] else
-                const Center(
+                Center(
                   child: Text(
                     'Este es un registro generado automáticamente y no posee boleta física.',
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1395,13 +1395,13 @@ class _DetalleFila extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
           ),
           const SizedBox(height: 2),
           Text(
             valor,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
