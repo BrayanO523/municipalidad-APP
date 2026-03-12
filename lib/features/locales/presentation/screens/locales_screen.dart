@@ -503,29 +503,27 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       );
     }
 
-    final mainList = Column(
-      children: [
-        Expanded(
-          child: _LocalesListView(
-            locales: state.locales,
-            selectedLocalId: _localSeleccionado?.id,
-            scrollController: _scrollCtrl,
-            onSelect: (l) {
-              setState(() {
-                if (_localSeleccionado?.id == l.id) {
-                  _localSeleccionado = null;
-                } else {
-                  _localSeleccionado = l;
-                }
-              });
-            },
-            onEdit: (l) => _showFormDialog(context, local: l),
-            onViewQr: (l) => _showQrDialog(context, l),
-            onDelete: (l) => _confirmDelete(context, l),
-          ),
-        ),
-        if (state.locales.isNotEmpty)
-          Padding(
+    final Widget mainList = _LocalesListView(
+      locales: state.locales,
+      selectedLocalId: _localSeleccionado?.id,
+      scrollController: _scrollCtrl,
+      onSelect: (l) {
+        setState(() {
+          if (_localSeleccionado?.id == l.id) {
+            _localSeleccionado = null;
+          } else {
+            _localSeleccionado = l;
+          }
+        });
+      },
+      onEdit: (l) => _showFormDialog(context, local: l),
+      onViewQr: (l) => _showQrDialog(context, l),
+      onDelete: (l) => _confirmDelete(context, l),
+    );
+
+    final Widget panelPaginacion = state.locales.isEmpty
+        ? const SizedBox.shrink()
+        : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -568,9 +566,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 ),
               ],
             ),
-          ),
-      ],
-    );
+          );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -600,54 +596,68 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 ),
                 Expanded(
                   flex: 9,
-                  child: _localSeleccionado != null
-                      ? _buildPanelDetalle(context, _localSeleccionado!)
-                      : const _PanelDetalleVacio(),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _localSeleccionado != null
+                            ? _buildPanelDetalle(context, _localSeleccionado!)
+                            : const _PanelDetalleVacio(),
+                      ),
+                      panelPaginacion,
+                    ],
+                  ),
                 ),
               ],
             ),
           );
         }
 
-        return _localSeleccionado != null 
-            ? Column(
-                children: [
-                   Expanded(
-                     flex: 2, 
-                     child: Card(
-                       elevation: 2,
-                       clipBehavior: Clip.antiAlias,
-                       shape: RoundedRectangleBorder(
-                         borderRadius: BorderRadius.circular(16),
-                         side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                       ),
-                       child: mainList,
-                     ),
-                   ),
-                   const SizedBox(height: 16),
-                   Expanded(
-                     flex: 3, 
-                     child: Card(
-                       elevation: 2,
-                       clipBehavior: Clip.antiAlias,
-                       shape: RoundedRectangleBorder(
-                         borderRadius: BorderRadius.circular(16),
-                         side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                       ),
-                       child: _buildPanelDetalle(context, _localSeleccionado!),
-                     ),
-                   ),
-                ],
-              )
-            : Card(
-                elevation: 2,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-                ),
-                child: mainList,
-              );
+        return Column(
+          children: [
+            Expanded(
+              child: _localSeleccionado != null 
+                  ? Column(
+                      children: [
+                         Expanded(
+                           flex: 2, 
+                           child: Card(
+                             elevation: 2,
+                             clipBehavior: Clip.antiAlias,
+                             shape: RoundedRectangleBorder(
+                               borderRadius: BorderRadius.circular(16),
+                               side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                             ),
+                             child: mainList,
+                           ),
+                         ),
+                         const SizedBox(height: 16),
+                         Expanded(
+                           flex: 3, 
+                           child: Card(
+                             elevation: 2,
+                             clipBehavior: Clip.antiAlias,
+                             shape: RoundedRectangleBorder(
+                               borderRadius: BorderRadius.circular(16),
+                               side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                             ),
+                             child: _buildPanelDetalle(context, _localSeleccionado!),
+                           ),
+                         ),
+                      ],
+                    )
+                  : Card(
+                      elevation: 2,
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                      ),
+                      child: mainList,
+                    ),
+            ),
+            panelPaginacion,
+          ],
+        );
       },
     );
   }
