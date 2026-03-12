@@ -26,6 +26,8 @@ class LocalJson extends Local {
     super.deudaAcumulada,
     super.frecuenciaCobro,
     super.clave,
+    super.codigo,
+    super.codigoLower,
     super.codigoCatastral,
     super.codigoCatastralLower,
   });
@@ -82,6 +84,8 @@ class LocalJson extends Local {
       deudaAcumulada: parseNum(json['deudaAcumulada']),
       frecuenciaCobro: json['frecuenciaCobro'],
       clave: clave,
+      codigo: json['codigo'],
+      codigoLower: json['codigoLower'],
       codigoCatastral: json['codigoCatastral'],
       codigoCatastralLower: json['codigoCatastralLower'],
     );
@@ -111,6 +115,8 @@ class LocalJson extends Local {
       deudaAcumulada: entity.deudaAcumulada,
       frecuenciaCobro: entity.frecuenciaCobro,
       clave: entity.clave,
+      codigo: entity.codigo,
+      codigoLower: entity.codigoLower,
       codigoCatastral: entity.codigoCatastral,
       codigoCatastralLower: entity.codigoCatastralLower,
     );
@@ -143,6 +149,8 @@ class LocalJson extends Local {
       if (deudaAcumulada != null) 'deudaAcumulada': deudaAcumulada,
       if (frecuenciaCobro != null) 'frecuenciaCobro': frecuenciaCobro,
       if (clave != null) 'clave': clave,
+      if (codigo != null) 'codigo': codigo,
+      if (codigoLower != null) 'codigoLower': codigoLower,
       if (codigoCatastral != null) 'codigoCatastral': codigoCatastral,
       if (codigoCatastralLower != null) 'codigoCatastralLower': codigoCatastralLower,
     };

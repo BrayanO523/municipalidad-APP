@@ -23,6 +23,8 @@ class Local {
   final String? frecuenciaCobro; // 'diaria', 'semanal', 'quincenal', 'mensual'
 
   final String? clave;
+  final String? codigo;
+  final String? codigoLower;
   final String? codigoCatastral;
   final String? codigoCatastralLower;
 
@@ -49,6 +51,8 @@ class Local {
     this.deudaAcumulada,
     this.frecuenciaCobro,
     this.clave,
+    this.codigo,
+    this.codigoLower,
     this.codigoCatastral,
     this.codigoCatastralLower,
   });
