@@ -983,28 +983,44 @@ class CobroDatasource {
   }
 
   /// Soft-Reset del sistema:
-  /// 1. Resetea stats a ceros + marca fechaInicioOperaciones = HOY (1 escritura)
-  /// 2. Limpia deuda/saldo en locales de esta municipalidad (~590 reads + writes)
+  /// 1. Limpia deuda/saldo en locales y recalcula contadores (~590 reads + writes)
+  /// 2. Escribe stats con contadores reales + fechaInicioOperaciones = HOY (1 escritura)
   /// 3. NO toca cobros (ahorro principal: evita leer/borrar 15k+ documentos)
   Future<void> softResetSistema(String municipalidadId) async {
-    // 1. Stats limpios + fecha de inicio (1 escritura)
-    await _firestore.collection('stats').doc(municipalidadId).set({
-      'totalCobrado': 0,
-      'totalDeuda': 0,
-      'totalSaldoAFavor': 0,
-      'totalCuotaDiaria': 0,
-      'diario': {},
-      'fechaInicioOperaciones': Timestamp.now(),
-      'ultimaActualizacion': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    // 2. Limpiar deuda/saldo en locales de esta municipalidad
-    //    Costo: ~590 lecturas + ~590 escrituras (mucho menor que los 29k anteriores)
+    // 1. Leer locales de esta municipalidad (los necesitamos para limpiar Y para contadores)
     final locales = await _firestore
         .collection(FirestoreCollections.locales)
         .where('municipalidadId', isEqualTo: municipalidadId)
         .get();
 
+    // 2. Calcular contadores REALES desde los locales leídos (0 lecturas extra)
+    num totalCuotaDiaria = 0;
+    final Set<String> mercadosUnicos = {};
+    for (var doc in locales.docs) {
+      final data = doc.data();
+      final cuota = (data['cuotaDiaria'] as num?) ?? 0;
+      final activo = data['activo'] as bool? ?? true;
+      if (activo) {
+        totalCuotaDiaria += cuota;
+      }
+      final mercadoId = data['mercadoId'] as String?;
+      if (mercadoId != null) mercadosUnicos.add(mercadoId);
+    }
+
+    // 3. Escribir stats con contadores reales + fecha de inicio
+    await _firestore.collection('stats').doc(municipalidadId).set({
+      'totalCobrado': 0,
+      'totalDeuda': 0,
+      'totalSaldoAFavor': 0,
+      'totalCuotaDiaria': totalCuotaDiaria,
+      'cantidadLocales': locales.docs.length,
+      'cantidadMercados': mercadosUnicos.length,
+      'diario': {},
+      'fechaInicioOperaciones': Timestamp.now(),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // 4. Limpiar deuda/saldo en locales
     WriteBatch batch = _firestore.batch();
     int count = 0;
 
@@ -1024,7 +1040,7 @@ class CobroDatasource {
       await batch.commit();
     }
 
-    // 3. Limpiar caché local — costo: 0 lecturas Firestore
+    // 5. Limpiar caché local — costo: 0 lecturas Firestore
     await limpiarCacheLocal();
   }
 
