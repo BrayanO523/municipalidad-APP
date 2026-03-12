@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../viewmodels/corte_activo_notifier.dart';
+import 'corte_detalle_screen.dart'; // Importante para reutilizar cobrosPorCorteProvider
 
 class CorteNuevoScreen extends ConsumerWidget {
   const CorteNuevoScreen({super.key});
@@ -78,8 +79,23 @@ class CorteNuevoScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
               
+              // Desglose de cobros
+              const Text(
+                'Desglose de Cobros',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              Expanded(
+                child: _buildDesglose(context, ref, state.cobrosIds),
+              ),
+              
+              const SizedBox(height: 16),
               if (state.error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
@@ -124,6 +140,81 @@ class CorteNuevoScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDesglose(BuildContext context, WidgetRef ref, List<String> cobrosIds) {
+    if (cobrosIds.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay cobros para realizar el corte.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+    
+    final cobrosAsync = ref.watch(cobrosPorCorteProvider(cobrosIds));
+    
+    return cobrosAsync.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No hay detalles de cobros disponibles.'));
+        }
+        return ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final cobro = item.cobro;
+            // Para poder dar un contraste dinámico correcto 
+            final theme = Theme.of(context);
+            // Usando TextStyle con that color o default
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                item.localNombre,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              subtitle: Text(
+                cobro.numeroBoleta ?? 'Sin número de boleta',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'L. ${cobro.monto?.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    cobro.estado?.toUpperCase() ?? '',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: cobro.estado == 'cobrado' 
+                          ? Colors.green 
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(child: Text('Error al cargar cobros: $err')),
     );
   }
 
