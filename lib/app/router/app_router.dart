@@ -29,6 +29,7 @@ import '../../features/usuarios/presentation/screens/cobros_cobrador_screen.dart
 import '../../features/cortes/presentation/screens/corte_nuevo_screen.dart';
 import '../../features/cortes/presentation/screens/cortes_historial_screen.dart';
 import '../../features/cortes/presentation/screens/corte_detalle_screen.dart';
+import '../../features/cortes/presentation/screens/corte_mercado_screen.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
 import '../../features/dev/presentation/screens/firestore_viewer_screen.dart';
@@ -172,6 +173,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/deudores',
             name: 'deudores',
             builder: (context, state) => const DeudoresScreen(),
+          ),
+          GoRoute(
+            path: '/cortes-mercado',
+            name: 'cortes-mercado-admin',
+            builder: (context, state) => const CortesMercadoScreen(),
           ),
           GoRoute(
             path: '/cortes-historial',

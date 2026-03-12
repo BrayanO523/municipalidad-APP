@@ -109,7 +109,7 @@ class StatsDatasource {
     });
   }
 
-  /// Revierte las estadísticas al eliminar/anular un cobro.
+  /// Revierte las estadísticas al eliminar/anular un cobro normal (Efectivo).
   Future<void> revertirCobro({
     required String municipalidadId,
     required num montoCobrado,
@@ -126,6 +126,36 @@ class StatsDatasource {
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(-montoCobrado),
       'diario.$key.cobros': FieldValue.increment(-1),
+    });
+  }
+
+  /// Revierte las estadísticas al eliminar un cobro 'pendiente'.
+  Future<void> revertirPendiente({
+    required String municipalidadId,
+    required num saldoPendiente,
+    required DateTime fechaCobroOriginal,
+  }) async {
+    final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
+
+    await _doc(municipalidadId).update({
+      'totalDeuda': FieldValue.increment(-saldoPendiente),
+      'diario.$key.cobros': FieldValue.increment(-1),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Revierte las estadísticas al eliminar un cobro realizado con saldo a favor (sin efectivo).
+  Future<void> revertirCobroSaldo({
+    required String municipalidadId,
+    required num montoConsumido,
+    required DateTime fechaCobroOriginal,
+  }) async {
+    final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
+
+    await _doc(municipalidadId).update({
+      'totalSaldoAFavor': FieldValue.increment(montoConsumido),
+      'diario.$key.cobros': FieldValue.increment(-1),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
     });
   }
 
@@ -191,6 +221,7 @@ class StatsDatasource {
     }
 
     // 3. Escribir todo de una vez (diario + totales reales recalculados)
+    // NOTA: Usamos update para el mapa de hoy, pero no corrige históricos.
     await _doc(municipalidadId).update({
       'diario.$key.recaudado': totalRecaudado,
       'diario.$key.cobros': totalCobros,
@@ -200,7 +231,88 @@ class StatsDatasource {
       'cantidadLocales': localesSnap.docs.length,
     });
 
-    debugPrint('📊 Stats recalculados: $totalCobros cobros, L$totalRecaudado recaudado, cuota: L$totalCuota, deuda: L$totalDeuda, saldo: L$totalSaldo');
+    debugPrint('📊 Stats del día recalculados para $key');
+  }
+
+  /// RECALCULO NUCLEAR: Escanea TODOS los cobros y locales para reconstruir stats desde cero.
+  /// Útil para reparar corrupción de datos o campos raíz duplicados.
+  Future<void> recalcularTodo(String municipalidadId) async {
+    debugPrint('🚀 Iniciando RECALCULO NUCLEAR de estadísticas para $municipalidadId...');
+    
+    // 1. Obtener todos los cobros (sin filtrar por fecha)
+    final cobrosSnap = await _firestore
+        .collection('cobros')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .get();
+
+    num totalCobrado = 0;
+    Map<String, Map<String, dynamic>> nuevoDiario = {};
+
+    for (final doc in cobrosSnap.docs) {
+      final d = doc.data();
+      final monto = (d['monto'] as num?) ?? 0;
+      final estado = d['estado'] as String?;
+      final Timestamp? fechaTs = d['fecha'] as Timestamp?;
+      
+      if (fechaTs == null) continue;
+      final key = DateFormat('yyyy-MM-dd').format(fechaTs.toDate());
+
+      // Solo contar si no está anulado
+      if (estado != 'anulado') {
+        nuevoDiario.putIfAbsent(key, () => {'recaudado': 0, 'cobros': 0});
+        nuevoDiario[key]!['cobros'] += 1;
+        
+        // El recaudado solo viene de cobros normales (cash) o abonos parciales (cash)
+        if (estado == 'cobrado' || estado == 'abono_parcial') {
+          totalCobrado += monto;
+          nuevoDiario[key]!['recaudado'] += monto;
+        }
+      }
+    }
+
+    // 2. Obtener locales para totales reales actuales de deuda y saldo
+    final localesSnap = await _firestore
+        .collection('locales')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .get();
+
+    num totalCuota = 0;
+    num totalDeuda = 0;
+    num totalSaldo = 0;
+    int localesActivos = 0;
+
+    for (final doc in localesSnap.docs) {
+      final d = doc.data();
+      final activo = (d['activo'] as bool?) ?? false;
+      if (activo) {
+        localesActivos++;
+        totalCuota += (d['cuotaDiaria'] as num?) ?? 0;
+      }
+      totalDeuda += (d['deudaAcumulada'] as num?) ?? 0;
+      totalSaldo += (d['saldoAFavor'] as num?) ?? 0;
+    }
+
+    // 3. Mercados
+    final mercadosSnap = await _firestore
+        .collection('mercados')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .get();
+
+    // 4. SOBREESCRIBIR el documento (USA set() sin merge para limpiar campos basura/duplicados)
+    final StatsModel model = StatsModel(
+      totalCobrado: totalCobrado,
+      totalDeuda: totalDeuda,
+      totalSaldoAFavor: totalSaldo,
+      totalCuotaDiaria: totalCuota,
+      cantidadLocales: localesActivos,
+      cantidadMercados: mercadosSnap.docs.length,
+      diario: nuevoDiario,
+      ultimaActualizacion: DateTime.now(),
+    );
+
+    await _doc(municipalidadId).set(model.toJson());
+    
+    debugPrint('✅ RECALCULO NUCLEAR completado con éxito.');
   }
 
 }

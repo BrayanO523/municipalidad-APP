@@ -301,8 +301,6 @@ final statsProvider = StreamProvider<StatsModel>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   if (user == null || user.municipalidadId == null) return Stream.value(StatsModel());
   final ds = ref.read(statsDatasourceProvider);
-  // Recalcular el diario de hoy en background para reparar datos corruptos
-  ds.recalcularDiarioHoy(user.municipalidadId!).catchError((_) {});
   return ds.streamStats(user.municipalidadId!);
 });
 

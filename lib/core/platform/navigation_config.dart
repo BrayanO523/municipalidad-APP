@@ -57,6 +57,11 @@ class DefaultNavigationConfig implements NavigationConfig {
         path: '/tipos-negocio',
       ),
       const NavItemConfig(
+        icon: Icons.store_mall_directory_rounded,
+        label: 'Corte de Mercado',
+        path: '/cortes-mercado',
+      ),
+      const NavItemConfig(
         icon: Icons.history_edu_rounded,
         label: 'Historial de Cortes',
         path: '/cortes-historial',
