@@ -101,9 +101,17 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const Divider(height: 24),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const CircleAvatar(child: Icon(Icons.person)),
-                            title: Text(corte.cobradorNombre),
-                            subtitle: const Text('Cobrador Responsable'),
+                            leading: CircleAvatar(
+                              child: Icon(corte.esCorteMercado 
+                                ? Icons.store_mall_directory_rounded 
+                                : Icons.person),
+                            ),
+                            title: Text(corte.esCorteMercado 
+                              ? (corte.mercadoNombre ?? 'Corte de Mercado')
+                              : corte.cobradorNombre),
+                            subtitle: Text(corte.esCorteMercado 
+                              ? 'Corte Consolidado por ${corte.cobradorNombre}'
+                              : 'Cobrador Responsable'),
                             trailing: Text(
                               '${corte.cantidadRegistros} cobros',
                               style: const TextStyle(fontWeight: FontWeight.bold),

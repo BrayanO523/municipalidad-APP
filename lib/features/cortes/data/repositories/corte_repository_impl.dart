@@ -32,4 +32,40 @@ class CorteRepositoryImpl implements CorteRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, List<Corte>>> obtenerCortesDiaPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime fecha,
+  }) async {
+    try {
+      final models = await datasource.listarCortesDiaPorMercado(
+        mercadoId: mercadoId,
+        municipalidadId: municipalidadId,
+        fecha: fecha,
+      );
+      return Right(models);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> existeCorteMercadoHoy({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime fecha,
+  }) async {
+    try {
+      final existe = await datasource.existeCorteMercadoHoy(
+        mercadoId: mercadoId,
+        municipalidadId: municipalidadId,
+        fecha: fecha,
+      );
+      return Right(existe);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

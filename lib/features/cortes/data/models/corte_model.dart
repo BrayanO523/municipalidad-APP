@@ -14,6 +14,10 @@ class CorteModel extends Corte {
     required super.fechaInicioRango,
     required super.fechaFinRango,
     super.liquidado,
+    super.tipo,
+    super.mercadoId,
+    super.mercadoNombre,
+    super.cortesCobradorIds,
   });
 
   factory CorteModel.fromMap(Map<String, dynamic> map, String id) {
@@ -29,6 +33,13 @@ class CorteModel extends Corte {
       fechaInicioRango: (map['fechaInicioRango'] as Timestamp).toDate(),
       fechaFinRango: (map['fechaFinRango'] as Timestamp).toDate(),
       liquidado: map['liquidado'] ?? false,
+      // Nuevos campos — con fallback null para retrocompatibilidad
+      tipo: map['tipo'] as String?,
+      mercadoId: map['mercadoId'] as String?,
+      mercadoNombre: map['mercadoNombre'] as String?,
+      cortesCobradorIds: map['cortesCobradorIds'] != null
+          ? List<String>.from(map['cortesCobradorIds'])
+          : null,
     );
   }
 
@@ -44,6 +55,10 @@ class CorteModel extends Corte {
       'fechaInicioRango': Timestamp.fromDate(fechaInicioRango),
       'fechaFinRango': Timestamp.fromDate(fechaFinRango),
       'liquidado': liquidado,
+      if (tipo != null) 'tipo': tipo,
+      if (mercadoId != null) 'mercadoId': mercadoId,
+      if (mercadoNombre != null) 'mercadoNombre': mercadoNombre,
+      if (cortesCobradorIds != null) 'cortesCobradorIds': cortesCobradorIds,
     };
   }
 
@@ -60,6 +75,10 @@ class CorteModel extends Corte {
       fechaInicioRango: corte.fechaInicioRango,
       fechaFinRango: corte.fechaFinRango,
       liquidado: corte.liquidado,
+      tipo: corte.tipo,
+      mercadoId: corte.mercadoId,
+      mercadoNombre: corte.mercadoNombre,
+      cortesCobradorIds: corte.cortesCobradorIds,
     );
   }
 }

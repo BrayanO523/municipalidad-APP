@@ -13,6 +13,14 @@ class Corte extends Equatable {
   final DateTime fechaFinRango;
   final bool liquidado; // true si ya el dinero fue entregado al admin
 
+  // --- Nuevos campos para Corte de Mercado ---
+  /// 'cobrador' | 'mercado'. Null = cobrador (retrocompatible con docs viejos).
+  final String? tipo;
+  final String? mercadoId;
+  final String? mercadoNombre;
+  /// IDs de los cortes de cobradores que este corte de mercado consolida.
+  final List<String>? cortesCobradorIds;
+
   const Corte({
     required this.id,
     required this.cobradorId,
@@ -25,7 +33,13 @@ class Corte extends Equatable {
     required this.fechaInicioRango,
     required this.fechaFinRango,
     this.liquidado = false,
+    this.tipo,
+    this.mercadoId,
+    this.mercadoNombre,
+    this.cortesCobradorIds,
   });
+
+  bool get esCorteMercado => tipo == 'mercado';
 
   @override
   List<Object?> get props => [
@@ -40,5 +54,9 @@ class Corte extends Equatable {
         fechaInicioRango,
         fechaFinRango,
         liquidado,
+        tipo,
+        mercadoId,
+        mercadoNombre,
+        cortesCobradorIds,
       ];
 }
