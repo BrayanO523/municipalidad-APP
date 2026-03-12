@@ -200,7 +200,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                               _rutaActual.insert(newIndex, item);
                             });
                           },
-                          children: _rutaActual.map((locId) {
+                          children: _rutaActual
+                              .where((id) => mapLocales.containsKey(id))
+                              .map((locId) {
                             final loc = mapLocales[locId]!;
                             final index = _rutaActual.indexOf(locId);
                             return ReorderableDragStartListener(
@@ -314,7 +316,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       polylines: [
                         if (_rutaActual.isNotEmpty)
                           Polyline(
-                            points: _rutaActual.map((id) {
+                            points: _rutaActual
+                                .where((id) => mapLocales.containsKey(id))
+                                .map((id) {
                               final loc = mapLocales[id]!;
                               return LatLng(loc.latitud!, loc.longitud!);
                             }).toList(),
@@ -324,7 +328,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       ],
                     ),
                     MarkerLayer(
-                      markers: _rutaActual.map((id) {
+                      markers: _rutaActual
+                          .where((id) => mapLocales.containsKey(id))
+                          .map((id) {
                         final loc = mapLocales[id]!;
                         final index = _rutaActual.indexOf(id);
                         return Marker(
