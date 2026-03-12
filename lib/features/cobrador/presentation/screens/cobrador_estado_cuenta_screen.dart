@@ -691,20 +691,25 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 6),
-            // Botón para reimprimir individual (Abre Bottom Sheet)
+            // Botón para reimprimir/compartir individual (Abre Bottom Sheet)
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: FilledButton.tonal(
                 onPressed: () => _mostrarSelectorFechaPdf(context, ref, cobros),
-                icon: Icon(Icons.print_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
-                label: Text(
-                  'Reimprimir Día Específico',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), width: 0.5),
+                style: FilledButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.format_list_bulleted_rounded, size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'Ver Opciones por Día (Imprimir / Compartir)',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -751,7 +756,7 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'Elige el día que deseas reimprimir',
+                            'Elige el día para reimprimir o compartir',
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
@@ -793,11 +798,27 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                         'Abono: ${DateFormatter.formatCurrency(cuotaAct)}',
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                       ),
-                      trailing: const Icon(Icons.print_rounded, size: 20),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _reimprimirCobroIndividual(context, ref, c);
-                      },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.print_rounded, size: 20),
+                            tooltip: 'Imprimir',
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _reimprimirCobroIndividual(context, ref, c);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.share_rounded, size: 20),
+                            tooltip: 'Compartir PDF',
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _compartirCobroIndividual(context, ref, c);
+                            },
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -888,13 +909,20 @@ class _GrupoSaldadoCard extends ConsumerWidget {
 
     final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
-
+    
+    debugPrint('===== DEBUG PDF GRUPO =====');
+    debugPrint('Slogan: "${muni?.slogan}"');
+    
     final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
     final mercadoNombre = merc?.nombre;
+    final fontDefault = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+    final fontItalic = await PdfGoogleFonts.robotoItalic();
 
     // Datos reales del grupo
     final primerCobro = cobros.last;
     final ultimoCobro = cobros.first;
+    final fechaImpresion = ultimoCobro.creadoEn ?? ultimoCobro.fecha ?? DateTime.now();
     final boleta = primerCobro.numeroBoleta ?? primerCobro.correlativo?.toString() ?? '-';
     final cuotaDiaria = primerCobro.cuotaDiaria ?? 0;
     final saldoFavorFinal = ultimoCobro.nuevoSaldoFavor ?? 0;
@@ -904,28 +932,49 @@ class _GrupoSaldadoCard extends ConsumerWidget {
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
+        theme: pw.ThemeData.withFont(
+          base: fontDefault,
+          bold: fontBold,
+          italic: fontItalic,
+        ),
         build: (pw.Context ctx) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             mainAxisSize: pw.MainAxisSize.min,
             children: [
-              // Encabezado
               pw.Text(
                 municipalidadNombre.toUpperCase(),
                 style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center,
               ),
-              if (mercadoNombre != null)
+              pw.SizedBox(height: 4),
+              if (mercadoNombre != null) ...[
                 pw.Text(
                   mercadoNombre.toUpperCase(),
                   style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 4),
+              ],
+              if (muni?.slogan != null && muni!.slogan!.trim().isNotEmpty)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 4),
+                  child: pw.Text(
+                    muni.slogan!.trim(),
+                    style: pw.TextStyle(fontSize: 7, fontStyle: pw.FontStyle.italic),
+                    textAlign: pw.TextAlign.center,
+                  ),
                 ),
               pw.SizedBox(height: 4),
               pw.Text('COMPROBANTE DE ABONO',
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              pw.Text('No. $boleta', style: const pw.TextStyle(fontSize: 9)),
-              pw.SizedBox(height: 6),
-              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),
+              pw.Text('No. $boleta', 
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), 
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 8),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
 
               // Datos del local
               _pdfRow('LOCAL:', (local.nombreSocial ?? 'LOCAL').toUpperCase()),
@@ -935,29 +984,28 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                 _pdfRow('CÓDIGO:', local.codigo!),
               if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
                 _pdfRow('CÓD. CATASTRAL:', local.codigoCatastral!),
+              _pdfRow('FECHA:', DateFormatter.formatDateTime(fechaImpresion)),
               _pdfRow('REPRESENTANTE:', representante.toUpperCase()),
               _pdfRow('COBRADOR:', (user?.nombre ?? 'Desconocido').toUpperCase()),
               _pdfRow('CUOTA DIARIA:', DateFormatter.formatCurrency(cuotaDiaria)),
+              
               pw.SizedBox(height: 4),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
 
-              // Periodo
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text('PERIODO ABONADO:',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-              ),
-              pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text(rangoStr, style: const pw.TextStyle(fontSize: 8)),
-              ),
-              pw.SizedBox(height: 6),
+              pw.Text('TOTAL PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text(DateFormatter.formatCurrency(montoTotal), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              
+              pw.SizedBox(height: 4),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+
+              _pdfRow('FECHAS CUBIERTAS:', rangoStr),
 
               // Tabla de detalle por día
+              pw.SizedBox(height: 4),
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('DETALLE POR DIA:',
+                child: pw.Text('DETALLE POR DÍA ($rangoStr):',
                     style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
               ),
               pw.SizedBox(height: 2),
@@ -966,32 +1014,15 @@ class _GrupoSaldadoCard extends ConsumerWidget {
                 final fechaStr = f != null
                     ? '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}'
                     : '-';
-                final montoDia = c.saldoPendiente ?? c.cuotaDiaria ?? c.monto ?? 0;
+                final montoDia = (c.cuotaDiaria ?? c.monto ?? 0).toDouble();
                 return _pdfRow('  $fechaStr', DateFormatter.formatCurrency(montoDia));
               }),
               pw.SizedBox(height: 4),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
 
-              // Totales
-              _pdfRow('DIAS CUBIERTOS:', '${cobros.length}'),
-              pw.SizedBox(height: 4),
-              pw.Align(
-                alignment: pw.Alignment.center,
-                child: pw.Text('TOTAL ABONADO:',
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              ),
-              pw.Align(
-                alignment: pw.Alignment.center,
-                child: pw.Text(
-                  DateFormatter.formatCurrency(montoTotal),
-                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-                ),
-              ),
-
               // Saldo a favor si aplica
               if (saldoFavorFinal > 0) ...[
-                pw.SizedBox(height: 4),
                 _pdfRow('SALDO A FAVOR:', DateFormatter.formatCurrency(saldoFavorFinal)),
               ],
 
@@ -1086,6 +1117,63 @@ class _GrupoSaldadoCard extends ConsumerWidget {
         municipalidadNombre: muni?.nombre ?? 'MUNICIPALIDAD',
         mercadoNombre: merc?.nombre,
         cobradorNombre: user?.nombre,
+        fechasSaldadas: c.fechasDeudasSaldadas,
+        periodoAbonadoStr: periodoAbonadoStr,
+        periodoSaldoAFavorStr: periodoFavorStr,
+        slogan: muni?.slogan,
+      );
+    }
+  }
+
+  Future<void> _compartirCobroIndividual(
+    BuildContext context,
+    WidgetRef ref,
+    Cobro c,
+  ) async {
+    final user = ref.read(currentUsuarioProvider).value;
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    // Calcular periodoFavorStr
+    String? periodoFavorStr;
+    final favorResultante = (c.nuevoSaldoFavor ?? 0).toDouble();
+    final cuota = (c.cuotaDiaria ?? 0).toDouble();
+    final fechasSaldadas = c.fechasDeudasSaldadas ?? [];
+    if (favorResultante > 0 && cuota > 0) {
+      int dias = (favorResultante / cuota).floor();
+      if (dias > 0) {
+        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
+        if (fechasSaldadas.isNotEmpty) {
+          final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+          inicioFavor = sorted.last.add(const Duration(days: 1));
+        }
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+      }
+    }
+
+    // Calcular periodoAbonadoStr
+    String? periodoAbonadoStr;
+    if (fechasSaldadas.isNotEmpty) {
+      periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+    }
+
+    if (context.mounted) {
+      await ReceiptDispatcher.compartirPdf(
+        context: context,
+        local: local,
+        monto: (c.monto != null && c.monto! > 0) ? c.monto!.toDouble() : (c.cuotaDiaria ?? 0).toDouble(),
+        fecha: c.fecha ?? DateTime.now(),
+        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
+        deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
+        montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
+        saldoAFavor: favorResultante,
+        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
+        muni: muni?.nombre ?? 'MUNICIPALIDAD',
+        merc: merc?.nombre,
+        cobrador: user?.nombre,
         fechasSaldadas: c.fechasDeudasSaldadas,
         periodoAbonadoStr: periodoAbonadoStr,
         periodoSaldoAFavorStr: periodoFavorStr,

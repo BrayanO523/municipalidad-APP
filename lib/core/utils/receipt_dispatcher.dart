@@ -353,11 +353,23 @@ class ReceiptDispatcher {
     if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
       diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
     }
+    
+    debugPrint('===== DEBUG PDF INDIVIDUAL =====');
+    debugPrint('Slogan: "$slogan"');
+    
+    final fontDefault = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+    final fontItalic = await PdfGoogleFonts.robotoItalic();
 
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
+        theme: pw.ThemeData.withFont(
+          base: fontDefault,
+          bold: fontBold,
+          italic: fontItalic,
+        ),
         build: (pw.Context ctx) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -369,6 +381,15 @@ class ReceiptDispatcher {
                 pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                 pw.SizedBox(height: 4),
               ],
+              if (slogan != null && slogan.trim().isNotEmpty)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 4),
+                  child: pw.Text(
+                    slogan.trim(),
+                    style: pw.TextStyle(fontSize: 7, fontStyle: pw.FontStyle.italic),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
               pw.SizedBox(height: 4),
               pw.Text('BOLETA DE PAGO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),

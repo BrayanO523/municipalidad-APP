@@ -106,7 +106,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final cobrosHoy = ref.read(cobrosHoyCobradorProvider).value ?? [];
     final pagadoHoy = cobrosHoy
         .where((c) => c.localId == local.id)
-        .fold<num>(0, (sum, c) => sum + (c.monto ?? 0)); // Suman TODO el dinero recaudado hoy
+        .fold<num>(0, (sum, c) => sum + (c.pagoACuota ?? 0));
 
     final montoCtrl = TextEditingController(text: '');
     final obsCtrl = TextEditingController();

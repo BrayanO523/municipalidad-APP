@@ -160,7 +160,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   num _montoPagadoHoy(String localId, List<Cobro> cobrosHoy) {
     return cobrosHoy
         .where((c) => c.localId == localId)
-        .fold<num>(0, (acc, c) => acc + (c.monto ?? 0));
+        .fold<num>(0, (acc, c) => acc + (c.pagoACuota ?? 0));
   }
 
   Cobro? _cobroDelLocal(String localId, List<Cobro> cobrosHoy) {
