@@ -982,12 +982,12 @@ class CobroDatasource {
     return patched;
   }
 
-  /// Soft-Reset del sistema: en vez de borrar miles de documentos (costoso),
-  /// marca una fecha de inicio de operaciones en el doc de stats.
-  /// La app ignorará todo cobro/deuda anterior a esa fecha.
-  /// Costo total: 1 escritura en Firestore (vs ~29k lecturas del enfoque anterior).
+  /// Soft-Reset del sistema:
+  /// 1. Resetea stats a ceros + marca fechaInicioOperaciones = HOY (1 escritura)
+  /// 2. Limpia deuda/saldo en locales de esta municipalidad (~590 reads + writes)
+  /// 3. NO toca cobros (ahorro principal: evita leer/borrar 15k+ documentos)
   Future<void> softResetSistema(String municipalidadId) async {
-    // 1. Escribir fechaInicioOperaciones + stats limpios (1 sola escritura)
+    // 1. Stats limpios + fecha de inicio (1 escritura)
     await _firestore.collection('stats').doc(municipalidadId).set({
       'totalCobrado': 0,
       'totalDeuda': 0,
@@ -998,7 +998,33 @@ class CobroDatasource {
       'ultimaActualizacion': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    // 2. Limpiar caché local (SharedPreferences + Hive) — costo: 0 lecturas Firestore
+    // 2. Limpiar deuda/saldo en locales de esta municipalidad
+    //    Costo: ~590 lecturas + ~590 escrituras (mucho menor que los 29k anteriores)
+    final locales = await _firestore
+        .collection(FirestoreCollections.locales)
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .get();
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+
+    for (var doc in locales.docs) {
+      batch.update(doc.reference, {
+        'deudaAcumulada': 0,
+        'saldoAFavor': 0,
+        'creadoEn': Timestamp.now(),
+      });
+      count++;
+      if (count % 450 == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+      }
+    }
+    if (count % 450 != 0 && count > 0) {
+      await batch.commit();
+    }
+
+    // 3. Limpiar caché local — costo: 0 lecturas Firestore
     await limpiarCacheLocal();
   }
 
