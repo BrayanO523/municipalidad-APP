@@ -1,4 +1,4 @@
-﻿import 'package:fl_chart/fl_chart.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../cobros/domain/entities/cobro.dart';
@@ -18,19 +18,30 @@ class CobrosStatusPieChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    final activos = locales.where((l) => l.activo == true).toList();
+    final activos = locales.where((l) => l.activo == true).toList();
     final int totalLocales = activos.length;
+
+    // Indexar los localIds que ya pagaron HOY
+    final Set<String> localIdsConCobroHoy = {};
+    for (var c in cobrosHoy) {
+      if (c.localId != null && (c.monto ?? 0) > 0) {
+        localIdsConCobroHoy.add(c.localId!);
+      }
+    }
 
     int localesConDeuda = 0;
     int localesAdelantados = 0;
     int localesAlDia = 0;
+    int localesPendienteHoy = 0;
 
     for (var l in activos) {
       if ((l.deudaAcumulada ?? 0) > 0) {
         localesConDeuda++;
       } else if ((l.saldoAFavor ?? 0) > 0) {
         localesAdelantados++;
+      } else if (l.id != null && !localIdsConCobroHoy.contains(l.id)) {
+        // Sin deuda, sin saldo a favor, y NO ha pagado hoy → Pendiente Hoy
+        localesPendienteHoy++;
       } else {
         localesAlDia++;
       }
@@ -86,6 +97,18 @@ class CobrosStatusPieChart extends StatelessWidget {
                               color: Colors.white,
                             ),
                           ),
+                        if (localesPendienteHoy > 0)
+                          PieChartSectionData(
+                            color: const Color(0xFFFF9F43), // Naranja
+                            value: localesPendienteHoy.toDouble(),
+                            title: '$localesPendienteHoy',
+                            radius: 35,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         if (localesConDeuda > 0)
                           PieChartSectionData(
                             color: const Color(0xFFEE5A6F), // Rojo
@@ -110,7 +133,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                               color: Colors.white,
                             ),
                           ),
-                      ],
+                    ],
                     ),
                   ),
                 ),
@@ -124,6 +147,10 @@ class CobrosStatusPieChart extends StatelessWidget {
                 _Indicator(
                   color: const Color(0xFF00D9A6),
                   text: 'Al Día ($localesAlDia)',
+                ),
+                _Indicator(
+                  color: const Color(0xFFFF9F43),
+                  text: 'Pendiente Hoy ($localesPendienteHoy)',
                 ),
                 _Indicator(
                   color: const Color(0xFFEE5A6F),
