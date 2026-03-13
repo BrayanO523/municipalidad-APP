@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import '../../features/cobros/data/services/deuda_service.dart';
+
+
 import '../../core/utils/date_formatter.dart';
 import '../../features/cobros/data/datasources/cobro_datasource.dart';
 import '../../features/cobros/domain/entities/cobro.dart';
@@ -182,6 +185,15 @@ final corteDatasourceProvider = Provider<CorteDatasource>(
   (ref) => CorteDatasource(ref.read(firestoreProvider)),
 );
 
+final deudaServiceProvider = Provider<DeudaService>((ref) {
+  return DeudaService(
+    cobroDs: ref.read(cobroDatasourceProvider),
+    localDs: ref.read(localDatasourceProvider),
+    firestore: ref.read(firestoreProvider),
+  );
+});
+
+
 // Repositories
 final localRepositoryProvider = Provider<LocalRepository>((ref) {
   return LocalRepositoryImpl(
@@ -215,6 +227,7 @@ final cobroRepositoryProvider = Provider<CobroRepository>((ref) {
     ref.read(cobroLocalDatasourceProvider),
     ref.read(_connectivityProvider),
     ref.read(localRepositoryProvider),
+    ref.read(deudaServiceProvider),
   );
 });
 

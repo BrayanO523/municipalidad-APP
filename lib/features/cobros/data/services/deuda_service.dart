@@ -266,4 +266,63 @@ class DeudaService {
       }, SetOptions(merge: true));
     }
   }
+
+  /// Registra deudas pendientes para un local en un rango de fechas.
+  /// Salta días que ya tengan cualquier registro de cobro (idempotencia).
+  Future<int> registrarDeudaPorRango({
+    required Local local,
+    required DateTime start,
+    required DateTime end,
+    required String? cobradorId,
+  }) async {
+    if (local.id == null) return 0;
+
+    // 1. Normalizar fechas (start siempre antes que end)
+    DateTime fechaInicio = DateTime(start.year, start.month, start.day);
+    DateTime fechaFin = DateTime(end.year, end.month, end.day);
+    if (fechaInicio.isAfter(fechaFin)) {
+      final temp = fechaInicio;
+      fechaInicio = fechaFin;
+      fechaFin = temp;
+    }
+
+    // 2. Carga masiva de cobros existentes en el rango para evitar duplicados
+    final existentes = await cobroDs.listarPorLocalesYRango(
+      localIds: [local.id!],
+      inicio: fechaInicio,
+      fin: fechaFin,
+    );
+
+    final Set<String> mapaExistencia = {};
+    for (final c in existentes) {
+      if (c.fecha == null) continue;
+      final f = c.fecha!;
+      mapaExistencia.add("${f.year}${f.month}${f.day}");
+    }
+
+    int creados = 0;
+    // 3. Iterar día por día
+    for (DateTime fecha = fechaInicio;
+        !fecha.isAfter(fechaFin);
+        fecha = fecha.add(const Duration(days: 1))) {
+      final fechaKey = "${fecha.year}${fecha.month}${fecha.day}";
+
+      // Saltar si ya existe registro (pagado o pendiente)
+      if (mapaExistencia.contains(fechaKey)) continue;
+
+      // Se eliminó la restricción de local.creadoEn para permitir 
+      // registrar deudas de años anteriores aunque el local 
+      // sea nuevo en el sistema digital.
+
+      await _crearPendiente(
+        local: local,
+        fecha: fecha,
+        cobradorId: cobradorId,
+        observaciones: 'Deuda registrada manualmente por rango de fechas',
+      );
+      creados++;
+    }
+
+    return creados;
+  }
 }

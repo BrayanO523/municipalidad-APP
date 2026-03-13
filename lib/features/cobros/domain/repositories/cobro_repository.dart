@@ -1,4 +1,5 @@
 import '../entities/cobro.dart';
+import '../../../locales/domain/entities/local.dart';
 
 abstract class CobroRepository {
   Future<void> syncCobros();
@@ -31,4 +32,12 @@ abstract class CobroRepository {
 
   /// Elimina un cobro y revierte su impacto financiero en el local (deuda/saldo).
   Future<void> eliminarCobro(Cobro cobro);
+
+  /// Registra deudas pendientes para un local en un rango de fechas.
+  Future<int> registrarDeudaPorRango({
+    required Local local,
+    required DateTime start,
+    required DateTime end,
+    required String? cobradorId,
+  });
 }

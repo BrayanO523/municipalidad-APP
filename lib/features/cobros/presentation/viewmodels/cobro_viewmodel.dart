@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../domain/entities/cobro.dart';
 import '../../domain/repositories/cobro_repository.dart';
 import '../../../locales/domain/repositories/local_repository.dart';
+import '../../../locales/domain/entities/local.dart';
 
 final cobroViewModelProvider = AsyncNotifierProvider<CobroViewModel, void>(() {
   return CobroViewModel();
@@ -66,6 +68,29 @@ class CobroViewModel extends AsyncNotifier<void> {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       return false;
+    }
+  }
+
+  /// Registra deuda masiva para un local en un rango de fechas asignando
+  /// por defecto el estado 'pendiente'.
+  Future<int> agregarDeudaMasiva({
+    required Local local,
+    required DateTimeRange range,
+    required String? cobradorId,
+  }) async {
+    try {
+      state = const AsyncValue.loading();
+      final creados = await _cobroRepository.registrarDeudaPorRango(
+        local: local,
+        start: range.start,
+        end: range.end,
+        cobradorId: cobradorId,
+      );
+      state = const AsyncValue.data(null);
+      return creados;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return 0;
     }
   }
 }

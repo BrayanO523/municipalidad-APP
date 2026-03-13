@@ -9,18 +9,22 @@ import '../datasources/cobro_local_datasource.dart';
 import '../../../locales/domain/repositories/local_repository.dart';
 import '../models/cobro_model.dart';
 import '../models/hive/cobro_hive.dart';
+import '../services/deuda_service.dart';
+import '../../../locales/domain/entities/local.dart';
 
 class CobroRepositoryImpl implements CobroRepository {
   final CobroDatasource _remoteDatasource;
   final CobroLocalDatasource _localDatasource;
   final Connectivity _connectivity;
   final LocalRepository _localRepository;
+  final DeudaService _deudaService;
 
   CobroRepositoryImpl(
     this._remoteDatasource,
     this._localDatasource,
     this._connectivity,
     this._localRepository,
+    this._deudaService,
   );
 
   Future<bool> _hasConnection() async {
@@ -238,5 +242,20 @@ class CobroRepositoryImpl implements CobroRepository {
         correlativoABorrar: cobro.correlativo!,
       );
     }
+  }
+
+  @override
+  Future<int> registrarDeudaPorRango({
+    required Local local,
+    required DateTime start,
+    required DateTime end,
+    required String? cobradorId,
+  }) {
+    return _deudaService.registrarDeudaPorRango(
+      local: local,
+      start: start,
+      end: end,
+      cobradorId: cobradorId,
+    );
   }
 }
