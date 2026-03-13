@@ -765,6 +765,8 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     final mercados = ref.read(mercadosProvider).value ?? [];
     final usuarios = ref.read(usuariosProvider).value ?? [];
 
+    final local = locales.where((l) => l.id == c.localId).firstOrNull;
+
     try {
       final municipalidad = ref.read(municipalidadActualProvider);
       await printer.printReceipt(
@@ -781,6 +783,9 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
         saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
         slogan: municipalidad?.slogan,
+        clave: local?.clave,
+        codigoLocal: local?.codigo,
+        codigoCatastral: local?.codigoCatastral,
       );
 
     } catch (e) {
