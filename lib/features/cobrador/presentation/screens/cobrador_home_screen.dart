@@ -28,7 +28,7 @@ class CobradorHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
-  String _filtroEstado = 'todos'; // 'todos', 'pendiente_hoy', 'con_deuda'
+  String _filtroEstado = 'pendientes'; // 'pendientes', 'cobrados'
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   int _limiteLocales = 20;
@@ -56,20 +56,23 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final localRepo = ref.read(localRepositoryProvider);
       final cobroRepo = ref.read(cobroRepositoryProvider);
       final muniRepo = ref.read(municipalidadRepositoryProvider);
-      
+
       localRepo.syncLocales().catchError((_) {});
       cobroRepo.syncCobros().catchError((_) {});
       muniRepo.sincronizarLocalmente().catchError((_) {});
 
       // Esperar a que los locales carguen en background para verificar deuda
       // Se quita el `await .future` puro para no congelar el arranque
-      ref.read(localesCobradorProvider.future).then((locales) {
-        if (mounted && locales.isNotEmpty) {
-          _verificarDeudaRetroactiva(locales);
-        }
-      }).catchError((e) {
-        debugPrint('Error en carga background de locales: $e');
-      });
+      ref
+          .read(localesCobradorProvider.future)
+          .then((locales) {
+            if (mounted && locales.isNotEmpty) {
+              _verificarDeudaRetroactiva(locales);
+            }
+          })
+          .catchError((e) {
+            debugPrint('Error en carga background de locales: $e');
+          });
     } catch (e) {
       debugPrint('Excepción en dispararSync: $e');
     }
@@ -120,22 +123,25 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       final hoyKey = 'last_debt_scan_${usuario.id}';
-      final hoyString = '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
-      
+      final hoyString =
+          '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+
       final lastScan = prefs.getString(hoyKey);
       if (lastScan == hoyString) {
-        debugPrint('DeudaService: Salto de revisión (ya escaneado hoy). Costo: 0 lecturas.');
+        debugPrint(
+          'DeudaService: Salto de revisión (ya escaneado hoy). Costo: 0 lecturas.',
+        );
         return;
       }
 
       final cobroDs = ref.read(cobroDatasourceProvider);
       final localDs = ref.read(localDatasourceProvider);
-      
+
       // CRÍTICO: Esperar a que stats cargue para obtener fechaInicioOperaciones.
       // Si no esperamos, stats.value puede ser null y el DeudaService
       // generaría pendientes de 7 días atrás erróneamente.
       final stats = await ref.read(statsProvider.future);
-      
+
       final service = DeudaService(
         cobroDs: cobroDs,
         localDs: localDs,
@@ -151,7 +157,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
       // Guardar que ya se revisó hoy
       await prefs.setString(hoyKey, hoyString);
-      
     } catch (_) {
       // Silencioso: la verificación retroactiva no debe interrumpir la UI
     }
@@ -179,11 +184,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.delete_forever_rounded, size: 40, color: AppColors.danger),
+            Icon(
+              Icons.delete_forever_rounded,
+              size: 40,
+              color: AppColors.danger,
+            ),
             const SizedBox(height: 12),
             Text(
               '¿Eliminar Cobro?',
-              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -191,7 +202,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               'Si hubo auto-pagos posteriores, también se borrarán.',
               textAlign: TextAlign.center,
               style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+                color: Theme.of(
+                  ctx,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 20),
@@ -207,7 +220,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 Expanded(
                   child: FilledButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.danger,
+                    ),
                     child: const Text('Sí, Eliminar'),
                   ),
                 ),
@@ -252,7 +267,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             const SizedBox(height: 12),
             Text(
               'Sin Pago',
-              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -264,14 +281,19 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               'Se registrará una deuda de ${DateFormatter.formatCurrency(local.cuotaDiaria)} para hoy.',
               textAlign: TextAlign.center,
               style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5),
+                color: Theme.of(
+                  ctx,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
             if ((local.deudaAcumulada ?? 0) > 0) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -298,7 +320,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     onPressed: () => Navigator.pop(ctx, true),
                     icon: const Icon(Icons.check_rounded, size: 18),
                     label: const Text('Confirmar'),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.warning,
+                    ),
                   ),
                 ),
               ],
@@ -364,10 +388,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               const SizedBox(height: 12),
               Text(
                 'Usar Saldo a Favor',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              Text('${local.nombreSocial ?? ""} tiene un crédito de:',
+              Text(
+                '${local.nombreSocial ?? ""} tiene un crédito de:',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -384,7 +411,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 'Se descontará ${DateFormatter.formatCurrency(cuota)} de ese crédito para cubrir el día de hoy.',
                 textAlign: TextAlign.center,
                 style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5),
+                  color: Theme.of(
+                    ctx,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
               const SizedBox(height: 20),
@@ -437,7 +466,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           final cs = Theme.of(context).colorScheme;
           return Padding(
             padding: EdgeInsets.only(
-              left: 24, right: 24, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              left: 24,
+              right: 24,
+              top: 8,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -455,7 +487,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     cuotaCubierta
                         ? 'Abono Extra - ${local.nombreSocial ?? ""}'
                         : 'Cobrar - ${local.nombreSocial ?? ""}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                   ),
@@ -470,129 +504,196 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     value: local.representante ?? '-',
                   ),
                   // --- PANEL SUPERIOR REACTIVO ---
-                  Builder(builder: (context) {
-                    final currMonto = double.tryParse(montoCtrl.text) ?? 0;
-                    final currExtraer = usarSaldoFavor ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0) : 0;
-                    
-                    final dist = CalculadoraDistribucionPago.calcular(
-                      montoEfectivo: currMonto,
-                      deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
-                      cuotaDiaria: cuota,
-                      pagadoHoyPreviamente: pagadoHoy,
-                      saldoFavorInicial: saldoActual,
-                      fechaReferencia: DateTime.now(),
-                      saldoAExtraer: currExtraer,
-                    );
+                  Builder(
+                    builder: (context) {
+                      final currMonto = double.tryParse(montoCtrl.text) ?? 0;
+                      final currExtraer = usarSaldoFavor
+                          ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0)
+                          : 0;
 
-                    Widget buildDynamicRow({required String label, required String value, String? subtitle, Color? valueColor}) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14)),
-                                  if (subtitle != null && subtitle.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4, right: 8),
-                                      child: Text(subtitle, style: TextStyle(fontSize: 12, color: valueColor, fontWeight: FontWeight.w500)),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: valueColor ?? cs.onSurface, fontSize: 15)),
-                          ],
-                        ),
+                      final dist = CalculadoraDistribucionPago.calcular(
+                        montoEfectivo: currMonto,
+                        deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+                        cuotaDiaria: cuota,
+                        pagadoHoyPreviamente: pagadoHoy,
+                        saldoFavorInicial: saldoActual,
+                        fechaReferencia: DateTime.now(),
+                        saldoAExtraer: currExtraer,
                       );
-                    }
 
-                    String rangoDeudaStr = '';
-                    if (dist.diasAtrasadosSaldados > 0 && dist.inicioDeudaPagada != null && dist.finDeudaPagada != null) {
-                      final ini = '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.year}';
-                      final fin = '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.year}';
-                      rangoDeudaStr = dist.diasAtrasadosSaldados == 1 ? 'Cubre el $ini' : 'Cubre del $ini al $fin';
-                    }
-
-                    String rangoAdelantoStr = '';
-                    if (dist.diasAdelantados > 0 && dist.inicioDiasAdelantados != null && dist.finDiasAdelantados != null) {
-                      final ini = '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.year}';
-                      final fin = '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.year}';
-                      rangoAdelantoStr = dist.diasAdelantados == 1 ? 'Adelanta el $ini' : 'Adelanta del $ini al $fin';
-                    }
-
-                    final isTyping = (currMonto > 0 || currExtraer > 0);
-                    final realFaltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (!isTyping) ...[
-                          // === ESTADO REAL (sin teclear) ===
-                          if (saldoActual > 0)
-                            buildDynamicRow(
-                              label: 'Saldo a favor',
-                              value: DateFormatter.formatCurrency(saldoActual),
-                              valueColor: AppColors.success,
-                            ),
-                          if ((local.deudaAcumulada ?? 0) > 0)
-                            buildDynamicRow(
-                              label: 'Deuda acumulada',
-                              value: DateFormatter.formatCurrency(local.deudaAcumulada ?? 0),
-                              valueColor: AppColors.danger,
-                            ),
-                          buildDynamicRow(
-                            label: 'Cuota de hoy',
-                            value: realFaltanteHoy == 0
-                                ? (cuota > 0 ? 'Saldada' : 'N/A')
-                                : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}',
-                            valueColor: realFaltanteHoy == 0 ? cs.primary : AppColors.warning,
+                      Widget buildDynamicRow({
+                        required String label,
+                        required String value,
+                        String? subtitle,
+                        Color? valueColor,
+                      }) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      label,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    if (subtitle != null && subtitle.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 4,
+                                          right: 8,
+                                        ),
+                                        child: Text(
+                                          subtitle,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: valueColor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                value,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: valueColor ?? cs.onSurface,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
                           ),
-                        ] else ...[
-                          // === DISTRIBUCIÓN DEL PAGO (tecleando) ===
-                          if (dist.paraDeudaReal > 0)
+                        );
+                      }
+
+                      String rangoDeudaStr = '';
+                      if (dist.diasAtrasadosSaldados > 0 &&
+                          dist.inicioDeudaPagada != null &&
+                          dist.finDeudaPagada != null) {
+                        final ini =
+                            '${dist.inicioDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.inicioDeudaPagada!.year}';
+                        final fin =
+                            '${dist.finDeudaPagada!.day.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.month.toString().padLeft(2, '0')}/${dist.finDeudaPagada!.year}';
+                        rangoDeudaStr = dist.diasAtrasadosSaldados == 1
+                            ? 'Cubre el $ini'
+                            : 'Cubre del $ini al $fin';
+                      }
+
+                      String rangoAdelantoStr = '';
+                      if (dist.diasAdelantados > 0 &&
+                          dist.inicioDiasAdelantados != null &&
+                          dist.finDiasAdelantados != null) {
+                        final ini =
+                            '${dist.inicioDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.inicioDiasAdelantados!.year}';
+                        final fin =
+                            '${dist.finDiasAdelantados!.day.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.month.toString().padLeft(2, '0')}/${dist.finDiasAdelantados!.year}';
+                        rangoAdelantoStr = dist.diasAdelantados == 1
+                            ? 'Adelanta el $ini'
+                            : 'Adelanta del $ini al $fin';
+                      }
+
+                      final isTyping = (currMonto > 0 || currExtraer > 0);
+                      final realFaltanteHoy = (cuota - pagadoHoy).clamp(
+                        0,
+                        cuota,
+                      );
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (!isTyping) ...[
+                            // === ESTADO REAL (sin teclear) ===
+                            if (saldoActual > 0)
+                              buildDynamicRow(
+                                label: 'Saldo a favor',
+                                value: DateFormatter.formatCurrency(
+                                  saldoActual,
+                                ),
+                                valueColor: AppColors.success,
+                              ),
+                            if ((local.deudaAcumulada ?? 0) > 0)
+                              buildDynamicRow(
+                                label: 'Deuda acumulada',
+                                value: DateFormatter.formatCurrency(
+                                  local.deudaAcumulada ?? 0,
+                                ),
+                                valueColor: AppColors.danger,
+                              ),
                             buildDynamicRow(
-                              label: 'Abono a deuda',
-                              value: DateFormatter.formatCurrency(dist.paraDeudaReal),
-                              subtitle: rangoDeudaStr,
-                              valueColor: AppColors.danger,
+                              label: 'Cuota de hoy',
+                              value: realFaltanteHoy == 0
+                                  ? (cuota > 0 ? 'Saldada' : 'N/A')
+                                  : 'Falta ${DateFormatter.formatCurrency(realFaltanteHoy)}',
+                              valueColor: realFaltanteHoy == 0
+                                  ? cs.primary
+                                  : AppColors.warning,
                             ),
-                          if (dist.deudaFinalResultante > 0)
+                          ] else ...[
+                            // === DISTRIBUCIÓN DEL PAGO (tecleando) ===
+                            if (dist.paraDeudaReal > 0)
+                              buildDynamicRow(
+                                label: 'Abono a deuda',
+                                value: DateFormatter.formatCurrency(
+                                  dist.paraDeudaReal,
+                                ),
+                                subtitle: rangoDeudaStr,
+                                valueColor: AppColors.danger,
+                              ),
+                            if (dist.deudaFinalResultante > 0)
+                              buildDynamicRow(
+                                label: 'Deuda restante',
+                                value: DateFormatter.formatCurrency(
+                                  dist.deudaFinalResultante,
+                                ),
+                                valueColor: AppColors.danger,
+                              ),
                             buildDynamicRow(
-                              label: 'Deuda restante',
-                              value: DateFormatter.formatCurrency(dist.deudaFinalResultante),
-                              valueColor: AppColors.danger,
+                              label: 'Cuota de hoy',
+                              value: dist.estadoCuotaHoy == 0 && cuota > 0
+                                  ? 'Completa'
+                                  : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
+                              subtitle: dist.pagoACuotaHoy > 0
+                                  ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
+                                  : (dist.paraDeudaReal > 0
+                                        ? 'El pago fue a deuda antigua'
+                                        : null),
+                              valueColor: dist.estadoCuotaHoy == 0
+                                  ? cs.primary
+                                  : AppColors.warning,
                             ),
-                          buildDynamicRow(
-                            label: 'Cuota de hoy',
-                            value: dist.estadoCuotaHoy == 0 && cuota > 0
-                                ? 'Completa'
-                                : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
-                            subtitle: dist.pagoACuotaHoy > 0
-                                ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
-                                : (dist.paraDeudaReal > 0 ? 'El pago fue a deuda antigua' : null),
-                            valueColor: dist.estadoCuotaHoy == 0 ? cs.primary : AppColors.warning,
-                          ),
-                          if (dist.saldoFavorFinalResultante > 0)
-                            buildDynamicRow(
-                              label: 'Saldo a favor',
-                              value: DateFormatter.formatCurrency(dist.saldoFavorFinalResultante),
-                              subtitle: rangoAdelantoStr,
-                              valueColor: AppColors.success,
-                            ),
+                            if (dist.saldoFavorFinalResultante > 0)
+                              buildDynamicRow(
+                                label: 'Saldo a favor',
+                                value: DateFormatter.formatCurrency(
+                                  dist.saldoFavorFinalResultante,
+                                ),
+                                subtitle: rangoAdelantoStr,
+                                valueColor: AppColors.success,
+                              ),
+                          ],
                         ],
-                      ],
-                    );
-                  }),
+                      );
+                    },
+                  ),
                   // --- FIN PANEL SUPERIOR ---
                   const SizedBox(height: 16),
                   TextField(
                     controller: montoCtrl,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                     onChanged: (_) => setModalState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Efectivo Recibido (L)',
@@ -608,7 +709,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: cs.primaryContainer.withValues(alpha: 0.3),
-                        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: cs.primary.withValues(alpha: 0.3),
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -620,7 +723,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               const Expanded(
                                 child: Text(
                                   '¿Usar Saldo a Favor Disponible?',
-                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                               Switch(
@@ -629,7 +735,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   setModalState(() {
                                     usarSaldoFavor = val;
                                     if (val) {
-                                      montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
+                                      montoSaldoFavorCtrl.text = saldoActual
+                                          .toStringAsFixed(2);
                                     } else {
                                       montoSaldoFavorCtrl.clear();
                                     }
@@ -645,15 +752,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                               keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
                                 labelText: 'Monto a Extraer (L)',
-                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
+                                prefixIcon: Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  size: 20,
+                                ),
                                 isDense: true,
                               ),
                               onChanged: (val) {
                                 final parsed = double.tryParse(val) ?? 0;
                                 if (parsed > saldoActual) {
-                                  montoSaldoFavorCtrl.text = saldoActual.toStringAsFixed(2);
-                                  montoSaldoFavorCtrl.selection = TextSelection.fromPosition(
-                                    TextPosition(offset: montoSaldoFavorCtrl.text.length),
+                                  montoSaldoFavorCtrl.text = saldoActual
+                                      .toStringAsFixed(2);
+                                  montoSaldoFavorCtrl
+                                      .selection = TextSelection.fromPosition(
+                                    TextPosition(
+                                      offset: montoSaldoFavorCtrl.text.length,
+                                    ),
                                   );
                                 }
                                 setModalState(() {});
@@ -705,8 +819,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     if (result != true || !mounted) return;
 
     final montoEfectivo = num.tryParse(montoCtrl.text) ?? 0;
-    final saldoAExtraer = usarSaldoFavor ? (num.tryParse(montoSaldoFavorCtrl.text) ?? 0) : 0;
-    
+    final saldoAExtraer = usarSaldoFavor
+        ? (num.tryParse(montoSaldoFavorCtrl.text) ?? 0)
+        : 0;
+
     if (montoEfectivo <= 0 && saldoAExtraer <= 0) return;
 
     final cobrosHoyActual = ref.read(cobrosHoyCobradorProvider).value ?? [];
@@ -736,7 +852,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
     try {
-
       final String correlativoStr = await cobroDs.crearCobroConCorrelativo(
         cobroId: docId,
         localId: local.id!,
@@ -757,7 +872,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           'observaciones': 'Pagado con saldo a favor',
           'saldoPendiente': 0,
           'montoAbonadoDeuda': 0,
-          'nuevoSaldoFavor': -cuota, // Señal para stats: descontar del saldo global
+          'nuevoSaldoFavor':
+              -cuota, // Señal para stats: descontar del saldo global
         },
       );
       // Descontar la cuota del saldo a favor
@@ -774,7 +890,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       }
 
       // --- OBTENER DATOS MAESTROS EN PARALELO (optimización de velocidad) ---
-      final muniFuture = municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+      final muniFuture = municipalidadRepo.obtenerPorId(
+        local.municipalidadId ?? '',
+      );
       final mercFuture = mercadoRepo.obtenerPorId(local.mercadoId ?? '');
       final muni = await muniFuture;
       final merc = await mercFuture;
@@ -787,12 +905,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       // Mostrar recibo ANTES de invalidar providers para evitar rebuild prematuro
       if (mounted) {
         String? periodoFavorStr;
-        final saldoFinal = (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
+        final saldoFinal =
+            (local.saldoAFavor ?? 0).toDouble() - cuota.toDouble();
         if (saldoFinal > 0 && cuota > 0) {
           int dias = (saldoFinal / cuota).floor();
           if (dias > 0) {
             final fechaInicio = now.add(const Duration(days: 1));
-            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(fechaInicio, dias);
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+              fechaInicio,
+              dias,
+            );
           }
         }
 
@@ -847,12 +969,16 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final cobroViewModel = ref.read(cobroViewModelProvider.notifier);
 
     // --- OBTENER DATOS MAESTROS EN PARALELO (optimización de velocidad) ---
-    final muniFuture = municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muniFuture = municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final mercFuture = mercadoRepo.obtenerPorId(local.mercadoId ?? '');
     final muni = await muniFuture;
     final merc = await mercFuture;
 
-    debugPrint('🏛️ [HOME] Municipalidad: ${muni?.nombre} | slogan: "${muni?.slogan}" | id buscado: ${local.municipalidadId}');
+    debugPrint(
+      '🏛️ [HOME] Municipalidad: ${muni?.nombre} | slogan: "${muni?.slogan}" | id buscado: ${local.municipalidadId}',
+    );
 
     final municipalidadNombre = muni?.nombre ?? 'MUNICIPALIDAD';
     final mercadoNombre = merc?.nombre;
@@ -967,17 +1093,22 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           if (dias > 0) {
             DateTime inicioFavor = now.add(const Duration(days: 1));
             if (fechasSaldadas.isNotEmpty) {
-               final sorted = List<DateTime>.from(fechasSaldadas)..sort();
-               inicioFavor = sorted.last.add(const Duration(days: 1));
+              final sorted = List<DateTime>.from(fechasSaldadas)..sort();
+              inicioFavor = sorted.last.add(const Duration(days: 1));
             }
-            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+            periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+              inicioFavor,
+              dias,
+            );
           }
         }
 
         // Calcular rango de fechas cubiertas (deuda abonada)
         String? periodoAbonadoStr;
         if (fechasSaldadas.isNotEmpty) {
-          periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+          periodoAbonadoStr = DateRangeFormatter.formatearRangos(
+            fechasSaldadas,
+          );
         }
 
         await ReceiptDispatcher.presentReceiptOptions(
@@ -1024,9 +1155,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final cobrosAsync = ref.watch(cobrosHoyCobradorProvider);
 
     return localesAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, __) => Scaffold(
         body: Center(
           child: Text(
@@ -1085,13 +1215,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             .toSet();
 
         // IDs de locales con deuda acumulada
-        final Set<String> idsConDeudaSet = {};
-        for (var l in locales) {
-          if ((l.deudaAcumulada ?? 0) > 0) {
-            idsConDeudaSet.add(l.id ?? '');
-          }
-        }
-
         // IDs que tienen al menos un pago hoy (para UI de la tarjeta - Abono parcial)
         final idsCobradosHoySet = locales
             .where((l) => (montosPorLocal[l.id] ?? 0) > 0)
@@ -1101,17 +1224,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         final localesFiltrados = locales.where((l) {
           final id = l.id ?? '';
           final cuotaCubiertaHoy = idsCuotaCubiertaSet.contains(id);
-          final conDeuda = idsConDeudaSet.contains(id);
-          
+
           // Filtro por Estado
           bool pasaFiltroEstado = true;
-          if (_filtroEstado == 'pendiente_hoy') {
-            // Pendiente hoy = La cuota de HOY no ha sido cubierta
+          if (_filtroEstado == 'pendientes') {
             pasaFiltroEstado = !cuotaCubiertaHoy;
-          } else if (_filtroEstado == 'con_deuda') {
-            pasaFiltroEstado = conDeuda;
-          } else if (_filtroEstado == 'saldados') {
-            pasaFiltroEstado = cuotaCubiertaHoy && !conDeuda;
+          } else if (_filtroEstado == 'cobrados') {
+            pasaFiltroEstado = cuotaCubiertaHoy;
           }
 
           // Filtro de Búsqueda
@@ -1131,22 +1250,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 codigoCatastral.contains(q);
           }
 
-
           return pasaFiltroEstado && pasaFiltroTexto;
         }).toList();
 
-        // --- Cálculos de Contadores para Chips ---
-        final int totalesCount = locales.length;
-        final int pendientesHoyCount = totalesCount - idsCuotaCubiertaSet.length;
-        final int conDeudaCount = idsConDeudaSet.length;
-        
-        int saldadosCount = 0;
-        for (var l in locales) {
-          final id = l.id ?? '';
-          if (idsCuotaCubiertaSet.contains(id) && !idsConDeudaSet.contains(id)) {
-            saldadosCount++;
-          }
-        }
+        final int pendientesHoyCount =
+            locales.length - idsCuotaCubiertaSet.length;
+        final int cobradosHoyCount = idsCuotaCubiertaSet.length;
 
         final colorScheme = Theme.of(context).colorScheme;
 
@@ -1196,24 +1305,70 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                     final confirm = await showModalBottomSheet<bool>(
                                       context: context,
                                       builder: (ctx) => Padding(
-                                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          24,
+                                          8,
+                                          24,
+                                          32,
+                                        ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.cleaning_services_rounded, size: 36, color: AppColors.warning),
+                                            Icon(
+                                              Icons.cleaning_services_rounded,
+                                              size: 36,
+                                              color: AppColors.warning,
+                                            ),
                                             const SizedBox(height: 12),
-                                            Text('Limpiar Caché Local', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                            Text(
+                                              'Limpiar Caché Local',
+                                              style: Theme.of(ctx)
+                                                  .textTheme
+                                                  .titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
                                             const SizedBox(height: 8),
                                             const Text(
                                               'Esto borrará los cobros almacenados localmente en el dispositivo para eliminar cobros fantasma.\n\nLos datos en la nube NO se borran. ¿Continuar?',
                                               textAlign: TextAlign.center,
                                             ),
                                             const SizedBox(height: 20),
-                                            Row(children: [
-                                              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar'))),
-                                              const SizedBox(width: 12),
-                                              Expanded(child: FilledButton(style: FilledButton.styleFrom(backgroundColor: AppColors.warning), onPressed: () => Navigator.pop(ctx, true), child: const Text('Limpiar'))),
-                                            ]),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: OutlinedButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          ctx,
+                                                          false,
+                                                        ),
+                                                    child: const Text(
+                                                      'Cancelar',
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: FilledButton(
+                                                    style:
+                                                        FilledButton.styleFrom(
+                                                          backgroundColor:
+                                                              AppColors.warning,
+                                                        ),
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          ctx,
+                                                          true,
+                                                        ),
+                                                    child: const Text(
+                                                      'Limpiar',
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1270,10 +1425,44 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          DateFormatter.formatDate(DateTime.now()),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormatter.formatDate(DateTime.now()),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                  ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Cobrado hoy: ${DateFormatter.formatCurrency(montoTotalHoy)}',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.primary,
+                                    ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         // Buscador
@@ -1286,16 +1475,23 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           style: TextStyle(color: colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Buscar local, dueño o código...',
-                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+                            hintStyle: TextStyle(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
                             prefixIcon: Icon(
                               Icons.search,
-                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
                                     icon: Icon(
                                       Icons.clear,
-                                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                      color: colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.7),
                                     ),
                                     onPressed: () {
                                       _searchController.clear();
@@ -1319,65 +1515,39 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        // Filtros en formato Chips Scrolleables
-                        SizedBox(
-                          height: 48,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            children: [
-                              // --- Bloque 1: Estados ---
-                              _CustomFilterChip(
-                                label: 'Todos',
-                                count: totalesCount.toString(),
-                                isSelected: _filtroEstado == 'todos',
-                                baseColor: colorScheme.primary,
-                                icon: Icons.list_alt_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'todos'),
-                              ),
-                              _CustomFilterChip(
-                                label: 'Pendiente Pago Hoy',
-                                count: pendientesHoyCount.toString(),
-                                isSelected: _filtroEstado == 'pendiente_hoy',
-                                baseColor: const Color(0xFFFF9F43), // Naranja (consistente con el donut)
-                                icon: Icons.pending_actions_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'pendiente_hoy'),
-                              ),
-                              _CustomFilterChip(
-                                label: 'Con Deuda',
-                                count: conDeudaCount.toString(),
-                                isSelected: _filtroEstado == 'con_deuda',
-                                baseColor: const Color(0xFFEE5A6F), // Rojo (consistente con el donut)
-                                icon: Icons.error_outline_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'con_deuda'),
-                              ),
-                              _CustomFilterChip(
-                                label: 'Saldados',
-                                count: saldadosCount.toString(),
-                                isSelected: _filtroEstado == 'saldados',
-                                baseColor: AppColors.success, // Verde
-                                icon: Icons.check_circle_outline_rounded,
-                                onTap: () => setState(() => _filtroEstado = 'saldados'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Monto Total Cobrado Hoy
+                        const SizedBox(height: 16),
+                        // Filtros en formato estático
                         Row(
                           children: [
-                            Icon(Icons.payments_rounded, size: 16, color: colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Cobrado hoy: ${DateFormatter.formatCurrency(montoTotalHoy)}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurface.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: _EstadoFilterOption(
+                                label: 'Pendientes',
+                                count: pendientesHoyCount < 0
+                                    ? 0
+                                    : pendientesHoyCount,
+                                isSelected: _filtroEstado == 'pendientes',
+                                icon: Icons.pending_actions_rounded,
+                                accentColor: const Color(0xFFFF9F43),
+                                onTap: () => setState(
+                                  () => _filtroEstado = 'pendientes',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _EstadoFilterOption(
+                                label: 'Cobrados',
+                                count: cobradosHoyCount,
+                                isSelected: _filtroEstado == 'cobrados',
+                                icon: Icons.check_circle_outline_rounded,
+                                accentColor: AppColors.success,
+                                onTap: () =>
+                                    setState(() => _filtroEstado = 'cobrados'),
                               ),
                             ),
                           ],
                         ),
+                        //const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -1400,7 +1570,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         ? Icons.lock_person_rounded
                                         : Icons.search_off_rounded,
                                     size: 48,
-                                    color: colorScheme.onSurface.withValues(alpha: 0.2),
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.2,
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
@@ -1409,7 +1581,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         : 'No hay locales con este filtro',
                                     textAlign: TextAlign.center,
                                     style: Theme.of(context).textTheme.bodyLarge
-                                        ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                                        ?.copyWith(
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
+                                        ),
                                   ),
                                 ],
                               ),
@@ -1425,7 +1600,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   onPressed: () =>
                                       setState(() => _limiteLocales += 20),
                                   icon: const Icon(Icons.expand_more_rounded),
-                                   label: const Text('Cargar más locales'),
+                                  label: const Text('Cargar más locales'),
                                   style: TextButton.styleFrom(
                                     foregroundColor: colorScheme.primary,
                                   ),
@@ -1454,7 +1629,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           onEditar: () => showLocalFormDialog(
                             context,
                             local: local,
-                            onSuccess: () => ref.invalidate(localesCobradorProvider),
+                            onSuccess: () =>
+                                ref.invalidate(localesCobradorProvider),
                           ),
                           onSinPago: cobradoHoy
                               ? null
@@ -1518,7 +1694,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Offline Storage', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Offline Storage',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 300,
@@ -1526,17 +1707,31 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('📂 Locales Bajados: ${localesAgregados.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      '📂 Locales Bajados: ${localesAgregados.length}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 10),
-                    Text('💰 Cobros Bajados (Nube): ${cobrosNube.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      '💰 Cobros Bajados (Nube): ${cobrosNube.length}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 10),
-                    Text('⏳ Cobros Pendientes (Local): ${cobrosPendientes.length}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning)),
+                    Text(
+                      '⏳ Cobros Pendientes (Local): ${cobrosPendientes.length}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
                     const Divider(),
                     const Text('Recientes Pendientes:'),
                     ...cobrosPendientes.map(
                       (cobro) => ListTile(
                         title: Text('Monto: L ${cobro.monto}'),
-                        subtitle: Text('ID: ${cobro.id}\nLocal UUID: ${cobro.localId}'),
+                        subtitle: Text(
+                          'ID: ${cobro.id}\nLocal UUID: ${cobro.localId}',
+                        ),
                       ),
                     ),
                   ],
@@ -1546,7 +1741,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cerrar'),
+              ),
             ),
           ],
         ),
@@ -1573,79 +1771,77 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 }
 
-class _CustomFilterChip extends StatelessWidget {
+class _EstadoFilterOption extends StatelessWidget {
   final String label;
-  final String? count;
+  final int count;
   final bool isSelected;
-  final Color baseColor;
+  final Color accentColor;
+  final IconData icon;
   final VoidCallback onTap;
-  final IconData? icon;
 
-  const _CustomFilterChip({
+  const _EstadoFilterOption({
     required this.label,
-    this.count,
+    required this.count,
     required this.isSelected,
-    required this.baseColor,
+    required this.accentColor,
+    required this.icon,
     required this.onTap,
-    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected ? baseColor.withValues(alpha: 0.15) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected ? baseColor : colorScheme.outlineVariant.withValues(alpha: 0.5),
-                width: 1,
-              ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accentColor.withValues(alpha: 0.18)
+                : colorScheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor
+                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: isSelected ? 1.5 : 1,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 16, color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.6)),
-                  const SizedBox(width: 4),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.8),
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 13,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: isSelected
+                        ? accentColor
+                        : colorScheme.onSurfaceVariant,
                   ),
-                ),
-                if (count != null && count!.isNotEmpty) ...[
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isSelected ? baseColor : colorScheme.onSurface.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      count!,
-                      style: TextStyle(
-                        color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface.withValues(alpha: 0.8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? accentColor : colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? accentColor : colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1683,7 +1879,9 @@ class _LocalCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final tieneDeuda = (local.deudaAcumulada ?? 0) > 0;
     final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
-    final cardStatusColor = (cuotaCubierta || cobrado) ? AppColors.success : AppColors.warning;
+    final cardStatusColor = (cuotaCubierta || cobrado)
+        ? AppColors.success
+        : AppColors.warning;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1693,9 +1891,7 @@ class _LocalCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: cardStatusColor.withValues(alpha: 0.4),
-            ),
+            border: Border.all(color: cardStatusColor.withValues(alpha: 0.4)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1752,33 +1948,39 @@ class _LocalCard extends StatelessWidget {
                           Text(
                             local.representante ?? '—',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                                ?.copyWith(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (local.clave != null &&
-                              local.clave!.isNotEmpty)
+                          if (local.clave != null && local.clave!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
                                 'Clave: ${local.clave}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
-                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          if (local.codigo != null &&
-                              local.codigo!.isNotEmpty)
+                          if (local.codigo != null && local.codigo!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
                                 'Código: ${local.codigo}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
-                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1794,7 +1996,9 @@ class _LocalCard extends StatelessWidget {
                                 'Cód. Catastral: ${local.codigoCatastral}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
-                                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1809,8 +2013,12 @@ class _LocalCard extends StatelessWidget {
                             children: [
                               _SmallBadge(
                                 icon: Icons.schedule_rounded,
-                                label: local.frecuenciaCobro?.toUpperCase() ?? 'DIARIA',
-                                color: colorScheme.primary.withValues(alpha: 0.7),
+                                label:
+                                    local.frecuenciaCobro?.toUpperCase() ??
+                                    'DIARIA',
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                               if (tieneDeuda)
                                 _SmallBadge(
@@ -1840,7 +2048,9 @@ class _LocalCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: cuotaCubierta ? colorScheme.primary : colorScheme.onSurface,
+                            color: cuotaCubierta
+                                ? colorScheme.primary
+                                : colorScheme.onSurface,
                           ),
                         ),
                         Text(
@@ -2011,14 +2221,22 @@ class _CardButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: onTap == null ? colorScheme.onSurface.withValues(alpha: 0.24) : color),
+            Icon(
+              icon,
+              size: 18,
+              color: onTap == null
+                  ? colorScheme.onSurface.withValues(alpha: 0.24)
+                  : color,
+            ),
             const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: onTap == null ? colorScheme.onSurface.withValues(alpha: 0.24) : color,
+                color: onTap == null
+                    ? colorScheme.onSurface.withValues(alpha: 0.24)
+                    : color,
               ),
             ),
           ],
@@ -2084,15 +2302,15 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             '$label: ',
-            style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 13),
+            style: TextStyle(
+              color: colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),
         ],
@@ -2100,4 +2318,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
