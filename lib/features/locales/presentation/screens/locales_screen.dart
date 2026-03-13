@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,27 +66,71 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Widget build(BuildContext context) {
     final paginacion = ref.watch(localesPaginadosProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: LayoutBuilder(
-        builder: (context, outerConstraints) {
-          final isMobilePadding = outerConstraints.maxWidth <= 700;
-          return Padding(
-            padding: isMobilePadding
-                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
-                : const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildFiltros(context),
-                const SizedBox(height: 16),
-                Expanded(child: _buildContenido(context, paginacion)),
-              ],
-            ),
-          );
-        },
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            _moverSeleccion(1, paginacion.locales);
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            _moverSeleccion(-1, paginacion.locales);
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: LayoutBuilder(
+          builder: (context, outerConstraints) {
+            final isMobilePadding = outerConstraints.maxWidth <= 700;
+            return Padding(
+              padding: isMobilePadding
+                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+                  : const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFiltros(context),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildContenido(context, paginacion)),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  void _moverSeleccion(int delta, List<Local> localesActuales) {
+    if (localesActuales.isEmpty) return;
+    
+    // Si no hay nada seleccionado y presionas una flecha, selecciona el primero
+    if (_localSeleccionado == null) {
+      if (delta > 0) {
+        setState(() => _localSeleccionado = localesActuales.first);
+      }
+      return;
+    }
+
+    final currentIndex = localesActuales.indexWhere((l) => l.id == _localSeleccionado!.id);
+    
+    // Si por alguna razón el local seleccionado no está en la página actual o falla, seleccionamos el 0
+    if (currentIndex == -1) {
+       setState(() => _localSeleccionado = localesActuales.first);
+       return;
+    }
+
+    final int nextIndex = currentIndex + delta;
+    
+    // Limitar al rango de la lista
+    if (nextIndex >= 0 && nextIndex < localesActuales.length) {
+      setState(() {
+        _localSeleccionado = localesActuales[nextIndex];
+      });
+    }
   }
 
 
@@ -1034,6 +1079,12 @@ class _LocalesListView extends ConsumerWidget {
 
               return DataRow(
                 selected: isSelected,
+                color: WidgetStateProperty.resolveWith<Color?>((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Theme.of(context).colorScheme.primary.withValues(alpha: 0.15);
+                  }
+                  return null;
+                }),
                 onSelectChanged: (selected) {
                   onSelect(l);
                 },

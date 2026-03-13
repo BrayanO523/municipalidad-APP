@@ -8,6 +8,7 @@ import '../../features/locales/domain/entities/local.dart';
 import '../../app/di/providers.dart';
 import 'date_formatter.dart';
 import 'date_range_formatter.dart';
+import '../../features/cobros/domain/entities/cobro.dart';
 
 class ReceiptDispatcher {
   static Future<void> presentReceiptOptions({
@@ -381,15 +382,6 @@ class ReceiptDispatcher {
                 pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                 pw.SizedBox(height: 4),
               ],
-              if (slogan != null && slogan.trim().isNotEmpty)
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 4),
-                  child: pw.Text(
-                    slogan.trim(),
-                    style: pw.TextStyle(fontSize: 7, fontStyle: pw.FontStyle.italic),
-                    textAlign: pw.TextAlign.center,
-                  ),
-                ),
               pw.SizedBox(height: 4),
               pw.Text('BOLETA DE PAGO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),
@@ -441,8 +433,13 @@ class ReceiptDispatcher {
               pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
               if (slogan != null && slogan.trim().isNotEmpty) ...[
                 pw.SizedBox(height: 4),
-                pw.Text(slogan, style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+                pw.Text(slogan.trim(), style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
               ],
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 7),
+              ),
               pw.SizedBox(height: 6),
             ],
           );

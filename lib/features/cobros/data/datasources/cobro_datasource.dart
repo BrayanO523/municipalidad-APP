@@ -1040,7 +1040,57 @@ class CobroDatasource {
       await batch.commit();
     }
 
-    // 5. Limpiar caché local — costo: 0 lecturas Firestore
+    // 5. Eliminar TODOS los cobros de esta municipalidad físicamente
+    // Se usa un bucle para manejar grandes volúmenes sin exceder límites de memoria o batch
+    bool tieneCobros = true;
+    while (tieneCobros) {
+      final snapshot = await _collection
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .limit(500)
+          .get();
+      
+      if (snapshot.docs.isEmpty) {
+        tieneCobros = false;
+        break;
+      }
+
+      final deleteBatch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        deleteBatch.delete(doc.reference);
+      }
+      await deleteBatch.commit();
+      
+      // Si el snapshot trajo menos del límite, es el último lote
+      if (snapshot.docs.length < 500) {
+        tieneCobros = false;
+      }
+    }
+
+    // 5.1. Eliminar TODOS los cortes de esta municipalidad
+    bool tieneCortes = true;
+    while (tieneCortes) {
+      final snapshot = await _firestore.collection('cortes')
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .limit(500)
+          .get();
+      
+      if (snapshot.docs.isEmpty) {
+        tieneCortes = false;
+        break;
+      }
+
+      final deleteBatch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        deleteBatch.delete(doc.reference);
+      }
+      await deleteBatch.commit();
+      
+      if (snapshot.docs.length < 500) {
+        tieneCortes = false;
+      }
+    }
+
+    // 6. Limpiar caché local — costo: 0 lecturas Firestore
     await limpiarCacheLocal();
   }
 

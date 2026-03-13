@@ -219,11 +219,13 @@ class ReportePdfGenerator {
     final pdf = pw.Document();
     final fechaGen = _fFechaHora.format(DateTime.now());
 
+    final subtituloCompleto = '${local.nombreSocial ?? 'Local'}${local.clave != null ? ' | Clave: ${local.clave}' : ''}${local.codigo != null ? ' | Cód: ${local.codigo}' : ''}';
+    
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.letter,
         margin: const pw.EdgeInsets.all(30),
-        header: (ctx) => _pdfHeader(fonts, titulo: 'ESTADO DE CUENTA', subtitulo: local.nombreSocial ?? 'Local', fecha: fechaGen),
+        header: (ctx) => _pdfHeader(fonts, titulo: 'ESTADO DE CUENTA', subtitulo: subtituloCompleto, fecha: fechaGen),
         footer: (ctx) => _pdfFooter(fonts, ctx),
         build: (ctx) => [
           _resumenCard(fonts, items: [('Balance Neto', 'L ${_fMoneda.format(local.balanceNeto)}'), ('Deuda Total', 'L ${_fMoneda.format(local.deudaAcumulada ?? 0)}'), ('Saldo a Favor', 'L ${_fMoneda.format(local.saldoAFavor ?? 0)}')]),
