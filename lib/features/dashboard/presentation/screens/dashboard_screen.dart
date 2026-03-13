@@ -14,8 +14,6 @@ import '../../../../core/utils/mass_import_locales.dart';
 import '../../../../core/utils/cobros_migration.dart';
 import '../widgets/custom_date_range_picker.dart';
 
-
-
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -30,230 +28,235 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final stats = ref.watch(statsProvider);
     final filter = ref.watch(dashboardFilterProvider);
 
-
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Row(
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          final pagePadding = isMobile
+              ? const EdgeInsets.all(16)
+              : const EdgeInsets.all(24);
+          return SingleChildScrollView(
+            padding: pagePadding,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [Expanded(child: _DashboardHeader())],
-            ),
-            const SizedBox(height: 24),
+              children: [
+                // ── Header ───────────────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Expanded(child: _DashboardHeader())],
+                ),
+                const SizedBox(height: 24),
 
-            // â”€â”€ KPI cards â€” fila 1: recaudación del día â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final crossAxisCount = constraints.maxWidth > 1000
-                    ? 4
-                    : constraints.maxWidth > 600
-                    ? 2
-                    : 1;
-                final cardW =
-                    (constraints.maxWidth - (16 * (crossAxisCount - 1))) /
-                    crossAxisCount;
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    SizedBox(
-                      width: cardW,
-                      child: stats.when(
-                        data: (s) => MetricCard(
-                          title: 'Recaudación Hoy',
-                          value: DateFormatter.formatCurrency(s.recaudacionHoy),
-                          icon: Icons.payments_rounded,
-                          color: const Color(0xFF00D9A6),
-                        ),
-                        loading: () => const MetricCard(
-                          title: 'Recaudación Hoy',
-                          value: '...',
-                          icon: Icons.payments_rounded,
-                          color: Color(0xFF00D9A6),
-                        ),
-                        error: (_, __) => const MetricCard(
-                          title: 'Recaudación Hoy',
-                          value: 'Error',
-                          icon: Icons.payments_rounded,
-                          color: Color(0xFF00D9A6),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardW,
-                      child: stats.when(
-                        data: (s) => MetricCard(
-                          title: 'Cobros Hoy',
-                          value: '${s.cobrosHoy}',
-                          icon: Icons.receipt_long_rounded,
-                          color: const Color(0xFF6C63FF),
-                        ),
-                        loading: () => const MetricCard(
-                          title: 'Cobros Hoy',
-                          value: '...',
-                          icon: Icons.receipt_long_rounded,
-                          color: Color(0xFF6C63FF),
-                        ),
-                        error: (_, __) => const MetricCard(
-                          title: 'Cobros Hoy',
-                          value: 'Error',
-                          icon: Icons.receipt_long_rounded,
-                          color: Color(0xFF6C63FF),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardW,
-                      child: stats.when(
-                        data: (s) {
-                          debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
-                          return MetricCard(
-                            title: 'Mercados Activos',
-                            value: '${s.cantidadMercados}',
-                            icon: Icons.store_rounded,
-                            color: const Color(0xFFFF9F43),
-                          );
-                        },
-                        loading: () => const MetricCard(
-                          title: 'Mercados Activos',
-                          value: '...',
-                          icon: Icons.store_rounded,
-                          color: Color(0xFFFF9F43),
-                        ),
-                        error: (err, stack) {
-                          debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
-                          return const MetricCard(
-                            title: 'Mercados Activos',
-                            value: 'Error',
-                            icon: Icons.store_rounded,
-                            color: Color(0xFFFF9F43),
-                          );
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardW,
-                      child: stats.when(
-                        data: (s) => MetricCard(
-                          title: 'Locales Registrados',
-                          value: '${s.cantidadLocales}',
-                          icon: Icons.storefront_rounded,
-                          color: const Color(0xFFEE5A6F),
-                        ),
-                        loading: () => const MetricCard(
-                          title: 'Locales Registrados',
-                          value: '...',
-                          icon: Icons.storefront_rounded,
-                          color: Color(0xFFEE5A6F),
-                        ),
-                        error: (_, __) => const MetricCard(
-                          title: 'Locales Registrados',
-                          value: 'Error',
-                          icon: Icons.storefront_rounded,
-                          color: Color(0xFFEE5A6F),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // â”€â”€ KPI cards â€” fila 2: deudas y saldo a favor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            stats.when(
-              data: (s) {
-                final deudaTotal = s.totalDeuda;
-                final saldoAFavorTotal = s.totalSaldoAFavor;
-
-                return LayoutBuilder(
+                // ── KPI cards — fila 1: recaudación del día ──────────────────
+                LayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
-                    final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
+                    final crossAxisCount = constraints.maxWidth > 1000
+                        ? 4
+                        : constraints.maxWidth > 600
+                        ? 2
+                        : 1;
+                    final cardW =
+                        (constraints.maxWidth - (16 * (crossAxisCount - 1))) /
+                        crossAxisCount;
                     return Wrap(
                       spacing: 16,
                       runSpacing: 16,
                       children: [
                         SizedBox(
                           width: cardW,
-                          child: MetricCard(
-                            title: 'Pendiente de Cobro Hoy',
-                            value: DateFormatter.formatCurrency(s.pendienteCobroHoy),
-                            icon: Icons.schedule_rounded,
-                            color: const Color(0xFFFF6B35),
-                            subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(s.totalCuotaDiaria)}',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: MetricCard(
-                            title: 'Deuda Acumulada',
-                            value: DateFormatter.formatCurrency(deudaTotal),
-                            icon: Icons.warning_amber_rounded,
-                            color: const Color(0xFFEE5A6F),
-                            subtitle: 'Total global de deudas',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: MetricCard(
-                            title: 'Saldo a Favor',
-                            value: DateFormatter.formatCurrency(
-                              saldoAFavorTotal,
+                          child: stats.when(
+                            data: (s) => MetricCard(
+                              title: 'Recaudación Hoy',
+                              value: DateFormatter.formatCurrency(s.recaudacionHoy),
+                              icon: Icons.payments_rounded,
+                              color: const Color(0xFF00D9A6),
                             ),
-                            icon: Icons.savings_rounded,
-                            color: const Color(0xFF00D9A6),
-                            subtitle: 'Total global de créditos',
+                            loading: () => const MetricCard(
+                              title: 'Recaudación Hoy',
+                              value: '...',
+                              icon: Icons.payments_rounded,
+                              color: Color(0xFF00D9A6),
+                            ),
+                            error: (_, __) => const MetricCard(
+                              title: 'Recaudación Hoy',
+                              value: 'Error',
+                              icon: Icons.payments_rounded,
+                              color: Color(0xFF00D9A6),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: stats.when(
+                            data: (s) => MetricCard(
+                              title: 'Cobros Hoy',
+                              value: '${s.cobrosHoy}',
+                              icon: Icons.receipt_long_rounded,
+                              color: const Color(0xFF6C63FF),
+                            ),
+                            loading: () => const MetricCard(
+                              title: 'Cobros Hoy',
+                              value: '...',
+                              icon: Icons.receipt_long_rounded,
+                              color: Color(0xFF6C63FF),
+                            ),
+                            error: (_, __) => const MetricCard(
+                              title: 'Cobros Hoy',
+                              value: 'Error',
+                              icon: Icons.receipt_long_rounded,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: stats.when(
+                            data: (s) {
+                              debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
+                              return MetricCard(
+                                title: 'Mercados Activos',
+                                value: '${s.cantidadMercados}',
+                                icon: Icons.store_rounded,
+                                color: const Color(0xFFFF9F43),
+                              );
+                            },
+                            loading: () => const MetricCard(
+                              title: 'Mercados Activos',
+                              value: '...',
+                              icon: Icons.store_rounded,
+                              color: Color(0xFFFF9F43),
+                            ),
+                            error: (err, stack) {
+                              debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
+                              return const MetricCard(
+                                title: 'Mercados Activos',
+                                value: 'Error',
+                                icon: Icons.store_rounded,
+                                color: Color(0xFFFF9F43),
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: stats.when(
+                            data: (s) => MetricCard(
+                              title: 'Locales Registrados',
+                              value: '${s.cantidadLocales}',
+                              icon: Icons.storefront_rounded,
+                              color: const Color(0xFFEE5A6F),
+                            ),
+                            loading: () => const MetricCard(
+                              title: 'Locales Registrados',
+                              value: '...',
+                              icon: Icons.storefront_rounded,
+                              color: Color(0xFFEE5A6F),
+                            ),
+                            error: (_, __) => const MetricCard(
+                              title: 'Locales Registrados',
+                              value: 'Error',
+                              icon: Icons.storefront_rounded,
+                              color: Color(0xFFEE5A6F),
+                            ),
                           ),
                         ),
                       ],
                     );
                   },
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 16),
+
+                // ── KPI cards — fila 2: deudas y saldo a favor ───────────────
+                stats.when(
+                  data: (s) {
+                    final deudaTotal = s.totalDeuda;
+                    final saldoAFavorTotal = s.totalSaldoAFavor;
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
+                        final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
+                        return Wrap(
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: [
+                            SizedBox(
+                              width: cardW,
+                              child: MetricCard(
+                                title: 'Pendiente de Cobro Hoy',
+                                value: DateFormatter.formatCurrency(s.pendienteCobroHoy),
+                                icon: Icons.schedule_rounded,
+                                color: const Color(0xFFFF6B35),
+                                subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(s.totalCuotaDiaria)}',
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: MetricCard(
+                                title: 'Deuda Acumulada',
+                                value: DateFormatter.formatCurrency(deudaTotal),
+                                icon: Icons.warning_amber_rounded,
+                                color: const Color(0xFFEE5A6F),
+                                subtitle: 'Total global de deudas',
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: MetricCard(
+                                title: 'Saldo a Favor',
+                                value: DateFormatter.formatCurrency(
+                                  saldoAFavorTotal,
+                                ),
+                                icon: Icons.savings_rounded,
+                                color: const Color(0xFF00D9A6),
+                                subtitle: 'Total global de créditos',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Gráficos ──────────────────────────────────────────────────
+                DashboardChartsWidget(
+                  cobrosHoy: cobrosHoy.value ?? [],
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Cobros de la Fecha ────────────────────────────────────────
+                Builder(
+                  builder: (context) {
+                    final titulo = filter.period == DashboardPeriod.hoy
+                        ? 'Cobros de Hoy'
+                        : 'Cobros del Periodo (${filter.label})';
+
+                    return Text(
+                      titulo,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                const RecentCobrosTable(),
+              ],
             ),
-            const SizedBox(height: 24),
-
-            // â”€â”€ Gráficos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            DashboardChartsWidget(
-              cobrosHoy: cobrosHoy.value ?? [],
-            ),
-
-            const SizedBox(height: 24),
-
-            const SizedBox(height: 24),
-
-            // â”€â”€ Cobros de la Fecha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Builder(
-              builder: (context) {
-                final titulo = filter.period == DashboardPeriod.hoy
-                    ? 'Cobros de Hoy'
-                    : 'Cobros del Periodo (${filter.label})';
-
-                return Text(
-                  titulo,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            const RecentCobrosTable(),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-// â”€â”€ Widgets de apoyo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Widgets de apoyo ─────────────────────────────────────────────────────────
 
 class _DashboardHeader extends ConsumerWidget {
   @override
@@ -336,7 +339,7 @@ class _DashboardHeader extends ConsumerWidget {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(
                       context,
-                    ).colorScheme.surface.withAlpha(204),
+                    ).colorScheme.onSurface.withAlpha(138),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -367,7 +370,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
+                    await Future.delay(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).clearSnackBars();
@@ -474,73 +477,6 @@ class _DashboardHeader extends ConsumerWidget {
                 label: const Text('Importar Locales'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigoAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-
-            const SizedBox(width: 8),
-            if (kDebugMode)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Actualizar Códigos de Locales'),
-                      content: const Text(
-                        'Se actualizará SOLO el campo "código" en los 590 locales existentes. No se modificarán otros campos (deudas, saldos, etc.). ¿Desea proceder?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Actualizar'),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Actualizando códigos...'),
-                        ),
-                      );
-                      final res = await MassImportLocales.actualizarCodigos();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  }
-                },
-                icon: const Icon(Icons.qr_code_rounded, size: 18),
-                label: const Text('Actualizar Códigos'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -713,6 +649,84 @@ class _DashboardHeader extends ConsumerWidget {
             const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Recalcular Estadísticas'),
+                      ],
+                    ),
+                    content: const Text(
+                      'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Recalcular'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  if (!context.mounted) return;
+                  try {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Recalculando estadísticas globales...')),
+                    );
+                    
+                    final ds = ref.read(statsDatasourceProvider);
+                    final user = ref.read(currentUsuarioProvider).value;
+                    if (user?.municipalidadId == null) {
+                      throw Exception('No se pudo identificar la municipalidad');
+                    }
+
+                    await ds.recalcularTodo(user!.municipalidadId!);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ Estadísticas sincronizadas con éxito.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      // Refrescar el provider de stats
+                      ref.invalidate(statsProvider);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Error al recalcular: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              icon: const Icon(Icons.sync_problem_rounded, size: 18),
+              label: const Text('Recalcular Stats'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.withValues(alpha: 0.1),
+                foregroundColor: Colors.orange,
+                side: const BorderSide(color: Colors.orange, width: 0.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () async {
                 final cobros = ref.read(cobrosHoyProvider).value ?? [];
                 final locales = ref.read(localesProvider).value ?? [];
                 final mercados = ref.read(mercadosProvider).value ?? [];
@@ -838,4 +852,3 @@ class _PeriodChip extends StatelessWidget {
     );
   }
 }
-

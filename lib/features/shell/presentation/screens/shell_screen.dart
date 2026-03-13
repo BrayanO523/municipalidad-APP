@@ -27,7 +27,54 @@ class ShellScreen extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isExpanded = constraints.maxWidth > 900;
+        final isDesktop = constraints.maxWidth > 900;
+        final isMobile = constraints.maxWidth <= 700;
+
+        if (isMobile) {
+          final mobileColorScheme = Theme.of(context).colorScheme;
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'QRecauda Admin',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: mobileColorScheme.onSurface,
+                ),
+              ),
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              actions: [
+                _ThemeToggleButton(
+                  isDark: Theme.of(context).brightness == Brightness.dark,
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+            drawer: Drawer(
+              child: _SidebarContent(isExpanded: true, isDrawer: true),
+            ),
+            body: Stack(
+              children: [
+                IgnorePointer(
+                  ignoring: isLoading,
+                  child: child,
+                ),
+                if (isLoading)
+                  const Positioned(
+                    top: 0, left: 0, right: 0,
+                    child: LinearProgressIndicator(),
+                  ),
+                if (isLoading)
+                  Container(
+                    color: Colors.black12,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            ),
+          );
+        }
+
         return Scaffold(
           body: Stack(
             children: [
@@ -36,7 +83,7 @@ class ShellScreen extends ConsumerWidget {
                   ignoring: isLoading,
                   child: Row(
                     children: [
-                      _SidebarNavigation(isExpanded: isExpanded),
+                      _SidebarNavigation(isExpanded: isDesktop),
                       Expanded(child: child),
                     ],
                   ),
@@ -69,8 +116,33 @@ class _SidebarNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+
+    final sidebarColorScheme = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      width: isExpanded ? 260 : 72,
+      decoration: BoxDecoration(
+        color: sidebarColorScheme.surface,
+        border: Border(right: BorderSide(color: sidebarColorScheme.outline, width: 1)),
+      ),
+      child: _SidebarContent(isExpanded: isExpanded),
+    );
+  }
+}
+
+class _SidebarContent extends ConsumerWidget {
+  final bool isExpanded;
+  final bool isDrawer;
+
+  const _SidebarContent({
+    required this.isExpanded,
+    this.isDrawer = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.toString();
-    final colorScheme = Theme.of(context).colorScheme;
     final usuario = ref.watch(currentUsuarioProvider).value;
     final municipalidades = ref.watch(municipalidadesProvider).value ?? [];
 
@@ -86,69 +158,61 @@ class _SidebarNavigation extends ConsumerWidget {
       }
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      width: isExpanded ? 260 : 72,
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(right: BorderSide(color: colorScheme.outline, width: 1)),
-      ),
-      child: Column(
-        children: [
-          _SidebarHeader(
-            isExpanded: isExpanded,
-            municipalidad: nombreMunicipalidad,
-            nombreCompleto: usuario?.nombre ?? 'Administrador',
-            onEditSlogan: () {
-              final mun = municipalidades
-                  .where((m) => m.id == usuario?.municipalidadId)
-                  .firstOrNull;
-              if (mun != null && context.mounted) {
-                _mostrarDialogoSlogan(context, ref, mun);
-              }
+    return Column(
+      children: [
+        _SidebarHeader(
+          isExpanded: isExpanded,
+          municipalidad: nombreMunicipalidad,
+          nombreCompleto: usuario?.nombre ?? 'Administrador',
+          onEditSlogan: isDrawer ? null : () {
+            final mun = municipalidades
+                .where((m) => m.id == usuario?.municipalidadId)
+                .firstOrNull;
+            if (mun != null && context.mounted) {
+              _mostrarSidebarDialogoSlogan(context, ref, mun);
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, child) {
+              final navConfig = ref.watch(navigationConfigProvider);
+              final items = navConfig.getMenuItems();
+              
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return _NavItem(
+                    icon: item.icon,
+                    label: item.label,
+                    path: item.path,
+                    currentPath: location,
+                    isExpanded: isExpanded,
+                    onTap: isDrawer ? () => Navigator.pop(context) : null,
+                  );
+                },
+              );
             },
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Consumer(
-              builder: (context, ref, child) {
-                final navConfig = ref.watch(navigationConfigProvider);
-                final items = navConfig.getMenuItems();
-                
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return _NavItem(
-                      icon: item.icon,
-                      label: item.label,
-                      path: item.path,
-                      currentPath: location,
-                      isExpanded: isExpanded,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1),
-          _UserFooter(
-            isExpanded: isExpanded,
-            nombre: usuario?.nombre ?? 'Usuario',
-            rol: usuario?.rol ?? '',
-            onLogout: () async {
-              final ds = ref.read(authDatasourceProvider);
-              await ds.logout();
-            },
-          ),
-        ],
-      ),
+        ),
+        const Divider(height: 1),
+        _UserFooter(
+          isExpanded: isExpanded,
+          nombre: usuario?.nombre ?? 'Usuario',
+          rol: usuario?.rol ?? '',
+          onLogout: () async {
+            final ds = ref.read(authDatasourceProvider);
+            await ds.logout();
+          },
+        ),
+      ],
     );
   }
 
-  static void _mostrarDialogoSlogan(
+  void _mostrarSidebarDialogoSlogan(
     BuildContext context,
     WidgetRef ref,
     dynamic muni,
@@ -455,6 +519,7 @@ class _NavItem extends StatelessWidget {
   final String path;
   final String currentPath;
   final bool isExpanded;
+  final VoidCallback? onTap;
 
   const _NavItem({
     required this.icon,
@@ -462,6 +527,7 @@ class _NavItem extends StatelessWidget {
     required this.path,
     required this.currentPath,
     required this.isExpanded,
+    this.onTap,
   });
 
   @override
@@ -476,7 +542,10 @@ class _NavItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => context.go(path),
+          onTap: () {
+            context.go(path);
+            if (onTap != null) onTap!();
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: EdgeInsets.symmetric(

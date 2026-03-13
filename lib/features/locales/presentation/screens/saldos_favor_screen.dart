@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,39 +38,71 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header y filtros
-            Row(
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 350,
-                  child: TextField(
-                    onChanged: (val) => notifier.aplicarBusqueda(val),
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar por nombre de local...',
-                      prefixIcon: Icon(Icons.search_rounded, size: 18),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                // Header y filtros
+                if (isMobile)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        onChanged: (val) => notifier.aplicarBusqueda(val),
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar por nombre de local...',
+                          prefixIcon: Icon(Icons.search_rounded, size: 18),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Filtro: Saldos a Favor',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: const Color(0xFF00D9A6),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 350,
+                        child: TextField(
+                          onChanged: (val) => notifier.aplicarBusqueda(val),
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar por nombre de local...',
+                            prefixIcon: Icon(Icons.search_rounded, size: 18),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Filtro: Saldos a Favor',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: const Color(0xFF00D9A6),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  'Filtro: Saldos a Favor',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFF00D9A6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 12),
             Expanded(
               child: Column(
@@ -155,8 +187,10 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                 ],
               ),
             ),
-          ],
-        ),
+            ],
+          ),
+        );
+        },
       ),
     );
   }

@@ -35,68 +35,75 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _MercadosHeader(
-              onSearch: (q) => ref.read(mercadosPaginadosProvider.notifier).buscar(q),
-              onAdd: () => _showFormDialog(context),
-              selectedColumn: _searchColumn,
-              onColumnChanged: (val) {
-                if (val != null) {
-                  setState(() => _searchColumn = val);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: state.cargando && state.mercados.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.errorMsg != null
-                      ? Center(
-                          child: Text(
-                            state.errorMsg!,
-                            style: const TextStyle(color: Colors.redAccent),
-                          ),
-                        )
-                      : state.mercados.isEmpty
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _MercadosHeader(
+                  onSearch: (q) => ref.read(mercadosPaginadosProvider.notifier).buscar(q),
+                  onAdd: () => _showFormDialog(context),
+                  selectedColumn: _searchColumn,
+                  onColumnChanged: (val) {
+                    if (val != null) {
+                      setState(() => _searchColumn = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: state.cargando && state.mercados.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : state.errorMsg != null
                           ? Center(
                               child: Text(
-                                'No se encontraron mercados',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                                ),
+                                state.errorMsg!,
+                                style: const TextStyle(color: Colors.redAccent),
                               ),
                             )
-                          : Column(
-                              children: [
-                                Expanded(
-                                  child: _MercadosTable(
-                                    mercados: state.mercados,
-                                    onEdit: (m) => _showFormDialog(context, mercado: m),
-                                    onDelete: (m) => _confirmDelete(context, m),
+                          : state.mercados.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No se encontraron mercados',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                                    ),
                                   ),
+                                )
+                              : Column(
+                                  children: [
+                                    Expanded(
+                                      child: _MercadosTable(
+                                        mercados: state.mercados,
+                                        onEdit: (m) => _showFormDialog(context, mercado: m),
+                                        onDelete: (m) => _confirmDelete(context, m),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _PaginationBar(
+                                      currentPage: state.paginaActual - 1,
+                                      onPrev: state.paginaActual > 1
+                                          ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaAnterior()
+                                          : null,
+                                      onNext: state.hayMas
+                                          ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaSiguiente()
+                                          : null,
+                                      isCargando: state.cargando,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                _PaginationBar(
-                                  currentPage: state.paginaActual - 1,
-                                  onPrev: state.paginaActual > 1
-                                      ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaAnterior()
-                                      : null,
-                                  onNext: state.hayMas
-                                      ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaSiguiente()
-                                      : null,
-                                  isCargando: state.cargando,
-                                ),
-                              ],
-                            ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -283,71 +290,143 @@ class _MercadosHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        if (isMobile) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Mercados',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Gestión de mercados de QRecauda',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
               ),
-            ],
-          ),
-        ),
-        Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedColumn,
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+              const SizedBox(height: 12),
+              TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
               ),
-              isDense: true,
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-              items: ['Nombre', 'Ubicación'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
-              }).toList(),
-              onChanged: onColumnChanged,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedColumn,
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
+                        isDense: true,
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                        items: ['Nombre', 'Ubicación'].map((String value) {
+                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        }).toList(),
+                        onChanged: onColumnChanged,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Agregar'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mercados',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Gestión de mercados de QRecauda',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 260,
-          child: TextField(
-            onChanged: onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Buscar...',
-              prefixIcon: Icon(Icons.search_rounded, size: 20),
-              isDense: true,
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedColumn,
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  isDense: true,
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                  items: ['Nombre', 'Ubicación'].map((String value) {
+                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: onColumnChanged,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Agregar'),
-        ),
-      ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 260,
+              child: TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -25,65 +25,72 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _TiposHeader(
-              onSearch: (q) => setState(() => _searchQuery = q),
-              onAdd: () => _showFormDialog(context),
-              selectedColumn: _searchColumn,
-              onColumnChanged: (val) {
-                if (val != null) {
-                  setState(() => _searchColumn = val);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: tiposNegocio.when(
-                data: (list) {
-                  final filtered = list.where((t) {
-                    final query = _searchQuery.toLowerCase();
-                    if (_searchColumn == 'Nombre') {
-                      return (t.nombre ?? '').toLowerCase().contains(query);
-                    } else if (_searchColumn == 'Descripción') {
-                      return (t.descripcion ?? '').toLowerCase().contains(
-                        query,
-                      );
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TiposHeader(
+                  onSearch: (q) => setState(() => _searchQuery = q),
+                  onAdd: () => _showFormDialog(context),
+                  selectedColumn: _searchColumn,
+                  onColumnChanged: (val) {
+                    if (val != null) {
+                      setState(() => _searchColumn = val);
                     }
-                    return false;
-                  }).toList();
-                  if (filtered.isEmpty) {
-                    return Center(
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: tiposNegocio.when(
+                    data: (list) {
+                      final filtered = list.where((t) {
+                        final query = _searchQuery.toLowerCase();
+                        if (_searchColumn == 'Nombre') {
+                          return (t.nombre ?? '').toLowerCase().contains(query);
+                        } else if (_searchColumn == 'Descripción') {
+                          return (t.descripcion ?? '').toLowerCase().contains(
+                            query,
+                          );
+                        }
+                        return false;
+                      }).toList();
+                      if (filtered.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No se encontraron tipos de negocio',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.54),
+                            ),
+                          ),
+                        );
+                      }
+                      return _TiposTable(
+                        tipos: filtered,
+                        onEdit: (t) => _showFormDialog(context, tipo: t),
+                        onDelete: (t) => _confirmDelete(context, t),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(
                       child: Text(
-                        'No se encontraron tipos de negocio',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
+                        'Error: $e',
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
-                    );
-                  }
-                  return _TiposTable(
-                    tipos: filtered,
-                    onEdit: (t) => _showFormDialog(context, tipo: t),
-                    onDelete: (t) => _confirmDelete(context, t),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.redAccent),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -205,81 +212,153 @@ class _TiposHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        if (isMobile) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Tipos de Negocio',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                'Categorías dinámicas de negocios para locales',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                'Categorías dinámicas de negocios',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    height: 40,
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedColumn,
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        ),
+                        isDense: true,
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                        items: ['Nombre', 'Descripción'].map((String value) {
+                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        }).toList(),
+                        onChanged: onColumnChanged,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Agregar'),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ),
-        Container(
-          height: 40,
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedColumn,
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.54),
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tipos de Negocio',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Categorías dinámicas de negocios para locales',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
+                  ),
+                ],
               ),
-              isDense: true,
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 13,
+            ),
+            Container(
+              height: 40,
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
               ),
-              items: ['Nombre', 'Descripción'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: onColumnChanged,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedColumn,
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  isDense: true,
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
+                  items: ['Nombre', 'Descripción'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: onColumnChanged,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 260,
-          child: TextField(
-            onChanged: onSearch,
-            decoration: const InputDecoration(
-              hintText: 'Buscar...',
-              prefixIcon: Icon(Icons.search_rounded, size: 20),
-              isDense: true,
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 260,
+              child: TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Agregar'),
-        ),
-      ],
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

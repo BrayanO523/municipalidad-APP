@@ -20,18 +20,25 @@ class ResumenReportesScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, ref, state, filter),
-            const SizedBox(height: 24),
-            _buildPeriodSelector(context, ref, filter),
-            const SizedBox(height: 24),
-            _buildMetricsGrid(context, state),
-          ],
-        ),
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return SingleChildScrollView(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, ref, state, filter),
+                const SizedBox(height: 24),
+                _buildPeriodSelector(context, ref, filter),
+                const SizedBox(height: 24),
+                _buildMetricsGrid(context, state),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
