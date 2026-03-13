@@ -57,6 +57,15 @@ class DateRangeFormatter {
     return '${_fmt(inicio)} al ${_fmt(fin)} ($dias días)';
   }
 
+  static String? formatearRangoAbonado(DateTime? fecha, double monto, double? cuota) {
+    if (fecha == null || cuota == null || cuota <= 0 || monto <= 0) return null;
+    final dias = (monto / cuota).floor();
+    if (dias <= 0) return null;
+    if (dias == 1) return _fmt(fecha);
+    final fin = fecha.add(Duration(days: dias - 1));
+    return '${_fmt(fecha)} al ${_fmt(fin)} ($dias días)';
+  }
+
   static String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 

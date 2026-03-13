@@ -495,7 +495,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                             // Formatear periodos si existen
                             String? periodoAbonadoStr;
                             if (c.montoAbonadoDeuda != null && c.montoAbonadoDeuda! > 0) {
-                              periodoAbonadoStr = DateRangeFormatter.formatearRangoAbonado(c.fecha, c.montoAbonadoDeuda!, c.cuotaDiaria);
+                              periodoAbonadoStr = DateRangeFormatter.formatearRangoAbonado(c.fecha, c.montoAbonadoDeuda!.toDouble(), c.cuotaDiaria?.toDouble());
                             }
                             
                             String? periodoFavorStr;

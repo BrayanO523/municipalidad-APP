@@ -370,7 +370,7 @@ class _DashboardHeader extends ConsumerWidget {
                   );
 
                   if (confirm == true) {
-                    await Future.delay(const Duration(milliseconds: 300));
+                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
                       ScaffoldMessenger.of(context).clearSnackBars();
