@@ -11,6 +11,8 @@ import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
+import '../widgets/deuda_rango_dialog.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../../core/utils/visual_debt_utils.dart';
@@ -51,6 +53,66 @@ class _CobradorEstadoCuentaScreenState
     final uri = Uri.parse('tel:$telefono');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    }
+  }
+
+  Future<void> _cargarDeudaPorRango(Local local) async {
+    final DateTimeRange? picked = await showDialog<DateTimeRange>(
+      context: context,
+      builder: (context) => DeudaRangoDialog(local: local),
+    );
+
+    if (picked == null || !mounted) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Text('Confirmar Deuda'),
+          ],
+        ),
+        content: Text(
+          'Se registrará deuda pendiente desde el ${DateFormatter.formatDate(picked.start)} hasta el ${DateFormatter.formatDate(picked.end)} para:\n\n${local.nombreSocial}\n\nLos días que ya tengan un registro serán ignorados automáticamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final usuario = ref.read(currentUsuarioProvider).value;
+    final viewModel = ref.read(cobroViewModelProvider.notifier);
+
+    final creados = await viewModel.agregarDeudaMasiva(
+      local: local,
+      range: picked,
+      cobradorId: usuario?.id,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            creados > 0
+                ? '✅ Se registraron $creados días de deuda para ${local.nombreSocial}'
+                : 'ℹ️ No se crearon nuevos registros (ya existían o fuera de rango)',
+          ),
+          backgroundColor: creados > 0 ? AppColors.success : AppColors.warning,
+        ),
+      );
     }
   }
 
@@ -178,6 +240,12 @@ class _CobradorEstadoCuentaScreenState
                   icon: const Icon(Icons.call_rounded),
                   tooltip: 'Llamar al representante',
                 ),
+              IconButton(
+                onPressed: () => _cargarDeudaPorRango(local),
+                icon: const Icon(Icons.history_edu_rounded),
+                color: AppColors.danger,
+                tooltip: 'Cargar deuda por rango',
+              ),
               const SizedBox(width: 4),
             ],
             bottom: TabBar(

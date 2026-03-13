@@ -18,6 +18,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
+import '../widgets/deuda_rango_dialog.dart';
 import '../../../../app/theme/app_theme.dart';
 
 class CobradorHomeScreen extends ConsumerStatefulWidget {
@@ -953,6 +954,67 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     }
   }
 
+  /// Permite al cobrador cargar deuda de forma masiva seleccionando un rango.
+  Future<void> _cargarDeudaPorRango(Local local) async {
+    final DateTimeRange? picked = await showDialog<DateTimeRange>(
+      context: context,
+      builder: (context) => DeudaRangoDialog(local: local),
+    );
+
+    if (picked == null || !mounted) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Text('Confirmar Deuda'),
+          ],
+        ),
+        content: Text(
+          'Se registrará deuda pendiente desde el ${DateFormatter.formatDate(picked.start)} hasta el ${DateFormatter.formatDate(picked.end)} para:\n\n${local.nombreSocial}\n\nLos días que ya tengan un registro serán ignorados automáticamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final usuario = ref.read(currentUsuarioProvider).value;
+    final viewModel = ref.read(cobroViewModelProvider.notifier);
+
+    final creados = await viewModel.agregarDeudaMasiva(
+      local: local,
+      range: picked,
+      cobradorId: usuario?.id,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            creados > 0
+                ? '✅ Se registraron $creados días de deuda para ${local.nombreSocial}'
+                : 'ℹ️ No se crearon nuevos registros (ya existían o fuera de rango)',
+          ),
+          backgroundColor: creados > 0 ? AppColors.success : AppColors.warning,
+        ),
+      );
+    }
+  }
+
   /// Lógica central de guardado. Maneja excedentes como abono a deuda o saldo a favor.
   /// Acepta montoEfectivo (cash) y saldoAExtraer (crédito explícito del saldo a favor).
   Future<void> _guardarCobro({
@@ -1646,6 +1708,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           onEliminar: (ultimoCobro == null || !esAdminWeb)
                               ? null
                               : () => _eliminarCobro(ultimoCobro),
+                          onCargarDeuda: () => _cargarDeudaPorRango(local),
                         );
                       },
                       childCount: localesPaginados.isEmpty
@@ -1860,6 +1923,7 @@ class _LocalCard extends StatelessWidget {
   final VoidCallback? onVerEstadoCuenta;
   final VoidCallback? onEliminar;
   final VoidCallback? onEditar;
+  final VoidCallback? onCargarDeuda;
 
   const _LocalCard({
     required this.local,
@@ -1872,6 +1936,7 @@ class _LocalCard extends StatelessWidget {
     this.onVerEstadoCuenta,
     this.onEliminar,
     this.onEditar,
+    this.onCargarDeuda,
   });
 
   @override
@@ -2103,6 +2168,21 @@ class _LocalCard extends StatelessWidget {
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Estado',
                         color: colorScheme.primary,
+                      ),
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                    // Botón Cargar Deuda
+                    Expanded(
+                      flex: 2,
+                      child: _CardButton(
+                        onTap: onCargarDeuda,
+                        icon: Icons.history_edu_rounded,
+                        label: 'Deuda',
+                        color: AppColors.danger,
                       ),
                     ),
                     if (onEditar != null) ...[
