@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/pdf_generator.dart';
+import '../../../../app/theme/app_theme.dart';
+import '../../domain/entities/corte.dart';
 import '../viewmodels/corte_activo_notifier.dart';
-import 'corte_detalle_screen.dart'; // Importante para reutilizar cobrosPorCorteProvider
+import 'corte_detalle_screen.dart'; // cobrosPorCorteProvider
 
 class CorteNuevoScreen extends ConsumerWidget {
   const CorteNuevoScreen({super.key});
@@ -12,6 +15,8 @@ class CorteNuevoScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(corteActivoProvider);
     final notifier = ref.read(corteActivoProvider.notifier);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,16 +42,16 @@ class CorteNuevoScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     DateFormat('dd/MM/yyyy - hh:mm a').format(state.fecha),
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(fontSize: 16, color: cs.onSurface.withValues(alpha: 0.6)),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
-                  
-                  // Tarjeta principal del total
+                  const SizedBox(height: 24),
+
+                  // ── Tarjeta principal del total ──
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
@@ -57,7 +62,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: cs.onSurface,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -66,7 +71,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: cs.onSurface,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -74,16 +79,34 @@ class CorteNuevoScreen extends ConsumerWidget {
                             '${state.cantidad} cobros registrados',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: cs.onSurface.withValues(alpha: 0.7),
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          // ── Chips de desglose ──
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _StatusChip(
+                                icon: Icons.check_circle,
+                                label: '${state.cantidadCobrados} Cobrados',
+                                color: AppColors.success,
+                              ),
+                              const SizedBox(width: 12),
+                              _StatusChip(
+                                icon: Icons.schedule,
+                                label: '${state.cantidadPendientes} Pendientes',
+                                color: AppColors.warning,
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Título desglose
+
+                  // ── Título desglose ──
                   const Text(
                     'Desglose de Cobros',
                     style: TextStyle(
@@ -96,8 +119,8 @@ class CorteNuevoScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
-          _SliverDesglose(cobrosIds: state.cobrosIds),
+
+          _SliverDesglose(cobrosIds: state.cobrosIds, pendientesInfo: state.pendientesInfo),
 
           SliverPadding(
             padding: const EdgeInsets.all(16.0),
@@ -109,17 +132,21 @@ class CorteNuevoScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
                         state.error!,
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: AppColors.danger, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    
+
                   if (state.yaRealizadoHoy)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 16.0),
                       child: Text(
                         '✅ Ya se ha realizado un corte en el día de hoy.',
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -129,19 +156,28 @@ class CorteNuevoScreen extends ConsumerWidget {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: (state.isLoading || state.yaRealizadoHoy || state.cantidad == 0)
+                      onPressed: (state.isLoading ||
+                              state.yaRealizadoHoy ||
+                              state.cantidad == 0)
                           ? null
-                          : () => _confirmarCorte(context, notifier),
+                          : () => _confirmarCorte(context, ref, notifier, state),
                       style: ElevatedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: state.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? SizedBox(
+                              height: 20, 
+                              width: 20, 
+                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary),
+                            )
                           : Text(
-                              state.yaRealizadoHoy ? 'Corte de hoy completado' : 'Confirmar Corte Diario',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              state.yaRealizadoHoy
+                                  ? 'Corte de hoy completado'
+                                  : 'Confirmar Corte Diario',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold, color: cs.onPrimary),
                             ),
                     ),
                   ),
@@ -154,121 +190,21 @@ class CorteNuevoScreen extends ConsumerWidget {
       ),
     );
   }
-}
 
-class _SliverDesglose extends ConsumerWidget {
-  final List<String> cobrosIds;
-  const _SliverDesglose({required this.cobrosIds});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (cobrosIds.isEmpty) {
-      return const SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
-            child: Text(
-              'No hay cobros para realizar el corte.',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    final cobrosAsync = ref.watch(cobrosPorCorteProvider(cobrosIds));
-    
-    return cobrosAsync.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return const SliverToBoxAdapter(
-            child: Center(child: Text('No hay detalles de cobros disponibles.')),
-          );
-        }
-        return SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final item = items[index];
-                final cobro = item.cobro;
-                final theme = Theme.of(context);
-                return Column(
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        item.localNombre,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        cobro.numeroBoleta ?? 'Sin número de boleta',
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'L. ${cobro.monto?.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          Text(
-                            cobro.estado?.toUpperCase() ?? '',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: cobro.estado == 'cobrado' 
-                                  ? Colors.green 
-                                  : Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (index < items.length - 1) const Divider(),
-                  ],
-                );
-              },
-              childCount: items.length,
-            ),
-          ),
-        );
-      },
-      loading: () => const SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
-      error: (err, _) => SliverToBoxAdapter(
-        child: Center(child: Text('Error al cargar cobros: $err')),
-      ),
-    );
-  }
-}
-
-extension on CorteNuevoScreen {
-  void _confirmarCorte(BuildContext context, CorteActivoNotifier notifier) {
+  // ── Diálogo de confirmación ──
+  void _confirmarCorte(
+    BuildContext context,
+    WidgetRef ref,
+    CorteActivoNotifier notifier,
+    CorteActivoState state,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Corte Diario'),
         content: const Text(
           '¿Estás seguro de que deseas realizar el corte? '
-          'Esto consolidará los cobros realizados hasta este momento como tu cierre oficial del día.'
+          'Esto consolidará los cobros realizados hasta este momento como tu cierre oficial del día.',
         ),
         actions: [
           TextButton(
@@ -281,13 +217,13 @@ extension on CorteNuevoScreen {
               final success = await notifier.realizarCorte();
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('¡Corte diario realizado con éxito!'),
-                    backgroundColor: Colors.green,
-                  )
+                  SnackBar(
+                    content: const Text('¡Corte diario realizado con éxito!'),
+                    backgroundColor: AppColors.success,
+                  ),
                 );
-                // Optionally route them to the history or dashboard
-                // context.go('/cobrador/resumen'); 
+                // Ofrecer compartir PDF automáticamente
+                _ofrecerCompartirPdf(context, ref, state);
               }
             },
             child: const Text('Realizar Corte'),
@@ -296,5 +232,356 @@ extension on CorteNuevoScreen {
       ),
     );
   }
+
+  /// Ofrece al usuario compartir el PDF tras realizar el corte.
+  void _ofrecerCompartirPdf(
+    BuildContext context,
+    WidgetRef ref,
+    CorteActivoState state,
+  ) async {
+    final cobrosAsync = state.cobrosIds.isNotEmpty
+        ? ref.read(cobrosPorCorteProvider(state.cobrosIds))
+        : null;
+    final items = cobrosAsync?.value ?? [];
+
+    // Permitir generar PDF aunque no haya cobros (solo pendientes)
+    if (items.isEmpty && state.pendientesInfo.isEmpty) return;
+
+    final now = DateTime.now();
+    final inicio = DateTime(now.year, now.month, now.day);
+    final fin = inicio
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
+
+    final corteParaPdf = Corte(
+      id: '',
+      cobradorId: '',
+      cobradorNombre: '',
+      municipalidadId: '',
+      fechaCorte: now,
+      totalCobrado: state.total,
+      cantidadRegistros: state.cantidad,
+      cantidadCobrados: state.cantidadCobrados,
+      cantidadPendientes: state.cantidadPendientes,
+      cobrosIds: state.cobrosIds,
+      fechaInicioRango: inicio,
+      fechaFinRango: fin,
+      pendientesInfo: state.pendientesInfo,
+    );
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Compartir reporte?'),
+        content: const Text(
+          'El corte se realizó correctamente. ¿Deseas generar y compartir el PDF del cierre diario?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('No, gracias'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              PdfGenerator.printCorte(
+                corteParaPdf,
+                items.map((i) => i.cobro).toList(),
+                localNames: {
+                  for (var i in items) i.cobro.localId!: i.localNombre
+                },
+              );
+            },
+            icon: const Icon(Icons.picture_as_pdf),
+            label: const Text('Compartir PDF'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
+// ── Chip de estado reutilizable ──
+class _StatusChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _StatusChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sliver con la lista de cobros (cobrados) + pendientes del state ──
+class _SliverDesglose extends ConsumerWidget {
+  final List<String> cobrosIds;
+  final List<Map<String, dynamic>> pendientesInfo;
+  const _SliverDesglose({required this.cobrosIds, required this.pendientesInfo});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sección de cobros reales
+    final cobrosAsync = cobrosIds.isNotEmpty
+        ? ref.watch(cobrosPorCorteProvider(cobrosIds))
+        : null;
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          // ── COBRADOS ──
+          if (cobrosIds.isNotEmpty) ...[
+            _SectionHeader(
+              title: 'Cobrados (${cobrosAsync?.value?.length ?? 0})',
+              color: AppColors.success,
+            ),
+            if (cobrosAsync != null)
+              cobrosAsync.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No hay cobros registrados.'),
+                    );
+                  }
+                  return Column(
+                    children: items.map((item) => _CobroTile(item: item)).toList(),
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Text('Error: $e'),
+              ),
+          ],
+          // ── PENDIENTES ──
+          if (pendientesInfo.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _SectionHeader(
+              title: 'Pendientes (${pendientesInfo.length})',
+              color: AppColors.warning,
+            ),
+            ...pendientesInfo.map((info) => _PendienteTile(info: info)),
+          ],
+          // Estado vacío
+          if (cobrosIds.isEmpty && pendientesInfo.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  'No hay datos para realizar el corte.',
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Header de sección (Cobrados / Pendientes) ──
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final Color color;
+  const _SectionHeader({required this.title, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 20,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.1,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tile individual de cada cobro ──
+class _CobroTile extends StatelessWidget {
+  final CobroConDetalle item;
+  const _CobroTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final cobro = item.cobro;
+    final theme = Theme.of(context);
+    final esCobrado =
+        cobro.estado == 'cobrado' || cobro.estado == 'cobrado_saldo';
+    final statusColor = esCobrado ? AppColors.success : AppColors.warning;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: statusColor.withValues(alpha: 0.12),
+          child: Icon(
+            esCobrado ? Icons.check_circle : Icons.schedule,
+            size: 20,
+            color: statusColor,
+          ),
+        ),
+        title: Text(
+          item.localNombre,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          'Recibo: ${cobro.numeroBoletaFmt}',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 12,
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'L. ${cobro.monto?.toStringAsFixed(2) ?? "0.00"}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            Text(
+              cobro.estado?.toUpperCase() ?? '',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Tile individual de cada local pendiente ──
+class _PendienteTile extends StatelessWidget {
+  final Map<String, dynamic> info;
+  const _PendienteTile({required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    final nombre = info['nombreSocial'] as String? ?? 'S/N';
+    final montoPendiente = (info['montoPendiente'] as num?)?.toDouble() ?? 0;
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: AppColors.warning.withValues(alpha: 0.12),
+          child: const Icon(Icons.schedule, size: 20, color: AppColors.warning),
+        ),
+        title: Text(
+          nombre,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          'Cuota pendiente',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 12,
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'L. ${montoPendiente.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.warning,
+              ),
+            ),
+            const Text(
+              'PENDIENTE',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
