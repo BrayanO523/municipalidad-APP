@@ -534,11 +534,13 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'L. ${c.monto?.toStringAsFixed(2)}',
+                                          'L. ${c.estado == 'pendiente' ? (c.saldoPendiente ?? 0).toStringAsFixed(2) : c.monto?.toStringAsFixed(2)}',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 15,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: c.estado == 'pendiente' 
+                                                ? Theme.of(context).colorScheme.error 
+                                                : Theme.of(context).colorScheme.primary,
                                           ),
                                         ),
                                       ],
@@ -670,9 +672,12 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                               DataCell(Text(nombreLocal(c.localId, locales))),
                               DataCell(
                                 Text(
-                                  'L. ${c.monto?.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  'L. ${c.estado == 'pendiente' ? (c.saldoPendiente ?? 0).toStringAsFixed(2) : c.monto?.toStringAsFixed(2)}',
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w600,
+                                    color: c.estado == 'pendiente' 
+                                        ? Theme.of(context).colorScheme.error 
+                                        : null,
                                   ),
                                 ),
                               ),
