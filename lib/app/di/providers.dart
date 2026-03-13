@@ -567,3 +567,13 @@ final cortesHistorialCobradorProvider = StreamProvider<List<Corte>>((ref) {
   final repo = ref.read(corteRepositoryProvider);
   return repo.streamPorCobrador(user.id!);
 });
+
+final cortesHoyCobradorStreamProvider = StreamProvider.autoDispose<List<Corte>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null || user.id == null) return Stream.value([]);
+  final repo = ref.read(corteRepositoryProvider);
+  return repo.streamCortesDiaPorCobrador(
+    cobradorId: user.id!,
+    fecha: DateTime.now(),
+  );
+});

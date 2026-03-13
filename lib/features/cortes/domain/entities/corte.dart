@@ -21,6 +21,13 @@ class Corte extends Equatable {
   /// IDs de los cortes de cobradores que este corte de mercado consolida.
   final List<String>? cortesCobradorIds;
 
+  // --- Conteos desglosados ---
+  final int? cantidadCobrados;
+  final int? cantidadPendientes;
+  
+  // --- Lista ligera de locales pendientes para reporte ---
+  final List<Map<String, dynamic>>? pendientesInfo;
+
   const Corte({
     required this.id,
     required this.cobradorId,
@@ -37,6 +44,9 @@ class Corte extends Equatable {
     this.mercadoId,
     this.mercadoNombre,
     this.cortesCobradorIds,
+    this.cantidadCobrados,
+    this.cantidadPendientes,
+    this.pendientesInfo,
   });
 
   bool get esCorteMercado => tipo == 'mercado';
@@ -58,5 +68,8 @@ class Corte extends Equatable {
         mercadoId,
         mercadoNombre,
         cortesCobradorIds,
+        cantidadCobrados,
+        cantidadPendientes,
+        pendientesInfo,
       ];
 }

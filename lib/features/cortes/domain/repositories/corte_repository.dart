@@ -16,5 +16,15 @@ abstract class CorteRepository {
     required String municipalidadId,
     required DateTime fecha,
   });
+  Stream<List<Corte>> streamCortesDiaPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime fecha,
+  });
+  Stream<List<Corte>> streamCortesDiaPorCobrador({
+    required String cobradorId,
+    required DateTime fecha,
+  });
 }
+
 

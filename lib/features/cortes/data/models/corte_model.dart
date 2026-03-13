@@ -18,6 +18,9 @@ class CorteModel extends Corte {
     super.mercadoId,
     super.mercadoNombre,
     super.cortesCobradorIds,
+    super.cantidadCobrados,
+    super.cantidadPendientes,
+    super.pendientesInfo,
   });
 
   factory CorteModel.fromMap(Map<String, dynamic> map, String id) {
@@ -40,6 +43,15 @@ class CorteModel extends Corte {
       cortesCobradorIds: map['cortesCobradorIds'] != null
           ? List<String>.from(map['cortesCobradorIds'])
           : null,
+      cantidadCobrados: map['cantidadCobrados'] as int?,
+      cantidadPendientes: map['cantidadPendientes'] as int?,
+      pendientesInfo: map['pendientesInfo'] != null
+          ? List<Map<String, dynamic>>.from(
+              (map['pendientesInfo'] as List).map(
+                (e) => Map<String, dynamic>.from(e as Map),
+              ),
+            )
+          : null,
     );
   }
 
@@ -59,6 +71,9 @@ class CorteModel extends Corte {
       if (mercadoId != null) 'mercadoId': mercadoId,
       if (mercadoNombre != null) 'mercadoNombre': mercadoNombre,
       if (cortesCobradorIds != null) 'cortesCobradorIds': cortesCobradorIds,
+      if (cantidadCobrados != null) 'cantidadCobrados': cantidadCobrados,
+      if (cantidadPendientes != null) 'cantidadPendientes': cantidadPendientes,
+      if (pendientesInfo != null) 'pendientesInfo': pendientesInfo,
     };
   }
 
@@ -79,6 +94,9 @@ class CorteModel extends Corte {
       mercadoId: corte.mercadoId,
       mercadoNombre: corte.mercadoNombre,
       cortesCobradorIds: corte.cortesCobradorIds,
+      cantidadCobrados: corte.cantidadCobrados,
+      cantidadPendientes: corte.cantidadPendientes,
+      pendientesInfo: corte.pendientesInfo,
     );
   }
 }

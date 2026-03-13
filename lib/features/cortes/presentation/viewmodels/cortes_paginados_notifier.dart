@@ -5,6 +5,9 @@ import '../../../../app/di/providers.dart';
 import '../../domain/entities/corte.dart';
 import '../../data/models/corte_model.dart';
 
+// Enum para filtro rápido de fechas
+enum FiltroFecha { todos, hoy, semana, mes, personalizado }
+
 class CortesPaginadosState {
   final List<Corte> cortes;
   final bool cargando;
@@ -14,6 +17,9 @@ class CortesPaginadosState {
   final List<QueryDocumentSnapshot?> snapshotsPaginas;
   final bool isAdmin;
   final bool inicializado;
+  final FiltroFecha filtroActivo;
+  final DateTime? fechaInicio;
+  final DateTime? fechaFin;
 
   CortesPaginadosState({
     this.cortes = const [],
@@ -24,6 +30,9 @@ class CortesPaginadosState {
     this.snapshotsPaginas = const [null],
     this.isAdmin = false,
     this.inicializado = false,
+    this.filtroActivo = FiltroFecha.todos,
+    this.fechaInicio,
+    this.fechaFin,
   });
 
   CortesPaginadosState copyWith({
@@ -35,6 +44,10 @@ class CortesPaginadosState {
     List<QueryDocumentSnapshot?>? snapshotsPaginas,
     bool? isAdmin,
     bool? inicializado,
+    FiltroFecha? filtroActivo,
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
+    bool clearFechas = false,
   }) {
     return CortesPaginadosState(
       cortes: cortes ?? this.cortes,
@@ -45,6 +58,9 @@ class CortesPaginadosState {
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
       isAdmin: isAdmin ?? this.isAdmin,
       inicializado: inicializado ?? this.inicializado,
+      filtroActivo: filtroActivo ?? this.filtroActivo,
+      fechaInicio: clearFechas ? null : (fechaInicio ?? this.fechaInicio),
+      fechaFin: clearFechas ? null : (fechaFin ?? this.fechaFin),
     );
   }
 }
@@ -58,6 +74,54 @@ class CortesPaginadosNotifier extends Notifier<CortesPaginadosState> {
   @override
   CortesPaginadosState build() {
     return CortesPaginadosState(isAdmin: _isAdmin);
+  }
+
+  /// Aplica filtro "Hoy"
+  void filtrarHoy() {
+    final now = DateTime.now();
+    final inicio = DateTime(now.year, now.month, now.day);
+    final fin = inicio.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    _aplicarFiltro(FiltroFecha.hoy, inicio, fin);
+  }
+
+  /// Aplica filtro "Esta semana" (lunes a hoy)
+  void filtrarSemana() {
+    final now = DateTime.now();
+    final lunes = now.subtract(Duration(days: now.weekday - 1));
+    final inicio = DateTime(lunes.year, lunes.month, lunes.day);
+    final fin = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    _aplicarFiltro(FiltroFecha.semana, inicio, fin);
+  }
+
+  /// Aplica filtro "Este mes"
+  void filtrarMes() {
+    final now = DateTime.now();
+    final inicio = DateTime(now.year, now.month, 1);
+    final fin = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    _aplicarFiltro(FiltroFecha.mes, inicio, fin);
+  }
+
+  /// Aplica filtro personalizado por rango
+  void filtrarRango(DateTime desde, DateTime hasta) {
+    final inicio = DateTime(desde.year, desde.month, desde.day);
+    final fin = DateTime(hasta.year, hasta.month, hasta.day, 23, 59, 59, 999);
+    _aplicarFiltro(FiltroFecha.personalizado, inicio, fin);
+  }
+
+  /// Quita filtros y muestra todos
+  void filtrarTodos() {
+    state = CortesPaginadosState(isAdmin: _isAdmin, filtroActivo: FiltroFecha.todos);
+    cargarPagina(reiniciar: true);
+  }
+
+  void _aplicarFiltro(FiltroFecha filtro, DateTime inicio, DateTime fin) {
+    state = CortesPaginadosState(
+      isAdmin: _isAdmin,
+      filtroActivo: filtro,
+      fechaInicio: inicio,
+      fechaFin: fin,
+    );
+    cargarPagina(reiniciar: true);
   }
 
   Future<void> cargarPagina({bool reiniciar = false}) async {
@@ -84,6 +148,8 @@ class CortesPaginadosNotifier extends Notifier<CortesPaginadosState> {
           municipalidadId: user.municipalidadId!,
           limite: _pageSize,
           startAfter: snapshotAnterior,
+          fechaInicio: state.fechaInicio,
+          fechaFin: state.fechaFin,
         );
       } else {
         if (user.id == null) throw Exception('Cobrador sin ID');
@@ -91,6 +157,8 @@ class CortesPaginadosNotifier extends Notifier<CortesPaginadosState> {
           cobradorId: user.id!,
           limite: _pageSize,
           startAfter: snapshotAnterior,
+          fechaInicio: state.fechaInicio,
+          fechaFin: state.fechaFin,
         );
       }
 

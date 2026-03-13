@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../../mercados/domain/entities/mercado.dart';
@@ -29,6 +30,12 @@ class CorteMercadoState {
   int get cantidadCobros =>
       cortesDelDia.fold(0, (sum, c) => sum + c.cantidadRegistros);
 
+  int get cantidadCobrados =>
+      cortesDelDia.fold(0, (sum, c) => sum + (c.cantidadCobrados ?? 0));
+
+  int get cantidadPendientes =>
+      cortesDelDia.fold(0, (sum, c) => sum + (c.cantidadPendientes ?? 0));
+
   List<String> get cobrosIdsConsolidados =>
       cortesDelDia.expand((c) => c.cobrosIds).toList();
 
@@ -56,26 +63,37 @@ class CorteMercadoState {
 // Notifier — usando Notifier<T> igual que el resto del proyecto
 // ───────────────────────────────────────────────────────────────
 class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
-  @override
-  CorteMercadoState build() => const CorteMercadoState();
+  StreamSubscription<List<Corte>>? _subscription;
 
-  /// Selecciona un mercado y carga los cortes del día disponibles.
+  @override
+  CorteMercadoState build() {
+    ref.onDispose(() => _subscription?.cancel());
+    return const CorteMercadoState();
+  }
+
+  /// Selecciona un mercado y se suscribe al stream de cortes del día en tiempo real.
   Future<void> seleccionarMercado(Mercado mercado) async {
+    // Cancelar suscripción anterior
+    await _subscription?.cancel();
+    _subscription = null;
+
     state = CorteMercadoState(
       mercadoSeleccionado: mercado,
       isLoading: true,
     );
-    await _cargarCortesDia(mercado);
+    await _suscribirStream(mercado);
   }
 
   Future<void> recargar() async {
     final mercado = state.mercadoSeleccionado;
     if (mercado == null) return;
+    await _subscription?.cancel();
+    _subscription = null;
     state = state.copyWith(isLoading: true, clearError: true);
-    await _cargarCortesDia(mercado);
+    await _suscribirStream(mercado);
   }
 
-  Future<void> _cargarCortesDia(Mercado mercado) async {
+  Future<void> _suscribirStream(Mercado mercado) async {
     try {
       final user = ref.read(currentUsuarioProvider).value;
       if (user == null || mercado.id == null) {
@@ -94,18 +112,25 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
       );
       final yaRealizado = existeResult.getOrElse((_) => false);
 
-      // Cargar los cortes de cobradores del día
-      final cortesResult = await repo.obtenerCortesDiaPorMercado(
+      // Suscribirse al stream en tiempo real
+      _subscription = repo.streamCortesDiaPorMercado(
         mercadoId: mercado.id!,
         municipalidadId: user.municipalidadId ?? '',
         fecha: now,
-      );
-      final cortes = cortesResult.getOrElse((_) => []);
-
-      state = state.copyWith(
-        isLoading: false,
-        cortesDelDia: cortes,
-        yaRealizadoHoy: yaRealizado,
+      ).listen(
+        (cortes) {
+          state = state.copyWith(
+            isLoading: false,
+            cortesDelDia: cortes,
+            yaRealizadoHoy: yaRealizado,
+          );
+        },
+        onError: (e) {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Error al escuchar cortes: $e',
+          );
+        },
       );
     } catch (e) {
       state = state.copyWith(
@@ -145,6 +170,8 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
         fechaCorte: now,
         totalCobrado: state.totalConsolidado,
         cantidadRegistros: state.cantidadCobros,
+        cantidadCobrados: state.cantidadCobrados,
+        cantidadPendientes: state.cantidadPendientes,
         cobrosIds: state.cobrosIdsConsolidados,
         fechaInicioRango: inicio,
         fechaFinRango: fin,

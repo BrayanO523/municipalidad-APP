@@ -68,4 +68,28 @@ class CorteRepositoryImpl implements CorteRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Stream<List<Corte>> streamCortesDiaPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime fecha,
+  }) {
+    return datasource.streamCortesDiaPorMercado(
+      mercadoId: mercadoId,
+      municipalidadId: municipalidadId,
+      fecha: fecha,
+    );
+  }
+  @override
+  Stream<List<Corte>> streamCortesDiaPorCobrador({
+    required String cobradorId,
+    required DateTime fecha,
+  }) {
+    return datasource.streamCortesDiaPorCobrador(
+      cobradorId: cobradorId,
+      fecha: fecha,
+    );
+  }
 }
+

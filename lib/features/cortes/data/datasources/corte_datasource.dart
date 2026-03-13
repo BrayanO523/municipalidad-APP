@@ -44,12 +44,21 @@ class CorteDatasource {
     required String municipalidadId,
     int limite = 20,
     DocumentSnapshot? startAfter,
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
   }) {
     var query = _firestore
         .collection('cortes')
-        .where('municipalidadId', isEqualTo: municipalidadId)
-        .orderBy('fechaCorte', descending: true)
-        .limit(limite);
+        .where('municipalidadId', isEqualTo: municipalidadId);
+
+    if (fechaInicio != null) {
+      query = query.where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio));
+    }
+    if (fechaFin != null) {
+      query = query.where('fechaCorte', isLessThanOrEqualTo: Timestamp.fromDate(fechaFin));
+    }
+
+    query = query.orderBy('fechaCorte', descending: true).limit(limite);
 
     if (startAfter != null) {
       query = query.startAfterDocument(startAfter);
@@ -62,12 +71,21 @@ class CorteDatasource {
     required String cobradorId,
     int limite = 20,
     DocumentSnapshot? startAfter,
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
   }) {
     var query = _firestore
         .collection('cortes')
-        .where('cobradorId', isEqualTo: cobradorId)
-        .orderBy('fechaCorte', descending: true)
-        .limit(limite);
+        .where('cobradorId', isEqualTo: cobradorId);
+
+    if (fechaInicio != null) {
+      query = query.where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio));
+    }
+    if (fechaFin != null) {
+      query = query.where('fechaCorte', isLessThanOrEqualTo: Timestamp.fromDate(fechaFin));
+    }
+
+    query = query.orderBy('fechaCorte', descending: true).limit(limite);
 
     if (startAfter != null) {
       query = query.startAfterDocument(startAfter);
@@ -104,6 +122,51 @@ class CorteDatasource {
         // Solo cortes de cobradores, no otros cortes de mercado
         .where((c) => c.tipo != 'mercado')
         .toList();
+  }
+
+  /// Stream en tiempo real de cortes de cobradores del día para un mercado.
+  Stream<List<CorteModel>> streamCortesDiaPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime fecha,
+  }) {
+    final inicioDelDia = DateTime(fecha.year, fecha.month, fecha.day);
+    final finDelDia = inicioDelDia
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
+
+    return _firestore
+        .collection('cortes')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .where('mercadoId', isEqualTo: mercadoId)
+        .where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDelDia))
+        .where('fechaCorte', isLessThanOrEqualTo: Timestamp.fromDate(finDelDia))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => CorteModel.fromMap(doc.data(), doc.id))
+            .where((c) => c.tipo != 'mercado')
+            .toList());
+  }
+
+  /// Stream en tiempo real de cortes del día de un cobrador específico.
+  Stream<List<CorteModel>> streamCortesDiaPorCobrador({
+    required String cobradorId,
+    required DateTime fecha,
+  }) {
+    final inicioDelDia = DateTime(fecha.year, fecha.month, fecha.day);
+    final finDelDia = inicioDelDia
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
+
+    return _firestore
+        .collection('cortes')
+        .where('cobradorId', isEqualTo: cobradorId)
+        .where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDelDia))
+        .where('fechaCorte', isLessThanOrEqualTo: Timestamp.fromDate(finDelDia))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => CorteModel.fromMap(doc.data(), doc.id))
+            .toList());
   }
 
   /// Verifica si ya existe un corte de mercado para un mercado en la fecha dada.
