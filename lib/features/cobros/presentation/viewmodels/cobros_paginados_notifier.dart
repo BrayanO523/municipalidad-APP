@@ -14,6 +14,7 @@ class CobrosPaginadosState {
   final List<QueryDocumentSnapshot?> snapshotsPaginas;
   final DateTimeRange? rangoFechas;
   final String? mercadoId;
+  final String? cobradorId;
 
   CobrosPaginadosState({
     this.cobros = const [],
@@ -24,6 +25,7 @@ class CobrosPaginadosState {
     this.snapshotsPaginas = const [null],
     this.rangoFechas,
     this.mercadoId,
+    this.cobradorId,
   });
 
   CobrosPaginadosState copyWith({
@@ -35,6 +37,7 @@ class CobrosPaginadosState {
     List<QueryDocumentSnapshot?>? snapshotsPaginas,
     DateTimeRange? rangoFechas,
     String? mercadoId,
+    String? cobradorId,
   }) {
     return CobrosPaginadosState(
       cobros: cobros ?? this.cobros,
@@ -45,6 +48,7 @@ class CobrosPaginadosState {
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
       rangoFechas: rangoFechas ?? this.rangoFechas,
       mercadoId: mercadoId ?? this.mercadoId,
+      cobradorId: cobradorId ?? this.cobradorId,
     );
   }
 }
@@ -77,6 +81,10 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
 
       if (state.mercadoId != null) {
         query = query.where('mercadoId', isEqualTo: state.mercadoId);
+      }
+
+      if (state.cobradorId != null) {
+        query = query.where('cobradorId', isEqualTo: state.cobradorId);
       }
 
       if (state.rangoFechas != null) {
@@ -188,8 +196,12 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
     }
   }
 
-  void aplicarFiltros({DateTimeRange? rango, String? mercadoId}) {
-    state = CobrosPaginadosState(rangoFechas: rango, mercadoId: mercadoId);
+  void aplicarFiltros({DateTimeRange? rango, String? mercadoId, String? cobradorId}) {
+    state = CobrosPaginadosState(
+      rangoFechas: rango,
+      mercadoId: mercadoId,
+      cobradorId: cobradorId,
+    );
     cargarPagina(reiniciar: true);
   }
 

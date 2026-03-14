@@ -11,6 +11,7 @@ import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../../../core/widgets/scrollable_table.dart';
+import '../../../../core/widgets/usuario_filter.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
@@ -137,7 +138,17 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
     }
 
     setState(() => _periodo = p);
-    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(rango: rango);
+    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(
+      rango: rango,
+      cobradorId: ref.read(cobrosPaginadosProvider).cobradorId,
+    );
+  }
+
+  void _cambiarCobrador(String? id) {
+    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(
+      rango: ref.read(cobrosPaginadosProvider).rangoFechas,
+      cobradorId: id,
+    );
   }
 
   String _getDescripcion(WidgetRef ref) {
@@ -217,6 +228,12 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
                     selected: _periodo == _CobrosPeriod.personalizado,
                     onSelected: () => _aplicar(_CobrosPeriod.personalizado),
                   ),
+                  const SizedBox(width: 8),
+                  UsuarioFilter(
+                    selectedUsuarioId: ref.watch(cobrosPaginadosProvider).cobradorId,
+                    onUsuarioChanged: (u) => _cambiarCobrador(u?.id),
+                  ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
                     label: const Text('Exportar PDF'),
@@ -291,6 +308,12 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
                   selected: _periodo == _CobrosPeriod.personalizado,
                   onSelected: () => _aplicar(_CobrosPeriod.personalizado),
                 ),
+                const SizedBox(width: 12),
+                UsuarioFilter(
+                  selectedUsuarioId: ref.watch(cobrosPaginadosProvider).cobradorId,
+                  onUsuarioChanged: (u) => _cambiarCobrador(u?.id),
+                ),
+                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
                   label: const Text('Exportar PDF'),
