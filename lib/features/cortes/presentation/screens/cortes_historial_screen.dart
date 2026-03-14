@@ -95,6 +95,7 @@ class _CortesHistorialScreenState extends ConsumerState<CortesHistorialScreen> {
           constraints: BoxConstraints(maxWidth: isWide ? 900 : double.infinity),
           child: Column(
             children: [
+
               // ── Barra de filtros ──
               _FiltrosFechaBar(
                 filtroActivo: state.filtroActivo,

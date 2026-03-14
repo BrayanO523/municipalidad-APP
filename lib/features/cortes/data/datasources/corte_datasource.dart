@@ -46,10 +46,15 @@ class CorteDatasource {
     DocumentSnapshot? startAfter,
     DateTime? fechaInicio,
     DateTime? fechaFin,
+    String? cobradorId,
   }) {
     var query = _firestore
         .collection('cortes')
         .where('municipalidadId', isEqualTo: municipalidadId);
+
+    if (cobradorId != null) {
+      query = query.where('cobradorId', isEqualTo: cobradorId);
+    }
 
     if (fechaInicio != null) {
       query = query.where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio));

@@ -20,6 +20,7 @@ class CortesPaginadosState {
   final FiltroFecha filtroActivo;
   final DateTime? fechaInicio;
   final DateTime? fechaFin;
+  final String? cobradorId;
 
   CortesPaginadosState({
     this.cortes = const [],
@@ -33,6 +34,7 @@ class CortesPaginadosState {
     this.filtroActivo = FiltroFecha.todos,
     this.fechaInicio,
     this.fechaFin,
+    this.cobradorId,
   });
 
   CortesPaginadosState copyWith({
@@ -47,6 +49,7 @@ class CortesPaginadosState {
     FiltroFecha? filtroActivo,
     DateTime? fechaInicio,
     DateTime? fechaFin,
+    String? cobradorId,
     bool clearFechas = false,
   }) {
     return CortesPaginadosState(
@@ -61,6 +64,7 @@ class CortesPaginadosState {
       filtroActivo: filtroActivo ?? this.filtroActivo,
       fechaInicio: clearFechas ? null : (fechaInicio ?? this.fechaInicio),
       fechaFin: clearFechas ? null : (fechaFin ?? this.fechaFin),
+      cobradorId: cobradorId ?? this.cobradorId,
     );
   }
 }
@@ -120,7 +124,13 @@ class CortesPaginadosNotifier extends Notifier<CortesPaginadosState> {
       filtroActivo: filtro,
       fechaInicio: inicio,
       fechaFin: fin,
+      cobradorId: state.cobradorId,
     );
+    cargarPagina(reiniciar: true);
+  }
+
+  void filtrarCobrador(String? id) {
+    state = state.copyWith(cobradorId: id);
     cargarPagina(reiniciar: true);
   }
 
