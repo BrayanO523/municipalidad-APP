@@ -10,6 +10,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/local.dart';
+import '../../../../core/widgets/usuario_filter.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
 
 
@@ -79,7 +80,7 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                   Row(
                     children: [
                       SizedBox(
-                        width: 350,
+                        width: 300,
                         child: TextField(
                           onChanged: (val) => notifier.aplicarBusqueda(val),
                           decoration: const InputDecoration(
@@ -93,6 +94,18 @@ class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 16),
+                      // Filtro por Cobrador (Admin/Gestión)
+                      if (!(ref.watch(currentUsuarioProvider).value?.esCobrador ?? true))
+                        SizedBox(
+                          width: 250,
+                          child: UsuarioFilter(
+                            selectedUsuarioId: state.usuarioFiltradoId,
+                            onUsuarioChanged: (u) {
+                              notifier.seleccionarUsuario(u?.id);
+                            },
+                          ),
+                        ),
                       const Spacer(),
                       Text(
                         'Filtro: Solo Deudores',

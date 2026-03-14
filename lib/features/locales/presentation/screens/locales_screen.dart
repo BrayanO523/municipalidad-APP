@@ -15,6 +15,7 @@ import '../../../../core/utils/date_formatter.dart';
 
 import '../../../../core/utils/qr_pdf_generator.dart';
 import '../../../../core/widgets/scrollable_table.dart';
+import '../../../../core/widgets/usuario_filter.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 
 import '../../domain/entities/local.dart';
@@ -218,8 +219,19 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               if (isWide) Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId))
               else SizedBox(width: isMobile ? double.infinity : 220, child: _buildMercadoDropdown(context, municipalidadId)),
 
-
               if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+
+              // 2.1 Filtro por Cobrador (Gestión)
+              if (!(user?.esCobrador ?? true)) ...[
+                if (isWide)
+                  Expanded(flex: 3, child: _buildUsuarioFilter(context, state))
+                else
+                  SizedBox(
+                    width: isMobile ? double.infinity : 220,
+                    child: _buildUsuarioFilter(context, state),
+                  ),
+                if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+              ],
 
               // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
               if (isWide) Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId))
@@ -284,6 +296,29 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildUsuarioFilter(BuildContext context, LocalesPaginadosState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Filtrar por Cobrador',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        UsuarioFilter(
+          selectedUsuarioId: state.usuarioFiltradoId,
+          onUsuarioChanged: (u) {
+            ref.read(localesPaginadosProvider.notifier).seleccionarUsuario(u?.id);
+          },
+        ),
+      ],
     );
   }
 
