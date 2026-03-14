@@ -258,6 +258,7 @@ class LocalDatasource {
     QueryDocumentSnapshot? lastDoc,
     int limit = 20,
     String filtroDeuda = 'todos',
+    List<String>? filterLocalIds,
   }) async {
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lower = searchQuery.toLowerCase();
@@ -310,14 +311,36 @@ class LocalDatasource {
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
-    
-    
-    if (filtroDeuda == 'deudores') {
-      query = query.where('deudaAcumulada', isGreaterThan: 0).orderBy('deudaAcumulada', descending: true);
-    } else if (filtroDeuda == 'saldos') {
-      query = query.where('saldoAFavor', isGreaterThan: 0).orderBy('saldoAFavor', descending: true);
-    } else {
-      query = query.orderBy('nombreSocial');
+
+    final isFilteringByUser = filterLocalIds != null;
+    if (isFilteringByUser) {
+      if (filterLocalIds.isEmpty) return [];
+      // Limitamos a los primeros 30 para cumplir con la restricción de Firestore en 'whereIn'
+      query = query.where(FieldPath.documentId, whereIn: filterLocalIds.take(30).toList());
+    }
+
+    final hasLocalFilter = isFilteringByUser && filterLocalIds.isNotEmpty;
+
+    // Aplicar filtros de deuda/saldo en Firestore SOLO SI no estamos filtrando por ID (key).
+    // Firestore no permite desigualdades en otros campos si se filtra por ID con igualdad/whereIn.
+    if (!hasLocalFilter) {
+      if (filtroDeuda == 'deudores') {
+        query = query.where('deudaAcumulada', isGreaterThan: 0);
+      } else if (filtroDeuda == 'saldos') {
+        query = query.where('saldoAFavor', isGreaterThan: 0);
+      }
+    }
+
+    // Firestore NO permite un orderBy en un campo distinto si se usa whereIn en el ID (o cualquier campo).
+    // Si tenemos filtro de locales, el ordenamiento se hará en memoria abajo.
+    if (!hasLocalFilter) {
+      if (filtroDeuda == 'deudores') {
+        query = query.orderBy('deudaAcumulada', descending: true);
+      } else if (filtroDeuda == 'saldos') {
+        query = query.orderBy('saldoAFavor', descending: true);
+      } else {
+        query = query.orderBy('nombreSocial');
+      }
     }
 
     if (lastDoc != null) {
@@ -325,7 +348,39 @@ class LocalDatasource {
     }
 
     final snap = await query.limit(limit).get();
-    return snap.docs;
+    final docs = snap.docs;
+
+    // Si hubiéramos aplicado filtro por local, filtramos y ordenamos en memoria
+    if (hasLocalFilter) {
+      Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> filtered = docs;
+      
+      // Aplicar el filtro de deuda/saldo que no pudimos aplicar en Firestore
+      if (filtroDeuda == 'deudores') {
+        filtered = filtered.where((doc) => ((doc.data()['deudaAcumulada'] as num?) ?? 0) > 0);
+      } else if (filtroDeuda == 'saldos') {
+        filtered = filtered.where((doc) => ((doc.data()['saldoAFavor'] as num?) ?? 0) > 0);
+      }
+
+      final List<QueryDocumentSnapshot<Map<String, dynamic>>> list = filtered.toList();
+      list.sort((a, b) {
+        if (filtroDeuda == 'deudores') {
+          final dA = (a.data()['deudaAcumulada'] as num?) ?? 0;
+          final dB = (b.data()['deudaAcumulada'] as num?) ?? 0;
+          return dB.compareTo(dA);
+        } else if (filtroDeuda == 'saldos') {
+          final sA = (a.data()['saldoAFavor'] as num?) ?? 0;
+          final sB = (b.data()['saldoAFavor'] as num?) ?? 0;
+          return sB.compareTo(sA);
+        } else {
+          final nA = (a.data()['nombreSocial'] as String?) ?? '';
+          final nB = (b.data()['nombreSocial'] as String?) ?? '';
+          return nA.compareTo(nB);
+        }
+      });
+      return list;
+    }
+
+    return docs;
   }
 
   /// Búsqueda rápida por prefijo de nombreSocial o codigoCatastral para el typeahead.
