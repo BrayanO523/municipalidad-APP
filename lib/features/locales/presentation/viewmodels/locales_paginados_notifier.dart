@@ -7,6 +7,7 @@ import '../../data/datasources/local_datasource.dart';
 import '../../data/models/local_model.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/local.dart';
+import '../../../usuarios/domain/entities/usuario.dart';
 
 enum LocalFiltroDeuda { todos, soloDeudores, soloSaldosAFavor }
 
@@ -23,6 +24,7 @@ class LocalesPaginadosState {
   final Map<String, bool> localesPagadosHoy;
   final QueryDocumentSnapshot? ultimoDoc;
   final LocalFiltroDeuda filtroDeuda;
+  final String? usuarioFiltradoId;
 
   const LocalesPaginadosState({
     this.locales = const [],
@@ -36,6 +38,7 @@ class LocalesPaginadosState {
     this.localesPagadosHoy = const {},
     this.ultimoDoc,
     this.filtroDeuda = LocalFiltroDeuda.todos,
+    this.usuarioFiltradoId,
   });
 
   LocalesPaginadosState copyWith({
@@ -50,6 +53,7 @@ class LocalesPaginadosState {
     Map<String, bool>? localesPagadosHoy,
     QueryDocumentSnapshot? ultimoDoc,
     LocalFiltroDeuda? filtroDeuda,
+    String? usuarioFiltradoId,
     bool clearError = false,
     bool clearUltimoDoc = false,
     bool clearBusqueda = false,
@@ -67,6 +71,7 @@ class LocalesPaginadosState {
       localesPagadosHoy: localesPagadosHoy ?? this.localesPagadosHoy,
       ultimoDoc: clearUltimoDoc ? null : (ultimoDoc ?? this.ultimoDoc),
       filtroDeuda: filtroDeuda ?? this.filtroDeuda,
+      usuarioFiltradoId: usuarioFiltradoId ?? this.usuarioFiltradoId,
     );
   }
 }
@@ -117,6 +122,22 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
   Future<void> cambiarFiltroDeuda(LocalFiltroDeuda filtro) async {
     state = state.copyWith(
       filtroDeuda: filtro,
+      locales: [],
+      hayMas: true,
+      cargando: true,
+      paginaActual: 1,
+      snapshotsPaginas: [null],
+      clearUltimoDoc: true,
+      clearError: true,
+      localesPagadosHoy: const {},
+    );
+    await _fetchPagina(lastDoc: null);
+  }
+
+  /// Cambia el usuario (cobrador) para filtrar por su ruta asignada.
+  Future<void> seleccionarUsuario(String? usuarioId) async {
+    state = state.copyWith(
+      usuarioFiltradoId: usuarioId,
       locales: [],
       hayMas: true,
       cargando: true,
@@ -186,11 +207,20 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       } else if (municipalidadId != null) {
         docs = await _ds.listarPaginaPorMunicipalidad(
           municipalidadId: municipalidadId,
-          mercadoId: null, // Sin mercado específico
+          mercadoId: null,
           searchQuery: query,
           lastDoc: lastDoc,
           limit: _pageSize,
           filtroDeuda: filtroDs,
+          filterLocalIds: state.usuarioFiltradoId != null
+              ? (ref.read(usuariosProvider).value ?? [])
+                  .whereType<Usuario>()
+                  .firstWhere(
+                    (u) => u.id == state.usuarioFiltradoId,
+                    orElse: () => const Usuario(),
+                  )
+                  .rutaAsignada
+              : null,
         );
       } else {
         state = state.copyWith(cargando: false, hayMas: false);
