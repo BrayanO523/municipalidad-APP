@@ -148,6 +148,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         cobroDs: cobroDs,
         localDs: localDs,
         firestore: FirebaseFirestore.instance,
+        statsDs: ref.read(statsDatasourceProvider),
       );
 
       await service.verificarYRegistrarPendientes(
@@ -344,6 +345,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         cobroDs: cobroDs,
         localDs: localDs,
         firestore: FirebaseFirestore.instance,
+        statsDs: ref.read(statsDatasourceProvider),
       );
       await service.registrarSinPago(
         local: local,
