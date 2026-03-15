@@ -34,8 +34,10 @@ Future<void> showLocalFormDialog(
     text: local?.longitud?.toString() ?? '',
   );
   final claveCtrl = TextEditingController(text: local?.clave ?? '');
-  final codigoCatastralCtrl =
-      TextEditingController(text: local?.codigoCatastral ?? '');
+  final codigoCtrl = TextEditingController(text: local?.codigo ?? '');
+  final codigoCatastralCtrl = TextEditingController(
+    text: local?.codigoCatastral ?? '',
+  );
 
   String? selectedMercadoId = local?.mercadoId ?? initialMercadoId;
   String? selectedTipoNegocioId = local?.tipoNegocioId;
@@ -65,11 +67,16 @@ Future<void> showLocalFormDialog(
                   children: [
                     // Encabezado Fijo
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           Icon(
-                            isEditing ? Icons.edit_rounded : Icons.add_business_rounded,
+                            isEditing
+                                ? Icons.edit_rounded
+                                : Icons.add_business_rounded,
                             size: 24,
                             color: cs.primary,
                           ),
@@ -77,7 +84,8 @@ Future<void> showLocalFormDialog(
                           Expanded(
                             child: Text(
                               isEditing ? 'Editar Local' : 'Nuevo Local',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -89,7 +97,10 @@ Future<void> showLocalFormDialog(
                         ],
                       ),
                     ),
-                    Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.1)),
+                    Divider(
+                      height: 1,
+                      color: cs.onSurface.withValues(alpha: 0.1),
+                    ),
                     // Contenido Scroleable
                     Expanded(
                       child: SingleChildScrollView(
@@ -98,443 +109,529 @@ Future<void> showLocalFormDialog(
                             left: 24,
                             right: 24,
                             top: 20,
-                            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                            bottom:
+                                MediaQuery.of(context).viewInsets.bottom + 24,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                      TextField(
-                        controller: nombreCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre Social',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: representanteCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Representante',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: codigoCatastralCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Código Local',
-                          helperText: 'Opcional, Búsqueda libre',
-                          helperStyle: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: claveCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Clave (Ej. 22-37-01-01)',
-                          helperText: 'Autogenerado si vacío',
-                          helperStyle: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                        maxLength: 20,
-                        textCapitalization: TextCapitalization.characters,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: telefonoCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Teléfono Representante',
-                        ),
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedMercadoId,
-                        decoration: const InputDecoration(
-                          labelText: 'Mercado',
-                        ),
-                        items: currentMercs
-                            .map(
-                              (m) => DropdownMenuItem(
-                                value: m.id,
-                                child: Text(
-                                  m.nombre ?? '-',
-                                  overflow: TextOverflow.ellipsis,
+                              TextField(
+                                controller: nombreCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nombre Social',
                                 ),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (v) =>
-                            setDialogState(() => selectedMercadoId = v),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedTipoNegocioId,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo de Negocio',
-                        ),
-                        items: ref
-                                .watch(tiposNegocioProvider)
-                                .value
-                                ?.map(
-                                  (t) => DropdownMenuItem(
-                                    value: t.id,
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: representanteCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Representante',
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: codigoCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Código Local',
+                                  helperText: 'Opcional, Código interno',
+                                  helperStyle: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: claveCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Clave (Ej. 22-37-01-01)',
+                                  helperText: 'Autogenerado si vacío',
+                                  helperStyle: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                maxLength: 20,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: telefonoCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Teléfono Representante',
+                                ),
+                                keyboardType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: selectedMercadoId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mercado',
+                                ),
+                                items: currentMercs
+                                    .map(
+                                      (m) => DropdownMenuItem(
+                                        value: m.id,
+                                        child: Text(
+                                          m.nombre ?? '-',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setDialogState(() => selectedMercadoId = v),
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: selectedTipoNegocioId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipo de Negocio',
+                                ),
+                                items:
+                                    ref
+                                        .watch(tiposNegocioProvider)
+                                        .value
+                                        ?.map(
+                                          (t) => DropdownMenuItem(
+                                            value: t.id,
+                                            child: Text(
+                                              t.nombre ?? '-',
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        )
+                                        .toList() ??
+                                    [],
+                                onChanged: (v) => setDialogState(
+                                  () => selectedTipoNegocioId = v,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: espacioCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Espacio (m²)',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: cuotaCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Cuota Diaria (L)',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: selectedFrecuenciaCobro,
+                                decoration: const InputDecoration(
+                                  labelText: 'Preferencia de Pago / Frecuencia',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'diaria',
                                     child: Text(
-                                      t.nombre ?? '-',
+                                      'Diaria',
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                )
-                                .toList() ??
-                            [],
-                        onChanged: (v) =>
-                            setDialogState(() => selectedTipoNegocioId = v),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: espacioCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Espacio (m²)',
+                                  DropdownMenuItem(
+                                    value: 'semanal',
+                                    child: Text(
+                                      'Semanal',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'quincenal',
+                                    child: Text(
+                                      'Quincenal',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'mensual',
+                                    child: Text(
+                                      'Mensual',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    setDialogState(
+                                      () => selectedFrecuenciaCobro = v,
+                                    );
+                                  }
+                                },
                               ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: cuotaCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Cuota Diaria (L)',
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: latitudCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Latitud',
+                                      ),
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            signed: true,
+                                            decimal: true,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: longitudCtrl,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Longitud',
+                                      ),
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            signed: true,
+                                            decimal: true,
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedFrecuenciaCobro,
-                        decoration: const InputDecoration(
-                          labelText: 'Preferencia de Pago / Frecuencia',
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'diaria', child: Text('Diaria', overflow: TextOverflow.ellipsis)),
-                          DropdownMenuItem(
-                              value: 'semanal', child: Text('Semanal', overflow: TextOverflow.ellipsis)),
-                          DropdownMenuItem(
-                              value: 'quincenal', child: Text('Quincenal', overflow: TextOverflow.ellipsis)),
-                          DropdownMenuItem(
-                              value: 'mensual', child: Text('Mensual', overflow: TextOverflow.ellipsis)),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            setDialogState(
-                                () => selectedFrecuenciaCobro = v);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: latitudCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Latitud',
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                signed: true,
-                                decimal: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: longitudCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Longitud',
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                signed: true,
-                                decimal: true,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ListTile(
-                        tileColor: Colors.black12,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        leading: const Icon(
-                          Icons.location_on_rounded,
-                          color: Colors.redAccent,
-                        ),
-                        title: Text(
-                          'Ubicar en Mapa / Perímetro',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 13,
-                          ),
-                        ),
-                        subtitle: Text(
-                          temporalPerimetro != null &&
-                                  temporalPerimetro!.isNotEmpty
-                              ? 'Vértices definidos: ${temporalPerimetro!.length}'
-                              : 'Sin área definida en el mapa',
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.54),
-                            fontSize: 11,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.map_rounded,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.24),
-                        ),
-                        onTap: () async {
-                          // Cargar locales del mercado bajo demanda para el mapa
-                          if (selectedMercadoId != null &&
-                              currentLocs.isEmpty) {
-                            setDialogState(() => currentLocs = []); 
-                            final repo = ref.read(localRepositoryProvider);
-                            final lits = await repo
-                                .obtenerPorMercado(selectedMercadoId!);
-                            setDialogState(() => currentLocs = lits);
-                          }
-
-                          if (!context.mounted) return;
-
-                          if (selectedMercadoId == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Seleccione un mercado primero',
+                              const SizedBox(height: 16),
+                              ListTile(
+                                tileColor: Colors.black12,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                            );
-                            return;
-                          }
+                                leading: const Icon(
+                                  Icons.location_on_rounded,
+                                  color: Colors.redAccent,
+                                ),
+                                title: Text(
+                                  'Ubicar en Mapa / Perímetro',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  temporalPerimetro != null &&
+                                          temporalPerimetro!.isNotEmpty
+                                      ? 'Vértices definidos: ${temporalPerimetro!.length}'
+                                      : 'Sin área definida en el mapa',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                trailing: Icon(
+                                  Icons.map_rounded,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.24),
+                                ),
+                                onTap: () async {
+                                  // Cargar locales del mercado bajo demanda para el mapa
+                                  if (selectedMercadoId != null &&
+                                      currentLocs.isEmpty) {
+                                    setDialogState(() => currentLocs = []);
+                                    final repo = ref.read(
+                                      localRepositoryProvider,
+                                    );
+                                    final lits = await repo.obtenerPorMercado(
+                                      selectedMercadoId!,
+                                    );
+                                    setDialogState(() => currentLocs = lits);
+                                  }
 
-                          final Mercado? mercado = currentMercs
-                              .cast<Mercado?>()
-                              .firstWhere(
-                                (m) => m?.id == selectedMercadoId,
-                                orElse: () => null,
-                              );
+                                  if (!context.mounted) return;
 
-                          if (mercado == null) return;
+                                  if (selectedMercadoId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Seleccione un mercado primero',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
 
-                          final otrosLocales = currentLocs
-                              .where(
-                                (l) =>
-                                    l.mercadoId == selectedMercadoId &&
-                                    l.id != local?.id,
-                              )
-                              .toList();
-
-                          final List<LatLng>? result =
-                              await showDialog<List<LatLng>>(
-                            context: context,
-                            builder: (ctx) => MapPickerModal(
-                              mode: MapPickerMode.polygon,
-                              initialPoints: temporalPerimetro
-                                  ?.map((p) => LatLng(p['lat']!, p['lng']!))
-                                  .toList(),
-                              marketPerimeter: mercado.perimetro
-                                  ?.map((p) => LatLng(p['lat']!, p['lng']!))
-                                  .toList(),
-                              existingPolygons: otrosLocales
-                                  .where(
-                                    (l) =>
-                                        l.perimetro != null &&
-                                        l.perimetro!.isNotEmpty,
-                                  )
-                                  .map(
-                                    (l) => l.perimetro!
-                                        .map(
-                                          (p) => LatLng(
-                                              p['lat']!, p['lng']!),
-                                        )
-                                        .toList(),
-                                  )
-                                  .toList(),
-                              existingPoints: otrosLocales
-                                  .where(
-                                    (l) =>
-                                        l.perimetro == null ||
-                                        l.perimetro!.isEmpty,
-                                  )
-                                  .where(
-                                    (l) =>
-                                        l.latitud != null &&
-                                        l.longitud != null,
-                                  )
-                                  .map(
-                                    (l) =>
-                                        LatLng(l.latitud!, l.longitud!),
-                                  )
-                                  .toList(),
-                              initialCenter: temporalPerimetro != null &&
-                                      temporalPerimetro!.isNotEmpty
-                                  ? LatLng(
-                                      temporalPerimetro!.first['lat']!,
-                                      temporalPerimetro!.first['lng']!,
-                                    )
-                                  : (mercado.latitud != null
-                                      ? LatLng(
-                                          mercado.latitud!,
-                                          mercado.longitud!,
-                                        )
-                                      : null),
-                            ),
-                          );
-
-                          if (result != null && result.isNotEmpty) {
-                            setDialogState(() {
-                              temporalPerimetro = result
-                                  .map(
-                                    (p) => {
-                                      'lat': p.latitude,
-                                      'lng': p.longitude,
-                                    },
-                                  )
-                                  .toList();
-                              latitudCtrl.text =
-                                  result.first.latitude.toString();
-                              longitudCtrl.text =
-                                  result.first.longitude.toString();
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancelar'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: () async {
-                                if (selectedMercadoId == null) return;
-                                
-                                // Para el cobrador usamos localApiProvider que es mas directo (o el mismo localDatasourceProvider de firebase)
-                                // _showFormDialog usaba localDatasourceProvider que está en data, es lo mismo 
-                                final ds = ref.read(localDatasourceProvider);
-                                final now = DateTime.now();
-                                
-                                // Determinar usuario logueado en base al scope global
-                                final currentUsuario = ref.read(currentUsuarioProvider).value;
-                                final modificadoPor = currentUsuario?.id ?? 'admin';
-
-                                final docId = isEditing
-                                    ? local.id!
-                                    : IdNormalizer.localId(
-                                        selectedMercadoId!,
-                                        nombreCtrl.text,
+                                  final Mercado? mercado = currentMercs
+                                      .cast<Mercado?>()
+                                      .firstWhere(
+                                        (m) => m?.id == selectedMercadoId,
+                                        orElse: () => null,
                                       );
 
-                                final selectedMerc = currentMercs.firstWhere(
-                                  (m) => m.id == selectedMercadoId,
-                                  orElse: () => currentMercs.first,
-                                );
+                                  if (mercado == null) return;
 
-                                String generadaClave =
-                                    claveCtrl.text.trim().toUpperCase();
-                                if (generadaClave.isEmpty &&
-                                    nombreCtrl.text.trim().isNotEmpty) {
-                                  // Tomar las primeras 3-4 letras
-                                  final cleanName =
-                                      nombreCtrl.text.trim().replaceAll(' ', '');
-                                  generadaClave = cleanName.length >= 4
-                                      ? cleanName.substring(0, 4).toUpperCase()
-                                      : cleanName.toUpperCase();
-                                }
+                                  final otrosLocales = currentLocs
+                                      .where(
+                                        (l) =>
+                                            l.mercadoId == selectedMercadoId &&
+                                            l.id != local?.id,
+                                      )
+                                      .toList();
 
-                                final model = LocalJson(
-                                  activo: isEditing ? (local.activo ?? true) : true,
-                                  actualizadoEn: now,
-                                  actualizadoPor: modificadoPor,
-                                  creadoEn: isEditing ? local.creadoEn : now,
-                                  creadoPor: isEditing ? local.creadoPor : modificadoPor,
-                                  cuotaDiaria: num.tryParse(cuotaCtrl.text),
-                                  espacioM2: num.tryParse(espacioCtrl.text),
-                                  id: docId,
-                                  mercadoId: selectedMercadoId,
-                                  municipalidadId: selectedMerc.municipalidadId,
-                                  nombreSocial: nombreCtrl.text,
-                                  qrData: docId,
-                                  representante: representanteCtrl.text,
-                                  telefonoRepresentante: telefonoCtrl.text,
-                                  tipoNegocioId: selectedTipoNegocioId,
-                                  latitud: double.tryParse(latitudCtrl.text),
-                                  longitud: double.tryParse(longitudCtrl.text),
-                                  perimetro: temporalPerimetro,
-                                  clave: generadaClave.isNotEmpty ? generadaClave : null,
-                                  codigoCatastral: codigoCatastralCtrl.text.isNotEmpty
-                                      ? codigoCatastralCtrl.text
-                                      : null,
-                                  codigoCatastralLower:
-                                      codigoCatastralCtrl.text.isNotEmpty
-                                          ? codigoCatastralCtrl.text.toLowerCase()
-                                          : null,
-                                  frecuenciaCobro: selectedFrecuenciaCobro,
-                                  deudaAcumulada: isEditing ? local.deudaAcumulada : 0,
-                                  saldoAFavor: isEditing ? local.saldoAFavor : 0,
-                                );
+                                  final List<LatLng>?
+                                  result = await showDialog<List<LatLng>>(
+                                    context: context,
+                                    builder: (ctx) => MapPickerModal(
+                                      mode: MapPickerMode.polygon,
+                                      initialPoints: temporalPerimetro
+                                          ?.map(
+                                            (p) => LatLng(p['lat']!, p['lng']!),
+                                          )
+                                          .toList(),
+                                      marketPerimeter: mercado.perimetro
+                                          ?.map(
+                                            (p) => LatLng(p['lat']!, p['lng']!),
+                                          )
+                                          .toList(),
+                                      existingPolygons: otrosLocales
+                                          .where(
+                                            (l) =>
+                                                l.perimetro != null &&
+                                                l.perimetro!.isNotEmpty,
+                                          )
+                                          .map(
+                                            (l) => l.perimetro!
+                                                .map(
+                                                  (p) => LatLng(
+                                                    p['lat']!,
+                                                    p['lng']!,
+                                                  ),
+                                                )
+                                                .toList(),
+                                          )
+                                          .toList(),
+                                      existingPoints: otrosLocales
+                                          .where(
+                                            (l) =>
+                                                l.perimetro == null ||
+                                                l.perimetro!.isEmpty,
+                                          )
+                                          .where(
+                                            (l) =>
+                                                l.latitud != null &&
+                                                l.longitud != null,
+                                          )
+                                          .map(
+                                            (l) =>
+                                                LatLng(l.latitud!, l.longitud!),
+                                          )
+                                          .toList(),
+                                      initialCenter:
+                                          temporalPerimetro != null &&
+                                              temporalPerimetro!.isNotEmpty
+                                          ? LatLng(
+                                              temporalPerimetro!.first['lat']!,
+                                              temporalPerimetro!.first['lng']!,
+                                            )
+                                          : (mercado.latitud != null
+                                                ? LatLng(
+                                                    mercado.latitud!,
+                                                    mercado.longitud!,
+                                                  )
+                                                : null),
+                                    ),
+                                  );
 
-                                final jsonData = model.toJson();
-                                jsonData['nombreSocialLower'] =
-                                    (nombreCtrl.text).toLowerCase();
+                                  if (result != null && result.isNotEmpty) {
+                                    setDialogState(() {
+                                      temporalPerimetro = result
+                                          .map(
+                                            (p) => {
+                                              'lat': p.latitude,
+                                              'lng': p.longitude,
+                                            },
+                                          )
+                                          .toList();
+                                      latitudCtrl.text = result.first.latitude
+                                          .toString();
+                                      longitudCtrl.text = result.first.longitude
+                                          .toString();
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancelar'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: FilledButton.icon(
+                                      onPressed: () async {
+                                        if (selectedMercadoId == null) return;
 
-                                if (isEditing) {
-                                  await ds.actualizar(docId, jsonData);
-                                } else {
-                                  await ds.crear(docId, jsonData);
-                                }
+                                        // Para el cobrador usamos localApiProvider que es mas directo (o el mismo localDatasourceProvider de firebase)
+                                        // _showFormDialog usaba localDatasourceProvider que está en data, es lo mismo
+                                        final ds = ref.read(
+                                          localDatasourceProvider,
+                                        );
+                                        final now = DateTime.now();
 
-                                if (onSuccess != null) {
-                                  onSuccess();
-                                }
-                                if (ctx.mounted) Navigator.pop(ctx);
-                              },
-                              icon: const Icon(Icons.check_rounded, size: 18),
-                              label: Text(isEditing ? 'Actualizar' : 'Crear'),
-                            ),
-                          ),
-                        ],
-                      ),
+                                        // Determinar usuario logueado en base al scope global
+                                        final currentUsuario = ref
+                                            .read(currentUsuarioProvider)
+                                            .value;
+                                        final modificadoPor =
+                                            currentUsuario?.id ?? 'admin';
+
+                                        final docId = isEditing
+                                            ? local.id!
+                                            : IdNormalizer.localId(
+                                                selectedMercadoId!,
+                                                nombreCtrl.text,
+                                              );
+
+                                        final selectedMerc = currentMercs
+                                            .firstWhere(
+                                              (m) => m.id == selectedMercadoId,
+                                              orElse: () => currentMercs.first,
+                                            );
+
+                                        String generadaClave = claveCtrl.text
+                                            .trim()
+                                            .toUpperCase();
+                                        if (generadaClave.isEmpty &&
+                                            nombreCtrl.text.trim().isNotEmpty) {
+                                          // Tomar las primeras 3-4 letras
+                                          final cleanName = nombreCtrl.text
+                                              .trim()
+                                              .replaceAll(' ', '');
+                                          generadaClave = cleanName.length >= 4
+                                              ? cleanName
+                                                    .substring(0, 4)
+                                                    .toUpperCase()
+                                              : cleanName.toUpperCase();
+                                        }
+
+                                        final model = LocalJson(
+                                          activo: isEditing
+                                              ? (local.activo ?? true)
+                                              : true,
+                                          actualizadoEn: now,
+                                          actualizadoPor: modificadoPor,
+                                          creadoEn: isEditing
+                                              ? local.creadoEn
+                                              : now,
+                                          creadoPor: isEditing
+                                              ? local.creadoPor
+                                              : modificadoPor,
+                                          cuotaDiaria: num.tryParse(
+                                            cuotaCtrl.text,
+                                          ),
+                                          espacioM2: num.tryParse(
+                                            espacioCtrl.text,
+                                          ),
+                                          id: docId,
+                                          mercadoId: selectedMercadoId,
+                                          municipalidadId:
+                                              selectedMerc.municipalidadId,
+                                          nombreSocial: nombreCtrl.text,
+                                          qrData: docId,
+                                          representante: representanteCtrl.text,
+                                          telefonoRepresentante:
+                                              telefonoCtrl.text,
+                                          tipoNegocioId: selectedTipoNegocioId,
+                                          latitud: double.tryParse(
+                                            latitudCtrl.text,
+                                          ),
+                                          longitud: double.tryParse(
+                                            longitudCtrl.text,
+                                          ),
+                                          perimetro: temporalPerimetro,
+                                          clave: generadaClave.isNotEmpty
+                                              ? generadaClave
+                                              : null,
+                                          codigoCatastral:
+                                              codigoCatastralCtrl
+                                                  .text
+                                                  .isNotEmpty
+                                              ? codigoCatastralCtrl.text
+                                              : null,
+                                          codigoCatastralLower:
+                                              codigoCatastralCtrl
+                                                  .text
+                                                  .isNotEmpty
+                                              ? codigoCatastralCtrl.text
+                                                    .toLowerCase()
+                                              : null,
+                                          codigo: codigoCtrl.text.isNotEmpty
+                                              ? codigoCtrl.text
+                                              : null,
+                                          codigoLower:
+                                              codigoCtrl.text.isNotEmpty
+                                              ? codigoCtrl.text.toLowerCase()
+                                              : null,
+                                          frecuenciaCobro:
+                                              selectedFrecuenciaCobro,
+                                          deudaAcumulada: isEditing
+                                              ? local.deudaAcumulada
+                                              : 0,
+                                          saldoAFavor: isEditing
+                                              ? local.saldoAFavor
+                                              : 0,
+                                        );
+
+                                        final jsonData = model.toJson();
+                                        jsonData['nombreSocialLower'] =
+                                            (nombreCtrl.text).toLowerCase();
+
+                                        if (isEditing) {
+                                          await ds.actualizar(docId, jsonData);
+                                        } else {
+                                          await ds.crear(docId, jsonData);
+                                        }
+
+                                        if (onSuccess != null) {
+                                          onSuccess();
+                                        }
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                      },
+                                      icon: const Icon(
+                                        Icons.check_rounded,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        isEditing ? 'Actualizar' : 'Crear',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),

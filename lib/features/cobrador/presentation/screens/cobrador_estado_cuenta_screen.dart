@@ -172,11 +172,16 @@ class _CobradorEstadoCuentaScreenState
     );
 
     final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
-    final balanceVisual = VisualDebtUtils.calcularBalanceNetoVisual(local, cobrosList);
+    final balanceVisual = VisualDebtUtils.calcularBalanceNetoVisual(
+      local,
+      cobrosList,
+    );
     final numAdelantados = adelantadosVirtuales.length;
 
     final cobrados = combinedList.where((c) => c.estado == 'cobrado').toList();
-    final pendientes = combinedList.where((c) => c.estado == 'pendiente').toList();
+    final pendientes = combinedList
+        .where((c) => c.estado == 'pendiente')
+        .toList();
 
     return Scaffold(
       body: NestedScrollView(
@@ -252,7 +257,9 @@ class _CobradorEstadoCuentaScreenState
               controller: _tabController,
               indicatorColor: Theme.of(context).colorScheme.primary,
               labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
               labelStyle: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -327,7 +334,10 @@ class _Header extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Theme.of(context).colorScheme.primary, AppColors.success],
+                    colors: [
+                      Theme.of(context).colorScheme.primary,
+                      AppColors.success,
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -373,7 +383,7 @@ class _Header extends StatelessWidget {
                                 fontSize: 12,
                                 color: AppColors.success,
                                 fontWeight: FontWeight.w500,
-                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -383,7 +393,9 @@ class _Header extends StatelessWidget {
                       'Cuota: ${DateFormatter.formatCurrency(local.cuotaDiaria)}/día',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -400,16 +412,18 @@ class _Header extends StatelessWidget {
               _MiniKpi(
                 label: 'Balance',
                 value: DateFormatter.formatCurrency(balance),
-                color: balance >= 0
-                    ? AppColors.success
-                    : AppColors.danger,
+                color: balance >= 0 ? AppColors.success : AppColors.danger,
                 icon: Icons.account_balance_wallet_rounded,
               ),
               const SizedBox(width: 8),
               _MiniKpi(
                 label: 'Deuda',
                 value: DateFormatter.formatCurrency(deuda),
-                color: deuda > 0 ? AppColors.danger : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                color: deuda > 0
+                    ? AppColors.danger
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
                 icon: Icons.warning_amber_rounded,
               ),
               const SizedBox(width: 8),
@@ -418,7 +432,9 @@ class _Header extends StatelessWidget {
                 value: '$numAdelantados',
                 color: numAdelantados > 0
                     ? AppColors.warning
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
                 icon: Icons.fast_forward_rounded,
               ),
             ],
@@ -532,7 +548,12 @@ class _MiniKpi extends StatelessWidget {
             ),
             Text(
               label,
-              style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+              style: TextStyle(
+                fontSize: 8,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -549,34 +570,65 @@ class _CobrosList extends ConsumerWidget {
 
   const _CobrosList({required this.cobros, required this.local});
 
-  /// Agrupa cobros consecutivos que digan "Saldado por abono general" en un solo item.
-  List<dynamic> _agruparSaldados(List<Cobro> lista) {
+  /// Agrupa cobros basándose en el número de boleta o correlativo,
+  /// eliminando registros "hijo" redundantes que ya están contenidos
+  /// dentro de la información de una boleta maestra.
+  List<dynamic> _agruparPorBoleta(List<Cobro> lista) {
     final result = <dynamic>[];
-    int i = 0;
-    while (i < lista.length) {
-      if (_esSaldadoPorAbono(lista[i])) {
-        final grupo = <Cobro>[lista[i]];
-        while (i + 1 < lista.length && _esSaldadoPorAbono(lista[i + 1])) {
-          i++;
-          grupo.add(lista[i]);
+    final groups = <String, List<Cobro>>{};
+    final Set<DateTime> fechasCubiertasPorMaestros = {};
+
+    // 1. Primer pase: Identificar grupos con boleta y recolectar fechas cubiertas
+    for (final c in lista) {
+      final boletaId = c.numeroBoleta ?? c.correlativo?.toString();
+      if (boletaId != null && boletaId.isNotEmpty && boletaId != '0') {
+        if (!groups.containsKey(boletaId)) {
+          groups[boletaId] = [];
         }
-        if (grupo.length >= 2) {
-          result.add(grupo);
-        } else {
-          result.add(grupo.first);
+        groups[boletaId]!.add(c);
+
+        // Extraer fechas saldadas de este registro "maestro"
+        if (c.fechasDeudasSaldadas != null) {
+          for (final d in c.fechasDeudasSaldadas!) {
+            fechasCubiertasPorMaestros.add(DateTime(d.year, d.month, d.day));
+          }
+        }
+        // También la fecha del registro si aplicó a cuota hoy
+        if ((c.pagoACuota ?? 0) > 0 && c.fecha != null) {
+          fechasCubiertasPorMaestros.add(
+            DateTime(c.fecha!.year, c.fecha!.month, c.fecha!.day),
+          );
+        }
+      }
+    }
+
+    // 2. Segundo pase: Construir la lista final de items respetando el orden
+    final Set<String> boletasAgregadas = {};
+    for (final c in lista) {
+      final boletaId = c.numeroBoleta ?? c.correlativo?.toString();
+
+      if (boletaId != null && boletaId.isNotEmpty && boletaId != '0') {
+        // Si tiene boleta, lo agregamos como grupo (una sola vez)
+        if (!boletasAgregadas.contains(boletaId)) {
+          result.add(groups[boletaId]!);
+          boletasAgregadas.add(boletaId);
         }
       } else {
-        result.add(lista[i]);
+        // Si NO tiene boleta, verificamos si es huérfano o si es un hijo redundante
+        final fechaRef = c.fecha;
+        if (fechaRef != null) {
+          final dRef = DateTime(fechaRef.year, fechaRef.month, fechaRef.day);
+          // Si esta fecha ya está en el set de maestros, es un registro hijo (redundante). IGNORAR.
+          if (fechasCubiertasPorMaestros.contains(dRef)) {
+            continue;
+          }
+        }
+        // Si llegó aquí, es un registro individual que no está en ninguna boleta.
+        result.add([c]);
       }
-      i++;
     }
-    return result;
-  }
 
-  bool _esSaldadoPorAbono(Cobro c) {
-    if (c.observaciones == null) return false;
-    final obsLower = c.observaciones!.toLowerCase();
-    return obsLower.contains('saldado por abono general');
+    return result;
   }
 
   @override
@@ -586,18 +638,29 @@ class _CobrosList extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_rounded, size: 48, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24)),
+            Icon(
+              Icons.receipt_long_rounded,
+              size: 48,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.24),
+            ),
             const SizedBox(height: 12),
             Text(
               'Sin registros',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.38),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
       );
     }
 
-    final items = _agruparSaldados(cobros);
+    final items = _agruparPorBoleta(cobros);
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
@@ -607,38 +670,45 @@ class _CobrosList extends ConsumerWidget {
         final item = items[i];
         if (item is List<Cobro>) {
           Cobro? masterPayment;
-          final groupDates = item.where((c) => c.fecha != null).map((c) => DateUtils.dateOnly(c.fecha!)).toSet();
-          
-          for (final c in cobros) {
-            if (c.fechasDeudasSaldadas != null && c.fechasDeudasSaldadas!.isNotEmpty) {
-              final masterDates = c.fechasDeudasSaldadas!.map((d) => DateUtils.dateOnly(d)).toSet();
-              if (masterDates.containsAll(groupDates)) {
-                masterPayment = c;
-                break;
-              }
+          double maxMonto = 0;
+          for (final c in item) {
+            final m = (c.monto ?? 0).toDouble();
+            if (m > maxMonto) {
+              maxMonto = m;
+              masterPayment = c;
+            }
+          }
+          if (masterPayment == null && item.isNotEmpty) {
+            masterPayment = item.first;
+          }
+
+          // Si es un cobro huérfano y PENDIENTE, mostrar como tile plano en lugar de acordeón
+          if (item.length == 1 && item.first.estado != 'cobrado') {
+            final boleta =
+                item.first.numeroBoleta ?? item.first.correlativo?.toString();
+            if (boleta == null || boleta.isEmpty || boleta == '0') {
+              return _CobroTile(
+                cobro: item.first,
+                local: local,
+                onReprint: (ctx, ref, c) =>
+                    _reimprimirCobroIndividual(ctx, ref, local, c),
+                onShare: (ctx, ref, c) =>
+                    _compartirCobroIndividual(ctx, ref, local, c),
+              );
             }
           }
 
-          if (masterPayment == null) {
-            final sum = item.fold<double>(0, (s, c) => s + ((c.cuotaDiaria ?? c.monto ?? 0).toDouble()));
-            for (final c in cobros) {
-              if (c.monto != null && c.monto == sum && !item.contains(c)) {
-                if (c.fecha != null && item.last.fecha != null && (c.fecha!.isAfter(item.first.fecha!) || c.fecha!.isAtSameMomentAs(item.last.fecha!))) {
-                  masterPayment = c;
-                  break;
-                }
-              }
-            }
-          }
-
-          return _GrupoSaldadoCard(cobros: item, local: local, masterPayment: masterPayment);
+          return _GrupoBoletaCard(
+            cobros: item,
+            local: local,
+            masterPayment: masterPayment,
+            onImprimirCobro: (ctx, ref, cobro, fecha) =>
+                _imprimirDiaEspecifico(ctx, ref, local, cobro, fecha),
+            onCompartirCobro: (ctx, ref, cobro, fecha) =>
+                _compartirDiaEspecifico(ctx, ref, local, cobro, fecha),
+          );
         }
-        return _CobroTile(
-          cobro: item as Cobro,
-          local: local,
-          onReprint: (ctx, ref, c) => _reimprimirCobroIndividual(ctx, ref, local, c),
-          onShare: (ctx, ref, c) => _compartirCobroIndividual(ctx, ref, local, c),
-        );
+        return const SizedBox.shrink(); // No debería ocurrir
       },
     );
   }
@@ -653,7 +723,9 @@ class _CobrosList extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
 
     String? periodoFavorStr;
@@ -663,12 +735,17 @@ class _CobrosList extends ConsumerWidget {
     if (favorResultante > 0 && cuota > 0) {
       int dias = (favorResultante / cuota).floor();
       if (dias > 0) {
-        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
+        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(
+          const Duration(days: 1),
+        );
         if (fechasRes.isNotEmpty) {
           final sorted = List<DateTime>.from(fechasRes)..sort();
           inicioFavor = sorted.last.add(const Duration(days: 1));
         }
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+          inicioFavor,
+          dias,
+        );
       }
     }
 
@@ -677,16 +754,30 @@ class _CobrosList extends ConsumerWidget {
       periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
     }
 
+    final cuotaLocal = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+    double abonoCuotaHoy = (c.pagoACuota ?? 0).toDouble();
+    double pagoHoy = cuotaLocal - abonoCuotaHoy;
+    if (pagoHoy < 0) pagoHoy = 0;
+
+    // El saldoPendiente guardado incluye la cuota del día no pagada.
+    // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real,
+    // no la cuota de hoy que aún no es una deuda en sentido estricto.
+    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(0.0, double.infinity);
+
     if (context.mounted) {
       await ReceiptDispatcher.presentReceiptOptions(
         context: context,
         ref: ref,
         local: local,
-        monto: (c.monto != null && c.monto! > 0) ? c.monto!.toDouble() : (c.cuotaDiaria ?? 0).toDouble(),
+        monto: (c.monto != null && c.monto! > 0)
+            ? c.monto!.toDouble()
+            : (c.cuotaDiaria ?? 0).toDouble(),
         fecha: c.fecha ?? DateTime.now(),
-        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
+        saldoPendiente: saldoDeudaReal,
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
+        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
         saldoAFavor: favorResultante,
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         municipalidadNombre: muni?.nombre ?? 'MUNICIPALIDAD',
@@ -710,7 +801,9 @@ class _CobrosList extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
 
     String? periodoFavorStr;
@@ -720,12 +813,17 @@ class _CobrosList extends ConsumerWidget {
     if (favorResultante > 0 && cuota > 0) {
       int dias = (favorResultante / cuota).floor();
       if (dias > 0) {
-        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
+        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(
+          const Duration(days: 1),
+        );
         if (fechasRes.isNotEmpty) {
           final sorted = List<DateTime>.from(fechasRes)..sort();
           inicioFavor = sorted.last.add(const Duration(days: 1));
         }
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+          inicioFavor,
+          dias,
+        );
       }
     }
 
@@ -734,15 +832,28 @@ class _CobrosList extends ConsumerWidget {
       periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
     }
 
+    final cuotaLocal = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+    double abonoCuotaHoy = (c.pagoACuota ?? 0).toDouble();
+    double pagoHoy = cuotaLocal - abonoCuotaHoy;
+    if (pagoHoy < 0) pagoHoy = 0;
+
+    // El saldoPendiente guardado incluye la cuota del día no pagada.
+    // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real.
+    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(0.0, double.infinity);
+
     if (context.mounted) {
       await ReceiptDispatcher.compartirPdf(
         context: context,
         local: local,
-        monto: (c.monto != null && c.monto! > 0) ? c.monto!.toDouble() : (c.cuotaDiaria ?? 0).toDouble(),
+        monto: (c.monto != null && c.monto! > 0)
+            ? c.monto!.toDouble()
+            : (c.cuotaDiaria ?? 0).toDouble(),
         fecha: c.fecha ?? DateTime.now(),
-        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
+        saldoPendiente: saldoDeudaReal,
         deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
         montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
+        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
         saldoAFavor: favorResultante,
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         muni: muni?.nombre ?? 'MUNICIPALIDAD',
@@ -755,41 +866,242 @@ class _CobrosList extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _imprimirDiaEspecifico(
+    BuildContext context,
+    WidgetRef ref,
+    Local local,
+    Cobro c,
+    DateTime fecha,
+  ) async {
+    final user = ref.read(currentUsuarioProvider).value;
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    double cuota = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+    double montoIndividual = cuota > 0 ? cuota : 0;
+    final DateTime fechaOriginal = c.fecha ?? c.creadoEn ?? DateTime.now();
+    
+    final bool esElMismoDia = fecha.year == fechaOriginal.year &&
+        fecha.month == fechaOriginal.month &&
+        fecha.day == fechaOriginal.day;
+
+    double deudaAnterior = (c.deudaAnterior ?? 0).toDouble();
+    
+    // El cobro maestro puede incluir la cuota del día no pagada en su saldoPendiente.
+    // Hay que deducir esto del saldoPendiente a mostrar en CUALQUIER recibo hijo que salga de aquí.
+    final abonoCuotaMaster = (c.pagoACuota ?? 0).toDouble();
+    final faltaPagarHoyMaster = (montoIndividual - abonoCuotaMaster).clamp(0.0, double.infinity);
+    final saldoPendienteReal = ((c.saldoPendiente ?? 0).toDouble() - faltaPagarHoyMaster).clamp(0.0, double.infinity);
+
+    double abonoDeuda = 0;
+    double pagoHoy = 0;
+    double abonoCuotaHoy = 0;
+
+    if (esElMismoDia) {
+      // Si la fecha elegida es el día que se hizo el cobro real, 
+      // mostramos la información general (o proporcional) de la deuda de ese día
+      abonoDeuda = (c.montoAbonadoDeuda ?? 0).toDouble();
+      abonoCuotaHoy = abonoCuotaMaster;
+      pagoHoy = faltaPagarHoyMaster;
+    } else {
+      // Si es un día pendiente que se cubrió con este pago (en el pasado o futuro)
+      // Todo ese dinero se fue como Abono de Deuda en concepto de cuota.
+      abonoDeuda = montoIndividual;
+    }
+
+    if (context.mounted) {
+      await ReceiptDispatcher.presentReceiptOptions(
+        context: context,
+        ref: ref,
+        local: local,
+        monto: abonoDeuda + pagoHoy,
+        fecha: fechaOriginal,
+        saldoPendiente: saldoPendienteReal,
+        deudaAnterior: deudaAnterior,
+        montoAbonadoDeuda: abonoDeuda,
+        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
+        saldoAFavor: 0,
+        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
+        municipalidadNombre: muni?.nombre ?? 'MUNICIPALIDAD',
+        mercadoNombre: merc?.nombre,
+        cobradorNombre: user?.nombre,
+        fechasSaldadas: [fecha],
+        periodoAbonadoStr: DateFormatter.formatDate(fecha),
+        periodoSaldoAFavorStr: null,
+        slogan: muni?.slogan,
+      );
+    }
+  }
+
+  Future<void> _compartirDiaEspecifico(
+    BuildContext context,
+    WidgetRef ref,
+    Local local,
+    Cobro c,
+    DateTime fecha,
+  ) async {
+    final user = ref.read(currentUsuarioProvider).value;
+    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
+    final mercadoRepo = ref.read(mercadoRepositoryProvider);
+
+    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
+
+    double cuota = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+    double montoIndividual = cuota > 0 ? cuota : 0;
+    final DateTime fechaOriginal = c.fecha ?? c.creadoEn ?? DateTime.now();
+    
+    final bool esElMismoDia = fecha.year == fechaOriginal.year &&
+        fecha.month == fechaOriginal.month &&
+        fecha.day == fechaOriginal.day;
+
+    double deudaAnterior = (c.deudaAnterior ?? 0).toDouble();
+    
+    // El cobro maestro puede incluir la cuota del día no pagada en su saldoPendiente.
+    // Hay que deducir esto del saldoPendiente a mostrar.
+    final abonoCuotaMaster = (c.pagoACuota ?? 0).toDouble();
+    final faltaPagarHoyMaster = (montoIndividual - abonoCuotaMaster).clamp(0.0, double.infinity);
+    final saldoPendienteReal = ((c.saldoPendiente ?? 0).toDouble() - faltaPagarHoyMaster).clamp(0.0, double.infinity);
+
+    double abonoDeuda = 0;
+    double pagoHoy = 0;
+    double abonoCuotaHoy = 0;
+
+    if (esElMismoDia) {
+      // Si la fecha elegida es el día que se hizo el cobro real, 
+      abonoDeuda = (c.montoAbonadoDeuda ?? 0).toDouble();
+      abonoCuotaHoy = abonoCuotaMaster;
+      pagoHoy = faltaPagarHoyMaster;
+    } else {
+      // Si es un día pendiente que se cubrió con este pago (pasado o futuro retrasado)
+      // Todo ese dinero se fue como Abono de Deuda para esta fecha específica.
+      abonoDeuda = montoIndividual;
+    }
+
+    if (context.mounted) {
+      await ReceiptDispatcher.compartirPdf(
+        context: context,
+        local: local,
+        monto: abonoDeuda + pagoHoy,
+        fecha: fechaOriginal,
+        saldoPendiente: saldoPendienteReal,
+        deudaAnterior: deudaAnterior,
+        montoAbonadoDeuda: abonoDeuda,
+        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
+        saldoAFavor: 0,
+        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
+        muni: muni?.nombre ?? 'MUNICIPALIDAD',
+        merc: merc?.nombre,
+        cobrador: user?.nombre,
+        fechasSaldadas: [fecha],
+        periodoAbonadoStr: DateFormatter.formatDate(fecha),
+        periodoSaldoAFavorStr: null,
+        slogan: muni?.slogan,
+      );
+    }
+  }
 }
 
-/// Card colapsable que agrupa cobros saldados consecutivos
-class _GrupoSaldadoCard extends ConsumerWidget {
+/// Card colapsable que agrupa cobros por boleta única y despliega todas las fechas que abarca (pasado, presente y futuro)
+class _GrupoBoletaCard extends ConsumerWidget {
   final List<Cobro> cobros;
   final Local local;
   final Cobro? masterPayment;
+  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime) onImprimirCobro;
+  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime) onCompartirCobro;
 
-  const _GrupoSaldadoCard({required this.cobros, required this.local, this.masterPayment});
+  const _GrupoBoletaCard({
+    required this.cobros,
+    required this.local,
+    this.masterPayment,
+    required this.onImprimirCobro,
+    required this.onCompartirCobro,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fechas = cobros
-        .where((c) => c.fecha != null)
-        .map((c) => c.fecha!)
-        .toList()
-      ..sort();
+    // 1. Recolectar TODAS las fechas involucradas en esta transacción
+    final Set<DateTime> fechasExtraidas = {};
+    final Map<DateTime, Cobro> cobroPorFecha = {};
+    final Map<DateTime, int> prioridadPorFecha = {};
+    void registrarCobro(DateTime fecha, Cobro cobro, int prioridad) {
+      final normalizada = _normalizarDia(fecha);
+      final prioridadActual = prioridadPorFecha[normalizada];
+      if (prioridadActual == null || prioridad < prioridadActual) {
+        cobroPorFecha[normalizada] = cobro;
+        prioridadPorFecha[normalizada] = prioridad;
+      }
+      fechasExtraidas.add(normalizada);
+    }
 
-    final rangoStr = DateRangeFormatter.formatearRangos(fechas) ?? '-';
-    final montoTotal = cobros.fold<double>(
-      0,
-      (sum, c) => sum + ((c.cuotaDiaria ?? c.monto ?? 0).toDouble()),
-    );
-    // Fallback: si los registros no tienen cuotaDiaria ni monto, usar la cuota del local
-    final montoDisplay = montoTotal > 0
-        ? montoTotal
-        : (local.cuotaDiaria ?? 0).toDouble() * cobros.length;
+    for (final c in cobros) {
+      if (c.fecha != null) {
+        registrarCobro(c.fecha!, c, 0);
+      }
+      if (c.fechasDeudasSaldadas != null) {
+        for (final d in c.fechasDeudasSaldadas!) {
+          registrarCobro(d, c, 1);
+        }
+      }
+      final bool aplicoCuotaHoy = (c.pagoACuota ?? 0) > 0;
+      if (aplicoCuotaHoy && c.creadoEn != null) {
+        registrarCobro(c.creadoEn!, c, 2);
+      }
+
+      // Expandir fechas futuras por saldo a favor (si aplica)
+      final favor = (c.nuevoSaldoFavor ?? 0).toDouble();
+      final cuota = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+      if (favor > 0 && cuota > 0) {
+        int diasAdelantados = (favor / cuota).floor();
+        if (diasAdelantados > 0) {
+          DateTime base = c.creadoEn ?? DateTime.now();
+          if (c.fechasDeudasSaldadas != null &&
+              c.fechasDeudasSaldadas!.isNotEmpty) {
+            final sorted = List<DateTime>.from(c.fechasDeudasSaldadas!)..sort();
+            base = sorted.last;
+          }
+          final Cobro fuente = masterPayment ?? c;
+          for (int i = 1; i <= diasAdelantados; i++) {
+            final futura = base.add(Duration(days: i));
+            registrarCobro(futura, fuente, 3);
+          }
+        }
+      }
+    }
+
+    final List<DateTime> fechasOrdenadas = fechasExtraidas.toList()..sort();
+    final rangoStr = DateRangeFormatter.formatearRangos(fechasOrdenadas) ?? '-';
+
+    double montoDisplay = masterPayment != null
+        ? (masterPayment!.monto ?? 0).toDouble()
+        : 0.0;
+    if (montoDisplay <= 0) {
+      montoDisplay = cobros.fold<double>(
+        0,
+        (sum, c) => sum + (c.monto ?? 0).toDouble(),
+      );
+      if (montoDisplay <= 0) {
+        montoDisplay =
+            (local.cuotaDiaria ?? 0).toDouble() * fechasOrdenadas.length;
+      }
+    }
+
+    final String numeroRecibo =
+        masterPayment?.numeroBoleta ??
+        masterPayment?.correlativo?.toString() ??
+        '-';
 
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -803,19 +1115,28 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.success, size: 20),
+            child: const Icon(
+              Icons.receipt_long_rounded,
+              color: AppColors.success,
+              size: 20,
+            ),
           ),
           title: Text(
-            rangoStr,
+            numeroRecibo != '-' ? 'Boleta #$numeroRecibo' : 'Recibo agrupado',
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
               color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           subtitle: Text(
-            '${cobros.length} dias saldados por abono · ${DateFormatter.formatCurrency(montoDisplay)}',
-            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
+            '${fechasOrdenadas.length} cuotas cubiertas · ${DateFormatter.formatCurrency(montoDisplay)}',
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -824,7 +1145,9 @@ class _GrupoSaldadoCard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              '${cobros.length} dias',
+              rangoStr.length > 15 && fechasOrdenadas.length > 2
+                  ? '${fechasOrdenadas.length} días'
+                  : rangoStr,
               style: const TextStyle(
                 fontSize: 9,
                 color: AppColors.success,
@@ -833,51 +1156,72 @@ class _GrupoSaldadoCard extends ConsumerWidget {
             ),
           ),
           children: [
-            ...cobros.map((c) {
-              final fechaStr = c.fecha != null
-                  ? '${c.fecha!.day.toString().padLeft(2, '0')}/${c.fecha!.month.toString().padLeft(2, '0')}/${c.fecha!.year}'
-                  : '-';
+            ...fechasOrdenadas.map((fecha) {
+              final fechaStr =
+                  '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.success),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 12,
+                      color: AppColors.success,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       fechaStr,
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.74),
+                      ),
                     ),
                     const Spacer(),
                     Text(
-                      DateFormatter.formatCurrency(
-                        (c.cuotaDiaria != null && c.cuotaDiaria! > 0) 
-                          ? c.cuotaDiaria! 
-                          : (c.monto != null && c.monto! > 0) 
-                            ? c.monto! 
-                            : (local.cuotaDiaria ?? 0)
+                      DateFormatter.formatCurrency((local.cuotaDiaria ?? 0)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
                     ),
                   ],
                 ),
               );
             }),
-            const SizedBox(height: 8),
-            Divider(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), height: 1),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            Divider(
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              height: 1,
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _imprimirResumenGrupo(context, ref, rangoStr, montoDisplay, fechas),
+                onPressed: () => _imprimirResumenGrupo(
+                  context,
+                  ref,
+                  rangoStr,
+                  montoDisplay,
+                  fechasOrdenadas,
+                ),
                 icon: const Icon(Icons.print_rounded, size: 16),
                 label: const Text(
-                  'Imprimir Resumen (Térmica)',
+                  'Imprimir Boleta Completa',
                   style: TextStyle(fontSize: 12),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success.withValues(alpha: 0.8),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
@@ -886,15 +1230,27 @@ class _GrupoSaldadoCard extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _compartirResumenGrupo(context, ref, rangoStr, montoDisplay, fechas),
-                icon: const Icon(Icons.share_rounded, size: 16, color: AppColors.success),
+                onPressed: () => _compartirResumenGrupo(
+                  context,
+                  ref,
+                  rangoStr,
+                  montoDisplay,
+                  fechasOrdenadas,
+                ),
+                icon: const Icon(
+                  Icons.share_rounded,
+                  size: 16,
+                  color: AppColors.success,
+                ),
                 label: const Text(
-                  'Compartir Resumen (PDF)',
+                  'Compartir PDF',
                   style: TextStyle(fontSize: 12, color: AppColors.success),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.success, width: 0.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
@@ -902,29 +1258,259 @@ class _GrupoSaldadoCard extends ConsumerWidget {
             const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.tonal(
-                onPressed: () => _mostrarSelectorFechaPdf(context, ref, cobros),
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+              child: OutlinedButton.icon(
+                onPressed: () => _mostrarSelectorFecha(
+                  context,
+                  ref,
+                  rangoStr,
+                  montoDisplay,
+                  fechasOrdenadas,
+                  cobroPorFecha,
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.format_list_bulleted_rounded, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      'Ver Opciones por Día (Imprimir / Compartir)',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                icon: const Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: AppColors.success,
+                ),
+                label: const Text(
+                  'Elegir fecha para imprimir/compartir',
+                  style: TextStyle(fontSize: 12, color: AppColors.success),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: AppColors.success.withValues(alpha: 0.7),
+                    width: 0.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
             ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
+  }
+
+  void _mostrarSelectorFecha(
+    BuildContext context,
+    WidgetRef ref,
+    String rangoStr,
+    double montoTotalFallBack,
+    List<DateTime> fechas,
+    Map<DateTime, Cobro> cobroPorFecha,
+  ) {
+    if (fechas.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 18,
+              right: 18,
+              top: 12,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Seleccionar fecha',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Imprime o comparte el día específico dentro de esta boleta.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.58),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    primary: false,
+                    itemCount: fechas.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.5),
+                    ),
+                    itemBuilder: (sheetContext, index) {
+                      final fecha = fechas[index];
+                      final fechaStr = DateFormatter.formatDate(fecha);
+                      final fechaCobro = cobroPorFecha[fecha];
+                      final montoFecha = _montoEstimadoCobro(fechaCobro);
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        leading: const Icon(
+                          Icons.check_circle_rounded,
+                          size: 18,
+                          color: AppColors.success,
+                        ),
+                        title: Text(
+                          fechaStr,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.7),
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Abono: ${DateFormatter.formatCurrency(montoFecha)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.58),
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.print_rounded),
+                              color: AppColors.success,
+                              tooltip: 'Imprimir fecha seleccionada',
+                              onPressed: () async {
+                                Navigator.pop(sheetContext);
+                                await _imprimirFechaEspecifica(
+                                  context,
+                                  ref,
+                                  fecha,
+                                  fechaCobro,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.share_rounded),
+                              color: AppColors.success,
+                              tooltip: 'Compartir fecha seleccionada',
+                              onPressed: () async {
+                                Navigator.pop(sheetContext);
+                                await _compartirFechaEspecifica(
+                                  context,
+                                  ref,
+                                  fecha,
+                                  fechaCobro,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  DateTime _normalizarDia(DateTime fecha) {
+    return DateTime(fecha.year, fecha.month, fecha.day);
+  }
+
+  Future<void> _imprimirFechaEspecifica(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime fecha,
+    Cobro? cobro,
+  ) async {
+    if (cobro != null) {
+      await onImprimirCobro(context, ref, cobro, fecha);
+      return;
+    }
+    _mostrarFechaSinRegistro(context, fecha);
+  }
+
+  Future<void> _compartirFechaEspecifica(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime fecha,
+    Cobro? cobro,
+  ) async {
+    if (cobro != null) {
+      await onCompartirCobro(context, ref, cobro, fecha);
+      return;
+    }
+    _mostrarFechaSinRegistro(context, fecha);
+  }
+
+  void _mostrarFechaSinRegistro(BuildContext context, DateTime fecha) {
+    final fechaStr = DateFormatter.formatDate(fecha);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('No hay datos asociados al $fechaStr'),
+      ),
+    );
+  }
+
+  double _montoEstimadoCobro(Cobro? cobro) {
+    if (cobro == null) return (local.cuotaDiaria ?? 0).toDouble();
+    if (cobro.monto != null && cobro.monto! > 0) {
+      return cobro.monto!.toDouble();
+    }
+    final cuota = cobro.cuotaDiaria;
+    if (cuota != null && cuota > 0) {
+      return cuota.toDouble();
+    }
+    return (local.cuotaDiaria ?? 0).toDouble();
   }
 
   Future<void> _imprimirResumenGrupo(
@@ -940,19 +1526,29 @@ class _GrupoSaldadoCard extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
 
     final cobrosOrdenados = List<Cobro>.from(cobros)
-      ..sort((a, b) => (a.fecha ?? DateTime(0)).compareTo(b.fecha ?? DateTime(0)));
+      ..sort(
+        (a, b) => (a.fecha ?? DateTime(0)).compareTo(b.fecha ?? DateTime(0)),
+      );
 
     final primerCobro = cobrosOrdenados.first;
     final ultimoCobro = cobrosOrdenados.last;
 
-    double deudaAnterior = masterPayment != null ? (masterPayment!.deudaAnterior ?? 0).toDouble() : (primerCobro.deudaAnterior ?? 0).toDouble();
-    double saldoPendiente = masterPayment != null ? (masterPayment!.saldoPendiente ?? 0).toDouble() : (ultimoCobro.saldoPendiente ?? 0).toDouble();
-    double saldoAFavor = masterPayment != null ? (masterPayment!.nuevoSaldoFavor ?? 0).toDouble() : (ultimoCobro.nuevoSaldoFavor ?? 0).toDouble();
-    
+    double deudaAnterior = masterPayment != null
+        ? (masterPayment!.deudaAnterior ?? 0).toDouble()
+        : (primerCobro.deudaAnterior ?? 0).toDouble();
+    double saldoPendiente = masterPayment != null
+        ? (masterPayment!.saldoPendiente ?? 0).toDouble()
+        : (ultimoCobro.saldoPendiente ?? 0).toDouble();
+    double saldoAFavor = masterPayment != null
+        ? (masterPayment!.nuevoSaldoFavor ?? 0).toDouble()
+        : (ultimoCobro.nuevoSaldoFavor ?? 0).toDouble();
+
     double montoAbonadoDeuda = 0.0;
     double montoCobradoFisico = 0.0;
 
@@ -965,13 +1561,15 @@ class _GrupoSaldadoCard extends ConsumerWidget {
         montoCobradoFisico += (c.monto ?? 0).toDouble();
       }
     }
-    
-    double montoImprimir = (montoCobradoFisico > 0) ? montoCobradoFisico : montoTotalFallBack;
+
+    double montoImprimir = (montoCobradoFisico > 0)
+        ? montoCobradoFisico
+        : montoTotalFallBack;
     // Último respaldo: usar cuota diaria del local × cantidad de días
     if (montoImprimir <= 0) {
       montoImprimir = (local.cuotaDiaria ?? 0).toDouble() * cobros.length;
     }
-    
+
     // SAFEGUARD: Reconstruir matemáticamente para obligar al PDF a dibujar el bloque de deuda como espera el usuario
     if (montoAbonadoDeuda <= 0) {
       montoAbonadoDeuda = montoImprimir;
@@ -980,17 +1578,46 @@ class _GrupoSaldadoCard extends ConsumerWidget {
       deudaAnterior = montoAbonadoDeuda + saldoPendiente;
     }
 
-    String boleta = masterPayment != null ? (masterPayment!.numeroBoleta ?? masterPayment!.correlativo?.toString() ?? '0') : (primerCobro.numeroBoleta ?? primerCobro.correlativo?.toString() ?? '0');
-    DateTime baseFecha = masterPayment != null ? (masterPayment!.fecha ?? DateTime.now()) : (primerCobro.creadoEn ?? DateTime.now());
+    String boleta = masterPayment != null
+        ? (masterPayment!.numeroBoleta ??
+              masterPayment!.correlativo?.toString() ??
+              '0')
+        : (primerCobro.numeroBoleta ??
+              primerCobro.correlativo?.toString() ??
+              '0');
+    DateTime baseFecha = masterPayment != null
+        ? (masterPayment!.fecha ?? DateTime.now())
+        : (primerCobro.creadoEn ?? DateTime.now());
     DateTime fechaImprimir = fechaHijo ?? baseFecha;
 
     String? periodoFavorStr;
-    final cuota = (local.cuotaDiaria ?? 0).toDouble();
-    if (saldoAFavor > 0 && cuota > 0) {
-      int dias = (saldoAFavor / cuota).floor();
+    final cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
+    
+    double abonoCuotaHoy = 0;
+    final hoy = DateTime.now();
+    for (var c in cobros) {
+      final f = c.fecha ?? c.creadoEn;
+      if (f != null &&
+          f.year == hoy.year &&
+          f.month == hoy.month &&
+          f.day == hoy.day) {
+        abonoCuotaHoy += (c.pagoACuota ?? 0).toDouble();
+      }
+    }
+    double pagoHoy = cuotaLocal - abonoCuotaHoy;
+    if (pagoHoy < 0) pagoHoy = 0;
+
+    // Descontar la cuota de hoy del saldo pendiente, ya que no es deuda real vencida
+    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(0.0, double.infinity);
+
+    if (saldoAFavor > 0 && cuotaLocal > 0) {
+      int dias = (saldoAFavor / cuotaLocal).floor();
       if (dias > 0) {
         DateTime inicioFavor = fechaImprimir.add(const Duration(days: 1));
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+          inicioFavor,
+          dias,
+        );
       }
     }
 
@@ -1003,9 +1630,11 @@ class _GrupoSaldadoCard extends ConsumerWidget {
       numeroBoleta: boleta,
       anioCorrelativo: fechaImprimir.year,
       cobrador: user?.nombre ?? 'Cobrador',
-      saldoPendiente: saldoPendiente,
+      saldoPendiente: saldoDeudaReal,
       deudaAnterior: deudaAnterior,
       montoAbonadoDeuda: montoAbonadoDeuda,
+      pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+      abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
       saldoAFavor: saldoAFavor,
       periodoAbonadoStr: rangoStr,
       periodoSaldoAFavorStr: periodoFavorStr,
@@ -1029,19 +1658,29 @@ class _GrupoSaldadoCard extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
 
     final cobrosOrdenados = List<Cobro>.from(cobros)
-      ..sort((a, b) => (a.fecha ?? DateTime(0)).compareTo(b.fecha ?? DateTime(0)));
+      ..sort(
+        (a, b) => (a.fecha ?? DateTime(0)).compareTo(b.fecha ?? DateTime(0)),
+      );
 
     final primerCobro = cobrosOrdenados.first;
     final ultimoCobro = cobrosOrdenados.last;
 
-    double deudaAnterior = masterPayment != null ? (masterPayment!.deudaAnterior ?? 0).toDouble() : (primerCobro.deudaAnterior ?? 0).toDouble();
-    double saldoPendiente = masterPayment != null ? (masterPayment!.saldoPendiente ?? 0).toDouble() : (ultimoCobro.saldoPendiente ?? 0).toDouble();
-    double saldoAFavor = masterPayment != null ? (masterPayment!.nuevoSaldoFavor ?? 0).toDouble() : (ultimoCobro.nuevoSaldoFavor ?? 0).toDouble();
-    
+    double deudaAnterior = masterPayment != null
+        ? (masterPayment!.deudaAnterior ?? 0).toDouble()
+        : (primerCobro.deudaAnterior ?? 0).toDouble();
+    double saldoPendiente = masterPayment != null
+        ? (masterPayment!.saldoPendiente ?? 0).toDouble()
+        : (ultimoCobro.saldoPendiente ?? 0).toDouble();
+    double saldoAFavor = masterPayment != null
+        ? (masterPayment!.nuevoSaldoFavor ?? 0).toDouble()
+        : (ultimoCobro.nuevoSaldoFavor ?? 0).toDouble();
+
     double montoAbonadoDeuda = 0.0;
     double montoCobradoFisico = 0.0;
 
@@ -1054,8 +1693,10 @@ class _GrupoSaldadoCard extends ConsumerWidget {
         montoCobradoFisico += (c.monto ?? 0).toDouble();
       }
     }
-    
-    double montoImprimir = (montoCobradoFisico > 0) ? montoCobradoFisico : montoTotalFallBack;
+
+    double montoImprimir = (montoCobradoFisico > 0)
+        ? montoCobradoFisico
+        : montoTotalFallBack;
     // Último respaldo: usar cuota diaria del local × cantidad de días
     if (montoImprimir <= 0) {
       montoImprimir = (local.cuotaDiaria ?? 0).toDouble() * cobros.length;
@@ -1069,17 +1710,46 @@ class _GrupoSaldadoCard extends ConsumerWidget {
       deudaAnterior = montoAbonadoDeuda + saldoPendiente;
     }
 
-    String boleta = masterPayment != null ? (masterPayment!.numeroBoleta ?? masterPayment!.correlativo?.toString() ?? '0') : (primerCobro.numeroBoleta ?? primerCobro.correlativo?.toString() ?? '0');
-    DateTime baseFecha = masterPayment != null ? (masterPayment!.fecha ?? DateTime.now()) : (primerCobro.creadoEn ?? DateTime.now());
+    String boleta = masterPayment != null
+        ? (masterPayment!.numeroBoleta ??
+              masterPayment!.correlativo?.toString() ??
+              '0')
+        : (primerCobro.numeroBoleta ??
+              primerCobro.correlativo?.toString() ??
+              '0');
+    DateTime baseFecha = masterPayment != null
+        ? (masterPayment!.fecha ?? DateTime.now())
+        : (primerCobro.creadoEn ?? DateTime.now());
     DateTime fechaImprimir = fechaHijo ?? baseFecha;
 
     String? periodoFavorStr;
-    final cuota = (local.cuotaDiaria ?? 0).toDouble();
-    if (saldoAFavor > 0 && cuota > 0) {
-      int dias = (saldoAFavor / cuota).floor();
+    final cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
+
+    double abonoCuotaHoy = 0;
+    final hoy = DateTime.now();
+    for (var c in cobros) {
+      final f = c.fecha ?? c.creadoEn;
+      if (f != null &&
+          f.year == hoy.year &&
+          f.month == hoy.month &&
+          f.day == hoy.day) {
+        abonoCuotaHoy += (c.pagoACuota ?? 0).toDouble();
+      }
+    }
+    double pagoHoy = cuotaLocal - abonoCuotaHoy;
+    if (pagoHoy < 0) pagoHoy = 0;
+
+    // Descontar la cuota de hoy del saldo pendiente, ya que no es deuda real vencida
+    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(0.0, double.infinity);
+
+    if (saldoAFavor > 0 && cuotaLocal > 0) {
+      int dias = (saldoAFavor / cuotaLocal).floor();
       if (dias > 0) {
         DateTime inicioFavor = fechaImprimir.add(const Duration(days: 1));
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+          inicioFavor,
+          dias,
+        );
       }
     }
 
@@ -1089,9 +1759,11 @@ class _GrupoSaldadoCard extends ConsumerWidget {
         local: local,
         monto: montoImprimir,
         fecha: fechaImprimir,
-        saldoPendiente: saldoPendiente,
+        saldoPendiente: saldoDeudaReal,
         deudaAnterior: deudaAnterior,
         montoAbonadoDeuda: montoAbonadoDeuda,
+        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
+        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
         saldoAFavor: saldoAFavor,
         numeroBoleta: boleta,
         muni: muni?.nombre ?? 'MUNICIPALIDAD',
@@ -1105,234 +1777,8 @@ class _GrupoSaldadoCard extends ConsumerWidget {
     }
   }
 
-  void _mostrarSelectorFechaPdf(BuildContext context, WidgetRef ref, List<Cobro> listaCobros) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.calendar_month, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Seleccionar Fecha',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            'Elige el día para reimprimir o compartir',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: listaCobros.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 56),
-                  itemBuilder: (ctx, i) {
-                    final c = listaCobros[i];
-                    final fechaStr = c.fecha != null
-                        ? '${c.fecha!.day.toString().padLeft(2, '0')}/${c.fecha!.month.toString().padLeft(2, '0')}/${c.fecha!.year}'
-                        : 'Fecha desconocida';
-                    final cuotaAct = (c.monto != null && c.monto! > 0)
-                        ? c.monto!.toDouble()
-                        : (c.cuotaDiaria != null && c.cuotaDiaria! > 0)
-                          ? c.cuotaDiaria!.toDouble()
-                          : (local.cuotaDiaria ?? 0).toDouble();
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.success.withValues(alpha: 0.1),
-                        child: const Icon(Icons.check, color: AppColors.success, size: 20),
-                      ),
-                      title: Text(fechaStr, style: const TextStyle(fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                        'Abono: ${DateFormatter.formatCurrency(cuotaAct)}',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.print_rounded, size: 18),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              _reimprimirHijo(context, ref, c);
-                            },
-                            tooltip: 'Imprimir',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.share_rounded, size: 18),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              _compartirHijo(context, ref, c);
-                            },
-                            tooltip: 'Compartir PDF',
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _reimprimirHijo(BuildContext context, WidgetRef ref, Cobro c) async {
-    final user = ref.read(currentUsuarioProvider).value;
-    final printer = ref.read(printerServiceProvider);
-    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
-    final mercadoRepo = ref.read(mercadoRepositoryProvider);
-
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
-    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
-
-    String? periodoFavorStr;
-    final favorResultante = (c.nuevoSaldoFavor ?? 0).toDouble();
-    final cuota = (c.cuotaDiaria ?? 0).toDouble();
-    final fechasRes = c.fechasDeudasSaldadas ?? [];
-    if (favorResultante > 0 && cuota > 0) {
-      int dias = (favorResultante / cuota).floor();
-      if (dias > 0) {
-        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
-        if (fechasRes.isNotEmpty) {
-          final sorted = List<DateTime>.from(fechasRes)..sort();
-          inicioFavor = sorted.last.add(const Duration(days: 1));
-        }
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
-      }
-    }
-
-    String? periodoAbonadoStr;
-    if (fechasRes.isNotEmpty) {
-      periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
-    }
-
-    double montoHijo = (c.monto != null && c.monto! > 0)
-        ? c.monto!.toDouble()
-        : (c.cuotaDiaria != null && c.cuotaDiaria! > 0)
-            ? c.cuotaDiaria!.toDouble()
-            : (local.cuotaDiaria ?? 0).toDouble();
-
-    await printer.printReceipt(
-      empresa: muni?.nombre ?? 'MUNICIPALIDAD',
-      mercado: merc?.nombre ?? 'MERCADO',
-      local: local.nombreSocial ?? 'Local',
-      monto: montoHijo,
-      fecha: c.fecha ?? DateTime.now(),
-      numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? masterPayment?.numeroBoleta ?? masterPayment?.correlativo ?? '0'}',
-      anioCorrelativo: c.fecha?.year ?? DateTime.now().year,
-      cobrador: user?.nombre ?? 'Cobrador',
-      saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
-      deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
-      montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
-      saldoAFavor: favorResultante,
-      fechasSaldadas: c.fechasDeudasSaldadas,
-      periodoAbonadoStr: periodoAbonadoStr,
-      periodoSaldoAFavorStr: periodoFavorStr,
-      slogan: muni?.slogan,
-      clave: local.clave,
-      codigoLocal: local.codigo,
-      codigoCatastral: local.codigoCatastral,
-    );
-  }
-
-  Future<void> _compartirHijo(BuildContext context, WidgetRef ref, Cobro c) async {
-    final user = ref.read(currentUsuarioProvider).value;
-    final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
-    final mercadoRepo = ref.read(mercadoRepositoryProvider);
-
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
-    final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
-
-    String? periodoFavorStr;
-    final favorResultante = (c.nuevoSaldoFavor ?? 0).toDouble();
-    final cuota = (c.cuotaDiaria ?? 0).toDouble();
-    final fechasRes = c.fechasDeudasSaldadas ?? [];
-    if (favorResultante > 0 && cuota > 0) {
-      int dias = (favorResultante / cuota).floor();
-      if (dias > 0) {
-        DateTime inicioFavor = (c.fecha ?? DateTime.now()).add(const Duration(days: 1));
-        if (fechasRes.isNotEmpty) {
-          final sorted = List<DateTime>.from(fechasRes)..sort();
-          inicioFavor = sorted.last.add(const Duration(days: 1));
-        }
-        periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
-      }
-    }
-
-    String? periodoAbonadoStr;
-    if (fechasRes.isNotEmpty) {
-      periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
-    }
-
-    double montoHijo = (c.monto != null && c.monto! > 0)
-        ? c.monto!.toDouble()
-        : (c.cuotaDiaria != null && c.cuotaDiaria! > 0)
-            ? c.cuotaDiaria!.toDouble()
-            : (local.cuotaDiaria ?? 0).toDouble();
-
-    if (context.mounted) {
-      await ReceiptDispatcher.compartirPdf(
-        context: context,
-        local: local,
-        monto: montoHijo,
-        fecha: c.fecha ?? DateTime.now(),
-        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
-        deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
-        montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
-        saldoAFavor: favorResultante,
-        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? masterPayment?.numeroBoleta ?? masterPayment?.correlativo ?? '0'}',
-        muni: muni?.nombre ?? 'MUNICIPALIDAD',
-        merc: merc?.nombre,
-        cobrador: user?.nombre,
-        fechasSaldadas: c.fechasDeudasSaldadas,
-        periodoAbonadoStr: periodoAbonadoStr,
-        periodoSaldoAFavorStr: periodoFavorStr,
-        slogan: muni?.slogan,
-      );
-    }
-  }
+  // Las funciones _mostrarSelectorFechaPdf, _reimprimirHijo y _compartirHijo han sido eliminadas
+  // ya que ahora se utiliza la vista agrupada por boleta completa.
 }
 
 class _CobroTile extends ConsumerWidget {
@@ -1356,7 +1802,8 @@ class _CobroTile extends ConsumerWidget {
     final IconData icon;
     final String label;
 
-    final esPagadoConSaldoAFavor = estado == 'cobrado' && (cobro.monto == null || cobro.monto == 0);
+    final esPagadoConSaldoAFavor =
+        estado == 'cobrado' && (cobro.monto == null || cobro.monto == 0);
 
     switch (estado) {
       case 'cobrado':
@@ -1389,7 +1836,7 @@ class _CobroTile extends ConsumerWidget {
 
     final esPendiente = estado == 'pendiente';
     final esAdelantado = estado == 'adelantado';
-    
+
     num monto = esPendiente ? (cobro.saldoPendiente ?? 0) : (cobro.monto ?? 0);
     if (esPagadoConSaldoAFavor) {
       monto = cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0;
@@ -1398,7 +1845,8 @@ class _CobroTile extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _mostrarDetalles(context, ref, color, esPagadoConSaldoAFavor),
+        onTap: () =>
+            _mostrarDetalles(context, ref, color, esPagadoConSaldoAFavor),
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1444,7 +1892,9 @@ class _CobroTile extends ConsumerWidget {
                         cobro.observaciones!,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.38),
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -1454,7 +1904,9 @@ class _CobroTile extends ConsumerWidget {
                         'Cuota cubierta automáticamente con saldo a favor',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.38),
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -1470,7 +1922,9 @@ class _CobroTile extends ConsumerWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
-                      color: esPendiente ? color : Theme.of(context).colorScheme.onSurface,
+                      color: esPendiente
+                          ? color
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1535,7 +1989,12 @@ class _CobroTile extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                    icon: Icon(
+                      Icons.close,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -1554,7 +2013,9 @@ class _CobroTile extends ConsumerWidget {
                 ),
                 _DetalleFila(
                   label: 'Cubierto con Saldo a Favor',
-                  valor: DateFormatter.formatCurrency(cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0),
+                  valor: DateFormatter.formatCurrency(
+                    cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0,
+                  ),
                 ),
               ] else ...[
                 _DetalleFila(
@@ -1645,7 +2106,12 @@ class _CobroTile extends ConsumerWidget {
                 Center(
                   child: Text(
                     'Este es un registro generado automáticamente y no posee boleta física.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
+                      fontSize: 12,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1672,7 +2138,12 @@ class _DetalleFila extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 2),
           Text(

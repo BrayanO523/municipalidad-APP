@@ -324,7 +324,7 @@ class _SelectorMercado extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: idValido,
+            initialValue: idValido,
             hint: const Text('Elige un mercado'),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
