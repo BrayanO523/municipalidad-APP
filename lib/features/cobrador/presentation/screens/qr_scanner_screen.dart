@@ -85,6 +85,19 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       final local = await localRepo.obtenerPorId(localId);
 
       if (local != null) {
+        // VALIDACIÓN ESTRICTA DE RUTA PARA COBRADORES
+        final usuario = ref.read(currentUsuarioProvider).value;
+        if (usuario?.rol == 'cobrador') {
+          final rutasAsignadas = usuario?.rutaAsignada ?? [];
+          if (!rutasAsignadas.contains(local.id)) {
+            setState(() {
+              _error = 'Acceso Denegado: Este local no está asignado a tu ruta o mercado.';
+              _buscando = false;
+            });
+            return;
+          }
+        }
+
         setState(() {
           _localEncontrado = local;
           _buscando = false;

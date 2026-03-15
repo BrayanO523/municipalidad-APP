@@ -285,9 +285,15 @@ final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
      return Stream.value([]);
   }
 
-  // AISLAMIENTO: Si es cobrador, usar la lÃ³gica restrictiva de localesCobradorProvider
+  // AISLAMIENTO: Si es cobrador, usar la lógica restrictiva de localesCobradorProvider
   if (user.rol == 'cobrador') {
     if (user.mercadoId == null || user.mercadoId!.isEmpty) {
+      return Stream.value([]);
+    }
+    
+    // RESTRICCIÓN ESTRICTA: Si es cobrador y no tiene ruta asignada,
+    // devolver lista vacía. Bajo NINGUNA circunstancia puede ver locales ajenos.
+    if (user.rutaAsignada == null || user.rutaAsignada!.isEmpty) {
       return Stream.value([]);
     }
     
@@ -340,8 +346,8 @@ final cobrosFiltradosProvider = StreamProvider<List<Cobro>>((ref) {
   final ds = ref.read(cobroDatasourceProvider);
   final rango = ref.watch(fechaFiltroCobrosProvider);
 
-  // Si hay rango explÃ­cito, Ãºsarlo. Si no, usar el dÃ­a de hoy
-  // sin .limit() para que lleguen TODOS los cobros del perÃ­odo.
+  // Si hay rango explícito, úsarlo. Si no, usar el día de hoy
+  // sin .limit() para que lleguen TODOS los cobros del período.
   final now = DateTime.now();
   final hoy = DateTime(now.year, now.month, now.day);
   final rangoEfectivo = rango ?? DateTimeRange(start: hoy, end: hoy);
@@ -392,7 +398,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
       period: DashboardPeriod.hoy,
       range: DateTimeRange(start: today, end: today),
       label: 'Hoy',
-      description: 'Solo datos del dÃ­a de hoy',
+      description: 'Solo datos del día de hoy',
     );
   }
 
@@ -412,7 +418,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
       case DashboardPeriod.hoy:
         range = DateTimeRange(start: today, end: today);
         label = 'Hoy';
-        description = 'Solo datos del dÃ­a de hoy';
+        description = 'Solo datos del día de hoy';
         break;
       case DashboardPeriod.semana:
         range = DateTimeRange(
@@ -420,7 +426,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
           end: today,
         );
         label = 'Semana';
-        description = 'Ãšltimos 7 dÃ­as de actividad';
+        description = 'Últimos 7 días de actividad';
         break;
       case DashboardPeriod.mes:
         range = DateTimeRange(
@@ -433,7 +439,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
         break;
       case DashboardPeriod.anio:
         range = DateTimeRange(start: DateTime(today.year, 1, 1), end: today);
-        label = 'AÃ±o';
+        label = 'Año';
         description = 'Desde el 1 de enero de ${today.year} hasta hoy';
         break;
       case DashboardPeriod.personalizado:
@@ -466,7 +472,7 @@ final dashboardFilterProvider =
       DashboardFilterNotifier.new,
     );
 
-// Mantener compatibilidad mÃ­nima o migrar usos de fechaDashboardProvider
+// Mantener compatibilidad mínima o migrar usos de fechaDashboardProvider
 @Deprecated('Usar dashboardFilterProvider')
 final fechaDashboardProvider = Provider<DateTime>((ref) {
   return ref.watch(dashboardFilterProvider).range.start;
@@ -492,7 +498,7 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
       cobradorId: cobradorIdParam,
     );
   } else {
-    // Para rangos histÃ³ricos, usamos listarPorRangoFechas (atÃ³mico)
+    // Para rangos históricos, usamos listarPorRangoFechas (atómico)
     // Stream.fromFuture convierte el Future en un Stream que emite una vez y cierra.
     return Stream.fromFuture(
       ds.listarPorRangoFechas(
@@ -520,8 +526,8 @@ final localStreamProvider = StreamProvider.autoDispose.family<Local?, String>((r
 final localCobrosStreamProvider = StreamProvider.autoDispose.family<List<Cobro>, String>(
   (ref, id) {
     final ds = ref.read(cobroDatasourceProvider);
-    // LÃ­mite de 100 cobros para evitar descargar aÃ±os de historial completo.
-    // En la pantalla de historial se usa paginaciÃ³n si se necesitan mÃ¡s.
+    // Límite de 100 cobros para evitar descargar años de historial completo.
+    // En la pantalla de historial se usa paginación si se necesitan más.
     return ds.streamPorLocal(id, limite: 100);
   },
 );
@@ -531,21 +537,36 @@ final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
   if (user == null) return Stream.value([]);
   final ds = ref.read(localDatasourceProvider);
 
-  // OPTIMIZACIÃ“N: Solo escuchar el Mercado asignado si existe.
-  // Evita descargar toda la municipalidad (lecturas masivas).
-  if (user.mercadoId != null) {
-    return ds.streamPorMercado(user.mercadoId!).map((locales) {
-      if (user.rutaAsignada != null && user.rutaAsignada!.isNotEmpty) {
+  // RESTRICCIÓN ESTRICTA: Si es cobrador y no tiene ruta asignada,
+  // devolver lista vacía inmediatamente.
+  if (user.rol == 'cobrador') {
+    if (user.rutaAsignada == null || user.rutaAsignada!.isEmpty) {
+      return Stream.value([]);
+    }
+    
+    // Si tiene ruta y mercado asignado, obtenemos y filtramos.
+    if (user.mercadoId != null) {
+      return ds.streamPorMercado(user.mercadoId!).map((locales) {
         return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
-      }
-      return locales;
-    });
+      });
+    }
+    
+    // Fallback: si milagrosamente no tuviese mercado asignado pero *sí* tiene rutas 
+    // (muy improbable pero técnicamente posible por DB manual).
+    if (user.municipalidadId != null) {
+      return ds.streamPorMunicipalidad(user.municipalidadId!).map((locales) {
+        return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
+      });
+    }
   }
 
-  // Fallback seguro: Si no tiene mercado, pero sÃ­ municipalidad (raro para cobrador)
-  if (user.municipalidadId != null) {
-    // AquÃ­ limitamos a 50 como salvaguarda si algo falla en la asignaciÃ³n
-    return ds.streamPorMunicipalidad(user.municipalidadId!).map((l) => l.take(50).toList());
+  // Comportamiento para NO-cobradores (Administradores, Visualizadores)
+  if (user.mercadoId != null && user.rol != 'cobrador') {
+    return ds.streamPorMercado(user.mercadoId!);
+  }
+
+  if (user.municipalidadId != null && user.rol != 'cobrador') {
+    return ds.streamPorMunicipalidad(user.municipalidadId!);
   }
 
   return Stream.value([]);
