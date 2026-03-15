@@ -81,6 +81,11 @@ class DefaultNavigationConfig implements NavigationConfig {
         label: 'Deudores',
         path: '/deudores',
       ),
+      const NavItemConfig(
+        icon: Icons.announcement_rounded,
+        label: 'Incidencias',
+        path: '/incidencias',
+      ),
       // Solo visible en modo debug (flutter run). En deploy de Firebase no aparece.
       if (kDebugMode) ...[
         const NavItemConfig(

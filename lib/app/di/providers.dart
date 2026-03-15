@@ -26,6 +26,8 @@ import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
+import '../../features/gestiones/data/datasources/gestion_datasource.dart';
+import '../../features/gestiones/domain/entities/gestion.dart';
 export '../../core/platform/printer_persistence_datasource.dart';
 export '../../features/shared/data/datasources/printer_persistence_local_datasource.dart';
 
@@ -562,6 +564,25 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
     municipalidadId: user.municipalidadId,
     mercadoId: user.mercadoId,
     cobradorId: user.id, // AISLANTE DE DATOS: Solo el efectivo de este cobrador
+  );
+});
+
+// ── Gestiones / Incidencias ──────────────────────────────────────────
+
+final gestionDatasourceProvider = Provider<GestionDatasource>(
+  (ref) => GestionDatasource(ref.read(firestoreProvider)),
+);
+
+final gestionesHoyCobradorProvider = StreamProvider<List<Gestion>>((ref) {
+  final user = ref.watch(currentUsuarioProvider).value;
+  if (user == null) return Stream.value([]);
+  final ds = ref.read(gestionDatasourceProvider);
+  final now = DateTime.now();
+  final hoy = DateTime(now.year, now.month, now.day);
+  return ds.streamGestionesHoy(
+    fecha: hoy,
+    cobradorId: user.id,
+    mercadoId: user.mercadoId,
   );
 });
 

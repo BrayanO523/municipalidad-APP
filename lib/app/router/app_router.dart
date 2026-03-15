@@ -23,6 +23,7 @@ import '../../features/shell/presentation/screens/shell_screen.dart';
 import '../../features/tipos_negocio/presentation/screens/tipos_negocio_screen.dart';
 import '../../features/usuarios/presentation/screens/login_screen.dart';
 import '../../features/usuarios/presentation/screens/usuarios_screen.dart';
+import '../../features/gestiones/presentation/screens/incidencias_admin_screen.dart';
 import '../../features/usuarios/domain/entities/usuario.dart';
 import '../../features/usuarios/presentation/screens/correlativos_control_screen.dart';
 import '../../features/usuarios/presentation/screens/cobros_cobrador_screen.dart';
@@ -106,6 +107,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/usuarios',
             name: 'usuarios',
             builder: (context, state) => const UsuariosScreen(),
+          ),
+          GoRoute(
+            path: '/incidencias',
+            name: 'incidencias',
+            builder: (context, state) => const IncidenciasAdminScreen(),
           ),
           GoRoute(
             path: '/correlativos',
