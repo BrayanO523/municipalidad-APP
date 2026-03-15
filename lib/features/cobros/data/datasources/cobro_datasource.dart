@@ -3,7 +3,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flutter/foundation.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../models/cobro_model.dart';
@@ -64,35 +63,38 @@ class CobroDatasource {
     final isOnline = connectivityResult.any((res) => res != ConnectivityResult.none);
     finalCobroData['esOffline'] = !isOnline;
 
-    // 5. Registrar en Firestore (Cacheado por Firebase)
-    // No usamos transacción aquí para permitir registro instantáneo offline.
-    // El sync del documento del usuario se hará luego o en paralelo.
-    await _collection.doc(cobroId).set(finalCobroData);
+    // 5. Preparar Lote de Escritura (Atomicidad)
+    final batch = _firestore.batch();
+    final docRef = _collection.doc(cobroId);
+    
+    // a. Registrar en Firestore el cobro
+    batch.set(docRef, finalCobroData);
 
-    // 6. Intentar actualizar el documento del usuario en Firestore si hay red
-    if (isOnline) {
-      _firestore.collection(FirestoreCollections.usuarios).doc(userId).update({
-        'ultimoCorrelativo': nuevoCorrelativo,
-        'anioCorrelativo': anioActual,
-      }).catchError((_) {
-        // Silencioso: se sincronizará luego si falla
-      });
-    }
-
-    // 7. Actualizar estadísticas globales (Suma atómica)
+    // b. Actualizar estadísticas globales (En el mismo Batch)
     final municipalidadId = cobroData['municipalidadId'] as String?;
     if (municipalidadId != null) {
       final montoCobrado = (finalCobroData['monto'] as num?) ?? 0;
       final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
       final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
 
-      // Usamos el total cobrado (efectivo ingresado) y el movimiento de deuda/saldo
-      _statsDs.actualizarAlCobrar(
+      await _statsDs.actualizarAlCobrar(
         municipalidadId: municipalidadId,
         montoCobrado: montoCobrado,
         abonoDeuda: abonoDeuda,
         incrementoSaldo: incrementoSaldo,
-      ).catchError((e) => debugPrint('Error actualizando stats: $e'));
+        batch: batch,
+      );
+    }
+
+    // 6. Ejecutar el Lote Completo (TODO O NADA)
+    await batch.commit();
+
+    // 7. Acciones secundarias (No críticas para la integridad del dashboard)
+    if (isOnline) {
+      _firestore.collection(FirestoreCollections.usuarios).doc(userId).update({
+        'ultimoCorrelativo': nuevoCorrelativo,
+        'anioCorrelativo': anioActual,
+      }).catchError((_) {});
     }
 
     return numeroBoleta;
@@ -562,37 +564,39 @@ class CobroDatasource {
       final estado = data['estado'] as String?;
       final saldoPendiente = (data['saldoPendiente'] as num?) ?? 0;
 
+      final batch = _firestore.batch();
+
       if (targetMuniId != null) {
         if (estado == 'pendiente') {
-          // Revertir un pendiente implica quitar la deuda generada y reducir el contador de cobros
-          _statsDs.revertirPendiente(
+          await _statsDs.revertirPendiente(
             municipalidadId: targetMuniId,
             saldoPendiente: saldoPendiente,
             fechaCobroOriginal: fechaCobro,
-          ).catchError((_) {});
-
+            batch: batch,
+          );
         } else if (estado == 'cobrado_saldo') {
-          // Revertir un saldado implica devolver el saldo a favor consumido, no altera el efectivo
-          _statsDs.revertirCobroSaldo(
+          await _statsDs.revertirCobroSaldo(
             municipalidadId: targetMuniId,
             montoConsumido: montoCobrado,
             fechaCobroOriginal: fechaCobro,
-          ).catchError((_) {});
-
+            batch: batch,
+          );
         } else {
-          // Cobro normal (CASH): revertir efectivo, abono de deuda y excedentes
-          _statsDs.revertirCobro(
+          await _statsDs.revertirCobro(
             municipalidadId: targetMuniId,
             montoCobrado: montoCobrado,
             abonoDeuda: abonoDeuda,
             incrementoSaldo: incrementoSaldo,
             fechaCobroOriginal: fechaCobro,
-          ).catchError((e) => debugPrint('Error al revertir stats por cobro eliminado: $e'));
+            batch: batch,
+          );
         }
       }
-    }
 
-    await _collection.doc(docId).delete();
+      // Eliminar el documento en el mismo Batch
+      batch.delete(_collection.doc(docId));
+      await batch.commit();
+    }
   }
 
   /// Busca los cobros pendientes más antiguos (FIFO) y los marca como cobrados.
