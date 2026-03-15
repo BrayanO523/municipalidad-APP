@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../../data/datasources/cobro_datasource.dart';
+import '../../../dashboard/data/datasources/stats_datasource.dart';
 import '../../../locales/data/datasources/local_datasource.dart';
 import '../../../locales/domain/entities/local.dart';
 
@@ -16,13 +17,15 @@ import '../../../locales/domain/entities/local.dart';
 class DeudaService {
   final CobroDatasource cobroDs;
   final LocalDatasource localDs;
+  final StatsDatasource _statsDs;
   final FirebaseFirestore firestore;
 
   DeudaService({
     required this.cobroDs,
     required this.localDs,
     required this.firestore,
-  });
+    required StatsDatasource statsDs,
+  }) : _statsDs = statsDs;
 
   /// Registra un cobro pendiente manualmente para un local (botón "Sin Pago").
   Future<void> registrarSinPago({
@@ -142,8 +145,6 @@ class DeudaService {
                 ? faltante
                 : saldoAFavorActual;
 
-            final subDocId =
-                'COB-$lid-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}-S';
 
             final ahoraMatch = DateTime.now();
             final fechaConHora = DateTime(
@@ -154,7 +155,11 @@ class DeudaService {
               ahoraMatch.minute,
             );
 
-            await cobroDs.crear(subDocId, {
+            final batch = firestore.batch();
+            final cobroAcSId = 'COB-S-$lid-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}';
+            final cobroRef = firestore.collection(FirestoreCollections.cobros).doc(cobroAcSId);
+            
+            batch.set(cobroRef, {
               'actualizadoEn': now,
               'actualizadoPor': 'sistema-saldo',
               'cobradorId': 'sistema',
@@ -177,13 +182,15 @@ class DeudaService {
 
             await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo);
 
-            // Descontar ese monto de las estadísticas globales del Dashboard
             if (local.municipalidadId != null) {
-              await firestore.collection('stats').doc(local.municipalidadId).set({
-                'totalSaldoAFavor': FieldValue.increment(-aCoverirConSaldo),
-                'ultimaActualizacion': FieldValue.serverTimestamp(),
-              }, SetOptions(merge: true));
+              await _statsDs.actualizarConsumoSaldo(
+                municipalidadId: local.municipalidadId!,
+                montoConsumido: aCoverirConSaldo,
+                batch: batch,
+              );
             }
+
+            await batch.commit();
 
             faltante -= aCoverirConSaldo;
           }
@@ -235,7 +242,8 @@ class DeudaService {
       ahoraMatch.minute,
     );
 
-    await cobroDs.crear(docId, {
+    final batch = firestore.batch();
+    batch.set(ref, {
       'actualizadoEn': now,
       'actualizadoPor': cobradorId ?? 'sistema',
       'cobradorId': cobradorId ?? '',
@@ -260,11 +268,14 @@ class DeudaService {
 
     // Incrementar en las estadísticas globales (Dashboard)
     if (local.municipalidadId != null) {
-      await firestore.collection('stats').doc(local.municipalidadId).set({
-        'totalDeuda': FieldValue.increment(faltante),
-        'ultimaActualizacion': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _statsDs.actualizarDeudaGenerada(
+        municipalidadId: local.municipalidadId!,
+        montoDeuda: faltante,
+        batch: batch,
+      );
     }
+
+    await batch.commit();
   }
 
   /// Registra deudas pendientes para un local en un rango de fechas.
