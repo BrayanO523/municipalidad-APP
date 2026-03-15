@@ -100,6 +100,14 @@ class CorteNuevoScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
+                          if (state.gestionesInfo.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _StatusChip(
+                              icon: Icons.assignment_late_rounded,
+                              label: '${state.gestionesInfo.length} Incidencias',
+                              color: const Color(0xFFE67E22),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -120,73 +128,79 @@ class CorteNuevoScreen extends ConsumerWidget {
             ),
           ),
 
-          _SliverDesglose(cobrosIds: state.cobrosIds, pendientesInfo: state.pendientesInfo),
-
-          SliverPadding(
-            padding: const EdgeInsets.all(16.0),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  if (state.error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        state.error!,
-                        style: const TextStyle(
-                            color: AppColors.danger, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
-                  if (state.yaRealizadoHoy)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        '✅ Ya se ha realizado un corte en el día de hoy.',
-                        style: TextStyle(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
-                  // Botón de acción
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: (state.isLoading ||
-                              state.yaRealizadoHoy ||
-                              state.cantidad == 0)
-                          ? null
-                          : () => _confirmarCorte(context, ref, notifier, state),
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: state.isLoading
-                          ? SizedBox(
-                              height: 20, 
-                              width: 20, 
-                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary),
-                            )
-                          : Text(
-                              state.yaRealizadoHoy
-                                  ? 'Corte de hoy completado'
-                                  : 'Confirmar Corte Diario',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold, color: cs.onPrimary),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _SliverDesglose(
+            cobrosIds: state.cobrosIds,
+            pendientesInfo: state.pendientesInfo,
+            gestionesInfo: state.gestionesInfo,
           ),
+
           const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16).copyWith(top: 8),
+        color: theme.colorScheme.surfaceContainerLowest,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (state.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Text(
+                    state.error!,
+                    style: const TextStyle(
+                        color: AppColors.danger, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              if (state.yaRealizadoHoy)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12.0),
+                  child: Text(
+                    '✅ Ya se ha realizado un corte en el día de hoy.',
+                    style: TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: (state.isLoading ||
+                          state.yaRealizadoHoy ||
+                          state.cantidad == 0)
+                      ? null
+                      : () => _confirmarCorte(context, ref, notifier, state),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: state.isLoading
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: cs.onPrimary),
+                        )
+                      : Text(
+                          state.yaRealizadoHoy
+                              ? 'Corte completado'
+                              : 'Confirmar Corte Diario',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: cs.onPrimary),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -267,6 +281,7 @@ class CorteNuevoScreen extends ConsumerWidget {
       fechaInicioRango: inicio,
       fechaFinRango: fin,
       pendientesInfo: state.pendientesInfo,
+      gestionesInfo: state.gestionesInfo,
     );
 
     if (!context.mounted) return;
@@ -345,7 +360,12 @@ class _StatusChip extends StatelessWidget {
 class _SliverDesglose extends ConsumerWidget {
   final List<String> cobrosIds;
   final List<Map<String, dynamic>> pendientesInfo;
-  const _SliverDesglose({required this.cobrosIds, required this.pendientesInfo});
+  final List<Map<String, dynamic>> gestionesInfo;
+  const _SliverDesglose({
+    required this.cobrosIds,
+    required this.pendientesInfo,
+    required this.gestionesInfo,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -384,6 +404,15 @@ class _SliverDesglose extends ConsumerWidget {
                 error: (e, _) => Text('Error: $e'),
               ),
           ],
+          // ── INCIDENCIAS (GESTIONES) ──
+          if (gestionesInfo.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _SectionHeader(
+              title: 'Incidencias (${gestionesInfo.length})',
+              color: const Color(0xFFE67E22),
+            ),
+            ...gestionesInfo.map((info) => _GestionTile(info: info)),
+          ],
           // ── PENDIENTES ──
           if (pendientesInfo.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -394,7 +423,7 @@ class _SliverDesglose extends ConsumerWidget {
             ...pendientesInfo.map((info) => _PendienteTile(info: info)),
           ],
           // Estado vacío
-          if (cobrosIds.isEmpty && pendientesInfo.isEmpty)
+          if (cobrosIds.isEmpty && pendientesInfo.isEmpty && gestionesInfo.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
@@ -531,6 +560,8 @@ class _PendienteTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nombre = info['nombreSocial'] as String? ?? 'S/N';
+    final clave = info['clave'] as String? ?? '';
+    final codigo = info['codigo'] as String? ?? '';
     final montoPendiente = (info['montoPendiente'] as num?)?.toDouble() ?? 0;
     final theme = Theme.of(context);
 
@@ -553,7 +584,11 @@ class _PendienteTile extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         subtitle: Text(
-          'Cuota pendiente',
+          [
+            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (clave.isNotEmpty) 'Clave: $clave',
+            'Cuota pendiente'
+          ].join(' • '),
           style: TextStyle(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 12,
@@ -580,6 +615,86 @@ class _PendienteTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Tile individual de cada gestión/incidencia ──
+class _GestionTile extends StatelessWidget {
+  final Map<String, dynamic> info;
+  const _GestionTile({required this.info});
+
+  String _labelTipo(String tipo) {
+    switch (tipo) {
+      case 'CERRADO':
+        return 'Local Cerrado';
+      case 'AUSENTE':
+        return 'Encargado Ausente';
+      case 'SIN_EFECTIVO':
+        return 'Sin Efectivo';
+      case 'NEGADO':
+        return 'Se niega a pagar';
+      case 'VOLVER_TARDE':
+        return 'Volver más tarde';
+      default:
+        return 'Otro motivo';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nombre = info['nombreSocial'] as String? ?? 'S/N';
+    final clave = info['clave'] as String? ?? '';
+    final codigo = info['codigo'] as String? ?? '';
+    final tipo = info['tipoIncidencia'] as String? ?? 'OTRO';
+    final comentario = info['comentario'] as String? ?? '';
+    final theme = Theme.of(context);
+    const color = Color(0xFFE67E22);
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: color.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: color.withValues(alpha: 0.12),
+          child: const Icon(
+            Icons.assignment_late_rounded,
+            size: 20,
+            color: color,
+          ),
+        ),
+        title: Text(
+          nombre,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          [
+            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (clave.isNotEmpty) 'Clave: $clave',
+            comentario.isNotEmpty ? '${_labelTipo(tipo)} · $comentario' : _labelTipo(tipo),
+          ].join(' • '),
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 12,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Text(
+          'INCIDENCIA',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ),
     );

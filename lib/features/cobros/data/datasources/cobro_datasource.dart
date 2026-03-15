@@ -1090,6 +1090,30 @@ class CobroDatasource {
       }
     }
 
+    // 5.2. Eliminar TODAS las gestiones de esta municipalidad
+    bool tieneGestiones = true;
+    while (tieneGestiones) {
+      final snapshot = await _firestore.collection('gestiones')
+          .where('municipalidadId', isEqualTo: municipalidadId)
+          .limit(500)
+          .get();
+      
+      if (snapshot.docs.isEmpty) {
+        tieneGestiones = false;
+        break;
+      }
+
+      final deleteBatch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        deleteBatch.delete(doc.reference);
+      }
+      await deleteBatch.commit();
+      
+      if (snapshot.docs.length < 500) {
+        tieneGestiones = false;
+      }
+    }
+
     // 6. Limpiar caché local — costo: 0 lecturas Firestore
     await limpiarCacheLocal();
   }

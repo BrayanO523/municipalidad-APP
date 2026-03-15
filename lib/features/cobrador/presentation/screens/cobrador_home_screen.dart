@@ -20,6 +20,7 @@ import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 import '../widgets/deuda_rango_dialog.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../widgets/incidencia_bottom_sheet.dart';
 
 class CobradorHomeScreen extends ConsumerStatefulWidget {
   const CobradorHomeScreen({super.key});
@@ -370,6 +371,51 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     }
   }
 
+  Future<void> _registrarIncidencia(Local local) async {
+    final result = await IncidenciaBottomSheet.show(
+      context,
+      nombreLocal: local.nombreSocial ?? 'Local',
+    );
+
+    if (result == null || !mounted) return;
+
+    try {
+      final usuario = ref.read(currentUsuarioProvider).value;
+      final ds = ref.read(gestionDatasourceProvider);
+
+      await ds.registrarGestion(
+        localId: local.id!,
+        cobradorId: usuario?.id ?? '',
+        tipoIncidencia: result.tipo.firestoreValue,
+        comentario: result.comentario,
+        latitud: local.latitud,
+        longitud: local.longitud,
+        municipalidadId: local.municipalidadId,
+        mercadoId: local.mercadoId,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '📋 Incidencia registrada: ${result.tipo.label}',
+            ),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al registrar incidencia: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _registrarCobro(Local local, List<Cobro> cobrosHoy) async {
     final cuota = local.cuotaDiaria ?? 0;
     final saldoActual = local.saldoAFavor ?? 0;
@@ -446,11 +492,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     }
 
     // Calcular cuánto falta para la cuota hoy
-    final faltanteHoy = (cuota - pagadoHoy).clamp(0, cuota);
-
-    final montoCtrl = TextEditingController(
-      text: cuotaCubierta ? '' : faltanteHoy.toStringAsFixed(0),
-    );
+    final montoCtrl = TextEditingController(text: '');
     final obsCtrl = TextEditingController();
 
     // Variables para saldo a favor
@@ -928,6 +970,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: (local.deudaAcumulada ?? 0).toDouble(),
           deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
           montoAbonadoDeuda: 0, // En este caso fue saldo a favor
+          pagoHoy: 0,
+          abonoCuotaHoy: cuota.toDouble(),
           saldoAFavor: saldoFinal,
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
@@ -1165,13 +1209,32 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           }
         }
 
-        // Calcular rango de fechas cubiertas (deuda abonada)
+        // Calcular rango de fechas cubiertas (deuda abonada) + Cuota de hoy
         String? periodoAbonadoStr;
-        if (fechasSaldadas.isNotEmpty) {
+        List<DateTime> fechasAMostrar = List<DateTime>.from(fechasSaldadas);
+        // Si pagó la cuota de hoy, agregamos el día de hoy a las fechas cubiertas del recibo.
+        if (dist.pagoACuotaHoy > 0) {
+          final hoySinHora = DateTime(now.year, now.month, now.day);
+          if (!fechasAMostrar.any(
+            (d) =>
+                d.year == hoySinHora.year &&
+                d.month == hoySinHora.month &&
+                d.day == hoySinHora.day,
+          )) {
+            fechasAMostrar.add(hoySinHora);
+          }
+        }
+
+        if (fechasAMostrar.isNotEmpty) {
           periodoAbonadoStr = DateRangeFormatter.formatearRangos(
-            fechasSaldadas,
+            fechasAMostrar,
           );
         }
+
+        final double cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
+        final double abonoCuotaHoyVal = dist.pagoACuotaHoy.toDouble();
+        double pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
+        if (pagoHoyVal < 0) pagoHoyVal = 0;
 
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -1182,12 +1245,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           saldoPendiente: saldoResultante,
           deudaAnterior: deudaTotalInicial.toDouble(),
           montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
+          pagoHoy: pagoHoyVal,
+          abonoCuotaHoy: abonoCuotaHoyVal,
           saldoAFavor: favorResultante.toDouble(),
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
-          fechasSaldadas: fechasSaldadas,
+          fechasSaldadas: fechasAMostrar,
           periodoAbonadoStr: periodoAbonadoStr,
           periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
@@ -1229,6 +1294,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       ),
       data: (todosLocales) {
         final cobrosHoy = cobrosAsync.value ?? [];
+        // Gestiones/incidencias del día
+        final gestionesHoy = ref.watch(gestionesHoyCobradorProvider).value ?? [];
+        final idsGestionadosHoySet = gestionesHoy.map((g) => g.localId ?? '').toSet();
 
         // 1. Filtrar locales activos
         final locales = todosLocales.where((l) => l.activo == true).toList();
@@ -1682,10 +1750,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         final esAdminWeb =
                             kIsWeb && (usuario?.esAdmin ?? false);
 
+                        final gestionado = idsGestionadosHoySet.contains(lid);
+
                         return _LocalCard(
                           local: local,
                           cobrado: cobradoHoy,
                           cuotaCubierta: cuotaCubierta,
+                          gestionado: gestionado,
                           cobroExistente: ultimoCobro,
                           onCobrar: () => _registrarCobro(local, cobrosHoy),
                           onEditar: () => showLocalFormDialog(
@@ -1697,6 +1768,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           onSinPago: cobradoHoy
                               ? null
                               : () => _registrarSinPago(local, cobrosHoy),
+                          onIncidencia: () => _registrarIncidencia(local),
                           onVerHistorial: () => context.push(
                             '/cobrador/local/$lid/historial',
                             extra: local,
@@ -1864,7 +1936,7 @@ class _EstadoFilterOption extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? accentColor.withValues(alpha: 0.18)
-                : colorScheme.surfaceVariant,
+                : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
@@ -1916,9 +1988,11 @@ class _LocalCard extends StatelessWidget {
   final Local local;
   final bool cobrado;
   final bool cuotaCubierta;
+  final bool gestionado;
   final Cobro? cobroExistente;
   final VoidCallback onCobrar;
   final VoidCallback? onSinPago;
+  final VoidCallback? onIncidencia;
   final VoidCallback? onVerHistorial;
   final VoidCallback? onVerEstadoCuenta;
   final VoidCallback? onEliminar;
@@ -1929,9 +2003,11 @@ class _LocalCard extends StatelessWidget {
     required this.local,
     required this.cobrado,
     required this.cuotaCubierta,
+    this.gestionado = false,
     required this.cobroExistente,
     required this.onCobrar,
     this.onSinPago,
+    this.onIncidencia,
     this.onVerHistorial,
     this.onVerEstadoCuenta,
     this.onEliminar,
@@ -1946,7 +2022,9 @@ class _LocalCard extends StatelessWidget {
     final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
     final cardStatusColor = (cuotaCubierta || cobrado)
         ? AppColors.success
-        : AppColors.warning;
+        : gestionado
+            ? const Color(0xFFE67E22)
+            : AppColors.warning;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -2099,6 +2177,12 @@ class _LocalCard extends StatelessWidget {
                                       '+${DateFormatter.formatCurrency(local.saldoAFavor ?? 0)}',
                                   color: AppColors.success,
                                 ),
+                              if (gestionado && !cuotaCubierta)
+                                _SmallBadge(
+                                  icon: Icons.assignment_turned_in_rounded,
+                                  label: 'VISITADO',
+                                  color: const Color(0xFFE67E22),
+                                ),
                             ],
                           ),
                         ],
@@ -2168,6 +2252,23 @@ class _LocalCard extends StatelessWidget {
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Estado',
                         color: colorScheme.primary,
+                      ),
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                    // Botón registrar incidencia
+                    Expanded(
+                      flex: 2,
+                      child: _CardButton(
+                        onTap: onIncidencia,
+                        icon: gestionado
+                            ? Icons.assignment_turned_in_rounded
+                            : Icons.assignment_late_rounded,
+                        label: gestionado ? 'Visitado' : 'Incidencia',
+                        color: const Color(0xFFE67E22),
                       ),
                     ),
                     VerticalDivider(

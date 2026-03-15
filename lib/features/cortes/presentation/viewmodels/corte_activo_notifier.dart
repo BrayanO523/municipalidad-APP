@@ -16,6 +16,8 @@ class CorteActivoState {
   final bool yaRealizadoHoy;
   /// Lista ligera [{localId, nombreSocial, montoPendiente}] para persistir y mostrar.
   final List<Map<String, dynamic>> pendientesInfo;
+  /// Lista ligera [{localId, nombreSocial, tipoIncidencia, comentario, timestamp}].
+  final List<Map<String, dynamic>> gestionesInfo;
 
   const CorteActivoState({
     this.isLoading = false,
@@ -28,6 +30,7 @@ class CorteActivoState {
     this.cobrosIds = const [],
     this.yaRealizadoHoy = false,
     this.pendientesInfo = const [],
+    this.gestionesInfo = const [],
   });
 
   CorteActivoState copyWith({
@@ -41,6 +44,7 @@ class CorteActivoState {
     List<String>? cobrosIds,
     bool? yaRealizadoHoy,
     List<Map<String, dynamic>>? pendientesInfo,
+    List<Map<String, dynamic>>? gestionesInfo,
   }) {
     return CorteActivoState(
       isLoading: isLoading ?? this.isLoading,
@@ -53,6 +57,7 @@ class CorteActivoState {
       cobrosIds: cobrosIds ?? this.cobrosIds,
       yaRealizadoHoy: yaRealizadoHoy ?? this.yaRealizadoHoy,
       pendientesInfo: pendientesInfo ?? this.pendientesInfo,
+      gestionesInfo: gestionesInfo ?? this.gestionesInfo,
     );
   }
 }
@@ -64,11 +69,13 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
     final cobrosAsync = ref.watch(cobrosHoyCobradorProvider);
     final historialAsync = ref.watch(cortesHoyCobradorStreamProvider);
     final localesAsync = ref.watch(localesCobradorProvider);
+    final gestionesAsync = ref.watch(gestionesHoyCobradorProvider);
 
     final cobros = cobrosAsync.value ?? [];
     final historial = historialAsync.value ?? [];
     final todosLocales = localesAsync.value ?? [];
     final localesActivos = todosLocales.where((l) => l.activo == true).toList();
+    final gestionesHoy = gestionesAsync.value ?? [];
 
     double total = 0;
     final List<String> ids = [];
@@ -93,9 +100,20 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
     }
 
     // Clasificar locales como cobrados o pendientes
+    // Mapear info de locales para acceso rápido
+    final localInfoMap = <String, Map<String, String>>{
+      for (final l in localesActivos)
+        if (l.id != null)
+          l.id!: {
+            'nombre': l.nombreSocial ?? 'S/N',
+            'clave': l.clave ?? '',
+            'codigo': l.codigo ?? '',
+          },
+    };
+
     int cobrados = 0;
     int pendientes = 0;
-    final List<Map<String, dynamic>> listaPendientes = [];
+    final listaPendientes = <Map<String, dynamic>>[];
 
     for (final local in localesActivos) {
       final pagoCuotaL = pagosCuotaPorLocal[local.id] ?? 0;
@@ -110,9 +128,51 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
           'localId': local.id ?? '',
           'nombreSocial': local.nombreSocial ?? 'S/N',
           'montoPendiente': (cuota - pagoCuotaL).toDouble(),
+          'clave': local.clave ?? '',
+          'codigo': local.codigo ?? '',
         });
       }
     }
+
+    // Construir snapshot de gestiones (excluir locales que ya pagaron)
+    final idsLocalesCobrados = <String>{};
+    for (final local in localesActivos) {
+      final pagoCuotaL2 = pagosCuotaPorLocal[local.id] ?? 0;
+      final saldoFavor2 = local.saldoAFavor ?? 0;
+      final cuota2 = local.cuotaDiaria ?? 0;
+      if ((pagoCuotaL2 >= cuota2) || (saldoFavor2 >= cuota2)) {
+        if (local.id != null) idsLocalesCobrados.add(local.id!);
+      }
+    }
+
+    final listaGestiones = gestionesHoy
+        .where((g) => g.localId != null && !idsLocalesCobrados.contains(g.localId))
+        .map((g) {
+          final infoLocal = localInfoMap[g.localId] ?? {};
+          return <String, dynamic>{
+            'localId': g.localId ?? '',
+            'nombreSocial': infoLocal['nombre'] ?? 'S/N',
+            'clave': infoLocal['clave'] ?? '',
+            'codigo': infoLocal['codigo'] ?? '',
+            'tipoIncidencia': g.tipoIncidencia ?? 'OTRO',
+            'comentario': g.comentario ?? '',
+            'timestamp': g.timestamp?.toIso8601String() ?? '',
+          };
+        })
+        .toList();
+
+    // Ordenar pendientes: los que tienen gestiones primero
+    final localesConGestion = listaGestiones.map((g) => g['localId'] as String).toSet();
+    listaPendientes.sort((a, b) {
+      final aTieneGestion = localesConGestion.contains(a['localId']);
+      final bTieneGestion = localesConGestion.contains(b['localId']);
+      if (aTieneGestion && !bTieneGestion) return -1;
+      if (!aTieneGestion && bTieneGestion) return 1;
+      // Si ambos tienen o ninguno tiene, ordenar por nombre ALFABÉTICAMENTE
+      final nombreA = (a['nombreSocial'] as String).toLowerCase();
+      final nombreB = (b['nombreSocial'] as String).toLowerCase();
+      return nombreA.compareTo(nombreB);
+    });
 
     final now = DateTime.now();
     final hoyInicio = DateTime(now.year, now.month, now.day);
@@ -137,6 +197,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       cobrosIds: ids,
       yaRealizadoHoy: realizado,
       pendientesInfo: listaPendientes,
+      gestionesInfo: listaGestiones,
     );
   }
 
@@ -189,6 +250,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
         mercadoId: user.mercadoId,
         mercadoNombre: mercadoNombre,
         pendientesInfo: state.pendientesInfo,
+        gestionesInfo: state.gestionesInfo,
       );
 
       final repo = ref.read(corteRepositoryProvider);

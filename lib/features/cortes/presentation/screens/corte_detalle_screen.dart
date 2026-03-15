@@ -169,6 +169,18 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
+                        // ── Gestiones/Incidencias (desde gestionesInfo del corte) ──
+                        if (corte.gestionesInfo != null &&
+                            corte.gestionesInfo!.isNotEmpty) ...[
+                          _GestionesInfoSection(
+                            gestionesInfo: corte.gestionesInfo!,
+                            color: const Color(0xFFE67E22),
+                            icon: Icons.assignment_late_rounded,
+                            isWide: isWide,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         // ── Pendientes (desde pendientesInfo del corte) ──
                         if (corte.pendientesInfo != null &&
                             corte.pendientesInfo!.isNotEmpty) ...[
@@ -396,6 +408,19 @@ class _HeaderCard extends StatelessWidget {
                   label: 'Pendientes',
                   color: Colors.orangeAccent,
                 ),
+                if (corte.gestionesInfo != null &&
+                    corte.gestionesInfo!.isNotEmpty) ...[
+                  Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white.withValues(alpha: 0.2)),
+                  _MiniStat(
+                    icon: Icons.assignment_late_rounded,
+                    value: '${corte.gestionesInfo!.length}',
+                    label: 'Incidencias',
+                    color: const Color(0xFFFFB74D),
+                  ),
+                ],
               ],
             ),
           ),
@@ -791,6 +816,8 @@ class _PendientesInfoSection extends StatelessWidget {
           // Items
           ...pendientesInfo.map((info) {
             final nombre = info['nombreSocial'] as String? ?? 'S/N';
+            final clave = info['clave'] as String? ?? '';
+            final codigo = info['codigo'] as String? ?? '';
             final monto =
                 (info['montoPendiente'] as num?)?.toDouble() ?? 0;
 
@@ -810,11 +837,28 @@ class _PendientesInfoSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      nombre,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nombre,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (codigo.isNotEmpty || clave.isNotEmpty)
+                          Text(
+                            [
+                              if (codigo.isNotEmpty) 'Cód: $codigo',
+                              if (clave.isNotEmpty) 'Clave: $clave',
+                            ].join(' • '),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                   Text(
@@ -825,6 +869,150 @@ class _PendientesInfoSection extends StatelessWidget {
                       color: color,
                     ),
                   ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sección de gestiones/incidencias leída de corte.gestionesInfo ──
+class _GestionesInfoSection extends StatelessWidget {
+  final List<Map<String, dynamic>> gestionesInfo;
+  final Color color;
+  final IconData icon;
+  final bool isWide;
+
+  const _GestionesInfoSection({
+    required this.gestionesInfo,
+    required this.color,
+    required this.icon,
+    required this.isWide,
+  });
+
+  String _labelTipo(String tipo) {
+    switch (tipo) {
+      case 'CERRADO':
+        return 'Local Cerrado';
+      case 'AUSENTE':
+        return 'Encargado Ausente';
+      case 'SIN_EFECTIVO':
+        return 'Sin Efectivo';
+      case 'NEGADO':
+        return 'Se niega a pagar';
+      case 'VOLVER_TARDE':
+        return 'Volver más tarde';
+      default:
+        return 'Otro motivo';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Incidencias (${gestionesInfo.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Items
+          ...gestionesInfo.map((info) {
+            final nombre = info['nombreSocial'] as String? ?? 'S/N';
+            final clave = info['clave'] as String? ?? '';
+            final codigo = info['codigo'] as String? ?? '';
+            final tipo = info['tipoIncidencia'] as String? ?? 'OTRO';
+            final comentario = info['comentario'] as String? ?? '';
+            final tsRaw = info['timestamp'] as String? ?? '';
+            String horaStr = '';
+            if (tsRaw.isNotEmpty) {
+              try {
+                final dt = DateTime.parse(tsRaw);
+                horaStr =
+                    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+              } catch (_) {}
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.assignment_late_rounded,
+                        size: 14, color: color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nombre,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          [
+                            if (codigo.isNotEmpty) 'Cód: $codigo',
+                            if (clave.isNotEmpty) 'Clave: $clave',
+                            comentario.isNotEmpty ? '${_labelTipo(tipo)} · $comentario' : _labelTipo(tipo),
+                          ].join(' • '),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (horaStr.isNotEmpty)
+                    Text(
+                      horaStr,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                      ),
+                    ),
                 ],
               ),
             );

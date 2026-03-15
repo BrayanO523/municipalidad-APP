@@ -914,7 +914,8 @@ class _CorteTileDetallado extends StatelessWidget {
                 ),
 
                 // Segunda fila: chips de estado + mercado
-                if (cobrados > 0 || pendientes > 0) ...[
+                if (cobrados > 0 || pendientes > 0 ||
+                    (corte.gestionesInfo ?? []).isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
@@ -939,6 +940,13 @@ class _CorteTileDetallado extends StatelessWidget {
                         color: AppColors.warning,
                         bgColor: AppColors.warning.withValues(alpha: 0.08),
                       ),
+                      if ((corte.gestionesInfo ?? []).isNotEmpty)
+                        _InfoChip(
+                          icon: Icons.assignment_late_rounded,
+                          label: '${corte.gestionesInfo!.length}',
+                          color: const Color(0xFFE67E22),
+                          bgColor: const Color(0xFFE67E22).withValues(alpha: 0.08),
+                        ),
                     ],
                   ),
                 ],

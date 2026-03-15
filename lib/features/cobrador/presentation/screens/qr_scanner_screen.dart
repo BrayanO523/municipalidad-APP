@@ -13,6 +13,7 @@ import '../../../cobros/domain/entities/cobro.dart';
 import '../../../cobros/domain/utils/calculadora_distribucion.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../widgets/incidencia_bottom_sheet.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -158,7 +159,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                           pagadoHoyPreviamente: pagadoHoy,
                           saldoFavorInicial: local.saldoAFavor ?? 0,
                           fechaReferencia: DateTime.now(),
-                          autoComplementarCuotaConSaldo: false, // Alineando con la pantalla de inicio
+                          autoComplementarCuotaConSaldo:
+                              false, // Alineando con la pantalla de inicio
                         );
 
                         Widget buildDynamicRow({
@@ -305,16 +307,21 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                   ),
                                   valueColor: AppColors.danger,
                                 ),
-                            buildDynamicRow(
-                              label: 'Cuota de hoy',
-                              value: dist.estadoCuotaHoy == 0 && cuotaLocal > 0
-                                  ? 'Completa'
-                                  : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
-                              subtitle: dist.pagoACuotaHoy > 0
-                                  ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
-                                  : (dist.paraDeudaReal > 0 ? 'El pago fue a deuda antigua' : null),
-                              valueColor: dist.estadoCuotaHoy == 0 ? Theme.of(context).colorScheme.primary : AppColors.warning,
-                            ),
+                              buildDynamicRow(
+                                label: 'Cuota de hoy',
+                                value:
+                                    dist.estadoCuotaHoy == 0 && cuotaLocal > 0
+                                    ? 'Completa'
+                                    : 'Falta ${DateFormatter.formatCurrency(dist.estadoCuotaHoy)}',
+                                subtitle: dist.pagoACuotaHoy > 0
+                                    ? 'Se abonó ${DateFormatter.formatCurrency(dist.pagoACuotaHoy)}'
+                                    : (dist.paraDeudaReal > 0
+                                          ? 'El pago fue a deuda antigua'
+                                          : null),
+                                valueColor: dist.estadoCuotaHoy == 0
+                                    ? Theme.of(context).colorScheme.primary
+                                    : AppColors.warning,
+                              ),
                               if (dist.saldoFavorFinalResultante > 0)
                                 buildDynamicRow(
                                   label: 'Saldo a favor',
@@ -551,11 +558,32 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             );
           }
         }
-        // Calcular rango de fechas cubiertas (deuda abonada)
+        // Calcular rango de fechas cubiertas (deuda abonada) + Cuota de hoy
         String? periodoAbonadoStr;
-        if (fechasSaldadas.isNotEmpty) {
-          periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+        List<DateTime> fechasAMostrar = List<DateTime>.from(fechasSaldadas);
+        // Si pagó la cuota de hoy, agregamos el día de hoy a las fechas cubiertas del recibo.
+        if (dist.pagoACuotaHoy > 0) {
+          final hoySinHora = DateTime(now.year, now.month, now.day);
+          if (!fechasAMostrar.any(
+            (d) =>
+                d.year == hoySinHora.year &&
+                d.month == hoySinHora.month &&
+                d.day == hoySinHora.day,
+          )) {
+            fechasAMostrar.add(hoySinHora);
+          }
         }
+
+        if (fechasAMostrar.isNotEmpty) {
+          periodoAbonadoStr = DateRangeFormatter.formatearRangos(
+            fechasAMostrar,
+          );
+        }
+
+        final double cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
+        final double abonoCuotaHoyVal = dist.pagoACuotaHoy.toDouble();
+        double pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
+        if (pagoHoyVal < 0) pagoHoyVal = 0;
 
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -566,12 +594,14 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           saldoPendiente: saldoResultante,
           deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
           montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
+          pagoHoy: pagoHoyVal,
+          abonoCuotaHoy: abonoCuotaHoyVal,
           saldoAFavor: favorResultante,
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
           mercadoNombre: mercadoNombre,
           cobradorNombre: usuario?.nombre,
-          fechasSaldadas: fechasSaldadas,
+          fechasSaldadas: fechasAMostrar,
           periodoAbonadoStr: periodoAbonadoStr,
           periodoSaldoAFavorStr: periodoFavorStr,
           slogan: muni?.slogan,
@@ -584,6 +614,52 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _registrarIncidenciaQr(Local local) async {
+    final result = await IncidenciaBottomSheet.show(
+      context,
+      nombreLocal: local.nombreSocial ?? 'Local',
+    );
+
+    if (result == null || !mounted) return;
+
+    try {
+      final usuario = ref.read(currentUsuarioProvider).value;
+      final ds = ref.read(gestionDatasourceProvider);
+
+      await ds.registrarGestion(
+        localId: local.id!,
+        cobradorId: usuario?.id ?? '',
+        tipoIncidencia: result.tipo.firestoreValue,
+        comentario: result.comentario,
+        latitud: local.latitud,
+        longitud: local.longitud,
+        municipalidadId: local.municipalidadId,
+        mercadoId: local.mercadoId,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '📋 Incidencia registrada: ${result.tipo.label}',
+            ),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        _resetScanner();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al registrar incidencia: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -617,6 +693,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               ? _LocalDetailPanel(
                   local: _localEncontrado!,
                   onCobrar: () => _registrarCobro(_localEncontrado!),
+                  onIncidencia: () => _registrarIncidenciaQr(_localEncontrado!),
                   onScanOtro: _resetScanner,
                 )
               : Column(
@@ -739,11 +816,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 class _LocalDetailPanel extends ConsumerWidget {
   final Local local;
   final VoidCallback onCobrar;
+  final VoidCallback? onIncidencia;
   final VoidCallback onScanOtro;
 
   const _LocalDetailPanel({
     required this.local,
     required this.onCobrar,
+    this.onIncidencia,
     required this.onScanOtro,
   });
 
@@ -837,6 +916,57 @@ class _LocalDetailPanel extends ConsumerWidget {
                       color: colorScheme.primary,
                     ),
                   ),
+                  // --- ESTADO FINANCIERO ---
+                  Builder(
+                    builder: (context) {
+                      final cuota = (local.cuotaDiaria ?? 0).toDouble();
+                      final deuda = (local.deudaAcumulada ?? 0).toDouble();
+                      final saldoFavor = (local.saldoAFavor ?? 0).toDouble();
+
+                      // Calcular rango de deuda si existe
+                      String? rangoDeuda;
+                      if (deuda > 0 && cuota > 0) {
+                        final dias = (deuda / cuota).floor();
+                        if (dias > 0) {
+                          final hoy = DateTime.now();
+                          final inicio = DateTime(
+                            hoy.year,
+                            hoy.month,
+                            hoy.day,
+                          ).subtract(Duration(days: dias));
+                          final iniStr =
+                              '${inicio.day.toString().padLeft(2, '0')}/${inicio.month.toString().padLeft(2, '0')}/${inicio.year}';
+                          final finStr =
+                              '${hoy.day.toString().padLeft(2, '0')}/${hoy.month.toString().padLeft(2, '0')}/${hoy.year}';
+                          rangoDeuda = dias == 1
+                              ? 'Desde el $iniStr'
+                              : 'Del $iniStr al $finStr ($dias días)';
+                        }
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Divider(height: 24),
+                          if (saldoFavor > 0)
+                            _FinanceRow(
+                              label: 'Saldo a favor',
+                              value: DateFormatter.formatCurrency(saldoFavor),
+                              valueColor: AppColors.success,
+                              icon: Icons.savings_rounded,
+                            ),
+                          if (deuda > 0)
+                            _FinanceRow(
+                              label: 'Deuda acumulada',
+                              value: DateFormatter.formatCurrency(deuda),
+                              subtitle: rangoDeuda,
+                              valueColor: AppColors.danger,
+                              icon: Icons.warning_amber_rounded,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -852,6 +982,20 @@ class _LocalDetailPanel extends ConsumerWidget {
                 'Registrar Cobro',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: onIncidencia,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFE67E22),
+                side: const BorderSide(color: Color(0xFFE67E22)),
+              ),
+              icon: const Icon(Icons.assignment_late_rounded, size: 18),
+              label: const Text('Registrar Incidencia'),
             ),
           ),
           const SizedBox(height: 12),
@@ -984,6 +1128,69 @@ class _InfoRow extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FinanceRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? subtitle;
+  final Color? valueColor;
+  final IconData icon;
+
+  const _FinanceRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.subtitle,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: valueColor?.withValues(alpha: 0.8)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: valueColor?.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

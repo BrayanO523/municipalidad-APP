@@ -21,6 +21,7 @@ class CorteModel extends Corte {
     super.cantidadCobrados,
     super.cantidadPendientes,
     super.pendientesInfo,
+    super.gestionesInfo,
   });
 
   factory CorteModel.fromMap(Map<String, dynamic> map, String id) {
@@ -52,6 +53,13 @@ class CorteModel extends Corte {
               ),
             )
           : null,
+      gestionesInfo: map['gestionesInfo'] != null
+          ? List<Map<String, dynamic>>.from(
+              (map['gestionesInfo'] as List).map(
+                (e) => Map<String, dynamic>.from(e as Map),
+              ),
+            )
+          : null,
     );
   }
 
@@ -74,6 +82,7 @@ class CorteModel extends Corte {
       if (cantidadCobrados != null) 'cantidadCobrados': cantidadCobrados,
       if (cantidadPendientes != null) 'cantidadPendientes': cantidadPendientes,
       if (pendientesInfo != null) 'pendientesInfo': pendientesInfo,
+      if (gestionesInfo != null) 'gestionesInfo': gestionesInfo,
     };
   }
 
@@ -97,6 +106,7 @@ class CorteModel extends Corte {
       cantidadCobrados: corte.cantidadCobrados,
       cantidadPendientes: corte.cantidadPendientes,
       pendientesInfo: corte.pendientesInfo,
+      gestionesInfo: corte.gestionesInfo,
     );
   }
 }
