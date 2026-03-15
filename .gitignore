@@ -56,3 +56,4 @@ lib/firebase_options.dart
 functions/
 .vscode/settings.json
 .claude/
+skills/
