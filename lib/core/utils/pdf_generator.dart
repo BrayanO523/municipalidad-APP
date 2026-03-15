@@ -23,6 +23,7 @@ class PdfGenerator {
     
     // 2. Pendientes vienen del arreglo del corte, no de los cobros
     final pendientesInfo = corte.pendientesInfo ?? [];
+    final gestionesInfo = corte.gestionesInfo ?? [];
 
     // 3. Calcular subtotales
     final totalCobrado = cobrados.fold<double>(
@@ -72,7 +73,7 @@ class PdfGenerator {
                     pw.Text('Total de Locales en Ruta: ${corte.cantidadRegistros}',
                         style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
                     pw.Text(
-                        'Cobrados: ${corte.cantidadCobrados ?? cobrados.length} | Pendientes: ${corte.cantidadPendientes ?? pendientesInfo.length}',
+                        'Cobrados: ${corte.cantidadCobrados ?? cobrados.length} | Pendientes: ${corte.cantidadPendientes ?? pendientesInfo.length}${gestionesInfo.isNotEmpty ? ' | Gestiones: ${gestionesInfo.length}' : ''}',
                         style: pw.TextStyle(
                             fontSize: 11,
                             fontWeight: pw.FontWeight.bold,
@@ -120,6 +121,18 @@ class PdfGenerator {
                     style: pw.TextStyle(
                         fontWeight: pw.FontWeight.bold, fontSize: 11)),
               ),
+              pw.SizedBox(height: 24),
+            ],
+
+            // ── Tabla Gestiones/Incidencias ──
+            if (gestionesInfo.isNotEmpty) ...[
+              pw.Text('Detalle de Incidencias Registradas',
+                  style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.brown900)),
+              pw.SizedBox(height: 8),
+              _buildGestionesTable(gestionesInfo, PdfColors.brown50),
               pw.SizedBox(height: 24),
             ],
 
@@ -276,21 +289,150 @@ class PdfGenerator {
         ),
         ...pendientesInfo.map((info) {
           final nombre = info['nombreSocial'] as String? ?? 'S/N';
+          final clave = info['clave'] as String? ?? '';
+          final codigo = info['codigo'] as String? ?? '';
           final monto =
               (info['montoPendiente'] as num?)?.toDouble() ?? 0;
+
+          final detallesLocal = [
+            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (clave.isNotEmpty) 'Clave: $clave',
+          ].join(' • ');
+
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,
             children: [
               pw.Padding(
                   padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(nombre,
-                      style: const pw.TextStyle(fontSize: 9))),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(nombre,
+                          style: const pw.TextStyle(fontSize: 9)),
+                      if (detallesLocal.isNotEmpty)
+                        pw.Text(detallesLocal,
+                            style: const pw.TextStyle(
+                                fontSize: 7, color: PdfColors.grey700)),
+                    ],
+                  )),
               pw.Padding(
                   padding: const pw.EdgeInsets.all(6),
                   child: pw.Text('L. ${monto.toStringAsFixed(2)}',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                           fontSize: 9, fontWeight: pw.FontWeight.bold))),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  static String _labelTipoIncidencia(String tipo) {
+    switch (tipo) {
+      case 'CERRADO':
+        return 'Local Cerrado';
+      case 'AUSENTE':
+        return 'Encargado Ausente';
+      case 'SIN_EFECTIVO':
+        return 'Sin Efectivo';
+      case 'NEGADO':
+        return 'Se niega a pagar';
+      case 'VOLVER_TARDE':
+        return 'Volver más tarde';
+      default:
+        return 'Otro motivo';
+    }
+  }
+
+  static pw.Widget _buildGestionesTable(
+      List<Map<String, dynamic>> gestionesInfo, PdfColor headerColor) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(3),   // Local
+        1: pw.FlexColumnWidth(2.5), // Tipo
+        2: pw.FlexColumnWidth(3),   // Comentario
+        3: pw.FlexColumnWidth(1.2), // Hora
+      },
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: headerColor),
+          children: [
+            pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text('Local',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10))),
+            pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text('Tipo',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10))),
+            pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text('Comentario',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10))),
+            pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text('Hora',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10),
+                    textAlign: pw.TextAlign.center)),
+          ],
+        ),
+        ...gestionesInfo.map((info) {
+          final nombre = info['nombreSocial'] as String? ?? 'S/N';
+          final clave = info['clave'] as String? ?? '';
+          final codigo = info['codigo'] as String? ?? '';
+          final tipo = info['tipoIncidencia'] as String? ?? 'OTRO';
+          final comentario = info['comentario'] as String? ?? '';
+          final tsRaw = info['timestamp'] as String? ?? '';
+          String horaStr = '-';
+          if (tsRaw.isNotEmpty) {
+            try {
+              final dt = DateTime.parse(tsRaw);
+              horaStr =
+                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+            } catch (_) {}
+          }
+
+          final detallesLocal = [
+            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (clave.isNotEmpty) 'Clave: $clave',
+          ].join(' • ');
+
+          return pw.TableRow(
+            verticalAlignment: pw.TableCellVerticalAlignment.middle,
+            children: [
+              pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(nombre,
+                          style: const pw.TextStyle(fontSize: 9)),
+                      if (detallesLocal.isNotEmpty)
+                        pw.Text(detallesLocal,
+                            style: const pw.TextStyle(
+                                fontSize: 7, color: PdfColors.grey700)),
+                    ],
+                  )),
+              pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(_labelTipoIncidencia(tipo),
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(
+                      comentario.isNotEmpty ? comentario : '-',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(horaStr,
+                      textAlign: pw.TextAlign.center,
+                      style: const pw.TextStyle(fontSize: 9))),
             ],
           );
         }),

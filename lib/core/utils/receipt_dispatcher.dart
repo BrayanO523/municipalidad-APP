@@ -8,7 +8,6 @@ import '../../features/locales/domain/entities/local.dart';
 import '../../app/di/providers.dart';
 import 'date_formatter.dart';
 import 'date_range_formatter.dart';
-import '../../features/cobros/domain/entities/cobro.dart';
 
 class ReceiptDispatcher {
   static Future<void> presentReceiptOptions({
@@ -20,6 +19,8 @@ class ReceiptDispatcher {
     required double saldoPendiente,
     required double deudaAnterior,
     required double montoAbonadoDeuda,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     required double saldoAFavor,
     required String numeroBoleta,
     required String? municipalidadNombre,
@@ -89,23 +90,75 @@ class ReceiptDispatcher {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _infoRow('Monto:', DateFormatter.formatCurrency(monto), isBold: true, textColor: cs.onSurface),
+                _infoRow(
+                  'Monto:',
+                  DateFormatter.formatCurrency(monto),
+                  isBold: true,
+                  textColor: cs.onSurface,
+                ),
                 if (local.clave != null && local.clave!.isNotEmpty)
                   _infoRow('Clave:', local.clave!, textColor: cs.onSurface),
                 if (local.codigo != null && local.codigo!.isNotEmpty)
-                  _infoRow('Código:', local.codigo!, textColor: cs.onSurface),
-                if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
-                  _infoRow('Cód. Catastral:', local.codigoCatastral!, textColor: cs.onSurface),
+                  _infoRow(
+                    'Num Puesto:',
+                    local.codigo!,
+                    textColor: cs.onSurface,
+                  ),
+                if (local.codigoCatastral != null &&
+                    local.codigoCatastral!.isNotEmpty)
+                  _infoRow(
+                    'Cód. Catastral:',
+                    local.codigoCatastral!,
+                    textColor: cs.onSurface,
+                  ),
                 if (deudaAnterior > 0)
-                  _infoRow('Deuda anterior:', DateFormatter.formatCurrency(deudaAnterior), color: Colors.redAccent, textColor: cs.onSurface),
+                  _infoRow(
+                    'Deuda anterior:',
+                    DateFormatter.formatCurrency(deudaAnterior),
+                    color: Colors.redAccent,
+                    textColor: cs.onSurface,
+                  ),
                 if (montoAbonadoDeuda > 0)
-                  _infoRow('Abono a deuda:', DateFormatter.formatCurrency(montoAbonadoDeuda), color: Colors.orangeAccent, textColor: cs.onSurface),
+                  _infoRow(
+                    'Abono a deuda:',
+                    DateFormatter.formatCurrency(montoAbonadoDeuda),
+                    color: Colors.orangeAccent,
+                    textColor: cs.onSurface,
+                  ),
                 if (saldoPendiente > 0)
-                  _infoRow('Deuda actual:', DateFormatter.formatCurrency(saldoPendiente), color: Colors.redAccent, textColor: cs.onSurface),
-                if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
-                  _infoRow('Fechas cubiertas:', periodoAbonadoStr, color: Colors.orangeAccent.withValues(alpha: 0.9), textColor: cs.onSurface)
-                else if (fechasSaldadas != null && fechasSaldadas.length > 1) ...[
-                  if (DateRangeFormatter.formatearRangos(fechasSaldadas) != null)
+                  _infoRow(
+                    'Deuda actual:',
+                    DateFormatter.formatCurrency(saldoPendiente),
+                    color: Colors.redAccent,
+                    textColor: cs.onSurface,
+                  ),
+                if (pagoHoy != null)
+                  _infoRow(
+                    'Cuota del día:',
+                    DateFormatter.formatCurrency(pagoHoy),
+                    color: const Color(0xFF00D9A6),
+                    textColor: cs.onSurface,
+                  ),
+                if (abonoCuotaHoy != null)
+                  _infoRow(
+                    'Abono cuota hoy:',
+                    DateFormatter.formatCurrency(abonoCuotaHoy),
+                    color: const Color(0xFF00D9A6),
+                    textColor: cs.onSurface,
+                  ),
+                if (periodoAbonadoStr != null &&
+                    periodoAbonadoStr.isNotEmpty &&
+                    periodoAbonadoStr != '-')
+                  _infoRow(
+                    'Fechas cubiertas:',
+                    periodoAbonadoStr,
+                    color: Colors.orangeAccent.withValues(alpha: 0.9),
+                    textColor: cs.onSurface,
+                  )
+                else if (fechasSaldadas != null &&
+                    fechasSaldadas.length > 1) ...[
+                  if (DateRangeFormatter.formatearRangos(fechasSaldadas) !=
+                      null)
                     _infoRow(
                       'Fechas cubiertas:',
                       DateRangeFormatter.formatearRangos(fechasSaldadas)!,
@@ -114,13 +167,27 @@ class ReceiptDispatcher {
                     ),
                 ],
                 if (saldoAFavor > 0)
-                  _infoRow('Saldo a favor:', DateFormatter.formatCurrency(saldoAFavor), color: const Color(0xFF00D9A6), textColor: cs.onSurface),
-                if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
-                  _infoRow('Fechas adelantadas:', periodoSaldoAFavorStr, color: const Color(0xFF00D9A6).withValues(alpha: 0.9), textColor: cs.onSurface),
+                  _infoRow(
+                    'Saldo a favor:',
+                    DateFormatter.formatCurrency(saldoAFavor),
+                    color: const Color(0xFF00D9A6),
+                    textColor: cs.onSurface,
+                  ),
+                if (periodoSaldoAFavorStr != null &&
+                    periodoSaldoAFavorStr.isNotEmpty)
+                  _infoRow(
+                    'Fechas adelantadas:',
+                    periodoSaldoAFavorStr,
+                    color: const Color(0xFF00D9A6).withValues(alpha: 0.9),
+                    textColor: cs.onSurface,
+                  ),
                 const SizedBox(height: 16),
                 Text(
                   '¿Cómo desea entregar el comprobante?',
-                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6), fontSize: 13),
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.6),
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Botones de acción
@@ -140,6 +207,7 @@ class ReceiptDispatcher {
                         favor: saldoAFavor,
                         deudaAnt: deudaAnterior,
                         abono: montoAbonadoDeuda,
+                        pagoHoy: pagoHoy,
                         cobrador: cobradorNombre,
                         boleta: numeroBoleta,
                         fechasSaldadas: fechasSaldadas,
@@ -159,6 +227,8 @@ class ReceiptDispatcher {
                           saldoPendiente: saldoPendiente,
                           deudaAnterior: deudaAnterior,
                           montoAbonadoDeuda: montoAbonadoDeuda,
+                          pagoHoy: pagoHoy,
+                          abonoCuotaHoy: abonoCuotaHoy,
                           saldoAFavor: saldoAFavor,
                           numeroBoleta: numeroBoleta,
                           muni: municipalidadNombre,
@@ -195,6 +265,7 @@ class ReceiptDispatcher {
                         favor: saldoAFavor,
                         deudaAnt: deudaAnterior,
                         abono: montoAbonadoDeuda,
+                        pagoHoy: pagoHoy,
                         cobrador: cobradorNombre,
                         boleta: numeroBoleta,
                         fechasSaldadas: fechasSaldadas,
@@ -227,6 +298,8 @@ class ReceiptDispatcher {
                         saldoPendiente: saldoPendiente,
                         deudaAnterior: deudaAnterior,
                         montoAbonadoDeuda: montoAbonadoDeuda,
+                        pagoHoy: pagoHoy,
+                        abonoCuotaHoy: abonoCuotaHoy,
                         saldoAFavor: saldoAFavor,
                         numeroBoleta: numeroBoleta,
                         muni: municipalidadNombre,
@@ -262,13 +335,25 @@ class ReceiptDispatcher {
     );
   }
 
-  static Widget _infoRow(String label, String value, {bool isBold = false, Color? color, Color? textColor}) {
+  static Widget _infoRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+    Color? textColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: textColor?.withValues(alpha: 0.7) ?? Colors.white70, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor?.withValues(alpha: 0.7) ?? Colors.white70,
+              fontSize: 12,
+            ),
+          ),
           Flexible(
             child: Text(
               value,
@@ -296,6 +381,8 @@ class ReceiptDispatcher {
     required double favor,
     required double deudaAnt,
     required double abono,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     required String? cobrador,
     required String boleta,
     List<DateTime>? fechasSaldadas,
@@ -318,6 +405,8 @@ class ReceiptDispatcher {
         saldoAFavor: favor > 0 ? favor : 0.0,
         deudaAnterior: deudaAnt,
         montoAbonadoDeuda: abono,
+        pagoHoy: pagoHoy,
+        abonoCuotaHoy: abonoCuotaHoy,
         cobrador: cobrador,
         numeroBoleta: boleta,
         anioCorrelativo: fecha.year,
@@ -340,6 +429,8 @@ class ReceiptDispatcher {
     required double saldoPendiente,
     required double deudaAnterior,
     required double montoAbonadoDeuda,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     required double saldoAFavor,
     required String numeroBoleta,
     required String? muni,
@@ -354,10 +445,10 @@ class ReceiptDispatcher {
     if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
       diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
     }
-    
+
     debugPrint('===== DEBUG PDF INDIVIDUAL =====');
     debugPrint('Slogan: "$slogan"');
-    
+
     final fontDefault = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
     final fontItalic = await PdfGoogleFonts.robotoItalic();
@@ -376,70 +467,159 @@ class ReceiptDispatcher {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             mainAxisSize: pw.MainAxisSize.min,
             children: [
-              pw.Text((muni ?? 'MUNICIPALIDAD').toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text(
+                (muni ?? 'MUNICIPALIDAD').toUpperCase(),
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 4),
               if (merc != null) ...[
-                pw.Text(merc.toUpperCase(), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                pw.Text(
+                  merc.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
                 pw.SizedBox(height: 4),
               ],
               pw.SizedBox(height: 4),
-              pw.Text('BOLETA DE PAGO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text(
+                'BOLETA DE PAGO',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 4),
-              pw.Text('No. $numeroBoleta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+              pw.Text(
+                'No. $numeroBoleta',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 8),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              
+
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
               if (local.clave != null && local.clave!.isNotEmpty)
                 _pdfRow('CLAVE:', local.clave!),
               if (local.codigo != null && local.codigo!.isNotEmpty)
-                _pdfRow('CÓDIGO:', local.codigo!),
-              if (local.codigoCatastral != null && local.codigoCatastral!.isNotEmpty)
+                _pdfRow('NUM PUESTO:', local.codigo!),
+              if (local.codigoCatastral != null &&
+                  local.codigoCatastral!.isNotEmpty)
                 _pdfRow('CÓD. CATASTRAL:', local.codigoCatastral!),
               _pdfRow('FECHA:', DateFormatter.formatDateTime(fecha)),
-              if (cobrador != null) _pdfRow('COBRADOR:', cobrador.toUpperCase()),
-              
+              if (cobrador != null)
+                _pdfRow('COBRADOR:', cobrador.toUpperCase()),
+
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
-              
-              pw.Text('MONTO PAGADO:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
-              pw.Text('L ${monto.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
-              
+
+              pw.Text(
+                'MONTO PAGADO:',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.Text(
+                'L ${monto.toStringAsFixed(2)}',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+
               pw.SizedBox(height: 4),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              
+
               if (deudaAnterior > 0) ...[
-                _pdfRow('DEUDA ANTERIOR:', DateFormatter.formatCurrency(deudaAnterior)),
-                _pdfRow('ABONO A DEUDA:', DateFormatter.formatCurrency(montoAbonadoDeuda)),
-                _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
+                _pdfRow(
+                  'DEUDA ANTERIOR:',
+                  DateFormatter.formatCurrency(deudaAnterior),
+                ),
+                _pdfRow(
+                  'ABONO A DEUDA:',
+                  DateFormatter.formatCurrency(montoAbonadoDeuda),
+                ),
+                _pdfRow(
+                  'DEUDA ACTUAL:',
+                  DateFormatter.formatCurrency(saldoPendiente),
+                ),
               ] else if (saldoPendiente > 0) ...[
-                _pdfRow('DEUDA ACTUAL:', DateFormatter.formatCurrency(saldoPendiente)),
+                _pdfRow(
+                  'DEUDA ACTUAL:',
+                  DateFormatter.formatCurrency(saldoPendiente),
+                ),
               ],
 
-              if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-')
+              if (pagoHoy != null) ...[
+                _pdfRow(
+                  'CUOTA DEL DÍA:',
+                  DateFormatter.formatCurrency(pagoHoy),
+                ),
+              ],
+              if (abonoCuotaHoy != null) ...[
+                _pdfRow(
+                  'ABONO CUOTA HOY:',
+                  DateFormatter.formatCurrency(abonoCuotaHoy),
+                ),
+              ],
+
+              if (periodoAbonadoStr != null &&
+                  periodoAbonadoStr.isNotEmpty &&
+                  periodoAbonadoStr != '-')
                 _pdfRow('FECHAS CUBIERTAS:', periodoAbonadoStr)
               else if (diasCubiertosStr != null)
                 _pdfRow('FECHAS CUBIERTAS:', diasCubiertosStr),
-              
+
               if (saldoAFavor > 0) ...[
-                _pdfRow('SALDO A FAVOR:', DateFormatter.formatCurrency(saldoAFavor)),
-                if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty)
+                _pdfRow(
+                  'SALDO A FAVOR:',
+                  DateFormatter.formatCurrency(saldoAFavor),
+                ),
+                if (periodoSaldoAFavorStr != null &&
+                    periodoSaldoAFavorStr.isNotEmpty)
                   _pdfRow('FECHAS ADELANTADAS:', periodoSaldoAFavorStr),
               ],
-              
+
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 8),
-              
-              pw.Text('¡Gracias por su pago!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+
+              pw.Text(
+                '¡Gracias por su pago!',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
               if (slogan != null && slogan.trim().isNotEmpty) ...[
                 pw.SizedBox(height: 4),
-                pw.Text(slogan.trim(), style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic), textAlign: pw.TextAlign.center),
+                pw.Text(
+                  slogan.trim(),
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
               ],
-              pw.SizedBox(height: 4),
+              /*             pw.SizedBox(height: 4),
               pw.Text(
                 'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
                 style: const pw.TextStyle(fontSize: 7),
-              ),
+              ), */
               pw.SizedBox(height: 6),
             ],
           );
@@ -454,7 +634,9 @@ class ReceiptDispatcher {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al compartir PDF: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al compartir PDF: $e')));
       }
     }
   }
@@ -466,7 +648,13 @@ class ReceiptDispatcher {
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
-          pw.Flexible(child: pw.Text(value, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right)),
+          pw.Flexible(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+              textAlign: pw.TextAlign.right,
+            ),
+          ),
         ],
       ),
     );

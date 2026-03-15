@@ -37,6 +37,8 @@ class StubPrinterAdapter implements PrinterService {
     double? saldoAFavor,
     double? deudaAnterior,
     double? montoAbonadoDeuda,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
@@ -101,10 +103,9 @@ class StubPrinterAdapter implements PrinterService {
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
               _pdfRow('LOCAL:', local.toUpperCase()),
-              if (clave != null && clave.isNotEmpty)
-                _pdfRow('CLAVE:', clave),
+              if (clave != null && clave.isNotEmpty) _pdfRow('CLAVE:', clave),
               if (codigoLocal != null && codigoLocal.isNotEmpty)
-                _pdfRow('CÓDIGO:', codigoLocal),
+                _pdfRow('NUM PUESTO:', codigoLocal),
               if (codigoCatastral != null && codigoCatastral.isNotEmpty)
                 _pdfRow('CÓD. CATASTRAL:', codigoCatastral),
               _pdfRow('FECHA:', fDate.format(fecha)),
@@ -138,6 +139,9 @@ class StubPrinterAdapter implements PrinterService {
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente ?? 0)),
               ] else if (saldoPendiente != null && saldoPendiente > 0)
                 _pdfRow('DEUDA ACTUAL:', fCurrency.format(saldoPendiente)),
+
+              if (pagoHoy != null)
+                _pdfRow('CUOTA DEL DÍA:', fCurrency.format(pagoHoy)),
 
               if (periodoAbonadoStr != null &&
                   periodoAbonadoStr.isNotEmpty &&

@@ -26,6 +26,8 @@ abstract class PrinterService {  /// Obtiene la lista de dispositivos Bluetooth 
     double? saldoAFavor,
     double? deudaAnterior,
     double? montoAbonadoDeuda,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,

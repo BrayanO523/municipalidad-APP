@@ -6,7 +6,6 @@ import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/platform/printer_service.dart';
 import 'package:flutter/foundation.dart';
 
-
 class BluetoothPrinterAdapter implements PrinterService {
   @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
@@ -91,6 +90,8 @@ class BluetoothPrinterAdapter implements PrinterService {
     double? saldoAFavor,
     double? deudaAnterior,
     double? montoAbonadoDeuda,
+    double? pagoHoy,
+    double? abonoCuotaHoy,
     String? cobrador,
     required String numeroBoleta,
     required int anioCorrelativo,
@@ -187,9 +188,15 @@ class BluetoothPrinterAdapter implements PrinterService {
       // 2. CUERPO (Alineado a la izquierda = 0)
       final fechaStr = DateFormatter.formatDateTime(fecha);
       addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
-      if (clave != null && clave.isNotEmpty) addText(r('CLAVE:', clave, normalWidth), 1, 0);
-      if (codigoLocal != null && codigoLocal.isNotEmpty) addText(r('CODIGO:', codigoLocal, normalWidth), 1, 0);
-      if (codigoCatastral != null && codigoCatastral.isNotEmpty) addText(r('COD.CATA:', codigoCatastral, normalWidth), 1, 0);
+      if (clave != null && clave.isNotEmpty) {
+        addText(r('CLAVE:', clave, normalWidth), 1, 0);
+      }
+      if (codigoLocal != null && codigoLocal.isNotEmpty) {
+        addText(r('NUM PUESTO:', codigoLocal, normalWidth), 1, 0);
+      }
+      if (codigoCatastral != null && codigoCatastral.isNotEmpty) {
+        addText(r('COD.CATA:', codigoCatastral, normalWidth), 1, 0);
+      }
       addText(r('FECHA:', fechaStr, normalWidth), 1, 0);
       if (cobrador != null) {
         addText(r('COBRADOR:', cobrador.toUpperCase(), normalWidth), 1, 0);
@@ -242,8 +249,22 @@ class BluetoothPrinterAdapter implements PrinterService {
         );
       }
 
+      if (pagoHoy != null) {
+        addText(
+          r(
+            'CUOTA DEL DÍA:',
+            DateFormatter.formatCurrency(pagoHoy),
+            normalWidth,
+          ),
+          1,
+          0,
+        );
+      }
+
       // Fechas cubiertas
-      if (periodoAbonadoStr != null && periodoAbonadoStr.isNotEmpty && periodoAbonadoStr != '-') {
+      if (periodoAbonadoStr != null &&
+          periodoAbonadoStr.isNotEmpty &&
+          periodoAbonadoStr != '-') {
         addText('FECHAS CUBIERTAS:', 1, 0);
         addText(periodoAbonadoStr, 1, 0);
       } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
