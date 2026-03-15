@@ -263,20 +263,41 @@ class _Header extends ConsumerWidget {
 }
 
 // â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _DeudoresTable extends StatelessWidget {
+class _DeudoresTable extends StatefulWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
 
   const _DeudoresTable({required this.locales, required this.mercados});
 
   @override
+  State<_DeudoresTable> createState() => _DeudoresTableState();
+}
+
+class _DeudoresTableState extends State<_DeudoresTable> {
+  final ScrollController _scrollHorizontal = ScrollController();
+  final ScrollController _scrollVertical = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollHorizontal.dispose();
+    _scrollVertical.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+      child: Scrollbar(
+        controller: _scrollHorizontal,
+        thumbVisibility: true,
+        trackVisibility: true,
         child: SingleChildScrollView(
+          controller: _scrollHorizontal,
           scrollDirection: Axis.horizontal,
-          child: DataTable(
+          child: SingleChildScrollView(
+            controller: _scrollVertical,
+            scrollDirection: Axis.vertical,
+            child: DataTable(
             headingRowColor: WidgetStateProperty.all(
               Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
             ),
@@ -290,7 +311,7 @@ class _DeudoresTable extends StatelessWidget {
               DataColumn(label: Text('Balance Neto')),
               DataColumn(label: Text('Acciones')),
             ],
-            rows: locales.map((l) {
+            rows: widget.locales.map((l) {
               return DataRow(
                 cells: [
                   DataCell(
@@ -314,7 +335,7 @@ class _DeudoresTable extends StatelessWidget {
                   ),
                   DataCell(
                     Text(
-                      mercados
+                      widget.mercados
                               .cast<Mercado>()
                               .firstWhere(
                                 (m) => m.id == l.mercadoId,
@@ -387,6 +408,7 @@ class _DeudoresTable extends StatelessWidget {
               );
             }).toList(),
           ),
+        ),
         ),
       ),
     );

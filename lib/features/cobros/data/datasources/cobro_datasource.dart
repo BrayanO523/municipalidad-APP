@@ -5,13 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../dashboard/data/datasources/stats_datasource.dart';
+import '../../../locales/data/datasources/local_datasource.dart';
 import '../models/cobro_model.dart';
 
 class CobroDatasource {
   final FirebaseFirestore _firestore;
   final StatsDatasource _statsDs;
+  final LocalDatasource _localDs;
 
-  CobroDatasource(this._firestore, this._statsDs);
+  CobroDatasource(this._firestore, this._statsDs, this._localDs);
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(FirestoreCollections.cobros);
@@ -85,6 +87,13 @@ class CobroDatasource {
         batch: batch,
       );
     }
+
+    // c. Actualizar el Local (Deuda y Saldo) en el mismo Batch
+    final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
+    final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
+    
+    await _localDs.actualizarDeudaAcumulada(localId, -abonoDeuda, batch: batch);
+    await _localDs.actualizarSaldoAFavor(localId, incrementoSaldo, batch: batch);
 
     // 6. Ejecutar el Lote Completo (TODO O NADA)
     await batch.commit();
@@ -591,6 +600,17 @@ class CobroDatasource {
             batch: batch,
           );
         }
+      }
+
+      // 2. Revertir impacto en el Local (Deuda y Saldo) en el mismo Batch
+      final localId = data['localId'] as String?;
+      if (localId != null) {
+        await _localDs.revertirPago(
+          localId: localId,
+          montoARecomponerDeuda: abonoDeuda,
+          montoARestarSaldo: incrementoSaldo,
+          batch: batch,
+        );
       }
 
       // Eliminar el documento en el mismo Batch

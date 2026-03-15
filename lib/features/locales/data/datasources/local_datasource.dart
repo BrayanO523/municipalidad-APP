@@ -486,18 +486,30 @@ class LocalDatasource {
 
   /// Incrementa (o decrementa) el saldoAFavor de un local de forma atómica.
   /// Usar valor negativo para decrementar.
-  Future<void> actualizarSaldoAFavor(String docId, num delta) async {
-    await _collection.doc(docId).update({
+  Future<void> actualizarSaldoAFavor(String docId, num delta, {WriteBatch? batch}) async {
+    final ref = _collection.doc(docId);
+    final data = {
       'saldoAFavor': FieldValue.increment(delta),
-    });
+    };
+    if (batch != null) {
+      batch.update(ref, data);
+    } else {
+      await ref.update(data);
+    }
   }
 
   /// Incrementa (o decrementa) la deudaAcumulada de un local de forma atómica.
   /// Usar valor negativo para decrementar al registrar un pago de deuda.
-  Future<void> actualizarDeudaAcumulada(String docId, num delta) async {
-    await _collection.doc(docId).update({
+  Future<void> actualizarDeudaAcumulada(String docId, num delta, {WriteBatch? batch}) async {
+    final ref = _collection.doc(docId);
+    final data = {
       'deudaAcumulada': FieldValue.increment(delta),
-    });
+    };
+    if (batch != null) {
+      batch.update(ref, data);
+    } else {
+      await ref.update(data);
+    }
   }
 
   /// Procesa un pago afectando deuda y saldo a favor de forma inteligente.
@@ -560,12 +572,19 @@ class LocalDatasource {
     required String localId,
     required num montoARecomponerDeuda,
     required num montoARestarSaldo,
+    WriteBatch? batch,
   }) async {
-    await _collection.doc(localId).update({
+    final ref = _collection.doc(localId);
+    final data = {
       'deudaAcumulada': FieldValue.increment(montoARecomponerDeuda),
       'saldoAFavor': FieldValue.increment(-montoARestarSaldo),
       'actualizadoEn': FieldValue.serverTimestamp(),
-    });
+    };
+    if (batch != null) {
+      batch.update(ref, data);
+    } else {
+      await ref.update(data);
+    }
   }
 
   // DELETE

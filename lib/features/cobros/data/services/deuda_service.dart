@@ -180,7 +180,7 @@ class DeudaService {
               'anioCorrelativo': fecha.year,
             });
 
-            await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo);
+            await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo, batch: batch);
 
             if (local.municipalidadId != null) {
               await _statsDs.actualizarConsumoSaldo(
@@ -264,7 +264,7 @@ class DeudaService {
     });
 
     // Incrementar deuda acumulada en el local
-    await localDs.actualizarDeudaAcumulada(local.id!, faltante);
+    await localDs.actualizarDeudaAcumulada(local.id!, faltante, batch: batch);
 
     // Incrementar en las estadísticas globales (Dashboard)
     if (local.municipalidadId != null) {

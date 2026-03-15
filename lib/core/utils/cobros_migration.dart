@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/firestore_collections.dart';
 import '../../features/cobros/data/datasources/cobro_datasource.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
+import '../../features/locales/data/datasources/local_datasource.dart';
 
 /// Migración de datos: rellena el campo [mercadoId] en todos los cobros
 /// que actualmente no lo tienen, cruzando con la colección [locales].
@@ -100,7 +101,8 @@ class CobrosMigration {
 
   static Future<String> limpiarDatosObsoletosSistema() async {
     final db = FirebaseFirestore.instance;
-    final ds = CobroDatasource(db, StatsDatasource(db));
+    final statsDs = StatsDatasource(db);
+    final ds = CobroDatasource(db, statsDs, LocalDatasource(db, statsDs));
     try {
       final total = await ds.inicializarCorrelativosSistema();
       return '✅ Limpieza de sistema completada. Total de registros afectados/limpiados: $total';
