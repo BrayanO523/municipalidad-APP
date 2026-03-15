@@ -101,18 +101,23 @@ class StatsDatasource {
     required num montoCobrado,
     required num abonoDeuda,
     required num incrementoSaldo,
+    WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // update() interpreta puntos como rutas anidadas (diario -> key -> recaudado)
-    await _doc(municipalidadId).update({
+    final data = {
       'totalCobrado': FieldValue.increment(montoCobrado),
       'totalDeuda': FieldValue.increment(-abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(montoCobrado),
       'diario.$key.cobros': FieldValue.increment(1),
-    });
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
   }
 
   /// Revierte las estadísticas al eliminar/anular un cobro normal (Efectivo).
@@ -122,17 +127,23 @@ class StatsDatasource {
     required num abonoDeuda,
     required num incrementoSaldo,
     required DateTime fechaCobroOriginal,
+    WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
-
-    await _doc(municipalidadId).update({
+    final data = {
       'totalCobrado': FieldValue.increment(-montoCobrado),
       'totalDeuda': FieldValue.increment(abonoDeuda),
       'totalSaldoAFavor': FieldValue.increment(-incrementoSaldo),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(-montoCobrado),
       'diario.$key.cobros': FieldValue.increment(-1),
-    });
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
   }
 
   /// Revierte las estadísticas al eliminar un cobro 'pendiente'.
@@ -140,14 +151,20 @@ class StatsDatasource {
     required String municipalidadId,
     required num saldoPendiente,
     required DateTime fechaCobroOriginal,
+    WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
-
-    await _doc(municipalidadId).update({
+    final data = {
       'totalDeuda': FieldValue.increment(-saldoPendiente),
       'diario.$key.cobros': FieldValue.increment(-1),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
   }
 
   /// Revierte las estadísticas al eliminar un cobro realizado con saldo a favor (sin efectivo).
@@ -155,14 +172,56 @@ class StatsDatasource {
     required String municipalidadId,
     required num montoConsumido,
     required DateTime fechaCobroOriginal,
+    WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
-
-    await _doc(municipalidadId).update({
+    final data = {
       'totalSaldoAFavor': FieldValue.increment(montoConsumido),
       'diario.$key.cobros': FieldValue.increment(-1),
       'ultimaActualizacion': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
+  }
+
+  /// Registra un incremento en la deuda total (cuando un local no paga o paga parcial).
+  Future<void> actualizarDeudaGenerada({
+    required String municipalidadId,
+    required num montoDeuda,
+    WriteBatch? batch,
+  }) async {
+    final data = {
+      'totalDeuda': FieldValue.increment(montoDeuda),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
+  }
+
+  /// Registra una reducción del saldo a favor global (cuando se usa para cubrir deuda).
+  Future<void> actualizarConsumoSaldo({
+    required String municipalidadId,
+    required num montoConsumido,
+    WriteBatch? batch,
+  }) async {
+    final data = {
+      'totalSaldoAFavor': FieldValue.increment(-montoConsumido),
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    };
+
+    if (batch != null) {
+      batch.update(_doc(municipalidadId), data);
+    } else {
+      await _doc(municipalidadId).update(data);
+    }
   }
 
   /// Actualización al registrar o eliminar un local/mercado.
