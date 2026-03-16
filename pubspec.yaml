@@ -94,6 +94,7 @@ flutter:
     - assets/import/
     - assets/import/locales_con_codigo_pto_ordenado_con_clave_corregido.csv
     - assets/import/locales_con_codigo_con_clave_y_ruta.csv
+    - assets/import/eventuales_completo_con_ruta.csv
 
   # To add assets to your application, add an assets section, like this:
   # assets:
