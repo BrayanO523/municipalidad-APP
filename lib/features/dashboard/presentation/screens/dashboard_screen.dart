@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -13,8 +13,8 @@ import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/recent_cobros_table.dart';
 import '../widgets/dashboard_charts.dart';
-import '../../../../core/utils/mass_import_locales.dart';
 import '../../../../core/utils/mass_import_faltantes_locales_inmaculada.dart';
+import '../../../../core/utils/mass_merge_locales_from_csv.dart';
 import '../../../../core/utils/cobros_migration.dart';
 import '../widgets/custom_date_range_picker.dart';
 import '../../../cobros/data/services/deuda_service.dart';
@@ -33,7 +33,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Disparar verificación de deuda retroactiva al iniciar el dashboard
+    // Disparar verificaciÃ³n de deuda retroactiva al iniciar el dashboard
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarDeudaRetroactiva();
     });
@@ -46,7 +46,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final hoyString = DateFormat('yyyyMMdd').format(hoy);
       final hoyKey = 'last_deuda_sync_web_$hoyString';
 
-      // Si ya se sincronizó hoy en este navegador, saltar
+      // Si ya se sincronizÃ³ hoy en este navegador, saltar
       if (prefs.containsKey(hoyKey)) return;
 
       final usuario = ref.read(currentUsuarioProvider).value;
@@ -70,13 +70,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         fechaInicioOperaciones: stats.fechaInicioOperaciones,
       );
 
-      // Guardar que ya se revisó hoy en este navegador
+      // Guardar que ya se revisÃ³ hoy en este navegador
       await prefs.setString(hoyKey, hoyString);
       
       // Invalidar stats para reflejar cambios si los hubo
       ref.invalidate(statsProvider);
     } catch (e) {
-      debugPrint('⚠️ Error en verificación de deuda web: $e');
+      debugPrint('âš ï¸ Error en verificaciÃ³n de deuda web: $e');
     }
   }
 
@@ -99,14 +99,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Header ───────────────────────────────────────────────────
+                // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [Expanded(child: _DashboardHeader())],
                 ),
                 const SizedBox(height: 24),
 
-                // ── KPI cards — fila 1: recaudación del día ──────────────────
+                // â”€â”€ KPI cards â€” fila 1: recaudaciÃ³n del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final crossAxisCount = constraints.maxWidth > 1000
@@ -125,19 +125,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           width: cardW,
                           child: stats.when(
                             data: (s) => MetricCard(
-                              title: 'Recaudación Hoy',
+                              title: 'RecaudaciÃ³n Hoy',
                               value: DateFormatter.formatCurrency(s.recaudacionHoy),
                               icon: Icons.payments_rounded,
                               color: const Color(0xFF00D9A6),
                             ),
                             loading: () => const MetricCard(
-                              title: 'Recaudación Hoy',
+                              title: 'RecaudaciÃ³n Hoy',
                               value: '...',
                               icon: Icons.payments_rounded,
                               color: Color(0xFF00D9A6),
                             ),
                             error: (_, __) => const MetricCard(
-                              title: 'Recaudación Hoy',
+                              title: 'RecaudaciÃ³n Hoy',
                               value: 'Error',
                               icon: Icons.payments_rounded,
                               color: Color(0xFF00D9A6),
@@ -171,7 +171,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           width: cardW,
                           child: stats.when(
                             data: (s) {
-                              debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
+                              debugPrint('ðŸ“ˆ DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
                               return MetricCard(
                                 title: 'Mercados Activos',
                                 value: '${s.cantidadMercados}',
@@ -186,7 +186,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               color: Color(0xFFFF9F43),
                             ),
                             error: (err, stack) {
-                              debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
+                              debugPrint('âŒ ERROR AL CARGAR STATS: $err\n$stack');
                               return const MetricCard(
                                 title: 'Mercados Activos',
                                 value: 'Error',
@@ -225,7 +225,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── KPI cards — fila 2: deudas y saldo a favor ───────────────
+                // â”€â”€ KPI cards â€” fila 2: deudas y saldo a favor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 stats.when(
                   data: (s) {
                     final deudaTotal = s.totalDeuda;
@@ -268,7 +268,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                                 icon: Icons.savings_rounded,
                                 color: const Color(0xFF00D9A6),
-                                subtitle: 'Total global de créditos',
+                                subtitle: 'Total global de crÃ©ditos',
                               ),
                             ),
                           ],
@@ -281,14 +281,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── Gráficos ──────────────────────────────────────────────────
+                // â”€â”€ GrÃ¡ficos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 DashboardChartsWidget(
                   cobrosHoy: cobrosHoy.value ?? [],
                 ),
 
                 const SizedBox(height: 24),
 
-                // ── Cobros de la Fecha ────────────────────────────────────────
+                // â”€â”€ Cobros de la Fecha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Builder(
                   builder: (context) {
                     final titulo = filter.period == DashboardPeriod.hoy
@@ -314,7 +314,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Widgets de apoyo ─────────────────────────────────────────────────────────
+// â”€â”€ Widgets de apoyo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _DashboardHeader extends ConsumerWidget {
   @override
@@ -412,7 +412,7 @@ class _DashboardHeader extends ConsumerWidget {
                     builder: (context) => AlertDialog(
                       title: const Text('Parchar y Limpiar Sistema'),
                       content: const Text(
-                        '¿Desea ejecutar el parchado integral de datos? Esto inicializará los nuevos correlativos en Mercados, limpiará campos obsoletos en Usuarios y Locales, y parchará el historial de cobros para el modo offline.',
+                        'Â¿Desea ejecutar el parchado integral de datos? Esto inicializarÃ¡ los nuevos correlativos en Mercados, limpiarÃ¡ campos obsoletos en Usuarios y Locales, y parcharÃ¡ el historial de cobros para el modo offline.',
                       ),
                       actions: [
                         TextButton(
@@ -444,7 +444,7 @@ class _DashboardHeader extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Operación exitosa: $procesados registros parchados.',
+                              'OperaciÃ³n exitosa: $procesados registros parchados.',
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -483,9 +483,9 @@ class _DashboardHeader extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('Importación Masiva de Locales'),
+                      title: const Text('ImportaciÃ³n Masiva de Locales'),
                       content: const Text(
-                        'Se importarán 590 locales únicos al Mercado Inmaculada Concepción. ¿Desea proceder? Esta acción creará documentos en Firestore automáticamente.',
+                        'Se aplicará un MERGE (sin borrar campos) a 610 locales desde el CSV empaquetado (locales_20260316.csv). Esto actualiza los campos del archivo pero conserva extras como codigoLower/qrData. ¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -507,10 +507,10 @@ class _DashboardHeader extends ConsumerWidget {
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Importando locales...'),
+                          content: Text('Aplicando merge de locales...'),
                         ),
                       );
-                      final res = await MassImportLocales.ejecutar();
+                      final res = await MassMergeLocalesFromCsv.ejecutar();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -550,9 +550,9 @@ class _DashboardHeader extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('ImportaciÃ³n de Faltantes (Locales)'),
+                      title: const Text('ImportaciÃƒÂ³n de Faltantes (Locales)'),
                       content: const Text(
-                        'Se importarÃ¡n 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada ConcepciÃ³n usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). Â¿Desea proceder?',
+                        'Se importarÃƒÂ¡n 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada ConcepciÃƒÂ³n usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). Ã‚Â¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -623,7 +623,7 @@ class _DashboardHeader extends ConsumerWidget {
                         style: TextStyle(color: Colors.red),
                       ),
                       content: const Text(
-                        'Se eliminarÃ¡n los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algÃºn local ya fue modificado o tiene movimientos, NO se borrarÃ¡. Â¿Desea proceder?',
+                        'Se eliminarÃƒÂ¡n los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algÃƒÂºn local ya fue modificado o tiene movimientos, NO se borrarÃƒÂ¡. Ã‚Â¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -649,7 +649,7 @@ class _DashboardHeader extends ConsumerWidget {
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Revirtiendo importaciÃ³n de faltantes...'),
+                          content: Text('Revirtiendo importaciÃƒÂ³n de faltantes...'),
                         ),
                       );
                       final res =
@@ -696,11 +696,11 @@ class _DashboardHeader extends ConsumerWidget {
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text(
-                        '¿RESETEAR SISTEMA COMPLETO?',
+                        'Â¿RESETEAR SISTEMA COMPLETO?',
                         style: TextStyle(color: Colors.red),
                       ),
                       content: const Text(
-                        'Esta acción eliminará TODOS los cobros y reiniciará los correlativos a 1. Es irreversible. ¿Está seguro?',
+                        'Esta acciÃ³n eliminarÃ¡ TODOS los cobros y reiniciarÃ¡ los correlativos a 1. Es irreversible. Â¿EstÃ¡ seguro?',
                       ),
                       actions: [
                         TextButton(
@@ -782,7 +782,7 @@ class _DashboardHeader extends ConsumerWidget {
                     builder: (context) => AlertDialog(
                       title: const Text('Vincular Todo a Choluteca'),
                       content: const Text(
-                        'Esta acción forzará que todos los locales, usuarios y cobros estén vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada Concepción. ¿Desea proceder?',
+                        'Esta acciÃ³n forzarÃ¡ que todos los locales, usuarios y cobros estÃ©n vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada ConcepciÃ³n. Â¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -810,7 +810,7 @@ class _DashboardHeader extends ConsumerWidget {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Resultado de Vinculación'),
+                            title: const Text('Resultado de VinculaciÃ³n'),
                             content: SingleChildScrollView(child: Text(res)),
                             actions: [
                               TextButton(
@@ -857,11 +857,11 @@ class _DashboardHeader extends ConsumerWidget {
                       children: [
                         Icon(Icons.warning_amber_rounded, color: Colors.orange),
                         SizedBox(width: 8),
-                        Text('Recalcular Estadísticas'),
+                        Text('Recalcular EstadÃ­sticas'),
                       ],
                     ),
                     content: const Text(
-                      'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
+                      'Esta acciÃ³n escanearÃ¡ todos los cobros y locales para reconstruir los contadores globales desde cero. Ãštil si hay desajustes por ediciones manuales. Â¿Desea continuar?',
                     ),
                     actions: [
                       TextButton(
@@ -880,7 +880,7 @@ class _DashboardHeader extends ConsumerWidget {
                   if (!context.mounted) return;
                   try {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Recalculando estadísticas globales...')),
+                      const SnackBar(content: Text('Recalculando estadÃ­sticas globales...')),
                     );
                     
                     final ds = ref.read(statsDatasourceProvider);
@@ -894,7 +894,7 @@ class _DashboardHeader extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('✅ Estadísticas sincronizadas con éxito.'),
+                          content: Text('âœ… EstadÃ­sticas sincronizadas con Ã©xito.'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -905,7 +905,7 @@ class _DashboardHeader extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('❌ Error al recalcular: $e'),
+                          content: Text('âŒ Error al recalcular: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -1002,7 +1002,7 @@ class _PeriodSelector extends ConsumerWidget {
               .setPeriod(DashboardPeriod.mes),
         ),
         _PeriodChip(
-          label: 'Año',
+          label: 'AÃ±o',
           selected: filter.period == DashboardPeriod.anio,
           onSelected: () => ref
               .read(dashboardFilterProvider.notifier)
