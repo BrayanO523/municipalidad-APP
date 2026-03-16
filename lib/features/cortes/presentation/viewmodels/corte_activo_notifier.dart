@@ -80,14 +80,25 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
     double total = 0;
     final List<String> ids = [];
     final Map<String, num> pagosCuotaPorLocal = {};
+    final Set<String> idsLocalesConMovimiento = {};
 
     for (final cobro in cobros) {
-      if (cobro.id != null) ids.add(cobro.id!);
       final monto = (cobro.monto ?? 0).toDouble();
-      final estado = cobro.estado ?? '';
+      final pagoACuota = (cobro.pagoACuota ?? 0).toDouble();
+      final montoAbonadoDeuda = (cobro.montoAbonadoDeuda ?? 0).toDouble();
+      final estado = (cobro.estado ?? '').toLowerCase();
+      final huboMovimientoHoy =
+          monto > 0 ||
+          pagoACuota > 0 ||
+          montoAbonadoDeuda > 0 ||
+          estado == 'cobrado_saldo';
 
-      // Dinero físico recaudado
-      if (estado == 'cobrado' || estado == 'cobrado_saldo') {
+      if (huboMovimientoHoy && cobro.id != null) {
+        ids.add(cobro.id!);
+      }
+
+      // Dinero físico recaudado del día. Un abono parcial también cuenta.
+      if (monto > 0) {
         total += monto;
       }
 
@@ -96,6 +107,9 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       if (lid != null) {
         pagosCuotaPorLocal[lid] =
             (pagosCuotaPorLocal[lid] ?? 0) + (cobro.pagoACuota ?? 0);
+        if (huboMovimientoHoy) {
+          idsLocalesConMovimiento.add(lid);
+        }
       }
     }
 
@@ -119,34 +133,33 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       final pagoCuotaL = pagosCuotaPorLocal[local.id] ?? 0;
       final saldoFavor = local.saldoAFavor ?? 0;
       final cuota = local.cuotaDiaria ?? 0;
+      final tuvoMovimientoHoy =
+          local.id != null && idsLocalesConMovimiento.contains(local.id);
 
-      if ((pagoCuotaL >= cuota) || (saldoFavor >= cuota)) {
+      if (tuvoMovimientoHoy) {
         cobrados++;
       } else {
         pendientes++;
+        final montoPendiente = (cuota - pagoCuotaL).toDouble();
         listaPendientes.add({
           'localId': local.id ?? '',
           'nombreSocial': local.nombreSocial ?? 'S/N',
-          'montoPendiente': (cuota - pagoCuotaL).toDouble(),
+          'montoPendiente': montoPendiente > 0 ? montoPendiente : 0.0,
           'clave': local.clave ?? '',
           'codigo': local.codigo ?? '',
+          'saldoAFavor': saldoFavor.toDouble(),
+          'tieneSaldoAFavor': saldoFavor > 0,
+          'saldoCubreCuota': cuota > 0 && saldoFavor >= cuota,
         });
       }
     }
 
     // Construir snapshot de gestiones (excluir locales que ya pagaron)
-    final idsLocalesCobrados = <String>{};
-    for (final local in localesActivos) {
-      final pagoCuotaL2 = pagosCuotaPorLocal[local.id] ?? 0;
-      final saldoFavor2 = local.saldoAFavor ?? 0;
-      final cuota2 = local.cuotaDiaria ?? 0;
-      if ((pagoCuotaL2 >= cuota2) || (saldoFavor2 >= cuota2)) {
-        if (local.id != null) idsLocalesCobrados.add(local.id!);
-      }
-    }
-
     final listaGestiones = gestionesHoy
-        .where((g) => g.localId != null && !idsLocalesCobrados.contains(g.localId))
+        .where(
+          (g) =>
+              g.localId != null && !idsLocalesConMovimiento.contains(g.localId),
+        )
         .map((g) {
           final infoLocal = localInfoMap[g.localId] ?? {};
           return <String, dynamic>{
@@ -239,7 +252,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
         municipalidadId: user.municipalidadId ?? '',
         fechaCorte: now,
         totalCobrado: state.total,
-        cantidadRegistros: state.cantidad,
+        cantidadRegistros: state.cobrosIds.length,
         cantidadCobrados: state.cantidadCobrados,
         cantidadPendientes: state.cantidadPendientes,
         cobrosIds: state.cobrosIds,

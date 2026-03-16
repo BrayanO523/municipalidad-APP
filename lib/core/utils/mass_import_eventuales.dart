@@ -44,6 +44,7 @@ class MassImportEventuales {
         'representante': item.nombre,
         'telefonoRepresentante': _defaultTelefono,
         'tipoNegocioId': tipoNegocioId,
+        'clave': '',
         'frecuenciaCobro': _defaultFrecuenciaCobro,
         'deudaAcumulada': 0,
         'saldoAFavor': 0,

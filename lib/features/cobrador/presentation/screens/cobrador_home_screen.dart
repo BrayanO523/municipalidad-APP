@@ -16,6 +16,7 @@ import '../../../locales/presentation/widgets/local_form_dialog.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
+import '../../../../core/utils/visual_debt_utils.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 import '../widgets/deuda_rango_dialog.dart';
@@ -1415,45 +1416,38 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         final idsCuotaCubiertaSet = locales
             .where((l) {
               final pagoCuotaL = pagosCuotaPorLocal[l.id] ?? 0;
-              final saldoFavor = l.saldoAFavor ?? 0;
               final cuota = l.cuotaDiaria ?? 0;
-              // CRITERIO: Un local deja de estar "Pendiente" si la cuota de HOY
-              // está cubierta (por pagos directos a cuota o saldo a favor previo).
-              // Un pago que fue 100% a deuda antigua NO cubre la cuota de hoy.
-              return (pagoCuotaL >= cuota) || (saldoFavor >= cuota);
+              // La cuota del día solo se considera cubierta si hubo pago hoy
+              // aplicado a cuota. El saldo a favor previo no lo mueve a "cobrado"
+              // en UI; debe seguir visible como pendiente hasta que el cobrador
+              // registre el cobro/uso del crédito ese día.
+              return pagoCuotaL >= cuota;
             })
             .map((l) => l.id ?? '')
             .toSet();
 
         // IDs de locales con deuda acumulada
         // IDs que tienen al menos un pago hoy (para UI de la tarjeta - Abono parcial)
-        final idsCobradosHoySet = locales
-            .where((l) => (montosPorLocal[l.id] ?? 0) > 0)
-            .map((l) => l.id ?? '')
+        final idsCobradosHoySet = cobrosHoy
+            .where((c) {
+              final estado = (c.estado ?? '').toLowerCase();
+              return (c.localId != null && routeIds.contains(c.localId)) &&
+                  ((c.monto ?? 0) > 0 ||
+                      (c.pagoACuota ?? 0) > 0 ||
+                      (c.montoAbonadoDeuda ?? 0) > 0 ||
+                      estado == 'cobrado_saldo');
+            })
+            .map((c) => c.localId ?? '')
             .toSet();
 
-        final localesFiltrados = locales.where((l) {
-          final id = l.id ?? '';
-          final cuotaCubiertaHoy = idsCuotaCubiertaSet.contains(id);
-
-          // Filtro por Estado
-          bool pasaFiltroEstado = true;
-          if (_filtroEstado == 'pendientes') {
-            pasaFiltroEstado = !cuotaCubiertaHoy;
-          } else if (_filtroEstado == 'cobrados') {
-            pasaFiltroEstado = cuotaCubiertaHoy;
-          }
-
-          //filtro por frecuencia
+        bool pasaFiltrosSecundarios(dynamic l) {
           final freq = (l.frecuenciaCobro ?? '').toLowerCase();
-          final pasaFrecuncia = !_soloMensuales || freq == 'mensual';
+          final pasaFrecuencia = !_soloMensuales || freq == 'mensual';
 
-          // Filtro por eventuales
           final pasaEventuales =
               !_soloEventuales ||
               ((l.codigo?.isEmpty ?? true) && (l.clave?.isEmpty ?? true));
 
-          // Filtro de Búsqueda
           bool pasaFiltroTexto = true;
           if (_searchQuery.isNotEmpty) {
             final q = _searchQuery.toLowerCase();
@@ -1470,10 +1464,26 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 codigoCatastral.contains(q);
           }
 
-          return pasaFiltroEstado &&
-              pasaFrecuncia &&
-              pasaEventuales &&
-              pasaFiltroTexto;
+          return pasaFrecuencia && pasaEventuales && pasaFiltroTexto;
+        }
+
+        final localesBaseFiltrados = locales
+            .where((l) => pasaFiltrosSecundarios(l))
+            .toList();
+
+        final localesFiltrados = localesBaseFiltrados.where((l) {
+          final id = l.id ?? '';
+          final cobradoHoy = idsCobradosHoySet.contains(id);
+
+          // Filtro por Estado
+          bool pasaFiltroEstado = true;
+          if (_filtroEstado == 'pendientes') {
+            pasaFiltroEstado = !cobradoHoy;
+          } else if (_filtroEstado == 'cobrados') {
+            pasaFiltroEstado = cobradoHoy;
+          }
+
+          return pasaFiltroEstado;
         }).toList();
 
         // Ordenar según el filtro seleccionado
@@ -1491,9 +1501,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           );
         }
 
-        final int pendientesHoyCount =
-            locales.length - idsCuotaCubiertaSet.length;
-        final int cobradosHoyCount = idsCuotaCubiertaSet.length;
+        final int pendientesHoyCount = localesBaseFiltrados
+            .where((l) => !idsCobradosHoySet.contains(l.id ?? ''))
+            .length;
+        final int cobradosHoyCount = localesBaseFiltrados
+            .where((l) => idsCobradosHoySet.contains(l.id ?? ''))
+            .length;
 
         final colorScheme = Theme.of(context).colorScheme;
 
@@ -1913,6 +1926,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           cuotaCubierta: cuotaCubierta,
                           gestionado: gestionado,
                           cobroExistente: ultimoCobro,
+                          cobrosHoy: cobrosHoy,
                           onCobrar: () => _registrarCobro(local, cobrosHoy),
                           onEditar: () => showLocalFormDialog(
                             context,
@@ -2163,7 +2177,7 @@ class _SecondaryFilterOption extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? accentColor.withValues(alpha: 0.18)
@@ -2184,12 +2198,17 @@ class _SecondaryFilterOption extends StatelessWidget {
                 size: 16,
                 color: isSelected ? accentColor : colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? accentColor : colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isSelected ? accentColor : colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -2206,6 +2225,7 @@ class _LocalCard extends StatelessWidget {
   final bool cuotaCubierta;
   final bool gestionado;
   final Cobro? cobroExistente;
+  final List<Cobro> cobrosHoy;
   final VoidCallback onCobrar;
   final VoidCallback? onSinPago;
   final VoidCallback? onIncidencia;
@@ -2221,6 +2241,7 @@ class _LocalCard extends StatelessWidget {
     required this.cuotaCubierta,
     this.gestionado = false,
     required this.cobroExistente,
+    required this.cobrosHoy,
     required this.onCobrar,
     this.onSinPago,
     this.onIncidencia,
@@ -2234,7 +2255,11 @@ class _LocalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final tieneDeuda = (local.deudaAcumulada ?? 0) > 0;
+
+    // -- LÓGICA VISUAL DINÁMICA: Usar VisualDebtUtils como en estado deCuenta --
+    // Esto genera un cobro virtual para hoy si el local no ha pagado y no tiene saldo a favor
+    final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosHoy);
+    final tieneDeuda = deudaVisual > 0;
     final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
     final cardStatusColor = (cuotaCubierta || cobrado)
         ? AppColors.success
@@ -2383,7 +2408,7 @@ class _LocalCard extends StatelessWidget {
                                 _SmallBadge(
                                   icon: Icons.warning_amber_rounded,
                                   label:
-                                      '-${DateFormatter.formatCurrency(local.deudaAcumulada ?? 0)}',
+                                      '-${DateFormatter.formatCurrency(deudaVisual)}',
                                   color: AppColors.danger,
                                 ),
                               if (tieneSaldo)

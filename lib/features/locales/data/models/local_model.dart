@@ -53,9 +53,11 @@ class LocalJson extends Local {
     }
 
     String? clave = json['clave'];
-    if (clave == null && (docId ?? json['id']) != null) {
+    final resolvedId = docId ?? json['id'] as String?;
+    final esEventual = (resolvedId ?? '').contains('-eventual-');
+    if (clave == null && resolvedId != null && !esEventual) {
       // Intentar extraer algo útil del ID si no hay clave
-      final idParts = (docId ?? json['id'] as String).split('-');
+      final idParts = resolvedId.split('-');
       if (idParts.length > 1) {
         clave = idParts.last.toUpperCase();
         if (clave.length > 8) clave = clave.substring(0, 8);

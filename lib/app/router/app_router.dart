@@ -35,17 +35,22 @@ import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
 import '../../features/dev/presentation/screens/firestore_viewer_screen.dart';
 import '../../features/dev/presentation/screens/dev_seeder_screen.dart';
+import '../../features/dev/presentation/screens/debug_deuda_manager_screen.dart';
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   // Usamos .select para observar ÚNICAMENTE el estado de carga y el rol.
   // Así evitamos que la aplicación reconstruya el GoRouter (cerrando modales como el recibo)
-  // cuando cambian datos irrelevantes para el ruteo en el currentUsuarioProvider 
+  // cuando cambian datos irrelevantes para el ruteo en el currentUsuarioProvider
   // (por ejemplo, cuando se actualiza el 'correlativoReciboActual' tras un cobro).
-  final isUsuarioLoading = ref.watch(currentUsuarioProvider.select((data) => data.isLoading));
-  final esCobrador = ref.watch(currentUsuarioProvider.select((data) => data.value?.esCobrador));
+  final isUsuarioLoading = ref.watch(
+    currentUsuarioProvider.select((data) => data.isLoading),
+  );
+  final esCobrador = ref.watch(
+    currentUsuarioProvider.select((data) => data.value?.esCobrador),
+  );
 
   return GoRouter(
     initialLocation: '/splash',
@@ -188,7 +193,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/cortes-historial',
             name: 'cortes-historial-admin',
-            builder: (context, state) => const CortesHistorialScreen(isAdmin: true),
+            builder: (context, state) =>
+                const CortesHistorialScreen(isAdmin: true),
           ),
           GoRoute(
             path: '/corte-detalle',
@@ -215,6 +221,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               name: 'dev-seeder',
               builder: (context, state) => const DevSeederScreen(),
             ),
+            GoRoute(
+              path: '/debug-deuda-manager',
+              name: 'debug-deuda-manager',
+              builder: (context, state) => const DebugDeudaManagerScreen(),
+            ),
           ],
         ],
       ),
@@ -235,7 +246,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/cobrador/cortes-historial',
             name: 'cobrador-cortes-historial',
-            builder: (context, state) => const CortesHistorialScreen(isAdmin: false),
+            builder: (context, state) =>
+                const CortesHistorialScreen(isAdmin: false),
           ),
           GoRoute(
             path: '/cobrador/corte-detalle',

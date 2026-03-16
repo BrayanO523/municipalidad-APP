@@ -7,7 +7,8 @@ import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/corte.dart';
-import '../viewmodels/corte_mercado_notifier.dart';
+import '../../../../core/utils/pdf_generator.dart';
+import '../viewmodels/corte_mercado_notifier.dart' as cmn;
 
 class CortesMercadoScreen extends ConsumerWidget {
   const CortesMercadoScreen({super.key});
@@ -58,6 +59,21 @@ class CortesMercadoScreen extends ConsumerWidget {
                 ),
               ),
 
+              // ─── Selector de Fecha ───
+              if (state.mercadoSeleccionado != null)
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isWide ? 32 : 16,
+                    vertical: 8,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: _SelectorFecha(
+                      fechaSeleccionada: state.fechaSeleccionada,
+                      onFechaSeleccionada: notifier.seleccionarFecha,
+                    ),
+                  ),
+                ),
+
               // ─── Contenido dinámico ───
               if (state.mercadoSeleccionado == null)
                 SliverFillRemaining(
@@ -93,7 +109,11 @@ class CortesMercadoScreen extends ConsumerWidget {
                 // ─── Título lista ───
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(
-                      isWide ? 32 : 16, 24, isWide ? 32 : 16, 8),
+                    isWide ? 32 : 16,
+                    24,
+                    isWide ? 32 : 16,
+                    8,
+                  ),
                   sliver: SliverToBoxAdapter(
                     child: Row(
                       children: [
@@ -106,25 +126,31 @@ class CortesMercadoScreen extends ConsumerWidget {
                                 .withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.receipt_long_rounded,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.primary),
+                          child: Icon(
+                            Icons.receipt_long_rounded,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Text(
                             'Cortes de Cobradores del Día',
                             style: TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.bold),
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -132,9 +158,9 @@ class CortesMercadoScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSecondaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSecondaryContainer,
                             ),
                           ),
                         ),
@@ -150,45 +176,141 @@ class CortesMercadoScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: _EmptyState(
                         icon: Icons.inbox_outlined,
-                        title: 'Sin Cortes Hoy',
+                        title: 'Sin Cortes',
                         subtitle:
-                            'Aún no hay cortes de cobradores\nregistrados para este mercado.',
+                            'No hay cortes de cobradores\nregistrados para esta fecha.',
                         compact: true,
                       ),
                     ),
                   )
-                else
+                else ...[
                   SliverPadding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: isWide ? 32 : 16),
+                    padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (ctx, i) => _CorteCobradorTile(
                           corte: state.cortesDelDia[i],
                           index: i,
-                          onTap: () => context.push('/corte-detalle',
-                              extra: state.cortesDelDia[i]),
+                          onTap: () => context.push(
+                            '/corte-detalle',
+                            extra: state.cortesDelDia[i],
+                          ),
                         ),
                         childCount: state.cortesDelDia.length,
                       ),
                     ),
                   ),
 
+                  // ─── Botones de Impresión ───
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isWide ? 32 : 16,
+                      vertical: 16,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _BotonesImpresion(
+                        state: state,
+                        onImprimirTodos: () => _imprimirTodos(context, state),
+                        onImprimirIndividuales: () =>
+                            _imprimirIndividuales(context, state),
+                      ),
+                    ),
+                  ),
+                ],
+
                 // ─── Botón confirmar ───
-                /*
                 SliverPadding(
                   padding: EdgeInsets.all(isWide ? 32 : 16),
                   sliver: SliverToBoxAdapter(
                     child: _BotonCorteMercado(state: state, notifier: notifier),
                   ),
                 ),
-                */
 
                 const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _imprimirTodos(
+    BuildContext context,
+    cmn.CorteMercadoState state,
+  ) async {
+    try {
+      await PdfGenerator.printCorteMercado(
+        state.cortesDelDia,
+        state.mercadoSeleccionado?.nombre ?? 'Mercado',
+        state.fechaSeleccionada,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ PDF de corte de mercado generado')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error al generar PDF: $e')));
+      }
+    }
+  }
+
+  Future<void> _imprimirIndividuales(
+    BuildContext context,
+    cmn.CorteMercadoState state,
+  ) async {
+    // Para impresión individual, mostrar diálogo para seleccionar qué cortes imprimir
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Imprimir Cortes Individuales'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: state.cortesDelDia.length,
+            itemBuilder: (context, index) {
+              final corte = state.cortesDelDia[index];
+              return ListTile(
+                title: Text(corte.cobradorNombre),
+                subtitle: Text('L. ${corte.totalCobrado.toStringAsFixed(2)}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.print),
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    try {
+                      // Para impresión individual, necesitamos obtener los cobros del corte
+                      // Por ahora, mostrar mensaje
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Imprimiendo corte de ${corte.cobradorNombre}...',
+                          ),
+                        ),
+                      );
+                      // TODO: Implementar impresión individual con cobros
+                    } catch (e) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
       ),
     );
   }
@@ -224,9 +346,11 @@ class _EmptyState extends StatelessWidget {
               color: theme.colorScheme.surfaceContainerLow,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon,
-                size: compact ? 40 : 56,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+            child: Icon(
+              icon,
+              size: compact ? 40 : 56,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
           ),
           SizedBox(height: compact ? 12 : 20),
           Text(
@@ -270,9 +394,13 @@ class _ErrorBanner extends StatelessWidget {
           const Icon(Icons.error_outline, color: AppColors.danger, size: 20),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(message,
-                style: const TextStyle(
-                    color: AppColors.danger, fontWeight: FontWeight.w600)),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -298,8 +426,9 @@ class _SelectorMercado extends StatelessWidget {
     }
 
     final selectedId = seleccionado?.id;
-    final idValido =
-        mercados.any((m) => m.id == selectedId) ? selectedId : null;
+    final idValido = mercados.any((m) => m.id == selectedId)
+        ? selectedId
+        : null;
     final theme = Theme.of(context);
 
     return Container(
@@ -307,19 +436,25 @@ class _SelectorMercado extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.storefront_rounded,
-                  size: 20, color: theme.colorScheme.primary),
+              Icon(
+                Icons.storefront_rounded,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(width: 8),
-              const Text('Seleccionar Mercado',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Text(
+                'Seleccionar Mercado',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -328,18 +463,23 @@ class _SelectorMercado extends StatelessWidget {
             hint: const Text('Elige un mercado'),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               filled: true,
               fillColor: theme.colorScheme.surfaceContainerLow,
             ),
             items: mercados
-                .map((m) => DropdownMenuItem<String>(
-                      value: m.id,
-                      child: Text(m.nombre ?? 'Sin nombre'),
-                    ))
+                .map(
+                  (m) => DropdownMenuItem<String>(
+                    value: m.id,
+                    child: Text(m.nombre ?? 'Sin nombre'),
+                  ),
+                )
                 .toList(),
             onChanged: (id) {
               if (id != null) {
@@ -355,7 +495,7 @@ class _SelectorMercado extends StatelessWidget {
 }
 
 class _ResumenCard extends StatelessWidget {
-  final CorteMercadoState state;
+  final cmn.CorteMercadoState state;
   final bool isWide;
 
   const _ResumenCard({required this.state, required this.isWide});
@@ -414,18 +554,20 @@ class _ResumenCard extends StatelessWidget {
                 large: true,
               ),
               Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white.withValues(alpha: 0.2)),
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.2),
+              ),
               _StatItem(
                 icon: Icons.receipt_outlined,
                 value: '${state.cantidadCobros}',
                 label: 'Cobros',
               ),
               Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white.withValues(alpha: 0.2)),
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.2),
+              ),
               _StatItem(
                 icon: Icons.people_outline_rounded,
                 value: '${state.cortesDelDia.length}',
@@ -499,7 +641,8 @@ class _CorteCobradorTile extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -535,7 +678,9 @@ class _CorteCobradorTile extends StatelessWidget {
                       Text(
                         corte.cobradorNombre,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -543,8 +688,9 @@ class _CorteCobradorTile extends StatelessWidget {
                         '${DateFormat('hh:mm a').format(corte.fechaCorte)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                     ],
@@ -559,10 +705,11 @@ class _CorteCobradorTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded,
-                    size: 20,
-                    color:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                ),
               ],
             ),
           ),
@@ -572,10 +719,9 @@ class _CorteCobradorTile extends StatelessWidget {
   }
 }
 
-/*
 class _BotonCorteMercado extends StatelessWidget {
-  final CorteMercadoState state;
-  final CorteMercadoNotifier notifier;
+  final cmn.CorteMercadoState state;
+  final cmn.CorteMercadoNotifier notifier;
 
   const _BotonCorteMercado({required this.state, required this.notifier});
 
@@ -618,8 +764,9 @@ class _BotonCorteMercado extends StatelessWidget {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Theme.of(context).colorScheme.onPrimary),
+                  strokeWidth: 2,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               )
             : const Icon(Icons.store_rounded),
         label: Text(
@@ -630,8 +777,9 @@ class _BotonCorteMercado extends StatelessWidget {
         ),
         onPressed: puedeRealizar ? () => _confirmar(context) : null,
         style: FilledButton.styleFrom(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );
@@ -674,4 +822,192 @@ class _BotonCorteMercado extends StatelessWidget {
     );
   }
 }
-*/
+
+class _SelectorFecha extends StatelessWidget {
+  final DateTime fechaSeleccionada;
+  final Function(DateTime) onFechaSeleccionada;
+
+  const _SelectorFecha({
+    required this.fechaSeleccionada,
+    required this.onFechaSeleccionada,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Fecha de Cortes',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _FechaButton(
+              label: 'Ayer',
+              fecha: now.subtract(const Duration(days: 1)),
+              seleccionada: _isSameDate(
+                fechaSeleccionada,
+                now.subtract(const Duration(days: 1)),
+              ),
+              onTap: () =>
+                  onFechaSeleccionada(now.subtract(const Duration(days: 1))),
+            ),
+            const SizedBox(width: 8),
+            _FechaButton(
+              label: 'Hoy',
+              fecha: now,
+              seleccionada: _isSameDate(fechaSeleccionada, now),
+              onTap: () => onFechaSeleccionada(now),
+            ),
+            const SizedBox(width: 8),
+            _FechaButton(
+              label: 'Mañana',
+              fecha: now.add(const Duration(days: 1)),
+              seleccionada: _isSameDate(
+                fechaSeleccionada,
+                now.add(const Duration(days: 1)),
+              ),
+              onTap: () =>
+                  onFechaSeleccionada(now.add(const Duration(days: 1))),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.calendar_today, size: 18),
+                label: Text(DateFormat('dd/MM/yyyy').format(fechaSeleccionada)),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: fechaSeleccionada,
+                    firstDate: now.subtract(const Duration(days: 30)),
+                    lastDate: now.add(const Duration(days: 30)),
+                  );
+                  if (picked != null) {
+                    onFechaSeleccionada(picked);
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+class _FechaButton extends StatelessWidget {
+  final String label;
+  final DateTime fecha;
+  final bool seleccionada;
+  final VoidCallback onTap;
+
+  const _FechaButton({
+    required this.label,
+    required this.fecha,
+    required this.seleccionada,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FilledButton(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: seleccionada
+            ? theme.colorScheme.primary
+            : theme.colorScheme.surfaceContainerHighest,
+        foregroundColor: seleccionada
+            ? theme.colorScheme.onPrimary
+            : theme.colorScheme.onSurface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 14)),
+    );
+  }
+}
+
+class _BotonesImpresion extends StatelessWidget {
+  final cmn.CorteMercadoState state;
+  final VoidCallback onImprimirTodos;
+  final VoidCallback onImprimirIndividuales;
+
+  const _BotonesImpresion({
+    required this.state,
+    required this.onImprimirTodos,
+    required this.onImprimirIndividuales,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Imprimir Cortes',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.print, size: 18),
+                label: const Text('Imprimir Todos'),
+                onPressed: state.cortesDelDia.isNotEmpty
+                    ? onImprimirTodos
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.print, size: 18),
+                label: const Text('Imprimir Individuales'),
+                onPressed: state.cortesDelDia.isNotEmpty
+                    ? onImprimirIndividuales
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

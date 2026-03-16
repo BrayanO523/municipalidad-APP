@@ -16,12 +16,22 @@ class ReportesResumenState {
     this.isLoading = false,
   });
 
+  bool _esCobroConEfectivo(Cobro cobro) {
+    final estado = (cobro.estado ?? '').toLowerCase();
+    return (cobro.monto ?? 0) > 0 && estado != 'cobrado_saldo';
+  }
+
+  bool _esPendienteActivo(Cobro cobro) {
+    final estado = (cobro.estado ?? '').toLowerCase();
+    return estado == 'pendiente' || estado == 'abono_parcial';
+  }
+
   num get totalCobrado => cobros
-      .where((c) => c.estado == 'cobrado' || c.estado == 'cobrado_saldo')
+      .where(_esCobroConEfectivo)
       .fold<num>(0, (s, c) => s + (c.monto ?? 0));
 
   num get totalPendiente => cobros
-      .where((c) => c.estado == 'pendiente')
+      .where(_esPendienteActivo)
       .fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
 
   num get totalMora => locales.fold<num>(0, (s, l) => s + (l.deudaAcumulada ?? 0));

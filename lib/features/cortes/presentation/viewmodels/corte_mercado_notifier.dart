@@ -11,6 +11,7 @@ class CorteMercadoState {
   final bool isLoading;
   final String? error;
   final Mercado? mercadoSeleccionado;
+  final DateTime fechaSeleccionada;
   final List<Corte> cortesDelDia;
   final bool yaRealizadoHoy;
   final bool exitoAlRealizar;
@@ -19,6 +20,7 @@ class CorteMercadoState {
     this.isLoading = false,
     this.error,
     this.mercadoSeleccionado,
+    required this.fechaSeleccionada,
     this.cortesDelDia = const [],
     this.yaRealizadoHoy = false,
     this.exitoAlRealizar = false,
@@ -43,6 +45,7 @@ class CorteMercadoState {
     bool? isLoading,
     String? error,
     Mercado? mercadoSeleccionado,
+    DateTime? fechaSeleccionada,
     List<Corte>? cortesDelDia,
     bool? yaRealizadoHoy,
     bool? exitoAlRealizar,
@@ -52,6 +55,7 @@ class CorteMercadoState {
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       mercadoSeleccionado: mercadoSeleccionado ?? this.mercadoSeleccionado,
+      fechaSeleccionada: fechaSeleccionada ?? this.fechaSeleccionada,
       cortesDelDia: cortesDelDia ?? this.cortesDelDia,
       yaRealizadoHoy: yaRealizadoHoy ?? this.yaRealizadoHoy,
       exitoAlRealizar: exitoAlRealizar ?? this.exitoAlRealizar,
@@ -68,7 +72,7 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
   @override
   CorteMercadoState build() {
     ref.onDispose(() => _subscription?.cancel());
-    return const CorteMercadoState();
+    return CorteMercadoState(fechaSeleccionada: DateTime.now());
   }
 
   /// Selecciona un mercado y se suscribe al stream de cortes del día en tiempo real.
@@ -77,9 +81,22 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
     await _subscription?.cancel();
     _subscription = null;
 
-    state = CorteMercadoState(
-      mercadoSeleccionado: mercado,
+    state = state.copyWith(mercadoSeleccionado: mercado, isLoading: true);
+    await _suscribirStream(mercado);
+  }
+
+  /// Cambia la fecha seleccionada y recarga los cortes.
+  Future<void> seleccionarFecha(DateTime fecha) async {
+    final mercado = state.mercadoSeleccionado;
+    if (mercado == null) return;
+
+    await _subscription?.cancel();
+    _subscription = null;
+
+    state = state.copyWith(
+      fechaSeleccionada: fecha,
       isLoading: true,
+      clearError: true,
     );
     await _suscribirStream(mercado);
   }
@@ -103,35 +120,42 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
 
       final repo = ref.read(corteRepositoryProvider);
       final now = DateTime.now();
+      final fecha = state.fechaSeleccionada;
 
-      // Verificar si ya realizó corte de mercado hoy
-      final existeResult = await repo.existeCorteMercadoHoy(
-        mercadoId: mercado.id!,
-        municipalidadId: user.municipalidadId ?? '',
-        fecha: now,
-      );
-      final yaRealizado = existeResult.getOrElse((_) => false);
+      // Verificar si ya realizó corte de mercado hoy (solo si la fecha seleccionada es hoy)
+      final yaRealizado =
+          fecha.year == now.year &&
+              fecha.month == now.month &&
+              fecha.day == now.day
+          ? (await repo.existeCorteMercadoHoy(
+              mercadoId: mercado.id!,
+              municipalidadId: user.municipalidadId ?? '',
+              fecha: now,
+            )).getOrElse((_) => false)
+          : false;
 
       // Suscribirse al stream en tiempo real
-      _subscription = repo.streamCortesDiaPorMercado(
-        mercadoId: mercado.id!,
-        municipalidadId: user.municipalidadId ?? '',
-        fecha: now,
-      ).listen(
-        (cortes) {
-          state = state.copyWith(
-            isLoading: false,
-            cortesDelDia: cortes,
-            yaRealizadoHoy: yaRealizado,
+      _subscription = repo
+          .streamCortesDiaPorMercado(
+            mercadoId: mercado.id!,
+            municipalidadId: user.municipalidadId ?? '',
+            fecha: fecha,
+          )
+          .listen(
+            (cortes) {
+              state = state.copyWith(
+                isLoading: false,
+                cortesDelDia: cortes,
+                yaRealizadoHoy: yaRealizado,
+              );
+            },
+            onError: (e) {
+              state = state.copyWith(
+                isLoading: false,
+                error: 'Error al escuchar cortes: $e',
+              );
+            },
           );
-        },
-        onError: (e) {
-          state = state.copyWith(
-            isLoading: false,
-            error: 'Error al escuchar cortes: $e',
-          );
-        },
-      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -152,7 +176,10 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
     try {
       final user = ref.read(currentUsuarioProvider).value;
       if (user == null) {
-        state = state.copyWith(isLoading: false, error: 'Usuario no autenticado.');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Usuario no autenticado.',
+        );
         return false;
       }
 
@@ -208,5 +235,5 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
 
 final corteMercadoProvider =
     NotifierProvider<CorteMercadoNotifier, CorteMercadoState>(
-  CorteMercadoNotifier.new,
-);
+      CorteMercadoNotifier.new,
+    );

@@ -7,7 +7,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../features/cobros/data/services/deuda_service.dart';
 
-
 import '../../core/utils/date_formatter.dart';
 import '../../features/cobros/data/datasources/cobro_datasource.dart';
 import '../../features/cobros/domain/entities/cobro.dart';
@@ -25,6 +24,7 @@ import '../../features/cortes/data/datasources/corte_datasource.dart';
 import '../../features/cortes/domain/repositories/corte_repository.dart';
 import '../../features/cortes/data/repositories/corte_repository_impl.dart';
 import '../../features/cortes/domain/entities/corte.dart';
+import '../../features/cortes/presentation/viewmodels/corte_mercado_notifier.dart';
 import '../../features/dashboard/data/datasources/stats_datasource.dart';
 import '../../features/gestiones/data/datasources/gestion_datasource.dart';
 import '../../features/gestiones/domain/entities/gestion.dart';
@@ -78,16 +78,18 @@ final firebaseStorageProvider = Provider<FirebaseStorage>(
 
 // â”€â”€ App Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-final appUpdateRemoteDatasourceProvider =
-    Provider<AppUpdateRemoteDatasource>((ref) {
+final appUpdateRemoteDatasourceProvider = Provider<AppUpdateRemoteDatasource>((
+  ref,
+) {
   return AppUpdateRemoteDatasource(
     ref.read(firestoreProvider),
     ref.read(firebaseStorageProvider),
   );
 });
 
-final appUpdateLocalDatasourceProvider =
-    Provider<AppUpdateLocalDatasource>((ref) {
+final appUpdateLocalDatasourceProvider = Provider<AppUpdateLocalDatasource>((
+  ref,
+) {
   return AppUpdateLocalDatasource();
 });
 
@@ -197,7 +199,6 @@ final deudaServiceProvider = Provider<DeudaService>((ref) {
   );
 });
 
-
 // Repositories
 final localRepositoryProvider = Provider<LocalRepository>((ref) {
   return LocalRepositoryImpl(
@@ -236,9 +237,7 @@ final cobroRepositoryProvider = Provider<CobroRepository>((ref) {
 });
 
 final corteRepositoryProvider = Provider<CorteRepository>((ref) {
-  return CorteRepositoryImpl(
-    ref.read(corteDatasourceProvider),
-  );
+  return CorteRepositoryImpl(ref.read(corteDatasourceProvider));
 });
 
 // Data providers (fetchers)
@@ -282,7 +281,7 @@ final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
   final ds = ref.read(localDatasourceProvider);
 
   if (user == null || user.municipalidadId == null) {
-     return Stream.value([]);
+    return Stream.value([]);
   }
 
   // AISLAMIENTO: Si es cobrador, usar la lógica restrictiva de localesCobradorProvider
@@ -290,18 +289,18 @@ final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
     if (user.mercadoId == null || user.mercadoId!.isEmpty) {
       return Stream.value([]);
     }
-    
+
     // RESTRICCIÓN ESTRICTA: Si es cobrador y no tiene ruta asignada,
     // devolver lista vacía. Bajo NINGUNA circunstancia puede ver locales ajenos.
     if (user.rutaAsignada == null || user.rutaAsignada!.isEmpty) {
       return Stream.value([]);
     }
-    
+
     return ds.streamPorMercado(user.mercadoId!).map((locales) {
       if (user.rutaAsignada != null && user.rutaAsignada!.isNotEmpty) {
         return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
       }
-      return locales; 
+      return locales;
     });
   }
 
@@ -309,7 +308,9 @@ final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
   return ds.streamPorMunicipalidad(user.municipalidadId!);
 });
 
-final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((ref) {
+final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((
+  ref,
+) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(tipoNegocioDatasourceProvider);
   if (user?.municipalidadId != null) {
@@ -318,11 +319,10 @@ final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((ref)
   return ds.streamTodos();
 });
 
-
-
 final statsProvider = StreamProvider<StatsModel>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
-  if (user == null || user.municipalidadId == null) return Stream.value(StatsModel());
+  if (user == null || user.municipalidadId == null)
+    return Stream.value(StatsModel());
   final ds = ref.read(statsDatasourceProvider);
   return ds.streamStats(user.municipalidadId!);
 });
@@ -352,11 +352,13 @@ final cobrosFiltradosProvider = StreamProvider<List<Cobro>>((ref) {
   final hoy = DateTime(now.year, now.month, now.day);
   final rangoEfectivo = rango ?? DateTimeRange(start: hoy, end: hoy);
 
-  return Stream.fromFuture(ds.listarPorRangoFechas(
-    rangoEfectivo.start,
-    rangoEfectivo.end,
-    municipalidadId: user?.municipalidadId,
-  ));
+  return Stream.fromFuture(
+    ds.listarPorRangoFechas(
+      rangoEfectivo.start,
+      rangoEfectivo.end,
+      municipalidadId: user?.municipalidadId,
+    ),
+  );
 });
 
 enum DashboardPeriod { hoy, semana, mes, anio, personalizado }
@@ -501,13 +503,15 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
     // Para rangos históricos, usamos listarPorRangoFechas (atómico)
     // Stream.fromFuture convierte el Future en un Stream que emite una vez y cierra.
     return Stream.fromFuture(
-      ds.listarPorRangoFechas(
-        filter.range.start,
-        filter.range.end,
-        municipalidadId: user.municipalidadId,
-        mercadoId: mercadoIdParam,
-        cobradorId: cobradorIdParam,
-      ).then((list) => list.cast<Cobro>()),
+      ds
+          .listarPorRangoFechas(
+            filter.range.start,
+            filter.range.end,
+            municipalidadId: user.municipalidadId,
+            mercadoId: mercadoIdParam,
+            cobradorId: cobradorIdParam,
+          )
+          .then((list) => list.cast<Cobro>()),
     );
   }
 });
@@ -518,19 +522,21 @@ final usuariosProvider = StreamProvider.autoDispose<List<Usuario>>((ref) {
   return ds.streamTodos(municipalidadId: user?.municipalidadId);
 });
 
-final localStreamProvider = StreamProvider.autoDispose.family<Local?, String>((ref, id) {
+final localStreamProvider = StreamProvider.autoDispose.family<Local?, String>((
+  ref,
+  id,
+) {
   final ds = ref.read(localDatasourceProvider);
   return ds.streamPorId(id);
 });
 
-final localCobrosStreamProvider = StreamProvider.autoDispose.family<List<Cobro>, String>(
-  (ref, id) {
-    final ds = ref.read(cobroDatasourceProvider);
-    // Límite de 100 cobros para evitar descargar años de historial completo.
-    // En la pantalla de historial se usa paginación si se necesitan más.
-    return ds.streamPorLocal(id, limite: 100);
-  },
-);
+final localCobrosStreamProvider = StreamProvider.autoDispose
+    .family<List<Cobro>, String>((ref, id) {
+      final ds = ref.read(cobroDatasourceProvider);
+      // Límite de 100 cobros para evitar descargar años de historial completo.
+      // En la pantalla de historial se usa paginación si se necesitan más.
+      return ds.streamPorLocal(id, limite: 100);
+    });
 
 final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
@@ -543,15 +549,15 @@ final localesCobradorProvider = StreamProvider<List<Local>>((ref) {
     if (user.rutaAsignada == null || user.rutaAsignada!.isEmpty) {
       return Stream.value([]);
     }
-    
+
     // Si tiene ruta y mercado asignado, obtenemos y filtramos.
     if (user.mercadoId != null) {
       return ds.streamPorMercado(user.mercadoId!).map((locales) {
         return locales.where((l) => user.rutaAsignada!.contains(l.id)).toList();
       });
     }
-    
-    // Fallback: si milagrosamente no tuviese mercado asignado pero *sí* tiene rutas 
+
+    // Fallback: si milagrosamente no tuviese mercado asignado pero *sí* tiene rutas
     // (muy improbable pero técnicamente posible por DB manual).
     if (user.municipalidadId != null) {
       return ds.streamPorMunicipalidad(user.municipalidadId!).map((locales) {
@@ -625,12 +631,22 @@ final cortesHistorialCobradorProvider = StreamProvider<List<Corte>>((ref) {
   return repo.streamPorCobrador(user.id!);
 });
 
-final cortesHoyCobradorStreamProvider = StreamProvider.autoDispose<List<Corte>>((ref) {
-  final user = ref.watch(currentUsuarioProvider).value;
-  if (user == null || user.id == null) return Stream.value([]);
-  final repo = ref.read(corteRepositoryProvider);
-  return repo.streamCortesDiaPorCobrador(
-    cobradorId: user.id!,
-    fecha: DateTime.now(),
-  );
-});
+final cortesHoyCobradorStreamProvider = StreamProvider.autoDispose<List<Corte>>(
+  (ref) {
+    final user = ref.watch(currentUsuarioProvider).value;
+    if (user == null || user.id == null) return Stream.value([]);
+    final repo = ref.read(corteRepositoryProvider);
+    return repo.streamCortesDiaPorCobrador(
+      cobradorId: user.id!,
+      fecha: DateTime.now(),
+    );
+  },
+);
+
+// ───────────────────────────────────────────────────────────────
+// Corte de Mercado
+// ───────────────────────────────────────────────────────────────
+final corteMercadoProvider =
+    NotifierProvider<CorteMercadoNotifier, CorteMercadoState>(
+      CorteMercadoNotifier.new,
+    );

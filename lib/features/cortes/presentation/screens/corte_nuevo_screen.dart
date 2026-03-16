@@ -76,7 +76,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            '${state.cantidad} cobros registrados',
+                            '${state.cobrosIds.length} movimientos registrados',
                             style: TextStyle(
                               fontSize: 16,
                               color: cs.onSurface.withValues(alpha: 0.7),
@@ -381,7 +381,7 @@ class _SliverDesglose extends ConsumerWidget {
           // ── COBRADOS ──
           if (cobrosIds.isNotEmpty) ...[
             _SectionHeader(
-              title: 'Cobrados (${cobrosAsync?.value?.length ?? 0})',
+              title: 'Cobros y Abonos (${cobrosAsync?.value?.length ?? 0})',
               color: AppColors.success,
             ),
             if (cobrosAsync != null)
@@ -489,9 +489,14 @@ class _CobroTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cobro = item.cobro;
     final theme = Theme.of(context);
-    final esCobrado =
-        cobro.estado == 'cobrado' || cobro.estado == 'cobrado_saldo';
-    final statusColor = esCobrado ? AppColors.success : AppColors.warning;
+    final estado = (cobro.estado ?? '').toLowerCase();
+    final esCobrado = estado == 'cobrado' || estado == 'cobrado_saldo';
+    final esAbonoParcial = estado == 'abono_parcial';
+    final statusColor = esCobrado
+        ? AppColors.success
+        : esAbonoParcial
+        ? const Color(0xFFE67E22)
+        : AppColors.warning;
 
     return Card(
       elevation: 0,
@@ -506,7 +511,11 @@ class _CobroTile extends StatelessWidget {
           radius: 18,
           backgroundColor: statusColor.withValues(alpha: 0.12),
           child: Icon(
-            esCobrado ? Icons.check_circle : Icons.schedule,
+            esCobrado
+                ? Icons.check_circle
+                : esAbonoParcial
+                ? Icons.paid_rounded
+                : Icons.schedule,
             size: 20,
             color: statusColor,
           ),
@@ -563,6 +572,9 @@ class _PendienteTile extends StatelessWidget {
     final clave = info['clave'] as String? ?? '';
     final codigo = info['codigo'] as String? ?? '';
     final montoPendiente = (info['montoPendiente'] as num?)?.toDouble() ?? 0;
+    final saldoAFavor = (info['saldoAFavor'] as num?)?.toDouble() ?? 0;
+    final tieneSaldoAFavor = info['tieneSaldoAFavor'] == true;
+    final saldoCubreCuota = info['saldoCubreCuota'] == true;
     final theme = Theme.of(context);
 
     return Card(
@@ -587,7 +599,11 @@ class _PendienteTile extends StatelessWidget {
           [
             if (codigo.isNotEmpty) 'Cód: $codigo',
             if (clave.isNotEmpty) 'Clave: $clave',
-            'Cuota pendiente'
+            'Cuota pendiente',
+            if (tieneSaldoAFavor)
+              saldoCubreCuota
+                  ? 'Saldo a favor cubre la cuota'
+                  : 'Saldo a favor: L. ${saldoAFavor.toStringAsFixed(2)}',
           ].join(' • '),
           style: TextStyle(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),

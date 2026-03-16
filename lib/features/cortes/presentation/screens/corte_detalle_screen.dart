@@ -45,8 +45,13 @@ class CorteDetalleScreen extends ConsumerWidget {
 
   const CorteDetalleScreen({super.key, required this.corte});
 
-  static bool _esCobrado(String? estado) =>
-      estado == 'cobrado' || estado == 'cobrado_saldo';
+  static bool _esMovimiento(Cobro cobro) {
+    final estado = (cobro.estado ?? '').toLowerCase();
+    return (cobro.monto ?? 0) > 0 ||
+        (cobro.pagoACuota ?? 0) > 0 ||
+        (cobro.montoAbonadoDeuda ?? 0) > 0 ||
+        estado == 'cobrado_saldo';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -120,10 +125,8 @@ class CorteDetalleScreen extends ConsumerWidget {
                     );
                   }
 
-                  // Solo cobrados (pendientes vienen de corte.pendientesInfo)
-                  final cobrados = items
-                      .where((i) => _esCobrado(i.cobro.estado))
-                      .toList();
+                  final cobrados =
+                      items.where((i) => _esMovimiento(i.cobro)).toList();
 
                   final totalCobrados = cobrados.fold<double>(
                       0, (s, i) => s + (i.cobro.monto ?? 0).toDouble());
@@ -159,7 +162,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                         // ── Cobrados ──
                         if (cobrados.isNotEmpty) ...[
                           _BoletasSection(
-                            titulo: 'Cobradas (${cobrados.length})',
+                            titulo: 'Cobros y Abonos (${cobrados.length})',
                             color: AppColors.success,
                             items: cobrados,
                             subtotal: totalCobrados,
@@ -499,8 +502,10 @@ class _BoletasSection extends StatelessWidget {
     required this.isWide,
   });
 
-  static bool _esCobrado(String? estado) =>
-      estado == 'cobrado' || estado == 'cobrado_saldo';
+  static bool _esCobrado(Cobro cobro) {
+    final estado = (cobro.estado ?? '').toLowerCase();
+    return estado == 'cobrado' || estado == 'cobrado_saldo';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -613,12 +618,15 @@ class _BoletasSection extends StatelessWidget {
         rows: List.generate(items.length, (i) {
           final item = items[i];
           final cobro = item.cobro;
-          final esCobrado = _esCobrado(cobro.estado);
-          final statusColor =
-              esCobrado ? AppColors.success : AppColors.warning;
-          final monto = esCobrado
-              ? (cobro.monto ?? 0).toDouble()
-              : (cobro.cuotaDiaria ?? cobro.monto ?? 0).toDouble();
+          final estado = (cobro.estado ?? '').toLowerCase();
+          final esCobrado = _esCobrado(cobro);
+          final esAbonoParcial = estado == 'abono_parcial';
+          final statusColor = esCobrado
+              ? AppColors.success
+              : esAbonoParcial
+              ? const Color(0xFFE67E22)
+              : AppColors.warning;
+          final monto = (cobro.monto ?? 0).toDouble();
 
           return DataRow(cells: [
             DataCell(Text('${i + 1}',
@@ -654,7 +662,11 @@ class _BoletasSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  esCobrado ? 'COBRADO' : 'PENDIENTE',
+                  esCobrado
+                      ? 'COBRADO'
+                      : esAbonoParcial
+                      ? 'ABONO'
+                      : (cobro.estado ?? 'PENDIENTE').toUpperCase(),
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
@@ -685,12 +697,15 @@ class _BoletasSection extends StatelessWidget {
       itemBuilder: (context, i) {
         final item = items[i];
         final cobro = item.cobro;
-        final esCobrado = _esCobrado(cobro.estado);
-        final statusColor =
-            esCobrado ? AppColors.success : AppColors.warning;
-        final monto = esCobrado
-            ? (cobro.monto ?? 0).toDouble()
-            : (cobro.cuotaDiaria ?? cobro.monto ?? 0).toDouble();
+        final estado = (cobro.estado ?? '').toLowerCase();
+        final esCobrado = _esCobrado(cobro);
+        final esAbonoParcial = estado == 'abono_parcial';
+        final statusColor = esCobrado
+            ? AppColors.success
+            : esAbonoParcial
+            ? const Color(0xFFE67E22)
+            : AppColors.warning;
+        final monto = (cobro.monto ?? 0).toDouble();
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -705,7 +720,11 @@ class _BoletasSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  esCobrado ? Icons.check_circle : Icons.schedule,
+                  esCobrado
+                      ? Icons.check_circle
+                      : esAbonoParcial
+                      ? Icons.paid_rounded
+                      : Icons.schedule,
                   size: 18,
                   color: statusColor,
                 ),
@@ -820,6 +839,10 @@ class _PendientesInfoSection extends StatelessWidget {
             final codigo = info['codigo'] as String? ?? '';
             final monto =
                 (info['montoPendiente'] as num?)?.toDouble() ?? 0;
+            final saldoAFavor =
+                (info['saldoAFavor'] as num?)?.toDouble() ?? 0;
+            final tieneSaldoAFavor = info['tieneSaldoAFavor'] == true;
+            final saldoCubreCuota = info['saldoCubreCuota'] == true;
 
             return Padding(
               padding:
@@ -857,6 +880,21 @@ class _PendientesInfoSection extends StatelessWidget {
                               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        if (tieneSaldoAFavor)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              saldoCubreCuota
+                                  ? 'Tiene saldo a favor suficiente; falta registrar el cobro con saldo.'
+                                  : 'Saldo a favor disponible: L. ${saldoAFavor.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.teal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                       ],
                     ),

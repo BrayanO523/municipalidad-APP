@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 
@@ -113,7 +112,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
   void _moverSeleccion(int delta, List<Local> localesActuales) {
     if (localesActuales.isEmpty) return;
-    
+
     // Si no hay nada seleccionado y presionas una flecha, selecciona el primero
     if (_localSeleccionado == null) {
       if (delta > 0) {
@@ -122,16 +121,18 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       return;
     }
 
-    final currentIndex = localesActuales.indexWhere((l) => l.id == _localSeleccionado!.id);
-    
+    final currentIndex = localesActuales.indexWhere(
+      (l) => l.id == _localSeleccionado!.id,
+    );
+
     // Si por alguna razÃ³n el local seleccionado no estÃ¡ en la pÃ¡gina actual o falla, seleccionamos el 0
     if (currentIndex == -1) {
-       setState(() => _localSeleccionado = localesActuales.first);
-       return;
+      setState(() => _localSeleccionado = localesActuales.first);
+      return;
     }
 
     final int nextIndex = currentIndex + delta;
-    
+
     // Limitar al rango de la lista
     if (nextIndex >= 0 && nextIndex < localesActuales.length) {
       setState(() {
@@ -139,7 +140,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       });
     }
   }
-
 
   Widget _buildFiltros(BuildContext context) {
     final user = ref.watch(currentUsuarioProvider).value;
@@ -162,55 +162,32 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             final isWide = constraints.maxWidth > 1100;
             final isMobile = constraints.maxWidth < 500;
 
+            // Ancho fijo para cada filtro
+            const filterWidth = 200.0;
+
             final List<Widget> filterContent = [
-              // 1. TÃ­tulo y SubtÃ­tulo integrados
+              // Título
               if (isWide)
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Locales Comerciales',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        state.mercadoSeleccionadoId != null
-                            ? 'PÃ¡g. ${state.paginaActual} Â· ${state.locales.length} locales'
-                            : 'Selecciona un mercado...',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                )
-              else
                 SizedBox(
-                  width: isMobile ? double.infinity : 200,
+                  width: 180,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Locales Comerciales',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         state.mercadoSeleccionadoId != null
-                            ? 'PÃ¡g. ${state.paginaActual} Â· ${state.locales.length} locales'
+                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
                             : 'Selecciona un mercado...',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -218,49 +195,34 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     ],
                   ),
                 ),
-              
-              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
 
-              // 2. Filtro JerÃ¡rquico: selector de mercado con bÃºsqueda integrada.
-              if (isWide) Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId))
-              else SizedBox(width: isMobile ? double.infinity : 220, child: _buildMercadoDropdown(context, municipalidadId)),
+              // Mercado
+              SizedBox(
+                width: isMobile ? double.infinity : filterWidth,
+                child: _buildMercadoDropdown(context, municipalidadId),
+              ),
 
-              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
+              // Cobrador
+              if (!(user?.esCobrador ?? true))
+                SizedBox(
+                  width: isMobile ? double.infinity : filterWidth,
+                  child: _buildUsuarioFilter(context, state),
+                ),
 
-              // 2.1 Filtro por Cobrador (GestiÃ³n)
-              if (!(user?.esCobrador ?? true)) ...[
-                if (isWide)
-                  Expanded(flex: 3, child: _buildUsuarioFilter(context, state))
-                else
-                  SizedBox(
-                    width: isMobile ? double.infinity : 220,
-                    child: _buildUsuarioFilter(context, state),
-                  ),
-                if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
-              ],
+              // Búsqueda local
+              SizedBox(
+                width: isMobile ? double.infinity : filterWidth,
+                child: _buildLocalSearch(context, municipalidadId),
+              ),
 
-              // Buscador por nombre de local (Autocomplete nativo - compatible con Web).
-              if (isWide) Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId))
-              else SizedBox(width: isMobile ? double.infinity : 220, child: _buildLocalSearch(context, municipalidadId)),
+              // Estado
+              SizedBox(
+                width: isMobile ? double.infinity : 140,
+                child: _buildFiltroEstado(context, state),
+              ),
 
-              if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
-
-              // Filtro de Deuda / Saldos
-              _buildFiltroEstado(context, state),
-
-              if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
-
-              // BotÃ³n de limpiar filtros.
+              // Botón limpiar
               IconButton(
-                onPressed: () {
-                  setState(() {
-                    _mercadoSeleccionado = null;
-                    _localSeleccionado = null;
-                    _searchKey = UniqueKey(); // Fuerza reset del Autocomplete UI
-                  });
-                  _debounce?.cancel();
-                  ref.read(localesPaginadosProvider.notifier).recargar();
-                },
                 icon: const Icon(Icons.filter_list_off_rounded),
                 tooltip: 'Limpiar filtros',
                 style: IconButton.styleFrom(
@@ -271,48 +233,73 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
+                onPressed: () {
+                  setState(() {
+                    _mercadoSeleccionado = null;
+                    _localSeleccionado = null;
+                    _searchKey = UniqueKey();
+                  });
+                  _debounce?.cancel();
+                  ref.read(localesPaginadosProvider.notifier).recargar();
+                },
               ),
 
-              if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
-
+              // Exportar CSV
               if (kIsWeb)
-                ElevatedButton.icon(
-                  onPressed: _isExportingCsv ? null : () => _exportarCsvWeb(context),
-                  icon: const Icon(Icons.download_rounded, size: 20),
-                  label: Text(_isExportingCsv ? 'Exportando...' : 'Exportar CSV'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                SizedBox(
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: _isExportingCsv
+                        ? null
+                        : () => _exportarCsvWeb(context),
+                    icon: const Icon(Icons.download_rounded, size: 18),
+                    label: Text(
+                      _isExportingCsv ? 'Exportando...' : 'Exportar CSV',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
                   ),
                 ),
 
-              if (kIsWeb)
-                (isWide ? const SizedBox(width: 12) : const SizedBox(width: 8)),
-
+              // Migrar códigos (Dev)
               if (_kShowDevTools && !(user?.esCobrador ?? true))
-                OutlinedButton.icon(
-                  onPressed: _isMigratingCodigo ? null : () => _migrarCodigoLower(context),
-                  icon: const Icon(Icons.tune_rounded, size: 18),
-                  label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar cÃ³digos'),
+                SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _isMigratingCodigo
+                        ? null
+                        : () => _migrarCodigoLower(context),
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
                 ),
 
-              if (_kShowDevTools && !(user?.esCobrador ?? true))
-                (isWide ? const SizedBox(width: 12) : const SizedBox(width: 8)),
-
-              // BotÃ³n Agregar Local
-              ElevatedButton.icon(
-                onPressed: () => _showFormDialog(context),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('Agregar'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              // Agregar
+              SizedBox(
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showFormDialog(context),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Agregar'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
                 ),
               ),
             ];
 
             if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: filterContent,
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [...filterContent],
+                ),
               );
             } else {
               return Wrap(
@@ -347,7 +334,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       final y = now.year.toString();
       final m = now.month.toString().padLeft(2, '0');
       final d = now.day.toString().padLeft(2, '0');
-      final filename = 'Locales_${y}${m}${d}.csv';
+      final filename = 'Locales_$y$m$d.csv';
 
       await descargarCsvWeb(bytes, filename);
 
@@ -380,7 +367,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Migrar cÃ³digos'),
-        content: const Text('Esto completarÃ¡ codigoLower para que el buscador por cÃ³digo funcione. Â¿Continuar?'),
+        content: const Text(
+          'Esto completarÃ¡ codigoLower para que el buscador por cÃ³digo funcione. Â¿Continuar?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -401,12 +390,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       final usuario = ref.read(currentUsuarioProvider).value;
       final municipalidadId = usuario?.municipalidadId;
       final ds = ref.read(localDatasourceProvider);
-      final updated = await ds.migrarCodigoLower(municipalidadId: municipalidadId);
+      final updated = await ds.migrarCodigoLower(
+        municipalidadId: municipalidadId,
+      );
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('MigraciÃ³n completa:  locales actualizados'),
+            content: Text('Migración completa: $updated locales actualizados'),
             backgroundColor: Colors.green,
           ),
         );
@@ -495,7 +486,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     return needsQuotes ? '"$text"' : text;
   }
 
-  Widget _buildUsuarioFilter(BuildContext context, LocalesPaginadosState state) {
+  Widget _buildUsuarioFilter(
+    BuildContext context,
+    LocalesPaginadosState state,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -503,7 +497,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         Text(
           'Filtrar por Cobrador',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
             letterSpacing: 0.8,
           ),
         ),
@@ -511,7 +507,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         UsuarioFilter(
           selectedUsuarioId: state.usuarioFiltradoId,
           onUsuarioChanged: (u) {
-            ref.read(localesPaginadosProvider.notifier).seleccionarUsuario(u?.id);
+            ref
+                .read(localesPaginadosProvider.notifier)
+                .seleccionarUsuario(u?.id);
           },
         ),
       ],
@@ -557,7 +555,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     )
                     .toList();
               }
-              // Con texto: bÃºsqueda por prefijo.
+              // Con texto: búsqueda por prefijo.
               final resultados = await ds.buscarPorPrefijo(
                 prefijo: filter,
                 municipalidadId: municipalidadId,
@@ -578,7 +576,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   .toList();
             } catch (e) {
               final text = e.toString();
-              debugPrint('\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n');
+              debugPrint(
+                '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
+              );
               throw Exception(text);
             }
           },
@@ -595,42 +595,47 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             showSearchBox: true,
             searchFieldProps: const TextFieldProps(
               decoration: InputDecoration(
-                hintText: 'Buscar mercado...',
-                prefixIcon: Icon(Icons.search_rounded, size: 18),
+                hintText: 'Buscar...',
+                prefixIcon: Icon(Icons.search_rounded, size: 14),
                 isDense: true,
-              ),
-            ),
-            menuProps: MenuProps(
-              backgroundColor:
-                  Theme.of(context).cardTheme.color ??
-                  Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              elevation: 8,
-            ),
-            fit: FlexFit.loose,
-            constraints: const BoxConstraints(maxHeight: 300),
-            emptyBuilder: (ctx, text) => Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No se encontraron mercados',
-                style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
                 ),
               ),
             ),
-          ),
-          dropdownDecoratorProps: const DropDownDecoratorProps(
-            dropdownSearchDecoration: InputDecoration(
-              hintText: 'Todos los mercados',
-              prefixIcon: Icon(Icons.store_rounded, size: 18),
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
+            menuProps: MenuProps(
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              elevation: 2,
+            ),
+            fit: FlexFit.loose,
+            emptyBuilder: (ctx, text) => Padding(
+              padding: const EdgeInsets.all(8),
+              child: const Text(
+                'No encontrado',
+                style: TextStyle(fontSize: 11),
               ),
             ),
+          ),
+          dropdownDecoratorProps: DropDownDecoratorProps(
+            dropdownSearchDecoration: InputDecoration(
+              hintText: 'Todos',
+              prefixIcon: const Icon(Icons.store_rounded, size: 14),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 0.8),
+              ),
+            ),
+            baseStyle: const TextStyle(fontSize: 11),
           ),
           clearButtonProps: const ClearButtonProps(isVisible: true),
         ),
@@ -668,27 +673,26 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             return results.cast<Local>();
           },
           displayStringForOption: (local) => local.nombreSocial ?? '',
-          fieldViewBuilder:
-              (ctx, controller, focusNode, onFieldSubmitted) {
-                // Escuchar cambios para filtrar la lista principal (DataTable)
-                controller.addListener(() {
-                  // Sincronizamos con el buscador del provider
-                  _onSearchChanged(controller.text);
-                });
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: const InputDecoration(
-                    hintText: 'Nombre o CÃ³digo local...',
-                    prefixIcon: Icon(Icons.search_rounded, size: 18),
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                );
-              },
+          fieldViewBuilder: (ctx, controller, focusNode, onFieldSubmitted) {
+            // Escuchar cambios para filtrar la lista principal (DataTable)
+            controller.addListener(() {
+              // Sincronizamos con el buscador del provider
+              _onSearchChanged(controller.text);
+            });
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: const InputDecoration(
+                hintText: 'Nombre o CÃ³digo local...',
+                prefixIcon: Icon(Icons.search_rounded, size: 18),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+            );
+          },
           optionsViewBuilder: (ctx, onSelected, options) {
             return Align(
               alignment: Alignment.topLeft,
@@ -709,25 +713,21 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         leading: Icon(
                           Icons.storefront_rounded,
                           size: 16,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                         title: Text(
                           local.nombreSocial ?? '-',
                           style: const TextStyle(fontSize: 13),
                         ),
                         subtitle: Text(
-                          local.representante ??
-                              local.mercadoId ??
-                              '',
+                          local.representante ?? local.mercadoId ?? '',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.7),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                         onTap: () => onSelected(local),
@@ -907,7 +907,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   onPressed: (!state.cargando && state.paginaActual > 1)
                       ? () {
                           setState(() => _localSeleccionado = null);
-                          ref.read(localesPaginadosProvider.notifier).irAPaginaAnterior();
+                          ref
+                              .read(localesPaginadosProvider.notifier)
+                              .irAPaginaAnterior();
                         }
                       : null,
                   tooltip: 'PÃ¡gina anterior',
@@ -924,7 +926,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   onPressed: (!state.cargando && state.hayMas)
                       ? () {
                           setState(() => _localSeleccionado = null);
-                          ref.read(localesPaginadosProvider.notifier).irAPaginaSiguiente();
+                          ref
+                              .read(localesPaginadosProvider.notifier)
+                              .irAPaginaSiguiente();
                         }
                       : null,
                   tooltip: 'PÃ¡gina siguiente',
@@ -944,20 +948,21 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.1),
               ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  flex: 13,
-                  child: mainList,
-                ),
+                Expanded(flex: 13, child: mainList),
                 VerticalDivider(
-                  width: 1, 
+                  width: 1,
                   thickness: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.1),
                 ),
                 Expanded(
                   flex: 9,
@@ -985,7 +990,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: mainList,
               ),
@@ -1018,7 +1027,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     }
 
     final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
-    final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
+    final strTipo = tipoIndex >= 0
+        ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-')
+        : (local.tipoNegocioId ?? '-');
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1037,16 +1048,19 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     Expanded(
                       child: Text(
                         local.nombreSocial ?? 'Detalles del Local',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
-                      onPressed: () => setState(() => _localSeleccionado = null),
+                      onPressed: () =>
+                          setState(() => _localSeleccionado = null),
                       tooltip: 'Cerrar detalle',
-                    )
+                    ),
                   ],
                 ),
                 const Divider(height: 16),
@@ -1055,15 +1069,53 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
-                        _DetailRow(icon: Icons.phone_rounded, label: 'TelÃ©fono', value: local.telefonoRepresentante ?? '-'),
-                        _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
-                        _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
-                        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (mÂ²)', value: '${local.espacioM2 ?? 0}'),
-                        _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
-                        _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
-                        _DetailRow(icon: Icons.map_rounded, label: 'CÃ³digo Local', value: local.codigo ?? '-'),
-                        _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+                        _DetailRow(
+                          icon: Icons.person_rounded,
+                          label: 'Representante',
+                          value: local.representante ?? '-',
+                        ),
+                        _DetailRow(
+                          icon: Icons.phone_rounded,
+                          label: 'TelÃ©fono',
+                          value: local.telefonoRepresentante ?? '-',
+                        ),
+                        _DetailRow(
+                          icon: Icons.badge_rounded,
+                          label: 'Cobrador Asignado',
+                          value: cobradorNombre ?? 'Sin asignar',
+                        ),
+                        _DetailRow(
+                          icon: Icons.category_rounded,
+                          label: 'Tipo de Negocio',
+                          value: strTipo,
+                        ),
+                        _DetailRow(
+                          icon: Icons.square_foot_rounded,
+                          label: 'Espacio (mÂ²)',
+                          value: '${local.espacioM2 ?? 0}',
+                        ),
+                        _DetailRow(
+                          icon: Icons.event_repeat_rounded,
+                          label: 'Frecuencia de Cobro',
+                          value: local.frecuenciaCobro ?? 'Diaria',
+                        ),
+                        _DetailRow(
+                          icon: Icons.vpn_key_rounded,
+                          label: 'Clave',
+                          value: local.clave ?? '-',
+                        ),
+                        _DetailRow(
+                          icon: Icons.map_rounded,
+                          label: 'CÃ³digo Local',
+                          value: local.codigo ?? '-',
+                        ),
+                        _DetailRow(
+                          icon: Icons.calendar_today_rounded,
+                          label: 'Creado En',
+                          value: local.creadoEn != null
+                              ? DateFormatter.formatDate(local.creadoEn!)
+                              : '-',
+                        ),
                       ],
                     ),
                   ),
@@ -1098,7 +1150,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     }
 
     final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
-    final strTipo = tipoIndex >= 0 ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-') : (local.tipoNegocioId ?? '-');
+    final strTipo = tipoIndex >= 0
+        ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-')
+        : (local.tipoNegocioId ?? '-');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1111,25 +1165,67 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             height: 4,
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
         Text(
           local.nombreSocial ?? 'Detalles del Local',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const Divider(height: 24),
-        _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
-        _DetailRow(icon: Icons.phone_rounded, label: 'TelÃ©fono', value: local.telefonoRepresentante ?? '-'),
-        _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
-        _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
-        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (mÂ²)', value: '${local.espacioM2 ?? 0}'),
-        _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
-        _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
-        _DetailRow(icon: Icons.map_rounded, label: 'CÃ³digo Local', value: local.codigo ?? '-'),
-        _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
+        _DetailRow(
+          icon: Icons.person_rounded,
+          label: 'Representante',
+          value: local.representante ?? '-',
+        ),
+        _DetailRow(
+          icon: Icons.phone_rounded,
+          label: 'TelÃ©fono',
+          value: local.telefonoRepresentante ?? '-',
+        ),
+        _DetailRow(
+          icon: Icons.badge_rounded,
+          label: 'Cobrador Asignado',
+          value: cobradorNombre ?? 'Sin asignar',
+        ),
+        _DetailRow(
+          icon: Icons.category_rounded,
+          label: 'Tipo de Negocio',
+          value: strTipo,
+        ),
+        _DetailRow(
+          icon: Icons.square_foot_rounded,
+          label: 'Espacio (mÂ²)',
+          value: '${local.espacioM2 ?? 0}',
+        ),
+        _DetailRow(
+          icon: Icons.event_repeat_rounded,
+          label: 'Frecuencia de Cobro',
+          value: local.frecuenciaCobro ?? 'Diaria',
+        ),
+        _DetailRow(
+          icon: Icons.vpn_key_rounded,
+          label: 'Clave',
+          value: local.clave ?? '-',
+        ),
+        _DetailRow(
+          icon: Icons.map_rounded,
+          label: 'CÃ³digo Local',
+          value: local.codigo ?? '-',
+        ),
+        _DetailRow(
+          icon: Icons.calendar_today_rounded,
+          label: 'Creado En',
+          value: local.creadoEn != null
+              ? DateFormatter.formatDate(local.creadoEn!)
+              : '-',
+        ),
       ],
     );
   }
@@ -1290,7 +1386,8 @@ class _LocalesListView extends ConsumerWidget {
       child: ScrollableTable(
         verticalController: scrollController,
         child: DataTable(
-          showCheckboxColumn: false, // Desactiva la columna de checkboxes por defecto
+          showCheckboxColumn:
+              false, // Desactiva la columna de checkboxes por defecto
           horizontalMargin: 16,
           columnSpacing: 16,
           headingRowColor: WidgetStateProperty.all(
@@ -1305,102 +1402,107 @@ class _LocalesListView extends ConsumerWidget {
             DataColumn(label: Text('Hist.')),
             DataColumn(label: Text('Acciones')),
           ],
-            rows: locales.map((l) {
-              final isSelected = selectedLocalId == l.id;
+          rows: locales.map((l) {
+            final isSelected = selectedLocalId == l.id;
 
-              return DataRow(
-                selected: isSelected,
-                color: WidgetStateProperty.resolveWith<Color?>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Theme.of(context).colorScheme.primary.withValues(alpha: 0.15);
-                  }
-                  return null;
-                }),
-                onSelectChanged: (selected) {
-                  onSelect(l);
-                },
-                cells: [
-                  DataCell(
-                    Text(
-                      l.nombreSocial ?? '-',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+            return DataRow(
+              selected: isSelected,
+              color: WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.15);
+                }
+                return null;
+              }),
+              onSelectChanged: (selected) {
+                onSelect(l);
+              },
+              cells: [
+                DataCell(
+                  Text(
+                    l.nombreSocial ?? '-',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                DataCell(Text(DateFormatter.formatCurrency(l.cuotaDiaria))),
+                DataCell(
+                  Builder(
+                    builder: (context) {
+                      final pagadoHoy = pagadosHoy[l.id] ?? false;
+                      final tieneSaldo =
+                          (l.saldoAFavor ?? 0) >= (l.cuotaDiaria ?? 0);
+                      final num deudaVisual =
+                          (l.deudaAcumulada ?? 0) +
+                          (!pagadoHoy && !tieneSaldo
+                              ? (l.cuotaDiaria ?? 0)
+                              : 0);
+
+                      return Text(
+                        DateFormatter.formatCurrency(deudaVisual),
+                        style: TextStyle(
+                          color: deudaVisual > 0 ? Colors.redAccent : null,
+                          fontWeight: deudaVisual > 0 ? FontWeight.bold : null,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    DateFormatter.formatCurrency(l.saldoAFavor),
+                    style: TextStyle(
+                      color: (l.saldoAFavor ?? 0) > 0
+                          ? Colors.greenAccent
+                          : null,
+                      fontWeight: (l.saldoAFavor ?? 0) > 0
+                          ? FontWeight.bold
+                          : null,
                     ),
                   ),
-                  DataCell(Text(DateFormatter.formatCurrency(l.cuotaDiaria))),
-                  DataCell(
-                    Builder(
-                      builder: (context) {
-                        final pagadoHoy = pagadosHoy[l.id] ?? false;
-                        final tieneSaldo = (l.saldoAFavor ?? 0) >= (l.cuotaDiaria ?? 0);
-                        final num deudaVisual =
-                            (l.deudaAcumulada ?? 0) +
-                            (!pagadoHoy && !tieneSaldo ? (l.cuotaDiaria ?? 0) : 0);
-
-                        return Text(
-                          DateFormatter.formatCurrency(deudaVisual),
-                          style: TextStyle(
-                            color: deudaVisual > 0 ? Colors.redAccent : null,
-                            fontWeight: deudaVisual > 0 ? FontWeight.bold : null,
-                          ),
-                        );
-                      },
-                    ),
+                ),
+                DataCell(
+                  IconButton(
+                    icon: const Icon(Icons.qr_code_rounded, size: 20),
+                    onPressed: () => onViewQr(l),
+                    tooltip: 'Ver QR',
                   ),
-                  DataCell(
-                    Text(
-                      DateFormatter.formatCurrency(l.saldoAFavor),
-                      style: TextStyle(
-                        color: (l.saldoAFavor ?? 0) > 0
-                            ? Colors.greenAccent
-                            : null,
-                        fontWeight: (l.saldoAFavor ?? 0) > 0
-                            ? FontWeight.bold
-                            : null,
+                ),
+                DataCell(
+                  IconButton(
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    onPressed: () =>
+                        context.push('/locales/${l.id}/historial', extra: l),
+                    tooltip: 'Ver Historial',
+                  ),
+                ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        onPressed: () {
+                          if (!isSelected) onSelect(l);
+                          onEdit(l);
+                        },
+                        tooltip: 'Editar',
                       ),
-                    ),
-                  ),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.qr_code_rounded, size: 20),
-                      onPressed: () => onViewQr(l),
-                      tooltip: 'Ver QR',
-                    ),
-                  ),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.history_rounded, size: 18),
-                      onPressed: () =>
-                          context.push('/locales/${l.id}/historial', extra: l),
-                      tooltip: 'Ver Historial',
-                    ),
-                  ),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_rounded, size: 18),
-                          onPressed: () {
-                            if (!isSelected) onSelect(l);
-                            onEdit(l);
-                          },
-                          tooltip: 'Editar',
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_rounded,
+                          size: 18,
+                          color: Colors.redAccent,
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_rounded,
-                            size: 18,
-                            color: Colors.redAccent,
-                          ),
-                          onPressed: () => onDelete(l),
-                          tooltip: 'Eliminar',
-                        ),
-                      ],
-                    ),
+                        onPressed: () => onDelete(l),
+                        tooltip: 'Eliminar',
+                      ),
+                    ],
                   ),
-                ],
-              );
-            }).toList(),
+                ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -1412,7 +1514,11 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1430,13 +1536,12 @@ class _DetailRow extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                 ),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(value, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
@@ -1496,12 +1601,20 @@ class _PanelDetalleVacio extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.touch_app_rounded, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+              Icon(
+                Icons.touch_app_rounded,
+                size: 64,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Selecciona un local de la tabla\npara ver su informaciÃ³n completa.',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                   fontSize: 15,
                 ),
                 textAlign: TextAlign.center,
@@ -1513,4 +1626,3 @@ class _PanelDetalleVacio extends StatelessWidget {
     );
   }
 }
-

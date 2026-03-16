@@ -757,7 +757,7 @@ class _ResumenPeriodo extends StatelessWidget {
           _SummaryItem(
             icon: Icons.diversity_3_rounded,
             value: '$totalCobros',
-            label: 'Cobros',
+            label: 'Movimientos',
             color: theme.colorScheme.onPrimaryContainer,
           ),
         ],
@@ -878,7 +878,7 @@ class _CorteTileDetallado extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             '${DateFormat('hh:mm a').format(corte.fechaCorte)} • '
-                            '${corte.cantidadRegistros} cobros',
+                            '${corte.cantidadRegistros} movimientos',
                             style: TextStyle(
                               fontSize: 12,
                               color: theme.colorScheme.onSurface.withValues(

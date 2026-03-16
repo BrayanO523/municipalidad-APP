@@ -159,7 +159,7 @@ class ResumenReportesScreen extends ConsumerWidget {
                 value: DateFormatter.formatCurrency(state.totalCobrado),
                 icon: Icons.payments_rounded,
                 color: const Color(0xFF00D9A6),
-                subtitle: 'Ingresos efectivos en caja',
+                subtitle: 'Efectivo registrado en el periodo',
               ),
             ),
             SizedBox(
@@ -169,7 +169,7 @@ class ResumenReportesScreen extends ConsumerWidget {
                 value: DateFormatter.formatCurrency(state.totalPendiente),
                 icon: Icons.hourglass_empty_rounded,
                 color: const Color(0xFF6C63FF),
-                subtitle: 'Cobros no realizados en periodo',
+                subtitle: 'Pendientes y abonos parciales del periodo',
               ),
             ),
             SizedBox(
@@ -235,5 +235,4 @@ class _PeriodTab extends StatelessWidget {
     );
   }
 }
-
 

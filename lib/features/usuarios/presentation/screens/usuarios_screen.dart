@@ -41,7 +41,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _UsuariosHeader(
-                  onSearch: (q) => ref.read(usuariosPaginadosProvider.notifier).buscar(q),
+                  onSearch: (q) =>
+                      ref.read(usuariosPaginadosProvider.notifier).buscar(q),
                   onAdd: () => _showFormDialog(context),
                   selectedColumn: _searchColumn,
                   onColumnChanged: (val) {
@@ -55,45 +56,54 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                   child: state.cargando && state.usuarios.isEmpty
                       ? const Center(child: CircularProgressIndicator())
                       : state.errorMsg != null
-                          ? Center(
-                              child: Text(
-                                state.errorMsg!,
-                                style: const TextStyle(color: Colors.redAccent),
+                      ? Center(
+                          child: Text(
+                            state.errorMsg!,
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                        )
+                      : state.usuarios.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No se encontraron usuarios',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.54),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Expanded(
+                              child: _UsuariosTable(
+                                usuarios: state.usuarios,
+                                onEdit: (u) =>
+                                    _showFormDialog(context, usuario: u),
+                                onDelete: (u) => _confirmDelete(context, u),
                               ),
-                            )
-                          : state.usuarios.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'No se encontraron usuarios',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withValues(alpha: 0.54),
-                                    ),
-                                  ),
-                                )
-                              : Column(
-                                  children: [
-                                    Expanded(
-                                      child: _UsuariosTable(
-                                        usuarios: state.usuarios,
-                                        onEdit: (u) => _showFormDialog(context, usuario: u),
-                                        onDelete: (u) => _confirmDelete(context, u),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _PaginationBar(
-                                      currentPage: state.paginaActual - 1,
-                                      onPrev: state.paginaActual > 1
-                                          ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaAnterior()
-                                          : null,
-                                      onNext: state.hayMas
-                                          ? () => ref.read(usuariosPaginadosProvider.notifier).irAPaginaSiguiente()
-                                          : null,
-                                      isCargando: state.cargando,
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            const SizedBox(height: 16),
+                            _PaginationBar(
+                              currentPage: state.paginaActual - 1,
+                              onPrev: state.paginaActual > 1
+                                  ? () => ref
+                                        .read(
+                                          usuariosPaginadosProvider.notifier,
+                                        )
+                                        .irAPaginaAnterior()
+                                  : null,
+                              onNext: state.hayMas
+                                  ? () => ref
+                                        .read(
+                                          usuariosPaginadosProvider.notifier,
+                                        )
+                                        .irAPaginaSiguiente()
+                                  : null,
+                              isCargando: state.cargando,
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -150,7 +160,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
     final ds = ref.read(authDatasourceProvider);
 
     if (!isEditing && currentAdmin?.municipalidadId != null) {
-      ds.sugerirSiguienteCodigoCobrador(currentAdmin!.municipalidadId!).then((sugerencia) {
+      ds.sugerirSiguienteCodigoCobrador(currentAdmin!.municipalidadId!).then((
+        sugerencia,
+      ) {
         codigoCtrl.text = sugerencia;
       });
     }
@@ -199,7 +211,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       TextField(
                         controller: codigoCtrl,
                         decoration: InputDecoration(
-                          labelText: isEditing ? 'Código Cobrador' : 'Código Cobrador (Autogenerado)',
+                          labelText: isEditing
+                              ? 'Código Cobrador'
+                              : 'Código Cobrador (Autogenerado)',
                           hintText: 'C1',
                           filled: true,
                         ),
@@ -226,7 +240,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       const SizedBox(height: 12),
                       // Dropdown de Mercado — se refresh automático vía Consumer
                       DropdownButtonFormField<String>(
-                        initialValue: mercadosFiltrados.any((m) => m.id == selectedMercadoId)
+                        initialValue:
+                            mercadosFiltrados.any(
+                              (m) => m.id == selectedMercadoId,
+                            )
                             ? selectedMercadoId
                             : null,
                         decoration: const InputDecoration(
@@ -261,7 +278,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                 style: const TextStyle(fontSize: 12),
                                 decoration: InputDecoration(
                                   hintText: 'Buscar local...',
-                                  prefixIcon: const Icon(Icons.search, size: 16),
+                                  prefixIcon: const Icon(
+                                    Icons.search,
+                                    size: 16,
+                                  ),
                                   isDense: true,
                                   filled: true,
                                   fillColor: Colors.black12,
@@ -274,8 +294,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                     horizontal: 8,
                                   ),
                                 ),
-                                onChanged: (val) =>
-                                    setDialogState(() => localSearchQuery = val),
+                                onChanged: (val) => setDialogState(
+                                  () => localSearchQuery = val,
+                                ),
                               ),
                             ),
                           ],
@@ -297,7 +318,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                   final usuarios = usuariosAsync.value ?? [];
                                   final Set<String> localesOcupados = {};
                                   for (final u in usuarios) {
-                                    if (isEditing && u.id == usuario.id) continue;
+                                    if (isEditing && u.id == usuario.id)
+                                      continue;
                                     if (u.rutaAsignada != null) {
                                       localesOcupados.addAll(u.rutaAsignada!);
                                     }
@@ -305,25 +327,35 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 
                                   final query = localSearchQuery.toLowerCase();
                                   final localesMercado = allLocales
-                                      .where((l) => l.mercadoId == selectedMercadoId)
+                                      .where(
+                                        (l) => l.mercadoId == selectedMercadoId,
+                                      )
                                       .where((l) {
-                                     if (query.isEmpty) return true;
-                                     final nombre =
-                                         l.nombreSocial?.toLowerCase() ?? '';
-                                     final ruta =
-                                         l.ruta?.toLowerCase() ?? '';
-                                     return nombre.contains(query) ||
-                                         ruta.contains(query);
-                                   }).toList();
+                                        if (query.isEmpty) return true;
+                                        final nombre =
+                                            l.nombreSocial?.toLowerCase() ?? '';
+                                        final ruta =
+                                            l.ruta?.toLowerCase() ?? '';
+                                        return nombre.contains(query) ||
+                                            ruta.contains(query);
+                                      })
+                                      .toList();
 
                                   final localesAsignados = localesMercado
-                                      .where((l) => selectedLocalesIds.contains(l.id))
+                                      .where(
+                                        (l) =>
+                                            selectedLocalesIds.contains(l.id),
+                                      )
                                       .toList();
 
                                   final localesDisponibles = localesMercado
-                                      .where((l) =>
-                                          !selectedLocalesIds.contains(l.id) &&
-                                          !localesOcupados.contains(l.id))
+                                      .where(
+                                        (l) =>
+                                            !selectedLocalesIds.contains(
+                                              l.id,
+                                            ) &&
+                                            !localesOcupados.contains(l.id),
+                                      )
                                       .toList();
 
                                   if (localesMercado.isEmpty) {
@@ -367,20 +399,29 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                 child: Checkbox(
                                                   value: isChecked,
                                                   onChanged: onCheck,
-                                                  visualDensity: VisualDensity.compact,
+                                                  visualDensity:
+                                                      VisualDensity.compact,
                                                   materialTapTargetSize:
-                                                      MaterialTapTargetSize.shrinkWrap,
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
                                                 ),
                                               ),
                                               const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(
                                                   title,
-                                                  style: const TextStyle(fontSize: 12),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
-                                              Icon(trailingIcon, size: 14, color: trailingColor),
+                                              Icon(
+                                                trailingIcon,
+                                                size: 14,
+                                                color: trailingColor,
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -396,8 +437,11 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           children: [
                                             Container(
                                               width: double.infinity,
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 4,
+                                                  ),
                                               color: Colors.black12,
                                               child: Row(
                                                 children: [
@@ -405,24 +449,43 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     width: 24,
                                                     height: 24,
                                                     child: Checkbox(
-                                                      value: localesDisponibles.isNotEmpty &&
+                                                      value:
+                                                          localesDisponibles
+                                                              .isNotEmpty &&
                                                           localesDisponibles.every(
-                                                            (l) => checkedDisponibles.contains(l.id)),
+                                                            (l) =>
+                                                                checkedDisponibles
+                                                                    .contains(
+                                                                      l.id,
+                                                                    ),
+                                                          ),
                                                       tristate: true,
                                                       onChanged: (_) => setDialogState(() {
-                                                        final allChecked = localesDisponibles.every(
-                                                          (l) => checkedDisponibles.contains(l.id));
+                                                        final allChecked =
+                                                            localesDisponibles.every(
+                                                              (l) =>
+                                                                  checkedDisponibles
+                                                                      .contains(
+                                                                        l.id,
+                                                                      ),
+                                                            );
                                                         if (allChecked) {
-                                                          checkedDisponibles.clear();
+                                                          checkedDisponibles
+                                                              .clear();
                                                         } else {
-                                                          for (final l in localesDisponibles) {
-                                                            if (l.id != null) checkedDisponibles.add(l.id!);
+                                                          for (final l
+                                                              in localesDisponibles) {
+                                                            if (l.id != null)
+                                                              checkedDisponibles
+                                                                  .add(l.id!);
                                                           }
                                                         }
                                                       }),
-                                                      visualDensity: VisualDensity.compact,
+                                                      visualDensity:
+                                                          VisualDensity.compact,
                                                       materialTapTargetSize:
-                                                          MaterialTapTargetSize.shrinkWrap,
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 4),
@@ -431,11 +494,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       'Sin asignar (${localesDisponibles.length})',
                                                       style: TextStyle(
                                                         fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         color: Theme.of(context)
                                                             .colorScheme
                                                             .onSurface
-                                                            .withValues(alpha: 0.54),
+                                                            .withValues(
+                                                              alpha: 0.54,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -448,32 +514,52 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       child: Text(
                                                         'Nada aquí',
                                                         style: TextStyle(
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurface
-                                                              .withValues(alpha: 0.24),
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withValues(
+                                                                    alpha: 0.24,
+                                                                  ),
                                                           fontSize: 11,
                                                         ),
                                                       ),
                                                     )
                                                   : ListView.builder(
-                                                      itemCount: localesDisponibles.length,
+                                                      itemCount:
+                                                          localesDisponibles
+                                                              .length,
                                                       itemBuilder: (ctx, i) {
-                                                        final loc = localesDisponibles[i];
+                                                        final loc =
+                                                            localesDisponibles[i];
                                                         return buildCheckTile(
                                                           loc.id ?? '',
-                                                          loc.nombreSocial ?? 'Sin nombre',
-                                                          checkedDisponibles.contains(loc.id),
-                                                          (val) => setDialogState(() {
+                                                          loc.nombreSocial ??
+                                                              'Sin nombre',
+                                                          checkedDisponibles
+                                                              .contains(loc.id),
+                                                          (
+                                                            val,
+                                                          ) => setDialogState(() {
                                                             if (val == true) {
-                                                              checkedDisponibles.add(loc.id!);
+                                                              checkedDisponibles
+                                                                  .add(loc.id!);
                                                             } else {
-                                                              checkedDisponibles.remove(loc.id);
+                                                              checkedDisponibles
+                                                                  .remove(
+                                                                    loc.id,
+                                                                  );
                                                             }
                                                           }),
-                                                          () => setDialogState(() =>
-                                                              selectedLocalesIds.add(loc.id!)),
-                                                          Icons.arrow_forward_ios_rounded,
+                                                          () => setDialogState(
+                                                            () =>
+                                                                selectedLocalesIds
+                                                                    .add(
+                                                                      loc.id!,
+                                                                    ),
+                                                          ),
+                                                          Icons
+                                                              .arrow_forward_ios_rounded,
                                                           Colors.green.shade400,
                                                         );
                                                       },
@@ -496,22 +582,35 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           ),
                                         ),
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             // Mover todos >>
                                             Tooltip(
                                               message: 'Asignar todos',
                                               child: IconButton(
-                                                icon: const Icon(Icons.keyboard_double_arrow_right, size: 18),
+                                                icon: const Icon(
+                                                  Icons
+                                                      .keyboard_double_arrow_right,
+                                                  size: 18,
+                                                ),
                                                 padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minHeight: 32),
-                                                onPressed: localesDisponibles.isEmpty
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minHeight: 32,
+                                                    ),
+                                                onPressed:
+                                                    localesDisponibles.isEmpty
                                                     ? null
                                                     : () => setDialogState(() {
-                                                        for (final l in localesDisponibles) {
-                                                          if (l.id != null) selectedLocalesIds.add(l.id!);
+                                                        for (final l
+                                                            in localesDisponibles) {
+                                                          if (l.id != null)
+                                                            selectedLocalesIds
+                                                                .add(l.id!);
                                                         }
-                                                        checkedDisponibles.clear();
+                                                        checkedDisponibles
+                                                            .clear();
                                                       }),
                                               ),
                                             ),
@@ -519,14 +618,25 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                             Tooltip(
                                               message: 'Asignar seleccionados',
                                               child: IconButton(
-                                                icon: const Icon(Icons.chevron_right, size: 18),
+                                                icon: const Icon(
+                                                  Icons.chevron_right,
+                                                  size: 18,
+                                                ),
                                                 padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minHeight: 32),
-                                                onPressed: checkedDisponibles.isEmpty
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minHeight: 32,
+                                                    ),
+                                                onPressed:
+                                                    checkedDisponibles.isEmpty
                                                     ? null
                                                     : () => setDialogState(() {
-                                                        selectedLocalesIds.addAll(checkedDisponibles);
-                                                        checkedDisponibles.clear();
+                                                        selectedLocalesIds
+                                                            .addAll(
+                                                              checkedDisponibles,
+                                                            );
+                                                        checkedDisponibles
+                                                            .clear();
                                                       }),
                                               ),
                                             ),
@@ -535,15 +645,29 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                             Tooltip(
                                               message: 'Quitar seleccionados',
                                               child: IconButton(
-                                                icon: const Icon(Icons.chevron_left, size: 18),
+                                                icon: const Icon(
+                                                  Icons.chevron_left,
+                                                  size: 18,
+                                                ),
                                                 padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minHeight: 32),
-                                                onPressed: checkedAsignados.isEmpty
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minHeight: 32,
+                                                    ),
+                                                onPressed:
+                                                    checkedAsignados.isEmpty
                                                     ? null
                                                     : () => setDialogState(() {
-                                                        selectedLocalesIds.removeWhere(
-                                                          (id) => checkedAsignados.contains(id));
-                                                        checkedAsignados.clear();
+                                                        selectedLocalesIds
+                                                            .removeWhere(
+                                                              (id) =>
+                                                                  checkedAsignados
+                                                                      .contains(
+                                                                        id,
+                                                                      ),
+                                                            );
+                                                        checkedAsignados
+                                                            .clear();
                                                       }),
                                               ),
                                             ),
@@ -551,14 +675,37 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                             Tooltip(
                                               message: 'Quitar todos',
                                               child: IconButton(
-                                                icon: const Icon(Icons.keyboard_double_arrow_left, size: 18),
+                                                icon: const Icon(
+                                                  Icons
+                                                      .keyboard_double_arrow_left,
+                                                  size: 18,
+                                                ),
                                                 padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minHeight: 32),
-                                                onPressed: localesAsignados.isEmpty
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minHeight: 32,
+                                                    ),
+                                                onPressed:
+                                                    localesAsignados.isEmpty
                                                     ? null
                                                     : () => setDialogState(() {
-                                                        selectedLocalesIds.clear();
-                                                        checkedAsignados.clear();
+                                                        // Solo quitar los locales asignados que están filtrados
+                                                        final asignadosIds =
+                                                            localesAsignados
+                                                                .map(
+                                                                  (l) => l.id!,
+                                                                )
+                                                                .toSet();
+                                                        selectedLocalesIds
+                                                            .removeWhere(
+                                                              (id) =>
+                                                                  asignadosIds
+                                                                      .contains(
+                                                                        id,
+                                                                      ),
+                                                            );
+                                                        checkedAsignados
+                                                            .clear();
                                                       }),
                                               ),
                                             ),
@@ -571,8 +718,11 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           children: [
                                             Container(
                                               width: double.infinity,
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 4,
+                                                  ),
                                               color: Colors.black12,
                                               child: Row(
                                                 children: [
@@ -580,24 +730,43 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     width: 24,
                                                     height: 24,
                                                     child: Checkbox(
-                                                      value: localesAsignados.isNotEmpty &&
+                                                      value:
+                                                          localesAsignados
+                                                              .isNotEmpty &&
                                                           localesAsignados.every(
-                                                            (l) => checkedAsignados.contains(l.id)),
+                                                            (l) =>
+                                                                checkedAsignados
+                                                                    .contains(
+                                                                      l.id,
+                                                                    ),
+                                                          ),
                                                       tristate: true,
                                                       onChanged: (_) => setDialogState(() {
-                                                        final allChecked = localesAsignados.every(
-                                                          (l) => checkedAsignados.contains(l.id));
+                                                        final allChecked =
+                                                            localesAsignados.every(
+                                                              (l) =>
+                                                                  checkedAsignados
+                                                                      .contains(
+                                                                        l.id,
+                                                                      ),
+                                                            );
                                                         if (allChecked) {
-                                                          checkedAsignados.clear();
+                                                          checkedAsignados
+                                                              .clear();
                                                         } else {
-                                                          for (final l in localesAsignados) {
-                                                            if (l.id != null) checkedAsignados.add(l.id!);
+                                                          for (final l
+                                                              in localesAsignados) {
+                                                            if (l.id != null)
+                                                              checkedAsignados
+                                                                  .add(l.id!);
                                                           }
                                                         }
                                                       }),
-                                                      visualDensity: VisualDensity.compact,
+                                                      visualDensity:
+                                                          VisualDensity.compact,
                                                       materialTapTargetSize:
-                                                          MaterialTapTargetSize.shrinkWrap,
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 4),
@@ -606,10 +775,11 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       'Asignados (${localesAsignados.length})',
                                                       style: TextStyle(
                                                         fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurface,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.onSurface,
                                                       ),
                                                     ),
                                                   ),
@@ -622,31 +792,54 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                       child: Text(
                                                         'Ninguno',
                                                         style: TextStyle(
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurface
-                                                              .withValues(alpha: 0.24),
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withValues(
+                                                                    alpha: 0.24,
+                                                                  ),
                                                           fontSize: 11,
                                                         ),
                                                       ),
                                                     )
                                                   : ListView.builder(
-                                                      itemCount: localesAsignados.length,
+                                                      itemCount:
+                                                          localesAsignados
+                                                              .length,
                                                       itemBuilder: (ctx, i) {
-                                                        final loc = localesAsignados[i];
+                                                        final loc =
+                                                            localesAsignados[i];
                                                         return buildCheckTile(
                                                           loc.id ?? '',
-                                                          loc.nombreSocial ?? 'Sin nombre',
-                                                          checkedAsignados.contains(loc.id),
-                                                          (val) => setDialogState(() {
-                                                            if (val == true) {
-                                                              checkedAsignados.add(loc.id!);
-                                                            } else {
-                                                              checkedAsignados.remove(loc.id);
-                                                            }
-                                                          }),
-                                                          () => setDialogState(() =>
-                                                              selectedLocalesIds.remove(loc.id)),
+                                                          loc.nombreSocial ??
+                                                              'Sin nombre',
+                                                          checkedAsignados
+                                                              .contains(loc.id),
+                                                          (
+                                                            val,
+                                                          ) => setDialogState(
+                                                            () {
+                                                              if (val == true) {
+                                                                checkedAsignados
+                                                                    .add(
+                                                                      loc.id!,
+                                                                    );
+                                                              } else {
+                                                                checkedAsignados
+                                                                    .remove(
+                                                                      loc.id,
+                                                                    );
+                                                              }
+                                                            },
+                                                          ),
+                                                          () => setDialogState(
+                                                            () =>
+                                                                selectedLocalesIds
+                                                                    .remove(
+                                                                      loc.id,
+                                                                    ),
+                                                          ),
                                                           Icons.close_rounded,
                                                           Colors.red.shade400,
                                                         );
@@ -776,7 +969,10 @@ class _UsuariosHeader extends StatelessWidget {
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Crear', style: TextStyle(fontSize: 13)),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ],
@@ -796,7 +992,9 @@ class _UsuariosHeader extends StatelessWidget {
                         value: selectedColumn,
                         icon: Icon(
                           Icons.arrow_drop_down,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                         isDense: true,
                         dropdownColor: Theme.of(context).colorScheme.surface,
@@ -804,8 +1002,13 @@ class _UsuariosHeader extends StatelessWidget {
                           color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 12,
                         ),
-                        items: ['Nombre', 'Correo Electrónico'].map((String value) {
-                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                        items: ['Nombre', 'Correo Electrónico'].map((
+                          String value,
+                        ) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
                         }).toList(),
                         onChanged: onColumnChanged,
                       ),
@@ -824,11 +1027,15 @@ class _UsuariosHeader extends StatelessWidget {
                         decoration: InputDecoration(
                           hintText: 'Buscar...',
                           hintStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.54),
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.54),
                             size: 18,
                           ),
                           filled: true,
@@ -837,7 +1044,9 @@ class _UsuariosHeader extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                          ),
                         ),
                       ),
                     ),
@@ -878,7 +1087,9 @@ class _UsuariosHeader extends StatelessWidget {
                   value: selectedColumn,
                   icon: Icon(
                     Icons.arrow_drop_down,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                   isDense: true,
                   dropdownColor: Theme.of(context).colorScheme.surface,
@@ -887,7 +1098,10 @@ class _UsuariosHeader extends StatelessWidget {
                     fontSize: 13,
                   ),
                   items: ['Nombre', 'Correo Electrónico'].map((String value) {
-                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
                   }).toList(),
                   onChanged: onColumnChanged,
                 ),
@@ -905,11 +1119,15 @@ class _UsuariosHeader extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Buscar cobrador...',
                   hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                   prefixIcon: Icon(
                     Icons.search,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                     size: 18,
                   ),
                   filled: true,
@@ -999,7 +1217,9 @@ class _UsuariosTable extends ConsumerWidget {
                       Text(
                         u.email ?? '',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                           fontSize: 12,
                         ),
                         maxLines: 1,
@@ -1008,7 +1228,9 @@ class _UsuariosTable extends ConsumerWidget {
                       Text(
                         'Código: ${u.codigoCobrador ?? 'S/C'} • $strMercado',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                           fontSize: 11,
                         ),
                         maxLines: 1,
@@ -1018,7 +1240,9 @@ class _UsuariosTable extends ConsumerWidget {
                         Text(
                           'Creado: ${DateFormatter.formatDate(u.creadoEn!)}',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.4),
                             fontSize: 11,
                           ),
                         ),
@@ -1031,7 +1255,9 @@ class _UsuariosTable extends ConsumerWidget {
                     Text(
                       '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.54),
                         fontSize: 12,
                       ),
                     ),
@@ -1040,7 +1266,9 @@ class _UsuariosTable extends ConsumerWidget {
                           ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
                           : 'Creado: -',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.4),
                         fontSize: 11,
                       ),
                     ),
@@ -1062,7 +1290,10 @@ class _UsuariosTable extends ConsumerWidget {
                   tooltip: 'Editar',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_rounded, color: Colors.redAccent),
+                  icon: const Icon(
+                    Icons.delete_rounded,
+                    color: Colors.redAccent,
+                  ),
                   onPressed: () => onDelete(u),
                   tooltip: 'Eliminar',
                 ),
@@ -1105,12 +1336,9 @@ class _PaginationBar extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
           onPressed: isCargando ? null : onPrev,
-          color:
-              onPrev != null
-                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-                  : Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          color: onPrev != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página anterior',
         ),
         const SizedBox(width: 8),
@@ -1128,16 +1356,12 @@ class _PaginationBar extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded),
           onPressed: isCargando ? null : onNext,
-          color:
-              onNext != null
-                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-                  : Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+          color: onNext != null
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
           tooltip: 'Página siguiente',
         ),
       ],
     );
   }
 }
-
