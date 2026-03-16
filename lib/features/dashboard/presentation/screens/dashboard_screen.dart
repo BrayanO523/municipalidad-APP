@@ -13,6 +13,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/recent_cobros_table.dart';
 import '../widgets/dashboard_charts.dart';
+import '../../../../core/utils/mass_import_eventuales.dart';
 import '../../../../core/utils/mass_import_locales.dart';
 import '../../../../core/utils/mass_import_faltantes_locales_inmaculada.dart';
 import '../../../../core/utils/cobros_migration.dart';
@@ -469,6 +470,73 @@ class _DashboardHeader extends ConsumerWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondary,
                   foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+
+            const SizedBox(width: 8),
+            if (_kShowDevTools)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Importación de Eventuales'),
+                      content: const Text(
+                        'Se importarán los eventuales desde el CSV eventuales_completo_con_ruta.csv. Esta acción creará o actualizará documentos en Firestore automáticamente. ¿Desea proceder?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Importar'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Importando eventuales...'),
+                        ),
+                      );
+                      final res = await MassImportEventuales.ejecutar();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.storefront_outlined, size: 18),
+                label: const Text('Importar Eventuales'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
