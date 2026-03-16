@@ -31,7 +31,10 @@ class CobradorHomeScreen extends ConsumerStatefulWidget {
 
 class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   String _filtroEstado = 'pendientes'; // 'pendientes', 'cobrados'
+  bool _soloMensuales = false;
+  bool _soloEventuales = false;
   String _searchQuery = '';
+  String _ordenActual = 'nombre'; // 'nombre', 'cuota', 'deuda'
   final TextEditingController _searchController = TextEditingController();
   int _limiteLocales = 20;
 
@@ -245,12 +248,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Cobro eliminado correctamente')),
+          const SnackBar(content: Text('Cobro eliminado correctamente')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('❌ Error al eliminar el cobro'),
+            content: const Text('Error al eliminar el cobro'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -399,9 +402,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '📋 Incidencia registrada: ${result.tipo.label}',
-            ),
+            content: Text('📋 Incidencia registrada: ${result.tipo.label}'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -416,6 +417,81 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         );
       }
     }
+  }
+
+  Future<void> _mostrarBottomSheetFiltros(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.filter_list,
+              size: 40,
+              color: Theme.of(ctx).colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Ordenar por',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Radio<String>(
+                // ignore: deprecated_member_use
+                value: 'nombre',
+                // ignore: deprecated_member_use
+                groupValue: _ordenActual,
+                // ignore: deprecated_member_use
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _ordenActual = value);
+                    Navigator.pop(ctx);
+                  }
+                },
+              ),
+              title: const Text('Nombre A-Z'),
+            ),
+            ListTile(
+              leading: Radio<String>(
+                // ignore: deprecated_member_use
+                value: 'cuota',
+                // ignore: deprecated_member_use
+                groupValue: _ordenActual,
+                // ignore: deprecated_member_use
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _ordenActual = value);
+                    Navigator.pop(ctx);
+                  }
+                },
+              ),
+              title: const Text('Cantidad que se le cobra (menor a mayor)'),
+            ),
+            ListTile(
+              leading: Radio<String>(
+                // ignore: deprecated_member_use
+                value: 'deuda',
+                // ignore: deprecated_member_use
+                groupValue: _ordenActual,
+                // ignore: deprecated_member_use
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _ordenActual = value);
+                    Navigator.pop(ctx);
+                  }
+                },
+              ),
+              title: const Text('Deuda (menor a mayor)'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _registrarCobro(Local local, List<Cobro> cobrosHoy) async {
@@ -1297,8 +1373,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       data: (todosLocales) {
         final cobrosHoy = cobrosAsync.value ?? [];
         // Gestiones/incidencias del día
-        final gestionesHoy = ref.watch(gestionesHoyCobradorProvider).value ?? [];
-        final idsGestionadosHoySet = gestionesHoy.map((g) => g.localId ?? '').toSet();
+        final gestionesHoy =
+            ref.watch(gestionesHoyCobradorProvider).value ?? [];
+        final idsGestionadosHoySet = gestionesHoy
+            .map((g) => g.localId ?? '')
+            .toSet();
 
         // 1. Filtrar locales activos
         final locales = todosLocales.where((l) => l.activo == true).toList();
@@ -1365,6 +1444,15 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             pasaFiltroEstado = cuotaCubiertaHoy;
           }
 
+          //filtro por frecuencia
+          final freq = (l.frecuenciaCobro ?? '').toLowerCase();
+          final pasaFrecuncia = !_soloMensuales || freq == 'mensual';
+
+          // Filtro por eventuales
+          final pasaEventuales =
+              !_soloEventuales ||
+              ((l.codigo?.isEmpty ?? true) && (l.clave?.isEmpty ?? true));
+
           // Filtro de Búsqueda
           bool pasaFiltroTexto = true;
           if (_searchQuery.isNotEmpty) {
@@ -1382,8 +1470,26 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 codigoCatastral.contains(q);
           }
 
-          return pasaFiltroEstado && pasaFiltroTexto;
+          return pasaFiltroEstado &&
+              pasaFrecuncia &&
+              pasaEventuales &&
+              pasaFiltroTexto;
         }).toList();
+
+        // Ordenar según el filtro seleccionado
+        if (_ordenActual == 'nombre') {
+          localesFiltrados.sort(
+            (a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''),
+          );
+        } else if (_ordenActual == 'cuota') {
+          localesFiltrados.sort(
+            (a, b) => (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0),
+          );
+        } else if (_ordenActual == 'deuda') {
+          localesFiltrados.sort(
+            (a, b) => (a.deudaAcumulada ?? 0).compareTo(b.deudaAcumulada ?? 0),
+          );
+        }
 
         final int pendientesHoyCount =
             locales.length - idsCuotaCubiertaSet.length;
@@ -1618,8 +1724,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 alpha: 0.7,
                               ),
                             ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_searchQuery.isNotEmpty)
+                                  IconButton(
                                     icon: Icon(
                                       Icons.clear,
                                       color: colorScheme.onSurfaceVariant
@@ -1632,8 +1741,18 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                         _limiteLocales = 20;
                                       });
                                     },
-                                  )
-                                : null,
+                                  ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.filter_list,
+                                    color: colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                  onPressed: () =>
+                                      _mostrarBottomSheetFiltros(context),
+                                ),
+                              ],
+                            ),
                             filled: true,
                             fillColor: colorScheme.surfaceContainerHighest
                                 .withValues(alpha: 0.5),
@@ -1675,6 +1794,40 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 accentColor: AppColors.success,
                                 onTap: () =>
                                     setState(() => _filtroEstado = 'cobrados'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SecondaryFilterOption(
+                                label: 'Solo Mensuales',
+                                isSelected: _soloMensuales,
+                                icon: Icons.event_repeat_rounded,
+                                accentColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                                onTap: () => setState(() {
+                                  _soloMensuales = !_soloMensuales;
+                                  _limiteLocales = 20;
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _SecondaryFilterOption(
+                                label: 'Solo Eventuales',
+                                isSelected: _soloEventuales,
+                                icon: Icons.access_time_rounded,
+                                accentColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                                onTap: () => setState(() {
+                                  _soloEventuales = !_soloEventuales;
+                                  _limiteLocales = 20;
+                                }),
                               ),
                             ),
                           ],
@@ -1986,6 +2139,67 @@ class _EstadoFilterOption extends StatelessWidget {
   }
 }
 
+class _SecondaryFilterOption extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color accentColor;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SecondaryFilterOption({
+    required this.label,
+    required this.isSelected,
+    required this.accentColor,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accentColor.withValues(alpha: 0.18)
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor
+                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? accentColor : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? accentColor : colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LocalCard extends StatelessWidget {
   final Local local;
   final bool cobrado;
@@ -2025,8 +2239,8 @@ class _LocalCard extends StatelessWidget {
     final cardStatusColor = (cuotaCubierta || cobrado)
         ? AppColors.success
         : gestionado
-            ? const Color(0xFFE67E22)
-            : AppColors.warning;
+        ? const Color(0xFFE67E22)
+        : AppColors.warning;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

@@ -525,18 +525,6 @@ Future<void> showLocalFormDialog(
                                         String generadaClave = claveCtrl.text
                                             .trim()
                                             .toUpperCase();
-                                        if (generadaClave.isEmpty &&
-                                            nombreCtrl.text.trim().isNotEmpty) {
-                                          // Tomar las primeras 3-4 letras
-                                          final cleanName = nombreCtrl.text
-                                              .trim()
-                                              .replaceAll(' ', '');
-                                          generadaClave = cleanName.length >= 4
-                                              ? cleanName
-                                                    .substring(0, 4)
-                                                    .toUpperCase()
-                                              : cleanName.toUpperCase();
-                                        }
 
                                         final model = LocalJson(
                                           activo: isEditing
