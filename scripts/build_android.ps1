@@ -8,14 +8,7 @@ $ErrorActionPreference = "Stop"
 # Leer pubspec.yaml
 $pubspecPath = Join-Path $PSScriptRoot "..\pubspec.yaml"
 $pubspec = Get-Content $pubspecPath -Raw
-
-# Extraer nombre de la app
-if ($pubspec -match "(?m)^name:\s+(.+)$") {
-    $appName = $Matches[1].Trim()
-} else {
-    Write-Error "No se encontró 'name' en pubspec.yaml"
-    exit 1
-}
+$appName = "QRecauda"
 
 # Extraer versión y build number
 if ($pubspec -match "(?m)^version:\s+(\d+\.\d+\.\d+)\+(\d+)") {
@@ -26,6 +19,23 @@ if ($pubspec -match "(?m)^version:\s+(\d+\.\d+\.\d+)\+(\d+)") {
     exit 1
 }
 
+# Incrementar versionCode en android/local.properties
+$localPropsPath = Join-Path $PSScriptRoot "..\android\local.properties"
+if (-not (Test-Path $localPropsPath)) {
+    Write-Error "No se encontró android/local.properties"
+    exit 1
+}
+$localProps = Get-Content $localPropsPath -Raw
+if ($localProps -match "(?m)^flutter\.versionCode=(\d+)") {
+    $androidVersionCode = [int]$Matches[1]
+} else {
+    Write-Error "No se encontró 'flutter.versionCode' en android/local.properties"
+    exit 1
+}
+$nextAndroidVersionCode = $androidVersionCode + 1
+$localProps = $localProps -replace "(?m)^flutter\.versionCode=\d+", "flutter.versionCode=$nextAndroidVersionCode"
+Set-Content -Path $localPropsPath -Value $localProps
+
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  App:     $appName"
 Write-Host "  Version: $version+$buildNumber"
@@ -35,7 +45,19 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "`n[1/3] Construyendo APK de release..." -ForegroundColor Yellow
 $projectRoot = Join-Path $PSScriptRoot ".."
 Set-Location $projectRoot
-flutter build apk --release
+flutter build apk --release --build-number $nextAndroidVersionCode
+$buildExitCode = $LASTEXITCODE
+
+# Asegurar que el archivo local.properties conserva el nuevo versionCode,
+# incluso si Flutter/Gradle lo reescribe durante el build.
+$localProps = Get-Content $localPropsPath -Raw
+$localProps = $localProps -replace "(?m)^flutter\.versionCode=\d+", "flutter.versionCode=$nextAndroidVersionCode"
+Set-Content -Path $localPropsPath -Value $localProps
+
+if ($buildExitCode -ne 0) {
+    Write-Error "La construccion del APK fallo. Se detiene el script para no reutilizar un APK anterior."
+    exit $buildExitCode
+}
 
 # Preparar directorio de salida
 $outputDir = Join-Path $projectRoot "build\releases\android"
