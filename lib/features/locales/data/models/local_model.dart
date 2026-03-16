@@ -19,6 +19,7 @@ class LocalJson extends Local {
     super.representante,
     super.telefonoRepresentante,
     super.tipoNegocioId,
+    super.ruta,
     super.latitud,
     super.longitud,
     super.perimetro,
@@ -77,6 +78,7 @@ class LocalJson extends Local {
       representante: json['representante'],
       telefonoRepresentante: json['telefonoRepresentante'],
       tipoNegocioId: json['tipoNegocioId'],
+      ruta: json['ruta'],
       latitud: (json['ubicacion'] as GeoPoint?)?.latitude,
       longitud: (json['ubicacion'] as GeoPoint?)?.longitude,
       perimetro: perimetro,
@@ -108,6 +110,7 @@ class LocalJson extends Local {
       representante: entity.representante,
       telefonoRepresentante: entity.telefonoRepresentante,
       tipoNegocioId: entity.tipoNegocioId,
+      ruta: entity.ruta,
       latitud: entity.latitud,
       longitud: entity.longitud,
       perimetro: entity.perimetro,
@@ -140,6 +143,7 @@ class LocalJson extends Local {
       'representante': representante,
       'telefonoRepresentante': telefonoRepresentante,
       'tipoNegocioId': tipoNegocioId,
+      if (ruta != null) 'ruta': ruta,
       if (latitud != null && longitud != null)
         'ubicacion': GeoPoint(latitud!, longitud!),
       'perimetro': perimetro

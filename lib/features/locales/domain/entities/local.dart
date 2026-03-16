@@ -15,6 +15,9 @@ class Local {
   final String? telefonoRepresentante;
   final String? tipoNegocioId;
 
+  /// Agrupador opcional para facilitar asignación de locales a cobradores (ej: "Ruta 1").
+  final String? ruta;
+
   final double? latitud;
   final double? longitud;
   final num? saldoAFavor; // Crédito acumulado por pagos adelantados
@@ -44,6 +47,7 @@ class Local {
     this.representante,
     this.telefonoRepresentante,
     this.tipoNegocioId,
+    this.ruta,
     this.latitud,
     this.longitud,
     this.perimetro,
