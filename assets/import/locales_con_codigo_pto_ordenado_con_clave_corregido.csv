@@ -1,608 +1,611 @@
 codigo,nombre,pago_diario,clave
-001,Maria Valeria Ramirez,11.0,22-37-01-01
-002,Santos Candido Corrales,29.0,22-37-01-18
-003,Luis Alonso Rodriguez C,9.0,22-37-01-17
-004,Maria Lino Portillo,7.0,22-37-01-16
-005,Lorena Waleska Betancourt,11.0,22-37-01-15
-007,Jahaira Waleska Benavidez,6.0,22-37-01-13
-008,Marina de Jesus Lainez,6.0,22-37-27-01
-009,Victor Manuel Vargas,8.0,22-37-27-10
-010,Maria Paula Ordoñez C,9.0,22-37-27-09
-011,Virgilio Medina Godoy,11.0,22-37-27-08
-012,Ada Cristina Cruz Guido,6.0,22-37-27-07
-013,Olivia Bernarda Castro,6.0,22-37-26-01
-014,Maria Lina Portillo,10.0,22-37-26-11
-015,Francisco Jose Rodriguez,9.0,22-37-26-10
-016,Miguel Angel Canales M,6.0,22-37-26-09
-017,Francisco Nuñez Martinez,7.0,22-37-26-08
-018,Edila Antonia Fuentes F,6.0,22-37-26-07
-019,Andres Matamoros S,7.0,22-37-25-01
-020,Sonia Yamileth Matamoros,7.0,22-37-25-06
-021,Munir Yesenia Barahona,11.0,22-37-25-05
-022,Harlin Yovany Hernandez y Delmy Lourdes Corrales,7.0,22-37-25-04
-023,Mirian Azucena Portillo,24.0,22-37-24-01
-024,Jose Nahun Rodriguez Baca,6.0,22-37-24-03
-025,Matilde Lagos y Francisca Aguilar,6.0,22-37-54-04
-026,Rafael Elias Moncada Galo,10.0,22-37-24-02
-027,Santos Isabel Contreras,7.0,22-37-54-01
-028,Marina Lopez Lopez,5.0,22-37-25-03
-029,Jose Naun Rodriguez Baca,5.0,22-37-55-08
-030,Jose Leon Rodriguez,23.0,22-37-25-02
-031,Braulio Galindo,9.0,22-37-55-09
-032,Petronila Baca,9.0,22-37-55-10
-033,Jose Leon Rodriguez,10.0,22-37-55-01
-034,Maria Elena Espinoza,5.0,22-37-26-06
-035,Mirian Amador,5.0,22-37-26-05
-036,Olman Anibal Morales,32.0,22-37-56-07
-037,Maria Elena Flores M,15.0,22-37-26-03
-038,Sara Elizabeth Rivera,11.0,22-37-07-03
-039,Eric Asael Ledesman C,10.0,22-37-06-01
-040,Hernan Mejia Ochoa,15.0,22-37-56-01
-041,Tomasa Ondina Osorto,6.0,22-37-26-02
-042,Juan Jonathan Doña Osorto,5.0,22-37-27-06
-043,Lucila Bonilla Ticas,15.0,22-37-28-05
-044,Alitiano Fuentes Carcamo,5.0,22-37-27-05
-045,Adriana Medina Mendoza,7.0,22-37-27-04
-046,Josue Nahum Rodriguez,16.0,22-37-28-06
-047,Eric Asael Ledesmam,10.0,22-37-06-05
-048,Maria Cristina Lopez,13.0,22-37-27-02
-049,Irma Anabeliz Alvarez,7.0,22-37-28-01
-051,Jose Aurelio Alvarez,10.0,22-37-02-08
-052,Jose Aurelio Alvarez,17.0,22-37-01-10
-053,Oscar Marcelino Oyuela y Paula Moran Cruz,13.0,22-37-02-09
-054,Ana Angelica Cruz,5.0,22-37-01-09
-055,Guadalupe Osorto Euceda,5.0,22-37-01-08
-056,Oscar Marcelino Oyuela y Paula Moran Cruz,13.0,22-37-02-10
-057,Abraham Corrales Espinal,7.0,22-37-06-03
-058,Maria Ortiz Lopez,10.0,22-37-06-04
-059,Ana Ramirez,5.0,22-37-01-05
-060,Celso Ramon Posadas,5.0,22-37-01-04
-061,Melvin Geovany Soto,5.0,22-37-02-11
-062,Juan Bautista Paz,5.0,22-37-01-03
-063,Hector Joaquin Contreras,9.0,22-37-02-12
-064,Pedro Soriano,11.0,22-37-01-02
-065,Mercedes Diaz Avila,11.0,22-37-02-01
-066,Sixto Vicente Amador C,23.0,22-37-02-02
-067,Blanca Daysi Reyes,10.0,22-37-03-07
-068,Onil Adonay Alvarez Avilez,12.0,22-37-03-01
-069,Roberth Esmith Sanchez,6.0,22-37-03-02
-070,Maria Claudia Ramirez B,10.0,22-37-03-03
-071,Darwin Raul Osorto P,13.0,22-37-03-04
-072,Lesly Gricelda Nuñez R,10.0,22-37-04-08
-073,Francisco Florian,9.0,22-37-04-01
-074,Mercedes del Carme Trejos,18.0,22-37-04-02
-075,Pablo Diaz,15.0,22-37-04-03
-076,Felipe Nery Rodas Rivas,13.0,22-37-05-07
-077,Hector Jose Silva Corrales,12.0,22-37-04-04
-078,Carmen Alicia Martinez,10.0,22-37-05-01
-079,Maria Francisca Carranza,11.0,22-37-05-02
-080,Santos Amadeo Castillo,15.0,22-37-05-03
-081,Jose Noel Betancourth,17.0,22-37-05-08
-082,Ada Rosibel Mondragon V,8.0,22-37-34-01
-083,Rigoberto Artiaga B,18.0,22-37-35-02
-084,Jose Santos Paz Carbajal,20.0,22-37-35-03
-085,Francisca Guzman,12.0,22-37-35-04
-086,Gumercinda Fonseca Avila,23.0,22-37-35-05
-087,Pedro Pablo Velasquez,23.0,22-37-35-06
-088,"Carlos Roberto Diaz, Santos Marin Portillo",13.0,22-37-07-02
-089,Feliciano Lopez,12.0,22-37-07-01
-090,Eric Asael Ledesman C,13.0,22-37-08-01
-091,Pedro Luis Alvarenga,15.0,22-37-08-02
-092,Julio Cesar Torrez,10.0,22-37-08-03
-093,Maria Francisca Torrez,15.0,22-37-09-01
-094,Pedro Luis Alvarenga,10.0,22-37-35-07
-095,Javier Ronaldo Lagos,8.0,22-37-35-08
-096,Pedro Luis Alvarenga,12.0,22-37-35-10
-097,Reyna Elizabeth Aguilera A,9.0,22-37-09-04
-098,Sagrario de Jesus Flores R,18.0,22-37-09-03
-099,Suyapa Yamilet Cruz Romero,11.0,22-37-09-02
-100,Jose Lino Moreno Arteaga,5.0,22-37-10-01
-101,Mirna Nayely Alvarenga V,7.0,22-37-36-02
-103,Erik Asael Ledesmam,9.0,22-37-11-12
-105,Delmy Cristina Rojas Diaz,13.0,22-37-11-01
-106,Rey Francisco Bonilla T,23.0,22-37-11-02
-107,Jose Julian Perdomo Castro,22.0,22-37-11-03
-108,Oscar Armando Moreno A,11.0,22-37-11-04
-109,Fermin Reyes Funez,16.0,22-37-11-10
-110,Rotny Otoniel Ortez Rubi,15.0,22-37-11-06
-111,Elva Marina Solano,7.0,22-37-11-07
-112,Rosa Amalia Mercado,16.0,22-37-12-01
-113,Soraida Maria Meza y Kevin Josue Meza,6.0,22-37-11-08
-114,Irma Antonia Rodriguez,5.0,22-37-38-01
-115,Katerin Patricia Gonzales,5.0,22-37-39-01
-116,Jose Nahun Hernandez C,5.0,22-37-40-01
-117,Dilcia Maricela Osorto,28.0,22-37-42-01
-119,Gloria Emilia Hernandez,13.0,22-37-12-02
-120,Silvia Esperanza Rodriguez,13.0,22-37-12-03
-121,Jose Julian Perdomo Castro,12.0,22-37-13-01
-122,Herminia Sanchez,8.0,22-37-12-04
-124,Gustavo Adolfo Flores,6.0,22-37-43-01
-125,Jose Atilio Alvarez,18.0,22-37-13-02
-126,Rigoberto Artiaga B,9.0,22-37-13-03
-127,Francisco Javier Arteaga,6.0,22-37-44-01
-128,Ramon Enrique Colado,19.0,22-37-14-01
-129,Gerardo Antonio Castillo,13.0,22-37-14-02
-130,Yolanda Gonzalez Ordoñez,4.0,22-37-15-02
-131,Carlos Alberto Salinas,21.0,22-37-15-01
-133,Saul Rodriguez,15.0,22-37-46-01
-134,Saul Rodriguez,15.0,22-37-45-01
-135,Fidelina Midence,17.0,22-37-15-03
-136,Pompilio Vigil,10.0,22-37-46-02
-137,Marlon Arnoldo Degrande,17.0,22-37-16-01
-138,Mirna Janeth Perez Betancourth,13.0,22-37-16-02
-139,Arcadea Majano,16.0,22-37-16-03
-140,"Gladis Anibal Palma, Maria de los Santos Palma ,Briselda Santos palma",23.0,22-37-16-04
-142,Samuel Almendarez Cabrera,13.0,22-37-16-06
-143,Bessy Marisol Espinal S,11.0,22-37-46-03
-144,Denis Quiroz Moncada,19.0,22-37-17-08
-146,Maria Francisca Reyes A,13.0,22-37-17-07
-147,Lucila Arias,10.0,22-37-17-06
-148,Ingrid Yamileth Molina P,8.0,22-37-17-05
-149,Paula Mendoza Martinez,5.0,22-37-17-04
-150,Martha Idalia Ramirez,8.0,22-37-17-03
-151,Aleyda Yasmin Herrera M,6.0,22-37-17-01
-152,Olvin Noel Aguilera B,18.0,22-37-48-07
-154,Glenda Selena Espinal,7.0,22-37-48-09
-155,Flora Veneranda Sarmiento,10.0,22-37-48-10
-156,Susana Ferrufino Ortiz,10.0,22-37-48-12
-157,Olga Rodriguez,5.0,22-37-48-11
-158,Gabriela Ponce,6.0,22-37-49-07
-159,Melva del Carmen Mendoza,8.0,22-37-49-08
-160,Aleyda Yasmin Herrera M,9.0,22-37-18-05
-161,Yesmi Alejandra Posadas,10.0,22-37-17-10
-162,Yony Pantaleon Castro,18.0,22-37-18-07
-163,Leyla Margot Posadas,10.0,22-37-18-04
-164,Rafael Alberto Osorto,12.0,22-37-18-03
-166,Juan Agustin Castro,6.0,22-37-18-01
-167,Ana Julia Romero,5.0,22-37-19-07
-168,Maria Lino Portillo,6.0,22-37-19-06
-169,Ana Maria Corrales,5.0,22-37-19-05
-170,Gloria Dominguez Meza,5.0,22-37-19-04
-171,Francisca Alvarez Aplicano,5.0,22-37-19-03
-172,Irma Yaneth Salazar,5.0,22-37-19-02
-173,Magdiel Arteaga,8.0,22-37-19-01
-175,Santos Vicenta Carvajal R,19.0,22-37-20-05
-176,Eduarly Maradiaga,8.0,22-37-20-04
-177,Dilcia Azucena Hernandez,20.0,22-37-20-02
-179,Elma Denia Espinal Zelaya,12.0,22-37-20-01
-180,Salome Guillen Alvarado,10.0,22-37-21-05
-181,Santos Aristeo Molina,5.0,22-37-21-04
-182,Rosa Lidia Maradiaga,6.0,22-37-52-01
-183,Jeny Albertina Mazariegos,5.0,22-37-52-02
-184,Martha Leticia Lagos S,41.0,22-37-22-10
-185,Maria Gelsomina Paz Rubio,20.0,22-37-22-08
-186,Luis Alfredo Zelaya,6.0,22-37-50-04
-187,Elvin Esteban Baca,5.0,22-37-50-03
-188,Juan Agustin Castro,10.0,22-37-49-01
-189,Rafael Alberto Osorto Perez,5.0,22-37-49-10
-190,Yelba Judith Mendoza,6.0,22-37-49-09
-192,Marco Tulio Avila Garcia,18.0,22-37-22-11
-193,Amanda Estela Martinez,6.0,22-37-22-12
+001,Maria Valeria Ramirez,11,22-37-01-01
+002,Santos Candido Corrales,29,22-37-01-18
+003,Luis Alonso Rodriguez C,9,22-37-01-17
+3,Angel David Vasquez Sosa,5,22-37-77-03
+004,Maria Lino Portillo,7,22-37-01-16
+004,Maria Lino Portillo,6,22-37-19-06
+005,Lorena Waleska Betancourt,11,22-37-01-15
+6,Adriana Guillen,16,22-37-90-01
+007,Jahaira Waleska Benavidez,6,22-37-01-13
+7,Kelin Julisa Montoya,4,22-37-37-01
+008,Marina de Jesus Lainez,6,22-37-27-01
+009,Victor Manuel Vargas,8,22-37-27-10
+9,Miguel Angel Carranza,5,22-37-77-02
+010,Maria Paula Ordoñez C,9,22-37-27-09
+011,Virgilio Medina Godoy,11,22-37-27-08
+11,Reyna Victoria Ordoñez,6,22-37-37-02
+012,Ada Cristina Cruz  Guido,6,22-37-27-07
+013,Olivia Bernarda Castro,6,22-37-26-01
+014,Maria Lina Portillo,10,22-37-26-11
+14,Sebastiana Garcia Orellana,5,22-37-71-02
+015,Francisco Jose Rodriguez,9,22-37-26-10
+016,Miguel Angel Canales M,6,22-37-26-09
+017,Francisco Nuñez Martinez,7,22-37-26-08
+018,Edila Antonia Fuentes F,6,22-37-26-07
+019,Andres Matamoros S,7,22-37-25-01
+020,Sonia Yamileth Matamoros,7,22-37-25-06
+021,Munir Yesenia Barahona,11,22-37-25-05
+022,Harlin Yovany Hernandez y  Delmy Lourdes Corrales,7,22-37-25-04
+023,Mirian Azucena Portillo,24,22-37-24-01
+024,Jose Nahun Rodriguez Baca,6,22-37-24-03
+025,Matilde Lagos y Francisca Aguilar,6,22-37-54-04
+027,Santos Isabel Contreras,7,22-37-54-01
+028,Marina Lopez Lopez,5,22-37-25-03
+029,Jose Naun Rodriguez Baca,5,22-37-55-08
+031,Braulio Galindo Betanco,9,22-37-55-09
+032,Petronila Baca,9,22-37-55-10
+033,Jose Leon Rodriguez,5,22-37-103-02
+033,Jose Leon Rodriguez,5,22-37-103-04
+033,Jose Leon Rodriguez,23,22-37-25-02
+033,Jose Leon Rodriguez,10,22-37-55-01
+034,Maria Elena Espinoza,5,22-37-26-06
+035,Mirian Amador,5,22-37-26-05
+037,Maria Elena Flores Montoya,15,22-37-26-03
+038,Sara Elizabeth Rivera,11,22-37-07-03
+039,Eric Asael Ledesman C,10,22-37-06-01
+040,Hernan Mejia Ochoa,15,22-37-56-01
+041,Tomasa Ondina Osorto,6,22-37-26-02
+042,Juan Jonathan Doña Osorto,5,22-37-27-06
+043,Lucila Bonilla Ticas,15,22-37-28-05
+044,Alitiano Fuentes Carcamo,5,22-37-27-05
+045,Adriana Medina Mendoza,7,22-37-27-04
+046,Josue Nahum Rodriguez,16,22-37-28-06
+047,Eric Asael Ledesmam,10,22-37-06-05
+048,Maria Cristina Lopez,13,22-37-27-02
+049,Irma Anabeliz Alvarez Perdomo,7,22-37-28-01
+052,Jose Aurelio Alvarez,17,22-37-01-10
+052,Jose Aurelio Alvarez,10,22-37-02-08
+054,Ana Angelica Cruz,5,22-37-01-09
+055,Guadalupe Osorto Euceda,5,22-37-01-08
+056,Oscar Marcelino Oyuela y Paula Moran Cruz,13,22-37-02-09
+056,Oscar Marcelino Oyuela y Paula Moran Cruz,13,22-37-02-10
+057,Abraham Corrales Espinal,7,22-37-06-03
+058,Maria Ortiz Lopez,10,22-37-06-04
+059,Ana Ramirez,5,22-37-01-05
+060,Celso Ramon Posadas,5,22-37-01-04
+061,Melvin Geovany Soto,5,22-37-02-11
+062,Juan Bautista Paz,5,22-37-01-03
+063,Hector Joaquin Contreras,9,22-37-02-12
+064,Pedro Soriano,11,22-37-01-02
+065,Mercedes Diaz Avila,11,22-37-02-01
+066,Sixto Vicente Amador C,23,22-37-02-02
+067,Blanca Daysi Reyes,10,22-37-03-07
+068,Onil Adonay Alvarez Avilez,12,22-37-03-01
+069,Roberth Esmith Sanchez,6,22-37-03-02
+070,Maria Claudia Ramirez B,10,22-37-03-03
+071,Darwin Raul Osorto P,13,22-37-03-04
+072,Lesly Gricelda Nuñez R,10,22-37-04-08
+073,Francisco Florian,9,22-37-04-01
+074,Mercedes del Carme Trejos  S,18,22-37-04-02
+075,Pablo Diaz,15,22-37-04-03
+076,Felipe Nery Rodas Rivas,13,22-37-05-07
+077,Hector Jose Silva Corrales,12,22-37-04-04
+078,Carmen Alicia Martinez,10,22-37-05-01
+78-1,Angel Misael Avilez,8,22-37-05-09
+079,Maria Francisca Carranza,11,22-37-05-02
+080,Santos Amadeo Castillo,15,22-37-05-03
+080-1,Erlin Alexis Sanchez Molina,12,22-37-05-04
+082,Ada Rosibel Mondragon Vargas,8,22-37-34-01
+084,Jose Santos Paz Carbajal,20,22-37-35-03
+085,Francisca Guzman,12,22-37-35-04
+086,Gumercinda Fonseca Avila,23,22-37-35-05
+087,Pedro Pablo Velasquez,23,22-37-35-06
+088,"Carlos Roberto Diaz, Santos Marin Portillo",13,22-37-07-02
+089,Feliciano Lopez,12,22-37-07-01
+090,Eric Asael Ledesman C,13,22-37-08-01
+092,Julio Cesar Torrez,10,22-37-08-03
+093,Maria Francisca Torrez,15,22-37-09-01
+095,Javier Ronaldo Lagos,8,22-37-35-08
+096,Pedro Luis Alvarenga,15,22-37-08-02
+096,Pedro Luis Alvarenga,10,22-37-35-07
+096,Pedro Luis Alvarenga,12,22-37-35-10
+097,Reyna Elizabeth Aguilera Alvarenga,9,22-37-09-04
+098,Sagrario de Jesus Flores R,18,22-37-09-03
+099,Suyapa Yamilet Cruz Romero,11,22-37-09-02
+100,Jose Lino Moreno Arteaga,5,22-37-10-01
+101,Mirna Nayely Alvarenga V,7,22-37-36-02
+103,Erik  Asael Ledesmam,9,22-37-11-12
+105,Delmy Cristina Rojas Diaz,13,22-37-11-01
+106,Rey Francisco Bonilla Turcios,23,22-37-11-02
+108,Oscar Armando Moreno Arteaga,11,22-37-11-04
+109,Fermin Reyes Funez,16,22-37-11-10
+109-1,Mayra Yaqueline Santos,7,22-37-11-05
+110,Rotny Otoniel Ortez Rubi,15,22-37-11-06
+111,Elva Marina Solano,7,22-37-11-07
+112,Rosa Amalia Mercado,16,22-37-12-01
+113,Soraida Maria Meza y Kevin Josue Meza,6,22-37-11-08
+114,Irma Antonia Rodriguez,5,22-37-38-01
+115,Katerin Patricia Gonzales,5,22-37-39-01
+116,Jose Nahun Hernandez C,5,22-37-40-01
+117,Dilcia Maricela Osorto,28,22-37-42-01
+119,Gloria Emilia Hernandez,13,22-37-12-02
+120,Silvia Esperanza Rodriguez,13,22-37-12-03
+121,Jose Julian Perdomo Castro,22,22-37-11-03
+121,Jose Julian Perdomo Castro,12,22-37-13-01
+122,Herminia Sanchez,8,22-37-12-04
+124,Gustavo Adolfo Flores,6,22-37-43-01
+125,Jose Atilio Alvarez,18,22-37-13-02
+126,Rigoberto Artiaga B,9,22-37-13-03
+126,Rigoberto Artiaga B,5,22-37-31-05
+126,Rigoberto Artiaga Betancourth,18,22-37-35-02
+127,Francisco Javier Arteaga,6,22-37-44-01
+128,Ramon Enrique Colado,19,22-37-14-01
+129,Gerardo Antonio Castillo,13,22-37-14-02
+130,Yolanda Gonzalez Ordoñez,4,22-37-15-02
+131,Carlos Alberto Salinas,21,22-37-15-01
+134,Saul Rodriguez,15,22-37-45-01
+134,Saul Rodriguez,15,22-37-46-01
+135,Fidelina Midence Carrasco,17,22-37-15-03
+136,Pompilio Vigil Hernandez,10,22-37-46-02
+137,Marlon Arnoldo Degrande,17,22-37-16-01
+138,Mirna Janeth Perez Betancourth,13,22-37-16-02
+139,Arcadea Majano,16,22-37-16-03
+140,"Gladis Anibal Palma, Maria de los Santos Palma ,Briselda Santos P.",23,22-37-16-04
+141-1,Jose Manuel Ponce y Silvia Esperanza Rodriguez E,13,22-37-16-05
+142,Samuel Almendarez Cabrera,13,22-37-16-06
+143,Bessy Marisol Espinal Sarmiento,11,22-37-46-03
+144,Denis Quiroz Moncada,19,22-37-17-08
+146,Maria Francisca Reyes A,13,22-37-17-07
+147,Lucila Arias,10,22-37-17-06
+148,Ingrid Yamileth Molina P,8,22-37-17-05
+149,Paula Mendoza Martinez,5,22-37-17-04
+150,Martha Idalia Ramirez,8,22-37-17-03
+151,Aleyda Yasmin Herrera M,6,22-37-17-01
+152,Olvin Noel Aguilera Betanco,18,22-37-48-07
+154,Glenda Selena Espinal,7,22-37-48-09
+155,Flora Veneranda Sarmiento,10,22-37-48-10
+156,Susana Ferrufino Ortiz,10,22-37-48-12
+157,Olga Rodriguez,5,22-37-48-11
+158,Gabriela Ponce,6,22-37-49-07
+159,Melva del Carmen Mendoza,8,22-37-49-08
+160,Aleyda Yasmin Herrera Maradiaga,9,22-37-18-05
+161,Yesmi Alejandra  Posadas,10,22-37-17-10
+163,Leyla Margot Posadas Murillo,10,22-37-18-04
+164,Rafael Alberto Osorto,12,22-37-18-03
+167,Ana Julia Romero,5,22-37-19-07
+169,Ana Maria Corrales Paz,5,22-37-19-05
+170,Gloria Dominguez Meza,5,22-37-19-04
+171,Francisca Alvarez Aplicano,5,22-37-19-03
+172,Irma Yaneth Salazar,5,22-37-19-02
+173,Magdiel Arteaga,8,22-37-19-01
+174,Javier Antonio Izaguirre Herrera,5,22-37-58-03
+175,Santos Vicenta Carvajal Rodas,19,22-37-20-05
+176,Eduarly Maradiaga,8,22-37-20-04
+177,Dilcia Azucena Hernandez,20,22-37-20-02
+179,Elma Denia Espinal Zelaya,12,22-37-20-01
+180,Salome Guillen Alvarado,10,22-37-21-05
+181,Santos Aristeo  Molina,5,22-37-21-04
+182,Rosa Lidia Maradiaga,6,22-37-52-01
+183,Jeny Albertina Mazariegos,5,22-37-52-02
+184,Martha Leticia Lagos Salgado,41,22-37-22-10
+185,Maria Gelsomina Paz Rubio,20,22-37-22-08
+186,Luis Alfredo Zelaya,6,22-37-50-04
+187,Elvin Esteban Baca Sanchez,5,22-37-50-03
+188,Juan Agustin Castro,6,22-37-18-01
+188,Juan Agustin Castro,10,22-37-49-01
+189,Rafael Alberto Osorto Perez,5,22-37-49-10
+190,Yelba Judith Mendoza Aplicano,7,22-37-150-03
+190,Yelba Judith Mendoza,6,22-37-49-09
+192,Marco Tulio Avila Garcia,18,22-37-22-11
+193,Amanda Estela Martinez,6,22-37-22-12
 194,Marvin Alvarez Carbajal,7.5,22-37-21-03
-196,Denis Neptaly Ortiz Cruz,10.0,22-37-22-13
-197,Bernardo Espinal,5.0,22-37-22-15
-198,Santos Paublo Amador C,12.0,22-37-21-06
-199,Santos Petrona Perez M,10.0,22-37-21-07
-200,Marlen Yadira Bonilla B,27.0,22-37-21-01
-201,Carlos Castillo Amador,6.0,22-37-22-14
-202,Rafael Elias Moncada V,134.0,22-37-22-01
-203,Blanca Estela Gonzales y Oscar Orlando Gomez,13.0,22-37-22-02
-204,Romelia Montoya Rodrig,10.0,22-37-22-03
-205,Rafael Elias Moncada Galo,20.0,22-37-22-05
-206,Maria Virginia Nuñez M,5.0,22-37-92-02
-209,Gladis Patricia Avilez A,16.0,22-37-94-04
-210,Maria Victoria Avila M,5.0,22-37-53-04
-211,Marcos Padilla,10.0,22-37-53-05
-212,Sandra Elizabeth Padilla C,5.0,22-37-23-03
-213,Honoria Erminceda Midence,9.0,22-37-23-04
-214,Rosa Acosta Ordoñez,6.0,22-37-23-05
-215,Juliana Sanchez,7.0,22-37-23-01
-216,Rosa Acosta Ordoñez,10.0,22-37-23-02
-217,Felipe Nery Espinal Lopez,10.0,22-37-53-01
-219,Paula Corrales,9.0,22-37-53-03
-220,Javier Alvarez Jarquin,11.0,22-37-94-01
-222,Nely Aron Borjas R,5.0,22-37-92-01
-223,Saturnina Gutierrez Ord,10.0,22-37-93-01
-225,David Fernando Flores M,10.0,22-37-95-03
-228,Norma Dina Contreras,15.0,22-37-96-01
-229,Maria de Jesus Medina,5.0,22-37-95-01
-230,Iris Asusena Pineda,5.0,22-37-97-02
-231,Keren Jemima Canales C,5.0,22-37-98-03
-232,Rosela Croribel Alvarez R,10.0,22-37-97-01
-233,Imelda Ramirez,5.0,22-37-98-02
-235,Heydy Aurora Rios,5.0,22-37-98-01
-236,Heydy Aurora Rios,5.0,22-37-99-03
-238,Jose Miguel Gutierrez,6.0,22-37-54-03
-239,Magdalena Avila,6.0,22-37-55-07
-240,Jonatan Arias,5.0,22-37-55-06
-241,Josefa del Carmen Ordoñez,6.0,22-37-55-04
-242,Yolanda Toruño,5.0,22-37-101-04
-243,Ulice Ruiz Toruño,14.0,22-37-99-02
-244,Jaime Ruiz Toruño,13.0,22-37-54-02
-246,Alba Patricia Maldonado,5.0,22-37-100-01
-247,Dusidalia Rodas,5.0,22-37-100-02
-248,Sandra Yadira Ordoñez,10.0,22-37-100-03
-251,Hector Enrique Hernandez,20.0,22-37-91-02
-252,Maura Claudia Rodas Lagos,36.0,22-37-91-03
-253,Nelson Rene Ortiz Aguilar,5.0,22-37-91-05
-254,Juana Francisca Aguilar,15.0,22-37-22-04
-255,Leticia Aguilar,20.0,22-37-89-01
-256,Petronila Sanchez Perez,15.0,22-37-89-08
-257,Junior Adolfo Bonilla,15.0,22-37-89-07
-258,Maria Silvia Aplicano,15.0,22-37-89-06
-259,Lucidalia Zelaya Medina,15.0,22-37-50-01
-260,Kevin Alexis Guillen M,15.0,22-37-50-02
-261,Reyna Isabel Palacios,5.0,22-37-89-05
-262,Alex Simeon Mendez E,15.0,22-37-89-04
-263,Dilcia Yessenia Carbajal A,5.0,22-37-89-03
-264,Maritza Virginia Portillo,10.0,22-37-89-02
-265,Maritza Virginia Portillo,10.0,22-37-89-09
-266,Mario Leonel Mendoza R,15.0,22-37-88-01
-267,Olman Serapio Mendoza R,15.0,22-37-88-07
-268,Fredy Adalberto Ordoñez,15.0,22-37-88-06
-269,Fredy Adalberto Ordoñez,15.0,22-37-88-05
-270,"Ismael Enrique Vargas y Karen Vanessa Vargas, Iris Dilenia Barahona",15.0,22-37-88-08
-271,Maria del Carmen Estrada,15.0,22-37-49-11
-272,Maria Ester Galo,15.0,22-37-49-02
-273,Jenmy Kalorina Zelaya,15.0,22-37-49-03
-274,Fredy Adalberto Ordoñez,15.0,22-37-88-03
-275,Bertilia Alicia Carbajal,12.0,22-37-88-02
-276,Jose Ismael Espinal,15.0,22-37-87-08
-277,Celin Betsael Portillo C,15.0,22-37-87-05
-278,Jose Israel Portillo,15.0,22-37-87-06
-279,Jose Alfredo Perez,15.0,22-37-87-07
-280,Kelvin Neptaly Portillo C,15.0,22-37-49-04
-281,Kelvin Neptali Portillo,15.0,22-37-49-05
-282,Simeon Mendez Rodriguez,15.0,22-37-49-06
-283,Migdonia Rodriguez,10.0,22-37-48-01
-284,Gensen Yair Portillo B,15.0,22-37-86-07
-285,Delmy Dilenia Mendez P,15.0,22-37-86-08
-286,Mirian Nohemy Moran,15.0,22-37-86-09
-287,Modesta Rubio,15.0,22-37-86-10
-288,Fany Johana Mendez Perez,15.0,22-37-86-01
-289,Telma Azucena Perez R,15.0,22-37-86-02
-290,Fabricio Josue Betanco,15.0,22-37-86-03
-291,Victor Escaño Maratomoros,15.0,22-37-86-04
-292,Ayda Marissela Velasquez,15.0,22-37-86-05
-293,Aminta Vargas,15.0,22-37-86-06
-294,Fredy Agustin Osorto,10.0,22-37-48-02
-295,Jairo Isai Maradiaga C. Y Suyapa Concepcion Maradiaga,10.0,22-37-48-03
-296,Dora Marina Morales,10.0,22-37-48-04
-297,Luz Marina Aguilar,10.0,22-37-48-05
-298,Maria Esperanza Salazar,10.0,22-37-48-06
-299,Mirian Lizet Betanco Cord,15.0,22-37-84-06
-300,Maria Alejandrina Villatoro,15.0,22-37-84-07
-301,Francisco Arnoldo Lagos M,15.0,22-37-84-08
-302,Leonel Velasquez R.,15.0,22-37-84-09
-303,Leonel Velasquez R.,15.0,22-37-84-10
-304,Nicolas Ramirez Linarez,15.0,22-37-84-01
-305,Elmer Antonio Lopez B,15.0,22-37-84-02
-306,Suyapa Yaneth Lopez O,15.0,22-37-84-03
-307,Fredy Gonzalo Carbajal,15.0,22-37-84-04
-308,Jeny Maribel Lanza,15.0,22-37-84-05
-310,Juan Manuel Herrera,15.0,22-37-81-04
-311,Junior Alexis Lanzay Flora Sanchez,30.0,22-37-83-01
-312,Yenny Maribel Lanza,15.0,22-37-85-01
-313,Delia Solange Osorto E,15.0,22-37-81-05
-314,Francis Carolina Osorto E,15.0,22-37-124-02
-315,Delia Erlinda Erazo,15.0,22-37-123-04
-316,Samuel Antonio Villalobos,15.0,22-37-123-05
-317,Suyapa Lorena Escobar,15.0,22-37-123-06
-318,Yeselia Yamileth Suazo,9.0,22-37-125-01
-319,Yeselia Yamileth Suazo,8.0,22-37-128-02
-320,Ana Julia Espinal Carrasco,27.0,22-37-127-01
-322,Petronila Sanchez,10.0,22-37-131-01
-323,Jose Antonio Amador,7.0,22-37-127-02
-324,Blanca Yaneth Flores,5.0,22-37-87-01
-325,Mirian Nohemy Moran,25.0,22-37-87-03
-326,Maritza Virginia Portillo,15.0,22-37-130-01
-327,Consuelo Osorto,20.0,22-37-132-04
-328,Fredy Adalberto Ordoñez,15.0,22-37-149-03
-329,Julia Salinas,15.0,22-37-149-02
-330,Isaac Rodriguez Castellon,5.0,22-37-148-01
-331,Maria Silvia Aplicano,5.0,22-37-148-03
-332,Maria Elvira Ramirez,5.0,22-37-123-07
-333,Blanca Lidia Mendoza,11.0,22-37-133-01
-334,Mirza Elizabeth Benitez,7.0,22-37-134-04
-335,Sonia Marina Lagos,7.0,22-37-134-01
-337,Gladys Mirtila Lagos,18.0,22-37-135-01
-338,Dania Esperanza Mondragon,7.0,22-37-153-04
-339,Dania Esperanza Mondragon,7.0,22-37-153-01
-340,Ana Maria del Pilar Giron,7.0,22-37-104-03
-341,Fatima del Carmen Centeno,7.0,22-37-104-01
-342,Rubenia Gonzales,7.0,22-37-105-02
-343,Hilda Isabel Betanco,7.0,22-37-105-03
-344,Victor Manuel Osorto M. Y Delia Erlinda Erazo,11.0,22-37-139-03
-345,Juan Ramon Sanchez,11.0,22-37-138-01
-346,Maria Luisa Baca Martinez,7.0,22-37-138-04
-347,Sagrario de Jesus Osorto,7.0,22-37-138-03
-348,Maria Antonia Tercero G,7.0,22-37-104-02
-349,Victor Manuel Osorto M.,7.0,22-37-153-02
-350,Maria Del Rosario Rodriguez,7.0,22-37-137-01
-351,Gloria Isabel Montoya,7.0,22-37-137-03
-352,Alma Sagrario Montoya R,7.0,22-37-153-03
-353,Mayra Yolanda Avila,7.0,22-37-137-02
-354,Sara Estela Montoya R.,7.0,22-37-136-02
-355,Gladys Mirtala Lagos S,7.0,22-37-136-01
-356,Olga Suyapa Montoya,11.0,22-37-135-02
-357,Rosa Jacinta Hernandez,7.0,22-37-136-04
-358,Bernabe Flores,7.0,22-37-136-03
-359,Gladis Garcia,11.0,22-37-151-02
-360,Rosibel Alvarado Melara,7.0,22-37-151-01
-361,Denis Aleyda Guillen,7.0,22-37-151-03
-362,Digna Emerita Espìnal B,7.0,22-37-134-03
-363,Yaritza Yamileth Cerrato,7.0,22-37-133-02
-364,Florinda Ponce,7.0,22-37-133-03
-365,Gumercinda Garcia,7.0,22-37-150-01
-366,Rosalina Galeas,11.0,22-37-150-02
-367,Daysi Consuelo Perez B,9.0,22-37-147-01
-368,Maria Elvira Ramirez,5.0,22-37-148-02
-369,Blanca Nerinda Avila S,6.0,22-37-123-01
-370,Dilsia Esmeralda Avila Soriano,6.0,22-37-122-06
-372,Delia Erlinda Erazo,5.0,22-37-123-03
-373,Lucy Loribel Ventura B,5.0,22-37-122-04
-374,Jose Daniel Maradiaga Z,5.0,22-37-80-05
-375,Roque Oswaldo Amador,7.0,22-37-81-01
-376,Ana Sarahi Aguilar,5.0,22-37-81-03
-377,Vilma Escalante,7.0,22-37-80-04
-379,Nelci Sanchez,7.0,22-37-80-02
-380,Nelci Sanchez,6.0,22-37-79-03
-381,Pedro Tiburcio Osorto Osorto,6.0,22-37-79-04
-382,Ramon Alejandro Nuñez,5.0,22-37-80-01
-383,Virgilio Lagos,5.0,22-37-79-05
-384,Jose Francisco Zambrano,8.0,22-37-121-03
-385,Luis Alfredo Flores T,10.0,22-37-121-05
-386,Irene Izamar Rojas M,10.0,22-37-82-02
-387,Maria de Jesus Aguilar,7.0,22-37-122-01
-388,Reynaldo Ortiz Burgos,9.0,22-37-125-03
-389,Maria Felipa Paz,4.0,22-37-146-03
-390,Isaac Rodriguez Castellon,5.0,22-37-146-01
-391,Andrea Avila,4.0,22-37-145-04
-392,Josefa Cruz,5.0,22-37-145-03
-393,Keylin Yosary Barahona C,5.0,22-37-146-02
-394,Luis Yulior Palma Lagos,6.0,22-37-121-01
-396,Suany Dileyna Campos,6.0,22-37-120-04
-397,Melvin Javier Casco Reyes,5.0,22-37-121-02
-398,Cristino Salinas Rodriguez,22.0,22-37-78-01
-399,Edil Enrique Ortiz,6.0,22-37-79-01
-401,Victor Manuel Osorto M,6.0,22-37-79-02
+196,Denis Neptaly Ortiz Cruz,10,22-37-22-13
+197,Bernardo Espinal,5,22-37-22-15
+198,Santos Paublo Amador C,12,22-37-21-06
+199,Santos Petrona Perez M,10,22-37-21-07
+200,Marlen Yadira Bonilla Baquedano,27,22-37-21-01
+201,Carlos Castillo Amador,6,22-37-22-14
+202,Rafael Elias Moncada Valladares,134,22-37-22-01
+203,Blanca Estela Gonzales y Oscar Orlando Gomez,13,22-37-22-02
+204,Romelia Montoya Rodriguez,10,22-37-22-03
+206,Maria Virginia  Nuñez M,5,22-37-92-02
+209,Gladis Patricia Avilez A,16,22-37-94-04
+210,Maria Victoria Avila Montoya,5,22-37-53-04
+211,Marcos Padilla,10,22-37-53-05
+212,Sandra Elizabeth Padilla C,5,22-37-23-03
+213,Honoria Erminceda Midence,9,22-37-23-04
+215,Juliana Sanchez,7,22-37-23-01
+216,Rosa Acosta Ordoñez,10,22-37-23-02
+216,Rosa Acosta Ordoñez,6,22-37-23-05
+217,Felipe Nery Espinal Lopez,10,22-37-53-01
+219,Paula Corrales Corrales,9,22-37-53-03
+220,Javier Alvarez Jarquin,11,22-37-94-01
+222,Nely Aron Borjas R,5,22-37-92-01
+223,Saturnina Gutierrez Ordoñez,10,22-37-93-01
+225,David Fernando Flores M,10,22-37-95-03
+228,Norma Dina Contreras,15,22-37-96-01
+229,Maria de Jesus Medina,5,22-37-95-01
+230,Iris Asusena Pineda,5,22-37-97-02
+231,Keren Jemima Canales Castro,5,22-37-98-03
+232,Rosela Croribel Alvarez R,10,22-37-97-01
+233,Imelda Ramirez,5,22-37-98-02
+236,Heydy Aurora Rios,5,22-37-98-01
+236,Heydy Aurora Rios,5,22-37-99-03
+238,Jose Miguel Gutierrez,6,22-37-54-03
+239,Magdalena Avila,6,22-37-55-07
+240,Jonatan Arias,5,22-37-55-06
+241,Josefa del Carmen Ordoñez,6,22-37-55-04
+242,Yolanda Toruño,5,22-37-101-04
+243,Ulice Ruiz Toruño,7,22-37-108-01
+243,Ulice Ruiz Toruño,14,22-37-99-02
+244,Jaime Ruiz Toruño,13,22-37-54-02
+246,Alba Patricia Maldonado,5,22-37-100-01
+247,Dusidalia Rodas,5,22-37-100-02
+248,Sandra Yadira Ordoñez,10,22-37-100-03
+251,Hector Enrique Hernandez,20,22-37-91-02
+252,Maura Claudia Rodas Lagos,36,22-37-91-03
+253,Nelson Rene Ortiz Aguilar,5,22-37-91-05
+254,Juana Francisca Aguilar,15,22-37-22-04
+255,Leticia Aguilar,20,22-37-89-01
+256,Petronila Sanchez Perez,15,22-37-89-08
+257,Junior Adolfo Bonilla,15,22-37-89-07
+259,Lucidalia Zelaya Medina,15,22-37-50-01
+260,Kevin Alexis Guillen Mendez,15,22-37-50-02
+261,Reyna Isabel Palacios,5,22-37-89-05
+262,Alex Simeon Mendez E,15,22-37-89-04
+263,Dilcia Yessenia Carbajal Avila,5,22-37-89-03
+266,Mario Leonel Mendoza R,15,22-37-88-01
+267,Olman Serapio Mendoza R,15,22-37-88-07
+270,"Ismael Enrique Vargas y Karen Vanessa Vargas, Iris Dilenia Barahona",15,22-37-88-08
+271,Maria del Carmen Estrada,15,22-37-49-11
+272,Maria Ester Galo M,15,22-37-49-02
+273,Jenmy Kalorina Zelaya,15,22-37-49-03
+275,Bertilia Alicia Carbajal Flores,12,22-37-88-02
+276,Jose Ismael Espinal,15,22-37-87-08
+277,Celin Betsael Portillo Carcamo,15,22-37-87-05
+278,Jose Israel Portillo Osorto,15,22-37-87-06
+279,Jose Alfredo Perez,15,22-37-87-07
+280,Kelvin Neptaly Portillo Carcamo,15,22-37-49-04
+281,Kelvin Neptali Portillo,15,22-37-49-05
+282,Simeon Mendez Rodriguez,15,22-37-49-06
+283,Migdonia Rodriguez,10,22-37-48-01
+284,Gensen Yair Portillo Betanco,15,22-37-86-07
+285,Delmy Dilenia Mendez P,15,22-37-86-08
+287,Modesta Rubio,15,22-37-86-10
+288,Fany Johana Mendez Perez,15,22-37-86-01
+289,Telma Azucena Perez R,15,22-37-86-02
+290,Fabricio Josue Betanco,15,22-37-86-03
+291,Victor Escaño Maratomoros,15,22-37-86-04
+292,Ayda Marissela Velasquez,15,22-37-86-05
+293,Aminta Vargas,15,22-37-86-06
+294,Nelson Ramiro Banegas,10,22-37-110-02
+294,Fredy Agustin Osorto,10,22-37-48-02
+295,Jairo Isai Maradiaga C. Y Suyapa Concepcion Maradiaga,10,22-37-48-03
+296,Dora Marina Morales,10,22-37-48-04
+297,Luz Marina Aguilar Gonzales,10,22-37-48-05
+298,Maria Esperanza Salazar,10,22-37-48-06
+299,Mirian Lizet Betanco Cordova,15,22-37-84-06
+300,Maria Alejandrina Villatoros,15,22-37-84-07
+301,Francisco Arnoldo Lagos M,15,22-37-84-08
+303,Leonel Velasquez Rodriguez,15,22-37-84-09
+303,Leonel Velasquez Rodriguez,15,22-37-84-10
+304,Nicolas Ramirez Linarez,15,22-37-84-01
+305,Elmer Antonio Lopez Betanco,15,22-37-84-02
+306,Suyapa Yaneth Lopez Osorto,15,22-37-84-03
+307,Fredy Gonzalo Carbajal,15,22-37-84-04
+308,Jeny Maribel Lanza,15,22-37-84-05
+310,Juan Manuel Herrera Osorto,15,22-37-81-04
+311,Junior Alexis Lanzay Flora Sanchez,30,22-37-83-01
+312,Yenny Maribel Lanza,15,22-37-85-01
+313,Delia Solange Osorto E,15,22-37-81-05
+314,Francis Carolina Osorto Erazo,15,22-37-124-02
+315,Delia Erlinda Erazo,5,22-37-123-03
+315,Delia Erlinda Erazo,15,22-37-123-04
+316,Samuel Antonio Villalobos,15,22-37-123-05
+317,Suyapa Lorena Escobar,15,22-37-123-06
+319,Yeselia Yamileth Suazo,9,22-37-125-01
+319,Yeselia Yamileth Suazo,8,22-37-128-02
+319,Petronila Sanchez,10,22-37-131-01
+320,Ana Julia Espinal Carrasco,27,22-37-127-01
+323,Jose Antonio Amador,7,22-37-127-02
+324,Blanca Yaneth Flores,5,22-37-87-01
+325,Mirian Nohemy Moran,15,22-37-86-09
+325,Mirian Nohemy Moran,25,22-37-87-03
+326,Maritza Virginia Portillo,15,22-37-130-01
+326,Maritza Virginia Portillo,10,22-37-89-02
+326,Maritza Virginia Portillo,10,22-37-89-09
+327,Consuelo Osorto,20,22-37-132-04
+328,Fredy Adalberto Ordoñez,15,22-37-149-03
+328,Fredy Adalberto Ordoñez,15,22-37-88-03
+328,Fredy Adalberto Ordoñez,15,22-37-88-05
+328,Fredy Adalberto Ordoñez,15,22-37-88-06
+329,Julia Salinas,15,22-37-149-02
+330,Isaac Rodriguez Castellon,5,22-37-146-01
+330,Isaac Rodriguez Castellon,5,22-37-148-01
+331,Maria Silvia Aplicano,5,22-37-148-03
+331,Maria Silvia Aplicano,15,22-37-89-06
+332,Maria Elvira Ramirez,5,22-37-123-07
+332,Maria Elvira Ramirez,5,22-37-148-02
+333,Blanca Lidia Mendoza,11,22-37-133-01
+334,Mirza Elizabeth Benitez,7,22-37-134-04
+337,Gladys Mirtila Lagos,18,22-37-135-01
+340,Ana Maria del Pilar Giron,7,22-37-104-03
+341,Fatima del Carmen Centeno,7,22-37-104-01
+342,Rubenia Gonzales,7,22-37-105-02
+343,Hilda Isabel Betanco,7,22-37-105-03
+344,Victor Manuel Osorto M.  Y Delia Erlinda Erazo,11,22-37-139-03
+345,Juan Ramon Sanchez,11,22-37-138-01
+346,Maria Luisa Baca Martinez,7,22-37-138-04
+347,Sagrario de Jesus Osorto,7,22-37-138-03
+348,Maria Antonia Tercero G,7,22-37-104-02
+349,Victor Manuel Osorto M.,7,22-37-153-02
+350,Maria Del Rosario Rodriguez,7,22-37-137-01
+350-1,Nery de Jesus Carranza,7,22-37-137-04
+351,Gloria Isabel Montoya,7,22-37-137-03
+352,Alma Sagrario Montoya R,7,22-37-153-03
+353,Mayra Yolanda Avila,7,22-37-137-02
+355,Gladys Mirtala Lagos Salinas,7,22-37-136-01
+356,Olga Suyapa Montoya Rodriguez,11,22-37-135-02
+357,Rosa Jacinta Hernandez,7,22-37-136-04
+358,Bernabe Flores,7,22-37-136-03
+359,Gladis Garcia,11,22-37-151-02
+360,Rosibel Alvarado Melara,7,22-37-151-01
+361,Denis Aleyda Guillen,7,22-37-151-03
+362,Digna Emerita Espìnal B,7,22-37-134-03
+363,Yaritza Yamileth Cerrato Carrasco,7,22-37-133-02
+364,Florinda Ponce,7,22-37-133-03
+365,Gumercinda Garcia,7,22-37-150-01
+366,Rosalina Galeas,11,22-37-150-02
+367,Daysi Consuelo Perez Betanouth,9,22-37-147-01
+369,Blanca Nerinda Avila Soriano,6,22-37-123-01
+370,Dilsia Esmeralda Avila Soriano,6,22-37-122-06
+373,Lucy Loribel Ventura B,5,22-37-122-04
+374,Jose Daniel  Maradiaga  Z,5,22-37-80-05
+375,Roque Oswaldo Amador,7,22-37-81-01
+376,Ana Sarahi Aguilar,5,22-37-81-03
+377,Vilma Escalante,7,22-37-80-04
+380,Nelci Sanchez,6,22-37-79-03
+380,Nelci Sanchez,7,22-37-80-02
+381,Pedro Tiburcio Osorto Osorto,6,22-37-79-04
+382,Ramon Alejandro Nuñez  Perez,5,22-37-80-01
+383,Virgilio Lagos,5,22-37-79-05
+384,Jose Francisco Zambrano,8,22-37-121-03
+385,Luis Alfredo Flores T,10,22-37-121-05
+386,Irene Izamar Rojas O,10,22-37-82-02
+387,Maria de Jesus Aguilar,7,22-37-122-01
+388,Reynaldo Ortiz Burgos,9,22-37-125-03
+389,Maria Felipa Paz,4,22-37-146-03
+391,Andrea Avila,4,22-37-145-04
+393,Keylin  Yosary Barahona C,5,22-37-146-02
+394,Luis Yulior Palma Lagos,6,22-37-121-01
+396,Suany Dileyna Campos,6,22-37-120-04
+397,Melvin Javier Casco Reyes,5,22-37-121-02
+398,Cristino Salinas Rodriguez,22,22-37-78-01
+399,Edil Enrique Ortiz,6,22-37-79-01
+401,Victor Manuel Osorto M,6,22-37-79-02
 402,Sanitario M.IC,333.33,22-37-77-01
-404,Dilia Betanco,5.0,22-37-77-05
-405,Maria Elena Nuñez,7.0,22-37-77-06
-407,Karla Lizeth Bustillo,7.0,22-37-119-03
-408,Angela Molina Zambrano,5.0,22-37-120-03
-409,Angela Molina Zambrano,5.0,22-37-120-02
-410,Angela Molina Zambrano,5.0,22-37-119-04
-411,Laura Guadalupe Lagos A,10.0,22-37-120-01
-412,Josefa Cruz,5.0,22-37-145-02
-413,Dominga Aguilera,5.0,22-37-144-03
-414,Rene Betancourt Ordoñez,4.0,22-37-145-01
-415,Rene Betancourt Ordoñez,4.0,22-37-144-04
-416,Blanca R. Rodriguez,3.0,22-37-144-01
-417,Sara Estela Montoya R,6.0,22-37-143-05
-419,Laura Aurora Aguilera R,4.0,22-37-144-02
-420,Santos Ancelmo Lagos,7.0,22-37-118-05
-421,Maria de Jesus Lagos,5.0,22-37-118-06
-422,Santos Ancelmo Lagos,4.0,22-37-119-01
-424,Yaneth Margarita Perdomo,5.0,22-37-119-02
-425,Claudia Elizabeth Lagos A,4.0,22-37-118-04
-426,Lesbia Yamilet Martinez,5.0,22-37-118-03
-427,Elisa Martinez Aguirre,5.0,22-37-117-04
-428,Gilson Daniel Perez Osorto,11.0,22-37-117-03
-430,Jose Luis Lainez Carranza,6.0,22-37-118-02
-431,Heriberta Ana Julia M,7.0,22-37-143-03
-432,Calixta Carranza,5.0,22-37-117-07
-433,Leydis Aracely Rivas,8.0,22-37-143-01
-435,Leydis Aracely Rivas P,11.0,22-37-117-01
-436,Elisa Vicenta Baquedano,5.0,22-37-116-05
-437,Jose Rene Rodas,10.0,22-37-116-02
-438,Oneyda Lizeth Ortiz Diaz,7.0,22-37-104-04
-441,Reina Isabel Palacios Garcia,8.0,22-37-76-01
-443,Mirian Castillo Corrales,10.0,22-37-76-04
-445,Antonio Ramirez Banco,8.0,22-37-75-02
-446,Jose Nahun Hernandez,11.0,22-37-76-02
-447,Jose Rene Rodas,5.0,22-37-75-01
-449,Nerlin Omar Zuniga Alvarez,5.0,22-37-75-03
-450,Gabriela Guevara,5.0,22-37-74-04
-451,Santos Jeovanny Lagos C,5.0,22-37-74-03
-452,Santos Jeovanny Lagos C,8.0,22-37-73-06
-453,Yesenia Yolanda Vanegas,5.0,22-37-74-05
-454,Jose Efrain Zambrano,7.0,22-37-73-07
-455,Elva Nely Ortiz Nuñez,9.0,22-37-74-01
-456,Ever Oniel Rueda Rodrig,8.0,22-37-114-05
-457,Evelio Rueda Centeno,5.0,22-37-115-03
-458,Aydee Francisca Rios,7.0,22-37-115-01
-459,Ever Oniel Rueda Rodrig,5.0,22-37-73-08
-461,Tomasa Argentina Osorto E,5.0,22-37-114-07
-463,Julio Cesar Oliva y Mirian Esperanza Perez,5.0,22-37-115-05
-464,Apolinaria Osorto,5.0,22-37-115-04
-465,Norma Rivera Osorto,4.0,22-37-116-01
-466,Blanca Azucena Martinez,9.0,22-37-142-01
-467,Efrain Orlando Martinez,5.0,22-37-141-02
-469,Aydee Francisca Rios,5.0,22-37-141-01
-470,Apolinaria Osorto,5.0,22-37-140-02
-471,Jose Antonio Zambrano,5.0,22-37-140-03
-472,Luis Alberto Perdomo,5.0,22-37-91-01
-473,Candida Rosa Perdomo,5.0,22-37-102-04
-474,Dania Esperanza Mondragon,10.0,22-37-102-02
-475,Santos German Lainez,7.0,22-37-102-01
-476,Rafael Elias Moncada Galo,44.0,22-37-101-02
-478,Rafael Elias Moncada Galo,10.0,22-37-55-03
-481,Santos German Lainez,7.0,22-37-103-05
-482,Tania Yaneth Reina,5.0,22-37-103-06
-483,Ena Marisela Martinez S,8.0,22-37-57-05
-484,Catalina Ordoñez,6.0,22-37-57-04
-485,Osman Osiris Galindo Salle,6.0,22-37-57-03
-486,Jose Leon Rodriguez,5.0,22-37-103-04
-487,Osman Osiris Galindo Salle,6.0,22-37-57-02
-488,Osman Osiris Galindo Salle,5.0,22-37-103-03
-489,Jose Leon Rodriguez,5.0,22-37-103-02
-490,Mirna Estela Herrera H,5.0,22-37-103-01
-491,Mirna Estela Herrera H,7.0,22-37-55-02
-492,Francisco Alvarez,6.0,22-37-57-01
-493,Francisco Alvarez,5.0,22-37-56-05
-494,karen Waleska Arguello,5.0,22-37-56-04
-495,Rafael Elias Moncada Galo,15.0,22-37-58-01
-497,Felipe Zambrano,5.0,22-37-58-02
-498,Javier Antonio Izaguirre H,5.0,22-37-58-03
-499,"Orlin Eugenio Lindo Vallejo, Nancy Karina Baquedano P",7.0,22-37-58-05
-500,Jose Pantaleon Castro,7.0,22-37-58-04
-501,Felix Mauricio Corrales,8.0,22-37-105-01
-502,Moises Augusto Silva,10.0,22-37-139-02
-504,Iris Yesenia Carabaca Carbajal,5.0,22-37-140-01
-505,Jose Efrain Zambrano,11.0,22-37-114-01
-506,Jorge Samuel Paz Cruz,8.0,22-37-72-01
-507,Gloria Elizabeth Flores,5.0,22-37-114-04
-508,Claudia Vanessa Arce Espinoza,5.0,22-37-73-01
-509,Swany Dilenia Campos,5.0,22-37-73-03
-510,Arnold Danery Oyuela,8.0,22-37-73-04
-512,Gloria Elizabeth Flores,5.0,22-37-113-04
-513,Henry Nahun Rodas Alvarez,17.0,22-37-112-06
-514,Maria Bonifacia Ordoñez,5.0,22-37-111-05
-515,Maria Elena Nuñez,4.0,22-37-106-03
-516,Mariana Matamoros,9.0,22-37-106-02
-517,Julio Cesar Montalvan,7.0,22-37-106-01
-518,Virginia Suyapa Pineda,5.0,22-37-59-05
-519,Nehemias Arias,5.0,22-37-59-06
-520,Felipe Zambrano,5.0,22-37-59-07
-521,Rudis Oman Ventura Bonilla,10.0,22-37-56-02
-522,Dagoberto Ventura Bonilla,7.0,22-37-59-01
-523,Lizeth del Carmen Medina,5.0,22-37-28-04
-524,Delbia Yaneth Sandoval,12.0,22-37-60-01
-525,Maria Blacina Zambrano,5.0,22-37-59-02
-528,Dagoberto Ventura Bonilla,8.0,22-37-60-06
-529,Jose Roberto Zambrano,5.0,22-37-59-03
-530,Jose Roberto Zambrano,6.0,22-37-59-04
-531,Maria Gloria Martinez,7.0,22-37-60-05
-532,Yony Pantaleon Castro,7.0,22-37-60-03
-534,Isai Eliazar Betancourth,5.0,22-37-61-05
-535,Luis Alonso Rodriguez,5.0,22-37-61-06
-536,Jhonny Joel Castro Arguello,5.0,22-37-60-02
-537,Juan Jose Rivas,5.0,22-37-61-07
-538,Karen Waleska Arguello,7.0,22-37-61-08
-540,Rosa Maria Erazo,5.0,22-37-28-03
-541,Rosa Albertina Vasquez,6.0,22-37-28-02
-542,Olman Anibal Morales,13.0,22-37-61-01
-545,Isai Eliazar Betancourth,8.0,22-37-61-02
-546,Maria Bertilia Zambrano,5.0,22-37-62-03
-547,Alba Leticia Lagos Perdomo,10.0,22-37-63-02
-548,Dunia Senayda Castro,5.0,22-37-62-02
-549,Genoveva Osorto,5.0,22-37-63-01
-550,Genoveva Osorto,5.0,22-37-62-01
-551,Jorge Alberto Zeron Lagos,15.0,22-37-02-07
-552,Elvia de Jesus Rodas Flores,7.0,22-37-29-07
-553,Braulio Galindo Betanco,13.0,22-37-29-09
-555,Braulio Galindo Betanco,6.0,22-37-02-06
-556,Santos Sulema Flores A,7.0,22-37-02-05
-557,Alba Nubia Zapata Zepeda,7.0,22-37-29-10
-558,Nestor Julio Maldonado,7.0,22-37-02-04
-559,Rosa Lidia Betanco H,8.0,22-37-02-03
-560,Douglas Omar Betancourth,7.0,22-37-29-01
-561,Evenor Betancourth H,5.0,22-37-03-06
-562,Nestor Julio Maldonado,6.0,22-37-03-05
-563,Juan Carlos Portillo,8.0,22-37-29-02
-564,Erik Noel Ordoñez,9.0,22-37-29-03
-565,Tiburcio Rodriguez Nuñez,7.0,22-37-29-04
-566,Ignacio Zambrano,14.0,22-37-29-05
-568,Jose Andres Arteaga B,13.0,22-37-30-06
-569,Isai Eleazar Betancourth,11.0,22-37-30-05
-570,Santos Adalid Amador,5.0,22-37-30-04
-571,Isidoro Rivera Alvarez,5.0,22-37-30-03
-572,Santos Sulema Flores A,5.0,22-37-30-02
-573,Cristino Salinas Rodriguez,5.0,22-37-04-07
-574,Santos Sulema Flores A,9.0,22-37-04-05
-575,Isidoro Rivera Alvarez,7.0,22-37-31-01
-576,Ricardo Aguilera Chirino,9.0,22-37-05-06
-577,Isidoro Rivera Alvarez,8.0,22-37-32-01
-578,Wendy Jaquelin Amador B,15.0,22-37-31-06
-580,Norma Elena Rodas,15.0,22-37-31-03
-581,Jose Antonio Zambrano Z,5.0,22-37-32-03
-582,Douglas Mario Galo M,6.0,22-37-31-04
-583,Dagoberto Ventura,5.0,22-37-32-04
-584,Rigoberto Artiaga B,5.0,22-37-31-05
-585,Ramon Victor Moncada,7.0,22-37-32-05
-587,Reina Amparo Montoya,5.0,22-37-33-03
-588,Jose Noel Betancourth,5.0,22-37-33-01
-589,Ada Rosibel Mondragon V,5.0,22-37-33-02
-590,Ada Rosibel Mondragon V,12.0,22-37-66-01
-591,Paulina Alvarez Alvarez,5.0,22-37-65-01
-593,Reina Amparo Montoya,7.0,22-37-65-03
-595,Juan Jose Rivas,8.0,22-37-35-16
-596,Glendis Yessenia Orellana,5.0,22-37-66-05
-597,Orlando Alvarez Alvarez,5.0,22-37-66-04
-599,Paulina Alvarez Alvarez,5.0,22-37-35-18
-600,Jose Efrain Zambrano,7.0,22-37-66-03
-601,Jose Antonio Zambrano Z,5.0,22-37-35-20
-602,Xiomara Carranza Castillo,5.0,22-37-35-01
-603,Esmelda Corrales Flores,6.0,22-37-34-03
-605,Esmelda Corrales Flores,7.0,22-37-64-04
-606,Mario Enrique Villalobos,5.0,22-37-107-04
-607,Ramon Victor Moncada G,23.0,22-37-64-02
-608,Bernarda Osorto Pastrana,7.0,22-37-64-01
-609,Norma Elena Rodas B,5.0,22-37-64-11
-610,Maria Gloria Martinez L,6.0,22-37-107-01
-611,Nelson Jeowany Herrera,6.0,22-37-107-03
-612,Alfredo Montalban B,6.0,22-37-107-02
-613,Cooperativa Guadalupe,37.0,22-37-108-06
-615,Alma Karina Soriano M,10.0,22-37-111-02
-616,Iris Rodriguez Ordoñez,5.0,
-617,Julio Cesar Montalban R,6.0,22-37-109-01
-619,Ignacio Castillo,5.0,22-37-110-01
-621,Yenis Maria Baquedano,5.0,22-37-111-01
-622,Nelson Ramiro Banegas,5.0,22-37-110-02
-623,Jose Alberto Rojas,5.0,22-37-110-03
-624,Sandra Elizabeth Fonseca,5.0,22-37-64-10
-625,Ignacio Castillo,5.0,22-37-64-09
-627,Maria Leticia Paca chirino,7.0,22-37-64-06
-629,Glendis Yessenia Orellana,5.0,22-37-64-05
-630,Juan Jose Rivas,25.0,22-37-113-01
-632,Jose Magno Silva,5.0,22-37-112-01
-633,Ernestina Flores,5.0,22-37-112-02
-635,Juan Jose Rivas Diaz,5.0,22-37-112-03
-639,Glendis Yesenia Orellana,6.0,22-37-113-05
-641,Hilda Yamileth Oviedo,5.0,22-37-70-11
-642,Luis Enrique Arce Espinoza,5.0,22-37-70-10
-643,Aracely Ramirez Garcia,5.0,22-37-70-09
-644,Nerlin Omar Zuniga,5.0,22-37-70-08
-645,Hector Zambrano,5.0,22-37-70-06
-646,Jose Israel Sanchez Mejia,8.0,22-37-70-05
-648,Delmy Cristina Rojas D,5.0,22-37-70-03
-649,Delmy Cristina Rojas D,5.0,22-37-70-02
-650,Yadira Yolibeth Cruz Corrales,5.0,22-37-70-01
-651,Lucidalia Euceda Flores,5.0,22-37-69-09
-652,Evelio Rueda Centeno,10.0,22-37-69-08
-655,Yury Paola Corrales,5.0,22-37-69-07
-656,Maria Onila Reyes,16.0,22-37-69-04
-658,Jose Alberto Rojas,5.0,
-660,Tadeo Beltran,5.0,22-37-69-01
-661,Martin Cruz,5.0,22-37-68-09
-662,Bivian Sanchez,5.0,22-37-68-08
-663,Juan Ricardo Hernandez,5.0,22-37-68-07
-664,Sipriano Alvarez,5.0,22-37-68-06
-665,Maria Margarita Martinez,4.0,22-37-68-05
-666,Lidia Soneyda Mejia,7.0,22-37-68-04
-667,Ruth Lizeth Batres,9.0,22-37-67-02
-668,Evelyn Carolina Batrez,8.0,22-37-35-12
-669,Erika Yoselin Amador,5.0,22-37-35-13
-670,Enma Corrales,5.0,22-37-35-14
-671,Nubia Rosa Rivera,5.0,22-37-35-15
-672,Santos Javier Zambrano M,16.0,22-37-67-01
-675,Maria de la Cruz Perez,5.0,22-37-67-03
-676,Ulice Ruiz Toruño,7.0,22-37-108-01
-679,"Ilse Anabel Vargas y Cesar Ricardo Vargas, Iris Dilenia Barahona",15.0,22-37-88-04
-681,Jose Maria Flores,9.0,22-37-122-03
-684,"Cooperativa de Vendedores del sur ""Coovesur""",17.0,22-37-22-06
-685,Ever Alcides Salinas,5.0,22-37-129-03
-686,Mirna Antonia Aguilera,15.0,22-37-129-02
-687,Roxana Yahaira Mendez,7.0,22-37-128-01
-688,Yimi Arturo Osorto Osorto,6.0,22-37-16-07
-689,Margarita de Jesus Lainez,5.0,22-37-125-02
-690,Ney Arely Aguilar Garcia,10.0,22-37-37-06
-691,Sindicato de Vendedores del Mercado Inmaculada Concepcion (Sivemic),20.0,22-37-22-07
-080-1,Erlin Alexis Sanchez,12.0,22-37-05-04
-109-1,Mayra Yaqueline Santos,7.0,22-37-11-05
-141-1,Jose Manuel Ponce y Silvia Esperanza Rodriguez E,13.0,22-37-16-05
-350-1,Nery de Jesus Carranza,7.0,22-37-137-04
-365-1,Yelba Judith Mendoza,7.0,22-37-150-03
-545-1,Isai Eliazar Betancourth,5.0,22-37-61-04
-78-1,Angel Misael Avilez,8.0,22-37-05-09
+404,Dilia Betanco,5,22-37-77-05
+407,Karla Lizeth Bustillo,7,22-37-119-03
+408,Angela Molina Zambrano,5,22-37-120-03
+409,Angela Molina Zambrano,5,22-37-120-02
+410,Angela Molina Zambrano,5,22-37-119-04
+411,Laura Guadalupe Lagos A,10,22-37-120-01
+412,Josefa Cruz,5,22-37-145-02
+412,Josefa Cruz,5,22-37-145-03
+413,Dominga Aguilera,5,22-37-144-03
+415,Rene Betancourt Ordoñez,4,22-37-144-04
+415,Rene Betancourt Ordoñez,4,22-37-145-01
+416,Blanca R. Rodriguez,3,22-37-144-01
+417,Sara Estela Montoya Rodriguez,7,22-37-136-02
+417,Sara Estela Montoya R,6,22-37-143-05
+419,Laura Aurora Aguilera R,4,22-37-144-02
+421,Maria de Jesus Lagos,5,22-37-118-06
+422,Santos Ancelmo Lagos,7,22-37-118-05
+422,Santos Ancelmo Lagos,4,22-37-119-01
+424,Yaneth Margarita Perdomo Lagos,5,22-37-119-02
+425,Claudia Elizabeth Lagos A,4,22-37-118-04
+426,Lesbia Yamilet Martinez,5,22-37-118-03
+427,Elisa Martinez Aguirre,5,22-37-117-04
+428,Gilson Daniel Perez Osorto,11,22-37-117-03
+430,Jose Luis Lainez Carranza,6,22-37-118-02
+431,Heriberta Ana Julia Martinez,7,22-37-143-03
+432,Calixta Carranza,5,22-37-117-07
+435,Leydis Aracely Rivas Pineda,11,22-37-117-01
+435,Leydis Aracely Rivas Pineda,8,22-37-143-01
+436,Elisa Vicenta Baquedano,5,22-37-116-05
+438,Oneyda Lizeth Ortiz Diaz,7,22-37-104-04
+441,Reina Isabel Palacios Garcia,8,22-37-76-01
+443,Mirian Castillo Corrales,10,22-37-76-04
+445,Antonio Ramirez Banco,8,22-37-75-02
+446,Jose Nahun Hernandez,11,22-37-76-02
+447,Jose Rene Rodas,10,22-37-116-02
+447,Jose Rene Rodas F,5,22-37-75-01
+449,Nerlin Omar Zuniga Alvarez,5,22-37-70-08
+449,Nerlin Omar Zuniga Alvarez,5,22-37-75-03
+450,Gabriela Guevara,5,22-37-74-04
+452,Santos Jeovanny Lagos C,8,22-37-73-06
+452,Santos Jeovanny Lagos C,5,22-37-74-03
+453,Yesenia Yolanda Vanegas,5,22-37-74-05
+455,Elva Nely Ortiz Nuñez,9,22-37-74-01
+457,Evelio Rueda Centeno,5,22-37-115-03
+458,Aydee Francisca Rios,7,22-37-115-01
+459,Ever Oniel Rueda Rodrig,8,22-37-114-05
+459,Ever Oniel Rueda Rodrig,5,22-37-73-08
+461,Tomasa Argentina Osorto Estrada,5,22-37-114-07
+463,Julio Cesar Oliva y Mirian Esperanza Perez,5,22-37-115-05
+464,Apolinaria Osorto,5,22-37-115-04
+465,Norma Rivera Osorto,4,22-37-116-01
+466,Blanca Azucena Martinez,9,22-37-142-01
+467,Efrain Orlando Martinez,5,22-37-141-02
+469,Aydee Francisca Rios,5,22-37-141-01
+470,Apolinaria Osorto,5,22-37-140-02
+471,Jose Antonio Zambrano,5,22-37-140-03
+472,Luis Alberto Perdomo Lagos,5,22-37-91-01
+473,Candida Rosa Perdomo,5,22-37-102-04
+474,Dania Esperanza Mondragon,10,22-37-102-02
+474,Dania Esperanza Mondragon,7,22-37-153-01
+474,Dania Esperanza Mondragon,7,22-37-153-04
+481,Santos German Lainez,7,22-37-102-01
+481,Santos German Lainez,7,22-37-103-05
+482,Tania Yaneth Reina,5,22-37-103-06
+483,Ena Marisela Martinez Sanchez,8,22-37-57-05
+484,Catalina Ordoñez,6,22-37-57-04
+488,Osman Osiris Galindo Salle,5,22-37-103-03
+488,Osman Osiris Galindo Salle,6,22-37-57-02
+488,Osman Osiris Galindo Salle,6,22-37-57-03
+491,Mirna Estela Herrera H,5,22-37-103-01
+491,Mirna Estela Herrera Herrera,7,22-37-55-02
+493,Francisco Alvarez,5,22-37-56-05
+493,Francisco Alvarez,6,22-37-57-01
+495,Rafael Elias Moncada Galo,44,22-37-101-02
+495,Rafael Elias Moncada Galo,20,22-37-22-05
+495,Rafael Elias Moncada Galo,10,22-37-24-02
+495,Rafael Elias Moncada Galo,10,22-37-55-03
+495,Rafael Elias Moncada Galo,15,22-37-58-01
+499,"Orlin Eugenio Lindo Vallejo, Nancy Karina Baquedano P",7,22-37-58-05
+500,Jose Pantaleon Castro,7,22-37-58-04
+501,Felix Mauricio Corrales,8,22-37-105-01
+502,Moises Augusto Silva,10,22-37-139-02
+504,Iris Yesenia Carabaca Carbajal,5,22-37-140-01
+506,Jorge Samuel Paz Cruz,8,22-37-72-01
+508,Claudia Vanessa Arce Espinoza,5,22-37-73-01
+509,Swany Dilenia Campos,5,22-37-73-03
+510,Arnold Danery Oyuela Alvarez,8,22-37-73-04
+512,Gloria Elizabeth Flores Montoya,5,22-37-113-04
+512,Gloria Elizabeth Flores,5,22-37-114-04
+513,Henry Nahun Rodas Alvarez,17,22-37-112-06
+514,Maria Bonifacia Ordoñez,5,22-37-111-05
+515,Maria Elena Nuñez,4,22-37-106-03
+515,Maria Elena Nuñez,7,22-37-77-06
+516,Mariana Matamoros,9,22-37-106-02
+518,Virginia Suyapa Pineda,5,22-37-59-05
+519,Nehemias Arias,5,22-37-59-06
+520,Felipe Zambrano,5,22-37-58-02
+520,Felipe Zambrano,5,22-37-59-07
+521,Rudis Oman Ventura Bonilla,10,22-37-56-02
+523,Lizeth del Carmen Medina,5,22-37-28-04
+524,Delbia Yaneth Sandoval,12,22-37-60-01
+525,Maria Blacina Zambrano Elvir,5,22-37-59-02
+528,Dagoberto Ventura Bonilla,7,22-37-59-01
+528,Dagoberto Ventura Bonilla,8,22-37-60-06
+530,Jose Roberto Zambrano,5,22-37-59-03
+530,Jose Roberto Zambrano,6,22-37-59-04
+531,Maria Gloria Martinez,7,22-37-60-05
+532,Yony Pantaleon Castro,18,22-37-18-07
+532,Yony Pantaleon Castro Soriano,7,22-37-60-03
+535,Luis Alonso Rodriguez,5,22-37-61-06
+536,Jhonny Joel Castro Arguello,5,22-37-60-02
+538,karen Waleska Arguello,5,22-37-56-04
+538,Karen Waleska Arguello,7,22-37-61-08
+540,Rosa Maria Erazo,5,22-37-28-03
+541,Rosa Albertina Vasquez,6,22-37-28-02
+542,Olman Anibal Morales,32,22-37-56-07
+542,Olman Anibal Morales,13,22-37-61-01
+545-1,Isai Eliazar Betancourth,5,22-37-61-02
+545-1,Isai Eliazar Betancourth,8,22-37-61-04
+545-1,Isai Eliazar Betancourth,5,22-37-61-05
+546,Maria Bertilia Zambrano,5,22-37-62-03
+547,Alba Leticia Lagos Perdomo,10,22-37-63-02
+548,Dunia Senayda Castro,5,22-37-62-02
+550,Genoveva Osorto,5,22-37-62-01
+550,Genoveva Osorto,5,22-37-63-01
+551,Jorge Alberto Zeron Lagos,15,22-37-02-07
+552,Elvia de Jesus Rodas Flores,7,22-37-29-07
+553,Braulio Galindo Betanco,13,22-37-29-09
+555,Braulio Galindo Betanco,6,22-37-02-06
+557,Alba Nubia Zapata Zepeda,7,22-37-29-10
+559,Rosa Lidia Betanco H,8,22-37-02-03
+560,Douglas Omar Betancourth,7,22-37-29-01
+561,Evenor Betancourth Hernandez,5,22-37-03-06
+562,Nestor Julio Maldonado,7,22-37-02-04
+562,Nestor Julio Maldonado,6,22-37-03-05
+563,Juan Carlos Portillo,8,22-37-29-02
+564,Erik Noel Ordoñez Fuentes,9,22-37-29-03
+565,Tiburcio Rodriguez Nuñez,7,22-37-29-04
+566,Ignacio Zambrano,14,22-37-29-05
+568,Jose Andres Arteaga B,13,22-37-30-06
+569,Isai Eleazar Betancourth Arteaga,11,22-37-30-05
+570,Santos Adalid Amador,5,22-37-30-04
+573,Cristino Salinas Rodriguez,5,22-37-04-07
+574,Santos Sulema Flores Aguilera,7,22-37-02-05
+574,Santos Sulema Flores A,9,22-37-04-05
+574,Santos Sulema Flores A,5,22-37-30-02
+576,Ricardo Aguilera Chirino,9,22-37-05-06
+577,Isidoro Rivera Alvarez,5,22-37-30-03
+577,Isidoro Rivera Alvarez,7,22-37-31-01
+577,Isidoro Rivera Alvarez,8,22-37-32-01
+578,Wendy Jaquelin Amador B,15,22-37-31-06
+580,Norma Elena Rodas,15,22-37-31-03
+582,Douglas Mario Galo M,6,22-37-31-04
+583,Dagoberto Ventura,5,22-37-32-04
+588,Jose Noel Betancourth,17,22-37-05-08
+588,Jose Noel Betancourth,5,22-37-33-01
+589,Ada Rosibel Mondragon V,5,22-37-33-02
+590,Ada Rosibel Mondragon V,12,22-37-66-01
+593,Reina Amparo Montoya,5,22-37-33-03
+593,Reina Amparo Montoya,7,22-37-65-03
+597,Orlando Alvarez Alvarez,5,22-37-66-04
+599,Paulina Alvarez Alvarez,5,22-37-35-18
+599,Paulina Alvarez Alvarez,5,22-37-65-01
+600,Jose Efrain Zambrano,11,22-37-114-01
+600,Jose Efrain Zambrano,7,22-37-66-03
+600,Jose Efrain Zambrano,7,22-37-73-07
+601,Jose Antonio Zambrano Zambrano,5,22-37-32-03
+601,Jose Antonio Zambrano Zambrano,5,22-37-35-20
+602,Xiomara Carranza Castillo,5,22-37-35-01
+605,Esmelda Corrales Flores,6,22-37-34-03
+605,Esmelda Corrales Flores,7,22-37-64-04
+606,Mario Enrique Villalobos,5,22-37-107-04
+607,Ramon Victor Moncada Galo,7,22-37-32-05
+607,Ramon Victor Moncada Galo,23,22-37-64-02
+608,Bernarda Osorto Pastrana,7,22-37-64-01
+609,Norma Elena Rodas B,5,22-37-64-11
+610,Maria Gloria Martinez Lainez,6,22-37-107-01
+611,Nelson Jeowany Herrera Ordoñez,6,22-37-107-03
+612,Alfredo Montalban B,6,22-37-107-02
+613,Cooperativa Guadalupe,37,22-37-108-06
+615,Alma Karina Soriano M,10,22-37-111-02
+617,Julio Cesar Montalvan Rodas,7,22-37-106-01
+617,Julio Cesar Montalban R,6,22-37-109-01
+621,Yenis Maria Baquedano,5,22-37-111-01
+624,Sandra Elizabeth Fonseca,5,22-37-64-10
+625,Ignacio Castillo,5,22-37-110-01
+625,Ignacio Castillo,5,22-37-64-09
+627,Leticia Paca chirino,7,22-37-64-06
+629,Glendis Yessenia Orellana Garcia,5,22-37-64-05
+629,Glendis Yessenia Orellana,5,22-37-66-05
+630,Juan Jose Rivas,25,22-37-113-01
+630,Juan Jose Rivas,8,22-37-35-16
+630,Juan Jose Rivas,5,22-37-61-07
+632,Jose Magno Silva,5,22-37-112-01
+633,Ernestina Flores,5,22-37-112-02
+635,Juan Jose Rivas Diaz,5,22-37-112-03
+639,Glendis Yesenia Orellana Garcia,6,22-37-113-05
+641,Hilda Yamileth Oviedo,5,22-37-70-11
+642,Luis Enrique Arce Espinoza,5,22-37-70-10
+643,Aracely Ramirez Garcia,5,22-37-70-09
+645,Hector Zambrano,5,22-37-70-06
+646,Jose Israel Sanchez Mejia,8,22-37-70-05
+649,Delmy Cristina Rojas D,5,22-37-70-02
+649,Delmy Cristina Rojas D,5,22-37-70-03
+650,Yadira Yolibeth Cruz Corrales,5,22-37-70-01
+651,Lucidalia Euceda Flores,5,22-37-69-09
+652,Evelio Rueda  Centeno,10,22-37-69-08
+655,Yury Paola Corrales,5,22-37-69-07
+656,Maria Onila Reyes,16,22-37-69-04
+658,Jose Alberto Rojas,5,22-37-110-03
+660,Tadeo Beltran,5,22-37-69-01
+661,Martin Cruz,5,22-37-68-09
+662,Bivian Sanchez,5,22-37-68-08
+663,Juan Ricardo Hernandez,5,22-37-68-07
+664,Sipriano Alvarez,5,22-37-68-06
+665,Maria Margarita Martinez,4,22-37-68-05
+666,Lidia Soneyda Mejia,7,22-37-68-04
+667,Ruth Lizeth Batres,9,22-37-67-02
+668,Evelyn Carolina Batrez,8,22-37-35-12
+669,Erika Yoselin Amador,5,22-37-35-13
+670,Enma Corrales,5,22-37-35-14
+671,Nubia Rosa Rivera,5,22-37-35-15
+672,Santos Javier Zambrano Molina,16,22-37-67-01
+675,Maria de la Cruz Perez,5,22-37-67-03
+679,"Ilse Anabel Vargas  y Cesar Ricardo Vargas, Iris Dilenia Barahona",15,22-37-88-04
+681,Jose Maria Flores,9,22-37-122-03
+684,Cooperativa de Vendedores del sur   Coovesur,17,22-37-22-06
+685,Ever Alcides Salinas,5,22-37-129-03
+686,Mirna Antonia Aguilera,15,22-37-129-02
+687,Roxana Yahaira Melendez Ordoñez,7,22-37-128-01
+688,Yimi Arturo Osorto Osorto,6,22-37-16-07
+689,Margarita de Jesus Lainez,5,22-37-125-02
+690,Ney Arely Aguilar Garcia,10,22-37-37-06
+691,Sindicato de Vendedores del Mercado Inmaculada Concepcion (Sivemic),20,22-37-22-07

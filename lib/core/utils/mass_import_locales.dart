@@ -14,7 +14,7 @@ class MassImportLocales {
   static const String _defaultFrecuenciaCobro = 'diaria';
   static const String _scriptId = 'import_script';
   static const String _assetPath =
-      'assets/import/locales_con_codigo_pto_ordenado_con_clave_corregido.csv';
+      'assets/import/locales_con_codigo_con_clave_y_ruta.csv';
 
   static Future<String> ejecutar() async {
     final db = FirebaseFirestore.instance;
@@ -51,6 +51,7 @@ class MassImportLocales {
         'clave': item.clave,
         'codigo': codigo,
         'codigoLower': codigo.toLowerCase(),
+        'ruta': item.ruta,
         'frecuenciaCobro': _defaultFrecuenciaCobro,
         'deudaAcumulada': 0,
         'saldoAFavor': 0,
@@ -170,7 +171,7 @@ class MassImportLocales {
 
     for (int index = 1; index < lines.length; index++) {
       final fields = _parseCsvLine(lines[index]);
-      if (fields.length < 4) {
+      if (fields.length < 5) {
         continue;
       }
 
@@ -178,8 +179,13 @@ class MassImportLocales {
       final nombre = fields[1].trim();
       final cuotaDiaria = num.tryParse(fields[2].trim());
       final clave = fields[3].trim();
+      final ruta = fields[4].trim();
 
-      if (codigo.isEmpty || nombre.isEmpty || clave.isEmpty || cuotaDiaria == null) {
+      if (codigo.isEmpty ||
+          nombre.isEmpty ||
+          clave.isEmpty ||
+          ruta.isEmpty ||
+          cuotaDiaria == null) {
         continue;
       }
 
@@ -195,6 +201,7 @@ class MassImportLocales {
           nombre: nombre,
           cuotaDiaria: cuotaDiaria,
           clave: clave,
+          ruta: ruta,
         ),
       );
     }
@@ -241,11 +248,13 @@ class _CsvLocal {
   final String nombre;
   final num cuotaDiaria;
   final String clave;
+  final String ruta;
 
   const _CsvLocal({
     required this.codigo,
     required this.nombre,
     required this.cuotaDiaria,
     required this.clave,
+    required this.ruta,
   });
 }
