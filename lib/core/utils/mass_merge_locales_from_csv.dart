@@ -5,6 +5,8 @@ import '../constants/firestore_collections.dart';
 
 class MassMergeLocalesFromCsv {
   static const String _assetPath = 'assets/import/locales_20260316.csv';
+  static const String _runId = 'locales_20260316';
+  static const String _scriptId = 'merge_csv_locales_20260316';
 
   /// Importa/actualiza locales por docId usando `merge:true` para no borrar campos
   /// que no existan en el CSV (ej: `codigoLower`, `qrData`, etc.).
@@ -50,10 +52,15 @@ class MassMergeLocalesFromCsv {
 
     final db = FirebaseFirestore.instance;
     final col = db.collection(FirestoreCollections.locales);
+    final backupCol = db
+        .collection('import_backups')
+        .doc(_runId)
+        .collection('locales');
 
     int procesados = 0;
     int errores = 0;
-    const batchSize = 400;
+    // 2 writes por fila (backup + merge). Mantener < 500 writes por batch.
+    const batchSize = 200;
     WriteBatch batch = db.batch();
     int inBatch = 0;
 
@@ -96,6 +103,10 @@ class MassMergeLocalesFromCsv {
       final data = <String, dynamic>{
         // Mantener el id en el doc (ya existe en tu BD exportada)
         'id': docId,
+        // Marcadores para poder revertir de forma segura
+        'mergeTag': _runId,
+        'mergeEn': FieldValue.serverTimestamp(),
+        'actualizadoPor': _scriptId,
       };
 
       final nombre = getStr(iNombre);
@@ -153,6 +164,23 @@ class MassMergeLocalesFromCsv {
 
       try {
         final ref = col.doc(docId);
+
+        // Backup "pre-merge" para poder revertir.
+        // Nota: si se ejecuta 2 veces, el backup se sobreescribe con el estado previo a esa ejecución.
+        final snap = await ref.get();
+        batch.set(backupCol.doc(docId), {
+          'docId': docId,
+          'existedBefore': snap.exists,
+          'data': snap.data(),
+          'backedUpEn': FieldValue.serverTimestamp(),
+        });
+
+        // Si el doc no existía, dejamos un rastro de creación (sin pisar si ya existe).
+        if (!snap.exists) {
+          data['creadoPor'] = _scriptId;
+          data['creadoEn'] ??= FieldValue.serverTimestamp();
+        }
+
         batch.set(ref, data, SetOptions(merge: true));
         inBatch++;
         procesados++;
@@ -176,6 +204,106 @@ class MassMergeLocalesFromCsv {
     }
 
     return 'Merge CSV locales: procesados=$procesados, errores=$errores';
+  }
+
+  /// Revertir el merge:
+  /// - Solo revierte documentos que fueron tocados por este script:
+  ///   `mergeTag == _runId` y `actualizadoPor == _scriptId`
+  /// - Restaura los docs existentes desde backup
+  /// - Elimina los docs que no existían antes (backup.existedBefore == false)
+  static Future<String> revertir() async {
+    final csv = await rootBundle.loadString(_assetPath);
+    final lines = csv
+        .split(RegExp(r'\r?\n'))
+        .map((l) => l.trimRight())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    if (lines.length <= 1) return 'CSV vacío';
+    final header = _parseCsvLine(lines.first);
+    final iId = header.indexOf('id');
+    if (iId == -1) return 'CSV inválido: falta columna id';
+
+    final db = FirebaseFirestore.instance;
+    final col = db.collection(FirestoreCollections.locales);
+    final backupCol = db
+        .collection('import_backups')
+        .doc(_runId)
+        .collection('locales');
+
+    int restaurados = 0;
+    int eliminados = 0;
+    int saltados = 0;
+    int sinBackup = 0;
+    int errores = 0;
+
+    const batchSize = 200;
+    WriteBatch batch = db.batch();
+    int inBatch = 0;
+
+    for (int li = 1; li < lines.length; li++) {
+      final fields = _parseCsvLine(lines[li]);
+      if (fields.length <= iId) continue;
+      final docId = fields[iId].trim();
+      if (docId.isEmpty) continue;
+
+      try {
+        final ref = col.doc(docId);
+        final snap = await ref.get();
+        if (!snap.exists) {
+          saltados++;
+          continue;
+        }
+
+        final cur = snap.data() ?? <String, dynamic>{};
+        if ((cur['mergeTag'] ?? '').toString() != _runId ||
+            (cur['actualizadoPor'] ?? '').toString() != _scriptId) {
+          saltados++;
+          continue;
+        }
+
+        final bRef = backupCol.doc(docId);
+        final bSnap = await bRef.get();
+        if (!bSnap.exists) {
+          sinBackup++;
+          continue;
+        }
+        final b = bSnap.data() ?? <String, dynamic>{};
+        final existedBefore = (b['existedBefore'] as bool?) ?? false;
+        final before = b['data'];
+
+        if (!existedBefore) {
+          batch.delete(ref);
+          eliminados++;
+          inBatch++;
+        } else if (before is Map) {
+          batch.set(ref, Map<String, dynamic>.from(before), SetOptions(merge: false));
+          restaurados++;
+          inBatch++;
+        } else {
+          sinBackup++;
+          continue;
+        }
+
+        if (inBatch >= batchSize) {
+          await batch.commit();
+          batch = db.batch();
+          inBatch = 0;
+        }
+      } catch (_) {
+        errores++;
+      }
+    }
+
+    if (inBatch > 0) {
+      try {
+        await batch.commit();
+      } catch (_) {
+        errores += inBatch;
+      }
+    }
+
+    return 'Revert merge locales: restaurados=$restaurados, eliminados=$eliminados, saltados=$saltados, sin_backup=$sinBackup, errores=$errores';
   }
 
   // Parser simple de CSV (soporta comillas dobles y "" escape).
@@ -206,4 +334,3 @@ class MassMergeLocalesFromCsv {
     return out;
   }
 }
-

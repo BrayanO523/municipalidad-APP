@@ -483,6 +483,82 @@ class _DashboardHeader extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
+                      title: const Text(
+                        'Revertir Merge de Locales',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      content: const Text(
+                        'RevertirÃ¡ los locales tocados por el merge del CSV (locales_20260316.csv). '
+                        'Solo afectarÃ¡ documentos con mergeTag=locales_20260316 y actualizadoPor=merge_csv_locales_20260316. '
+                        'Â¿Desea proceder?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Revertir'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Revirtiendo merge de locales...'),
+                        ),
+                      );
+                      final res = await MassMergeLocalesFromCsv.revertir();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.undo_rounded, size: 18),
+                label: const Text('Revertir Merge'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+
+            const SizedBox(width: 8),
+            if (_kShowDevTools)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
                       title: const Text('ImportaciÃ³n Masiva de Locales'),
                       content: const Text(
                         'Se aplicará un MERGE (sin borrar campos) a 610 locales desde el CSV empaquetado (locales_20260316.csv). Esto actualiza los campos del archivo pero conserva extras como codigoLower/qrData. ¿Desea proceder?',
