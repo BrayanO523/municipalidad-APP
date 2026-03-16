@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../mercados/data/models/mercado_model.dart';
 import '../../../mercados/presentation/widgets/map_picker_modal.dart';
 import '../../data/models/local_model.dart';
 import '../../domain/entities/local.dart';
@@ -516,11 +517,12 @@ Future<void> showLocalFormDialog(
                                                 nombreCtrl.text,
                                               );
 
-                                        final selectedMerc = currentMercs
-                                            .firstWhere(
-                                              (m) => m.id == selectedMercadoId,
-                                              orElse: () => currentMercs.first,
-                                            );
+                                        final mercs =
+                                            currentMercs.cast<MercadoJson>();
+                                        final selectedMerc = mercs.firstWhere(
+                                          (m) => m.id == selectedMercadoId,
+                                          orElse: () => mercs.first,
+                                        );
 
                                         String generadaClave = claveCtrl.text
                                             .trim()

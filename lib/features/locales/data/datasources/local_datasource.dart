@@ -192,7 +192,9 @@ class LocalDatasource {
     String filtroDeuda = 'todos',
   }) async {
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      final lower = searchQuery.toLowerCase();
+      final raw = searchQuery.trim().toLowerCase();
+      final isNumeric = RegExp(r'^\d+$').hasMatch(raw);
+      final lower = isNumeric ? raw.padLeft(3, '0') : raw;
       // Firestore no permite '<=' y '>=' en diferentes campos a la vez.
       // Hacemos 2 queries en paralelo y unimos resultados en memoria.
       final queryNombre = _collection
@@ -204,8 +206,8 @@ class LocalDatasource {
       // Eliminamos el filtro de mercadoId en Firebase para evitar requerir 
       // un nuevo índice compuesto en la nube. Filtraremos en memoria.
       final queryCodigo = _collection
-          .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
-          .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .where('codigoLower', isGreaterThanOrEqualTo: lower)
+          .where('codigoLower', isLessThanOrEqualTo: '$lower\uf8ff')
           .limit(limit * 3); // Pedimos un poco más por si hay colisiones en otros mercados
 
       final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
@@ -250,6 +252,47 @@ class LocalDatasource {
     return snap.docs;
   }
 
+
+  /// Migración: Inicializa codigoLower si falta, usando el valor de codigo.
+  /// Retorna cuántos documentos fueron actualizados.
+  Future<int> migrarCodigoLower({String? municipalidadId}) async {
+    Query<Map<String, dynamic>> query = _collection;
+    if (municipalidadId != null) {
+      query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    }
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) return 0;
+
+    WriteBatch batch = _firestore.batch();
+    int count = 0;
+    int updated = 0;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final codigo = (data['codigo'] as String?)?.trim();
+      final codigoLower = (data['codigoLower'] as String?)?.trim();
+
+      if (codigo != null &&
+          codigo.isNotEmpty &&
+          (codigoLower == null || codigoLower.isEmpty)) {
+        batch.update(doc.reference, {'codigoLower': codigo.toLowerCase()});
+        updated++;
+        count++;
+
+        if (count % 450 == 0) {
+          await batch.commit();
+          batch = _firestore.batch();
+        }
+      }
+    }
+
+    if (count % 450 != 0 && updated > 0) {
+      await batch.commit();
+    }
+
+    return updated;
+  }
   /// Página de locales por municipalidad con paginación.
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> listarPaginaPorMunicipalidad({
     required String municipalidadId,
@@ -261,7 +304,9 @@ class LocalDatasource {
     List<String>? filterLocalIds,
   }) async {
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      final lower = searchQuery.toLowerCase();
+      final raw = searchQuery.trim().toLowerCase();
+      final isNumeric = RegExp(r'^\d+$').hasMatch(raw);
+      final lower = isNumeric ? raw.padLeft(3, '0') : raw;
       Query<Map<String, dynamic>> baseQuery = _collection
           .where('municipalidadId', isEqualTo: municipalidadId);
       
@@ -276,8 +321,8 @@ class LocalDatasource {
 
       // Eliminamos los filtros de igualdad para evitar nuevos índices compuestos
       final queryCodigo = _collection
-          .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
-          .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+          .where('codigoLower', isGreaterThanOrEqualTo: lower)
+          .where('codigoLower', isLessThanOrEqualTo: '$lower\uf8ff')
           .limit(limit * 3);
 
       final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
@@ -401,8 +446,8 @@ class LocalDatasource {
 
     // Hacemos lo mismo con código
     final queryCodigo = _collection
-        .where('codigoCatastralLower', isGreaterThanOrEqualTo: lower)
-        .where('codigoCatastralLower', isLessThanOrEqualTo: '$lower\uf8ff')
+        .where('codigoLower', isGreaterThanOrEqualTo: lower)
+        .where('codigoLower', isLessThanOrEqualTo: '$lower\uf8ff')
         .limit(limit * 4);
 
     final results = await Future.wait([queryNombre.get(), queryCodigo.get()]);
@@ -658,7 +703,7 @@ class LocalDatasource {
         // En lugar de nulo, usamos un string vacío como default
         batch.update(doc.reference, {
           'codigoCatastral': '',
-          'codigoCatastralLower': '',
+          'codigoLower': '',
         });
         migrated++;
         

@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
@@ -11,8 +14,13 @@ import '../widgets/metric_card.dart';
 import '../widgets/recent_cobros_table.dart';
 import '../widgets/dashboard_charts.dart';
 import '../../../../core/utils/mass_import_locales.dart';
+import '../../../../core/utils/mass_import_faltantes_locales_inmaculada.dart';
 import '../../../../core/utils/cobros_migration.dart';
 import '../widgets/custom_date_range_picker.dart';
+import '../../../cobros/data/services/deuda_service.dart';
+
+const bool _kShowDevTools =
+    kDebugMode || bool.fromEnvironment('DEV_TOOLS', defaultValue: false);
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -22,6 +30,56 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Disparar verificación de deuda retroactiva al iniciar el dashboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verificarDeudaRetroactiva();
+    });
+  }
+
+  Future<void> _verificarDeudaRetroactiva() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hoy = DateTime.now();
+      final hoyString = DateFormat('yyyyMMdd').format(hoy);
+      final hoyKey = 'last_deuda_sync_web_$hoyString';
+
+      // Si ya se sincronizó hoy en este navegador, saltar
+      if (prefs.containsKey(hoyKey)) return;
+
+      final usuario = ref.read(currentUsuarioProvider).value;
+      if (usuario == null) return;
+
+      // Esperar a que los locales y stats carguen
+      final localesActivos = await ref.read(localesProvider.future);
+      final stats = await ref.read(statsProvider.future);
+
+      final service = DeudaService(
+        cobroDs: ref.read(cobroDatasourceProvider),
+        localDs: ref.read(localDatasourceProvider),
+        firestore: FirebaseFirestore.instance,
+        statsDs: ref.read(statsDatasourceProvider),
+      );
+
+      await service.verificarYRegistrarPendientes(
+        localesActivos: localesActivos,
+        diasAtras: 7,
+        cobradorId: usuario.id,
+        fechaInicioOperaciones: stats.fechaInicioOperaciones,
+      );
+
+      // Guardar que ya se revisó hoy en este navegador
+      await prefs.setString(hoyKey, hoyString);
+      
+      // Invalidar stats para reflejar cambios si los hubo
+      ref.invalidate(statsProvider);
+    } catch (e) {
+      debugPrint('⚠️ Error en verificación de deuda web: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
@@ -346,7 +404,7 @@ class _DashboardHeader extends ConsumerWidget {
               ],
             ),
             _PeriodSelector(),
-            if (kDebugMode)
+            if (_kShowDevTools)
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
@@ -419,7 +477,7 @@ class _DashboardHeader extends ConsumerWidget {
               ),
 
             const SizedBox(width: 8),
-            if (kDebugMode)
+            if (_kShowDevTools)
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
@@ -485,10 +543,153 @@ class _DashboardHeader extends ConsumerWidget {
                 ),
               ),
 
+            const SizedBox(width: 8),
+            if (_kShowDevTools)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('ImportaciÃ³n de Faltantes (Locales)'),
+                      content: const Text(
+                        'Se importarÃ¡n 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada ConcepciÃ³n usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). Â¿Desea proceder?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Importar'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Importando locales faltantes...'),
+                        ),
+                      );
+                      final res =
+                          await MassImportFaltantesLocalesInmaculada.ejecutar();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                label: const Text('Importar Faltantes'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+
+            const SizedBox(width: 8),
+            if (_kShowDevTools)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text(
+                        'Revertir Importar Faltantes',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      content: const Text(
+                        'Se eliminarÃ¡n los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algÃºn local ya fue modificado o tiene movimientos, NO se borrarÃ¡. Â¿Desea proceder?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Revertir'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Revirtiendo importaciÃ³n de faltantes...'),
+                        ),
+                      );
+                      final res =
+                          await MassImportFaltantesLocalesInmaculada.revertir();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.undo_rounded, size: 18),
+                label: const Text('Revertir Faltantes'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+
 
 
             const SizedBox(width: 8),
-            if (kDebugMode)
+            if (_kShowDevTools)
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
@@ -573,7 +774,7 @@ class _DashboardHeader extends ConsumerWidget {
                 ),
               ),
             const SizedBox(width: 8),
-            if (kDebugMode)
+            if (_kShowDevTools)
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(

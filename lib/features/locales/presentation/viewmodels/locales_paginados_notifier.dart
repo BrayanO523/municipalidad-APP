@@ -79,6 +79,7 @@ class LocalesPaginadosState {
 /// Notifier que maneja la paginación de locales con filtros y búsqueda.
 class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
   static const int _pageSize = 20;
+  static const int _exportPageSize = 300;
 
   @override
   LocalesPaginadosState build() => const LocalesPaginadosState();
@@ -318,6 +319,74 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       localesPagadosHoy: const {},
     );
     await _fetchPagina(lastDoc: null);
+  }
+
+  /// Exporta todos los locales con los filtros actuales (sin afectar el estado de la UI).
+  Future<List<Local>> exportarLocalesFiltrados() async {
+    final municipalidadId = _municipalidadId;
+    final mercadoId = state.mercadoSeleccionadoId;
+    final query = state.busqueda;
+
+    // Mapear el nombre del enum al string esperado por el datasource
+    String filtroDs = 'todos';
+    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) filtroDs = 'deudores';
+    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) filtroDs = 'saldos';
+
+    List<String>? filterLocalIds;
+    if (state.usuarioFiltradoId != null) {
+      final usuarios = ref.read(usuariosProvider).value ?? [];
+      final usuario = usuarios
+          .whereType<Usuario>()
+          .firstWhere(
+            (u) => u.id == state.usuarioFiltradoId,
+            orElse: () => const Usuario(),
+          );
+      filterLocalIds = usuario.rutaAsignada;
+    }
+
+    if (mercadoId == null && municipalidadId == null) return [];
+
+    final List<Local> all = [];
+    QueryDocumentSnapshot? lastDoc;
+    bool hasMore = true;
+
+    while (hasMore) {
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+
+      if (mercadoId != null) {
+        docs = await _ds.listarPaginaPorMercado(
+          mercadoId: mercadoId,
+          searchQuery: query,
+          lastDoc: lastDoc,
+          limit: _exportPageSize,
+          filtroDeuda: filtroDs,
+        );
+      } else {
+        docs = await _ds.listarPaginaPorMunicipalidad(
+          municipalidadId: municipalidadId!,
+          mercadoId: null,
+          searchQuery: query,
+          lastDoc: lastDoc,
+          limit: _exportPageSize,
+          filtroDeuda: filtroDs,
+          filterLocalIds: filterLocalIds,
+        );
+      }
+
+      final nuevos = docs.map((doc) {
+        return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;
+      }).toList();
+
+      all.addAll(nuevos);
+
+      if (docs.length < _exportPageSize) {
+        hasMore = false;
+      } else {
+        lastDoc = docs.last;
+      }
+    }
+
+    return all;
   }
 }
 

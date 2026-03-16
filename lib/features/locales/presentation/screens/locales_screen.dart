@@ -1,4 +1,5 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'dart:convert';
 
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,9 @@ import '../../../mercados/domain/entities/mercado.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
 import '../widgets/local_form_dialog.dart';
 
+const bool _kShowDevTools =
+    kDebugMode || bool.fromEnvironment('DEV_TOOLS', defaultValue: false);
+
 class LocalesScreen extends ConsumerStatefulWidget {
   const LocalesScreen({super.key});
 
@@ -38,6 +42,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Timer? _debounce;
   Mercado? _mercadoSeleccionado;
   Local? _localSeleccionado;
+  bool _isExportingCsv = false;
+  bool _isMigratingCodigo = false;
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
@@ -118,7 +124,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     final currentIndex = localesActuales.indexWhere((l) => l.id == _localSeleccionado!.id);
     
-    // Si por alguna razón el local seleccionado no está en la página actual o falla, seleccionamos el 0
+    // Si por alguna razÃ³n el local seleccionado no estÃ¡ en la pÃ¡gina actual o falla, seleccionamos el 0
     if (currentIndex == -1) {
        setState(() => _localSeleccionado = localesActuales.first);
        return;
@@ -157,7 +163,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             final isMobile = constraints.maxWidth < 500;
 
             final List<Widget> filterContent = [
-              // 1. Título y Subtítulo integrados
+              // 1. TÃ­tulo y SubtÃ­tulo integrados
               if (isWide)
                 Expanded(
                   flex: 2,
@@ -174,7 +180,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                       const SizedBox(height: 2),
                       Text(
                         state.mercadoSeleccionadoId != null
-                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
+                            ? 'PÃ¡g. ${state.paginaActual} Â· ${state.locales.length} locales'
                             : 'Selecciona un mercado...',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
@@ -201,7 +207,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                       const SizedBox(height: 2),
                       Text(
                         state.mercadoSeleccionadoId != null
-                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
+                            ? 'PÃ¡g. ${state.paginaActual} Â· ${state.locales.length} locales'
                             : 'Selecciona un mercado...',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
@@ -215,13 +221,13 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               
               if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
 
-              // 2. Filtro Jerárquico: selector de mercado con búsqueda integrada.
+              // 2. Filtro JerÃ¡rquico: selector de mercado con bÃºsqueda integrada.
               if (isWide) Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId))
               else SizedBox(width: isMobile ? double.infinity : 220, child: _buildMercadoDropdown(context, municipalidadId)),
 
               if (isWide) const SizedBox(width: 16) else const SizedBox(width: 8),
 
-              // 2.1 Filtro por Cobrador (Gestión)
+              // 2.1 Filtro por Cobrador (GestiÃ³n)
               if (!(user?.esCobrador ?? true)) ...[
                 if (isWide)
                   Expanded(flex: 3, child: _buildUsuarioFilter(context, state))
@@ -244,7 +250,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
               if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
 
-              // Botón de limpiar filtros.
+              // BotÃ³n de limpiar filtros.
               IconButton(
                 onPressed: () {
                   setState(() {
@@ -269,7 +275,30 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
               if (isWide) const SizedBox(width: 12) else const SizedBox(width: 8),
 
-              // Botón Agregar Local
+              if (kIsWeb)
+                ElevatedButton.icon(
+                  onPressed: _isExportingCsv ? null : () => _exportarCsvWeb(context),
+                  icon: const Icon(Icons.download_rounded, size: 20),
+                  label: Text(_isExportingCsv ? 'Exportando...' : 'Exportar CSV'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+
+              if (kIsWeb)
+                (isWide ? const SizedBox(width: 12) : const SizedBox(width: 8)),
+
+              if (_kShowDevTools && !(user?.esCobrador ?? true))
+                OutlinedButton.icon(
+                  onPressed: _isMigratingCodigo ? null : () => _migrarCodigoLower(context),
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar cÃ³digos'),
+                ),
+
+              if (_kShowDevTools && !(user?.esCobrador ?? true))
+                (isWide ? const SizedBox(width: 12) : const SizedBox(width: 8)),
+
+              // BotÃ³n Agregar Local
               ElevatedButton.icon(
                 onPressed: () => _showFormDialog(context),
                 icon: const Icon(Icons.add_rounded, size: 20),
@@ -297,6 +326,173 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportarCsvWeb(BuildContext context) async {
+    if (!kIsWeb || _isExportingCsv) return;
+
+    setState(() => _isExportingCsv = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Generando CSV de locales...')),
+    );
+
+    try {
+      final locales = await ref
+          .read(localesPaginadosProvider.notifier)
+          .exportarLocalesFiltrados();
+
+      final csv = _buildLocalesCsv(locales);
+      final bytes = utf8.encode(csv);
+      final now = DateTime.now();
+      final y = now.year.toString();
+      final m = now.month.toString().padLeft(2, '0');
+      final d = now.day.toString().padLeft(2, '0');
+      final filename = 'Locales_${y}${m}${d}.csv';
+
+      await descargarCsvWeb(bytes, filename);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('CSV exportado: ${locales.length} locales'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar CSV: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingCsv = false);
+    }
+  }
+
+  Future<void> _migrarCodigoLower(BuildContext context) async {
+    if (_isMigratingCodigo) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Migrar cÃ³digos'),
+        content: const Text('Esto completarÃ¡ codigoLower para que el buscador por cÃ³digo funcione. Â¿Continuar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Migrar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isMigratingCodigo = true);
+    try {
+      final usuario = ref.read(currentUsuarioProvider).value;
+      final municipalidadId = usuario?.municipalidadId;
+      final ds = ref.read(localDatasourceProvider);
+      final updated = await ds.migrarCodigoLower(municipalidadId: municipalidadId);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('MigraciÃ³n completa:  locales actualizados'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al migrar cÃ³digos: '),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isMigratingCodigo = false);
+    }
+  }
+
+  String _buildLocalesCsv(List<Local> locales) {
+    final headers = [
+      'id',
+      'nombreSocial',
+      'representante',
+      'telefonoRepresentante',
+      'mercadoId',
+      'municipalidadId',
+      'codigo',
+      'clave',
+      'codigoCatastral',
+      'tipoNegocioId',
+      'cuotaDiaria',
+      'deudaAcumulada',
+      'saldoAFavor',
+      'frecuenciaCobro',
+      'activo',
+      'espacioM2',
+      'latitud',
+      'longitud',
+      'creadoEn',
+      'actualizadoEn',
+      'perimetro',
+    ];
+
+    final buffer = StringBuffer();
+    buffer.writeln(headers.join(','));
+
+    for (final l in locales) {
+      final values = [
+        l.id,
+        l.nombreSocial,
+        l.representante,
+        l.telefonoRepresentante,
+        l.mercadoId,
+        l.municipalidadId,
+        l.codigo,
+        l.clave,
+        l.codigoCatastral,
+        l.tipoNegocioId,
+        l.cuotaDiaria,
+        l.deudaAcumulada,
+        l.saldoAFavor,
+        l.frecuenciaCobro,
+        l.activo,
+        l.espacioM2,
+        l.latitud,
+        l.longitud,
+        l.creadoEn?.toIso8601String(),
+        l.actualizadoEn?.toIso8601String(),
+        l.perimetro == null ? null : jsonEncode(l.perimetro),
+      ];
+
+      buffer.writeln(values.map(_csvEscape).join(','));
+    }
+
+    return buffer.toString();
+  }
+
+  String _csvEscape(Object? value) {
+    if (value == null) return '';
+    var text = value.toString();
+    final needsQuotes =
+        text.contains(',') || text.contains('\n') || text.contains('"');
+    if (text.contains('"')) {
+      text = text.replaceAll('"', '""');
+    }
+    return needsQuotes ? '"$text"' : text;
   }
 
   Widget _buildUsuarioFilter(BuildContext context, LocalesPaginadosState state) {
@@ -361,7 +557,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     )
                     .toList();
               }
-              // Con texto: búsqueda por prefijo.
+              // Con texto: bÃºsqueda por prefijo.
               final resultados = await ds.buscarPorPrefijo(
                 prefijo: filter,
                 municipalidadId: municipalidadId,
@@ -483,7 +679,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   controller: controller,
                   focusNode: focusNode,
                   decoration: const InputDecoration(
-                    hintText: 'Nombre o Código local...',
+                    hintText: 'Nombre o CÃ³digo local...',
                     prefixIcon: Icon(Icons.search_rounded, size: 18),
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -663,7 +859,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             }
           });
         } else {
-          // Móvil: mostrar detalle como bottom sheet
+          // MÃ³vil: mostrar detalle como bottom sheet
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
@@ -714,12 +910,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ref.read(localesPaginadosProvider.notifier).irAPaginaAnterior();
                         }
                       : null,
-                  tooltip: 'Página anterior',
+                  tooltip: 'PÃ¡gina anterior',
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
-                    'Página ${state.paginaActual}',
+                    'PÃ¡gina ${state.paginaActual}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -731,7 +927,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ref.read(localesPaginadosProvider.notifier).irAPaginaSiguiente();
                         }
                       : null,
-                  tooltip: 'Página siguiente',
+                  tooltip: 'PÃ¡gina siguiente',
                 ),
               ],
             ),
@@ -860,13 +1056,13 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
-                        _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
+                        _DetailRow(icon: Icons.phone_rounded, label: 'TelÃ©fono', value: local.telefonoRepresentante ?? '-'),
                         _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
                         _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
-                        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
+                        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (mÂ²)', value: '${local.espacioM2 ?? 0}'),
                         _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
                         _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
-                        _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
+                        _DetailRow(icon: Icons.map_rounded, label: 'CÃ³digo Local', value: local.codigo ?? '-'),
                         _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
                       ],
                     ),
@@ -880,7 +1076,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     );
   }
 
-  /// Versión "flat" del panel de detalle (sin Expanded) — para bottom sheet en móvil.
+  /// VersiÃ³n "flat" del panel de detalle (sin Expanded) â€” para bottom sheet en mÃ³vil.
   Widget _buildPanelDetalleContent(BuildContext context, Local local) {
     final usuarios = ref.watch(usuariosProvider).value ?? [];
     final tipos = ref.watch(tiposNegocioProvider).value ?? [];
@@ -926,13 +1122,13 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
         const Divider(height: 24),
         _DetailRow(icon: Icons.person_rounded, label: 'Representante', value: local.representante ?? '-'),
-        _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: local.telefonoRepresentante ?? '-'),
+        _DetailRow(icon: Icons.phone_rounded, label: 'TelÃ©fono', value: local.telefonoRepresentante ?? '-'),
         _DetailRow(icon: Icons.badge_rounded, label: 'Cobrador Asignado', value: cobradorNombre ?? 'Sin asignar'),
         _DetailRow(icon: Icons.category_rounded, label: 'Tipo de Negocio', value: strTipo),
-        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (m²)', value: '${local.espacioM2 ?? 0}'),
+        _DetailRow(icon: Icons.square_foot_rounded, label: 'Espacio (mÂ²)', value: '${local.espacioM2 ?? 0}'),
         _DetailRow(icon: Icons.event_repeat_rounded, label: 'Frecuencia de Cobro', value: local.frecuenciaCobro ?? 'Diaria'),
         _DetailRow(icon: Icons.vpn_key_rounded, label: 'Clave', value: local.clave ?? '-'),
-        _DetailRow(icon: Icons.map_rounded, label: 'Código Catastral', value: local.codigoCatastral ?? '-'),
+        _DetailRow(icon: Icons.map_rounded, label: 'CÃ³digo Local', value: local.codigo ?? '-'),
         _DetailRow(icon: Icons.calendar_today_rounded, label: 'Creado En', value: local.creadoEn != null ? DateFormatter.formatDate(local.creadoEn!) : '-'),
       ],
     );
@@ -1029,7 +1225,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Local'),
         content: Text(
-          '¿Estás seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acción NO se puede deshacer.',
+          'Â¿EstÃ¡s seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acciÃ³n NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -1250,7 +1446,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-/// Widget de estado vacío reutilizable.
+/// Widget de estado vacÃ­o reutilizable.
 class _EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String mensaje;
@@ -1303,7 +1499,7 @@ class _PanelDetalleVacio extends StatelessWidget {
               Icon(Icons.touch_app_rounded, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
               const SizedBox(height: 16),
               Text(
-                'Selecciona un local de la tabla\npara ver su información completa.',
+                'Selecciona un local de la tabla\npara ver su informaciÃ³n completa.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
                   fontSize: 15,
