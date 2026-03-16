@@ -219,7 +219,7 @@ class ReportePdfGenerator {
     final pdf = pw.Document();
     final fechaGen = _fFechaHora.format(DateTime.now());
 
-    final subtituloCompleto = '${local.nombreSocial ?? 'Local'}${local.clave != null ? ' | Clave: ${local.clave}' : ''}${local.codigo != null ? ' | Cód: ${local.codigo}' : ''}';
+    final subtituloCompleto = '${local.nombreSocial ?? 'Local'}${local.clave != null ? ' | Clave Catastral: ${local.clave}' : ''}${local.codigo != null ? ' | Cód: ${local.codigo}' : ''}';
     
     pdf.addPage(
       pw.MultiPage(

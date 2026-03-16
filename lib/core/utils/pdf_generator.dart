@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -37,7 +37,7 @@ class PdfGenerator {
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return [
-            // ── Cabecera Principal ──
+            // â”€â”€ Cabecera Principal â”€â”€
             pw.Header(
               level: 0,
               child: pw.Row(
@@ -53,7 +53,7 @@ class PdfGenerator {
             ),
             pw.SizedBox(height: 16),
 
-            // ── Resumen ──
+            // â”€â”€ Resumen â”€â”€
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -65,7 +65,7 @@ class PdfGenerator {
                         style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold, fontSize: 13)),
                     pw.SizedBox(height: 4),
-                    pw.Text('Fecha de impresión: ${formatter.format(DateTime.now())}',
+                    pw.Text('Fecha de impresiÃ³n: ${formatter.format(DateTime.now())}',
                         style: const pw.TextStyle(fontSize: 11)),
                     pw.Text('Fecha de corte: ${formatter.format(corte.fechaCorte)}',
                         style: const pw.TextStyle(fontSize: 11)),
@@ -104,7 +104,7 @@ class PdfGenerator {
             pw.Divider(color: PdfColors.grey400),
             pw.SizedBox(height: 16),
 
-            // ── Tabla Cobrados ──
+            // â”€â”€ Tabla Cobrados â”€â”€
             if (cobrados.isNotEmpty) ...[
               pw.Text('Detalle de Recibos Cobrados',
                   style: pw.TextStyle(
@@ -124,7 +124,7 @@ class PdfGenerator {
               pw.SizedBox(height: 24),
             ],
 
-            // ── Tabla Gestiones/Incidencias ──
+            // â”€â”€ Tabla Gestiones/Incidencias â”€â”€
             if (gestionesInfo.isNotEmpty) ...[
               pw.Text('Detalle de Incidencias Registradas',
                   style: pw.TextStyle(
@@ -136,7 +136,7 @@ class PdfGenerator {
               pw.SizedBox(height: 24),
             ],
 
-            // ── Tabla Pendientes (desde pendientesInfo) ──
+            // â”€â”€ Tabla Pendientes (desde pendientesInfo) â”€â”€
             if (pendientesInfo.isNotEmpty) ...[
               pw.Text('Detalle de Locales Pendientes',
                   style: pw.TextStyle(
@@ -156,7 +156,7 @@ class PdfGenerator {
               pw.SizedBox(height: 24),
             ],
 
-            // ── Zona de Firmas ──
+            // â”€â”€ Zona de Firmas â”€â”€
             pw.SizedBox(height: 40),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
@@ -295,9 +295,9 @@ class PdfGenerator {
               (info['montoPendiente'] as num?)?.toDouble() ?? 0;
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'Cód: $codigo',
-            if (clave.isNotEmpty) 'Clave: $clave',
-          ].join(' • ');
+            if (codigo.isNotEmpty) 'CÃ³d: $codigo',
+            if (clave.isNotEmpty) 'Clave Catastral: $clave',
+          ].join(' â€¢ ');
 
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,
@@ -339,7 +339,7 @@ class PdfGenerator {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver más tarde';
+        return 'Volver mÃ¡s tarde';
       default:
         return 'Otro motivo';
     }
@@ -399,9 +399,9 @@ class PdfGenerator {
           }
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'Cód: $codigo',
-            if (clave.isNotEmpty) 'Clave: $clave',
-          ].join(' • ');
+            if (codigo.isNotEmpty) 'CÃ³d: $codigo',
+            if (clave.isNotEmpty) 'Clave Catastral: $clave',
+          ].join(' â€¢ ');
 
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,

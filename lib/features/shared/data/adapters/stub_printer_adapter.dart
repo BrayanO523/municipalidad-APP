@@ -103,7 +103,8 @@ class StubPrinterAdapter implements PrinterService {
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 4),
               _pdfRow('LOCAL:', local.toUpperCase()),
-              if (clave != null && clave.isNotEmpty) _pdfRow('CLAVE:', clave),
+              if (clave != null && clave.isNotEmpty)
+                _pdfRow('CLAVE CATASTRAL:', clave),
               if (codigoLocal != null && codigoLocal.isNotEmpty)
                 _pdfRow('NUM PUESTO:', codigoLocal),
               if (codigoCatastral != null && codigoCatastral.isNotEmpty)

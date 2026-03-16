@@ -97,7 +97,11 @@ class ReceiptDispatcher {
                   textColor: cs.onSurface,
                 ),
                 if (local.clave != null && local.clave!.isNotEmpty)
-                  _infoRow('Clave:', local.clave!, textColor: cs.onSurface),
+                  _infoRow(
+                    'Clave Catastral:',
+                    local.clave!,
+                    textColor: cs.onSurface,
+                  ),
                 if (local.codigo != null && local.codigo!.isNotEmpty)
                   _infoRow(
                     'Num Puesto:',
@@ -510,7 +514,7 @@ class ReceiptDispatcher {
 
               _pdfRow('LOCAL:', local.nombreSocial?.toUpperCase() ?? 'LOCAL'),
               if (local.clave != null && local.clave!.isNotEmpty)
-                _pdfRow('CLAVE:', local.clave!),
+                _pdfRow('CLAVE CATASTRAL:', local.clave!),
               if (local.codigo != null && local.codigo!.isNotEmpty)
                 _pdfRow('NUM PUESTO:', local.codigo!),
               if (local.codigoCatastral != null &&

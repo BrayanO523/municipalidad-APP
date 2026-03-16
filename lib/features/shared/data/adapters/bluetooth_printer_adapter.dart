@@ -189,7 +189,8 @@ class BluetoothPrinterAdapter implements PrinterService {
       final fechaStr = DateFormatter.formatDateTime(fecha);
       addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
       if (clave != null && clave.isNotEmpty) {
-        addText(r('CLAVE:', clave, normalWidth), 1, 0);
+        // Label change only (value stays the same).
+        addText(r('CLAVE CATASTRAL:', clave, normalWidth), 1, 0);
       }
       if (codigoLocal != null && codigoLocal.isNotEmpty) {
         addText(r('NUM PUESTO:', codigoLocal, normalWidth), 1, 0);

@@ -307,11 +307,14 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                   final localesMercado = allLocales
                                       .where((l) => l.mercadoId == selectedMercadoId)
                                       .where((l) {
-                                    if (query.isEmpty) return true;
-                                    final nombre =
-                                        l.nombreSocial?.toLowerCase() ?? '';
-                                    return nombre.contains(query);
-                                  }).toList();
+                                     if (query.isEmpty) return true;
+                                     final nombre =
+                                         l.nombreSocial?.toLowerCase() ?? '';
+                                     final ruta =
+                                         l.ruta?.toLowerCase() ?? '';
+                                     return nombre.contains(query) ||
+                                         ruta.contains(query);
+                                   }).toList();
 
                                   final localesAsignados = localesMercado
                                       .where((l) => selectedLocalesIds.contains(l.id))
