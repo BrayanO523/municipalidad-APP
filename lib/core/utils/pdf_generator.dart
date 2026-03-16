@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -21,7 +21,15 @@ class PdfGenerator {
     List<Cobro> cobros, {
     Map<String, String>? localNames,
   }) async {
-    final pdf = pw.Document();
+    final fontRegular = await PdfGoogleFonts.poppinsRegular();
+    final fontBold = await PdfGoogleFonts.poppinsBold();
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: fontRegular,
+        bold: fontBold,
+      ),
+    );
     final DateFormat formatter = DateFormat('dd/MM/yyyy hh:mm a');
 
     final cobrados = cobros.where(_esMovimientoCorte).toList();
@@ -88,7 +96,7 @@ class PdfGenerator {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'Fecha de impresiÃ³n: ${formatter.format(DateTime.now())}',
+                      'Fecha de impresión: ${formatter.format(DateTime.now())}',
                       style: const pw.TextStyle(fontSize: 11),
                     ),
                     pw.Text(
@@ -405,13 +413,13 @@ class PdfGenerator {
           final saldoCubreCuota = info['saldoCubreCuota'] == true;
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'CÃ³d: $codigo',
+            if (codigo.isNotEmpty) 'Cód: $codigo',
             if (clave.isNotEmpty) 'Clave Catastral: $clave',
             if (tieneSaldoAFavor)
               saldoCubreCuota
                   ? 'Tiene saldo a favor suficiente; falta registrar el cobro con saldo'
                   : 'Saldo a favor: L. ${saldoAFavor.toStringAsFixed(2)}',
-          ].join(' â€¢ ');
+          ].join(' \u2022 ');
 
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,
@@ -462,7 +470,7 @@ class PdfGenerator {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver mÃ¡s tarde';
+        return 'Volver más tarde';
       default:
         return 'Otro motivo';
     }
@@ -544,9 +552,9 @@ class PdfGenerator {
           }
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'CÃ³d: $codigo',
+            if (codigo.isNotEmpty) 'Cód: $codigo',
             if (clave.isNotEmpty) 'Clave Catastral: $clave',
-          ].join(' â€¢ ');
+          ].join(' \u2022 ');
 
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,
@@ -618,7 +626,15 @@ class PdfGenerator {
     String mercadoNombre,
     DateTime fecha,
   ) async {
-    final pdf = pw.Document();
+    final fontRegular = await PdfGoogleFonts.poppinsRegular();
+    final fontBold = await PdfGoogleFonts.poppinsBold();
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: fontRegular,
+        bold: fontBold,
+      ),
+    );
     final DateFormat formatter = DateFormat('dd/MM/yyyy hh:mm a');
     final DateFormat dateOnly = DateFormat('dd/MM/yyyy');
 

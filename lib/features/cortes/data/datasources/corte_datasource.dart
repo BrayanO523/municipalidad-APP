@@ -39,6 +39,14 @@ class CorteDatasource {
     }
   }
 
+  Future<void> eliminarCorte(String id) async {
+    try {
+      await _firestore.collection('cortes').doc(id).delete();
+    } catch (e) {
+      throw ServerFailure('Error al eliminar corte: $e');
+    }
+  }
+
   /// Lista una página de cortes para una municipalidad (Admin).
   Future<QuerySnapshot<Map<String, dynamic>>> listarPaginaPorMunicipalidad({
     required String municipalidadId,

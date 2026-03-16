@@ -82,6 +82,11 @@ class DefaultNavigationConfig implements NavigationConfig {
         path: '/deudores',
       ),
       const NavItemConfig(
+        icon: Icons.money_off_rounded,
+        label: 'Gestor de Deudas',
+        path: '/gestor-deudas',
+      ),
+      const NavItemConfig(
         icon: Icons.announcement_rounded,
         label: 'Incidencias',
         path: '/incidencias',

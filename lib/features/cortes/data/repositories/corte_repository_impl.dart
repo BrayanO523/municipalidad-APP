@@ -26,9 +26,19 @@ class CorteRepositoryImpl implements CorteRepository {
       final model = CorteModel.fromEntity(corte);
       await datasource.crearCorte(model);
       return const Right(null);
-    } on Failure catch (e) {
-      return Left(e);
     } catch (e) {
+      if (e is Failure) return Left(e);
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> eliminarCorte(String id) async {
+    try {
+      await datasource.eliminarCorte(id);
+      return const Right(null);
+    } catch (e) {
+      if (e is Failure) return Left(e);
       return Left(ServerFailure(e.toString()));
     }
   }

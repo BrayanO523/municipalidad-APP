@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -7,6 +8,9 @@ import '../../../../core/utils/pdf_generator.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../domain/entities/corte.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+
+import 'package:go_router/go_router.dart';
+import '../viewmodels/cortes_paginados_notifier.dart';
 
 // Definición de tipo para mayor claridad
 typedef CobroConDetalle = ({Cobro cobro, String localNombre});
@@ -53,6 +57,68 @@ class CorteDetalleScreen extends ConsumerWidget {
         estado == 'cobrado_saldo';
   }
 
+  Future<void> _confirmarEliminacion(
+    BuildContext context,
+    WidgetRef ref,
+    Corte corte,
+  ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Corte'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este registro de corte? Esta acción no afectará los cobros individuales registrados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final repo = ref.read(corteRepositoryProvider);
+      final result = await repo.eliminarCorte(corte.id);
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Quitar loading
+      }
+
+      result.fold(
+        (failure) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: ${failure.message}')),
+            );
+          }
+        },
+        (_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Corte eliminado correctamente.')),
+            );
+            ref.invalidate(cortesAdminPaginadosProvider);
+            ref.invalidate(cortesCobradorPaginadosProvider);
+            context.pop();
+          }
+        },
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cobrosAsync = ref.watch(cobrosPorCorteProvider(corte.cobrosIds));
@@ -83,6 +149,12 @@ class CorteDetalleScreen extends ConsumerWidget {
             loading: () => const SizedBox(),
             error: (_, __) => const SizedBox(),
           ),
+          if (kIsWeb && kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Eliminar Corte',
+              onPressed: () => _confirmarEliminacion(context, ref, corte),
+            ),
         ],
       ),
       body: Center(

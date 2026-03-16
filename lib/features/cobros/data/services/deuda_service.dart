@@ -107,6 +107,14 @@ class DeudaService {
     }
 
     // 3. Procesar: iterar desde fechaLimite hasta ayer
+    //    Acumular pendientes en un batch masivo para reducir viajes de red.
+    WriteBatch batchPendientes = firestore.batch();
+    int batchOps = 0;
+    // Acumular deuda por local para hacer un solo update al final
+    final Map<String, num> deudaPorLocal = {};
+    // Acumular deuda por municipalidad para stats globales
+    final Map<String, num> deudaPorMuni = {};
+
     for (DateTime fecha = fechaLimite; !fecha.isAfter(fechaFin); fecha = fecha.add(const Duration(days: 1))) {
       final fechaKey = "${fecha.year}${fecha.month}${fecha.day}";
 
@@ -125,7 +133,6 @@ class DeudaService {
         }
 
         // 4. Si ya existe CUALQUIER registro para este local+fecha, saltar
-        //    (evita duplicar pendientes y consumir saldo a favor incorrectamente)
         final yaExisteRegistro = mapaExistencia[lid]?.contains(fechaKey) ?? false;
         if (yaExisteRegistro) continue;
 
@@ -136,7 +143,7 @@ class DeudaService {
         if (pagadoEseDia < cuota) {
           num faltante = cuota - pagadoEseDia;
 
-          // 5. Saldo a favor (Sigue siendo 1 lectura por local con deuda detectada)
+          // Saldo a favor (requiere lectura individual, no se puede batchear)
           final localData = await localDs.obtenerPorId(lid);
           num saldoAFavorActual = localData?.saldoAFavor ?? 0;
 
@@ -144,7 +151,6 @@ class DeudaService {
             num aCoverirConSaldo = saldoAFavorActual >= faltante
                 ? faltante
                 : saldoAFavorActual;
-
 
             final ahoraMatch = DateTime.now();
             final fechaConHora = DateTime(
@@ -155,11 +161,12 @@ class DeudaService {
               ahoraMatch.minute,
             );
 
-            final batch = firestore.batch();
+            // El cobro de saldo a favor necesita su propio batch (por la lectura)
+            final batchSaldo = firestore.batch();
             final cobroAcSId = 'COB-S-$lid-${fecha.year}${fecha.month.toString().padLeft(2, "0")}${fecha.day.toString().padLeft(2, "0")}';
             final cobroRef = firestore.collection(FirestoreCollections.cobros).doc(cobroAcSId);
             
-            batch.set(cobroRef, {
+            batchSaldo.set(cobroRef, {
               'actualizadoEn': now,
               'actualizadoPor': 'sistema-saldo',
               'cobradorId': 'sistema',
@@ -180,35 +187,94 @@ class DeudaService {
               'anioCorrelativo': fecha.year,
             });
 
-            await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo, batch: batch);
+            await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo, batch: batchSaldo);
 
             if (local.municipalidadId != null) {
               await _statsDs.actualizarConsumoSaldo(
                 municipalidadId: local.municipalidadId!,
                 montoConsumido: aCoverirConSaldo,
-                batch: batch,
+                batch: batchSaldo,
               );
             }
 
-            await batch.commit();
+            await batchSaldo.commit();
 
             faltante -= aCoverirConSaldo;
           }
 
+          // Agregar pendiente al batch masivo (sin commit individual)
           if (faltante > 0) {
-            await _crearPendiente(
-              local: local,
-              fecha: fecha,
-              cobradorId: cobradorId,
-              observaciones: pagadoEseDia > 0
+            final docId =
+                'COB-$lid-${fecha.year}${fecha.month.toString().padLeft(2, '0')}${fecha.day.toString().padLeft(2, '0')}';
+            final ref = firestore.collection(FirestoreCollections.cobros).doc(docId);
+
+            final ahoraMatch = DateTime.now();
+            final fechaConHora = DateTime(
+              fecha.year,
+              fecha.month,
+              fecha.day,
+              ahoraMatch.hour,
+              ahoraMatch.minute,
+            );
+
+            batchPendientes.set(ref, {
+              'actualizadoEn': now,
+              'actualizadoPor': cobradorId ?? 'sistema',
+              'cobradorId': cobradorId ?? '',
+              'creadoEn': now,
+              'creadoPor': cobradorId ?? 'sistema',
+              'cuotaDiaria': cuota,
+              'estado': 'pendiente',
+              'fecha': Timestamp.fromDate(fechaConHora),
+              'localId': lid,
+              'mercadoId': local.mercadoId,
+              'monto': 0,
+              'pagoACuota': 0,
+              'municipalidadId': local.municipalidadId,
+              'observaciones': pagadoEseDia > 0
                   ? 'Pendiente por pago parcial (pagó L$pagadoEseDia de L$cuota)'
                   : 'Pendiente automático — sin cobro registrado',
-              montoFaltante: faltante,
-            );
+              'saldoPendiente': faltante,
+              'correlativo': 0,
+              'anioCorrelativo': fecha.year,
+            });
+
+            // Acumular totales en memoria
+            deudaPorLocal[lid] = (deudaPorLocal[lid] ?? 0) + faltante;
+            if (local.municipalidadId != null) {
+              deudaPorMuni[local.municipalidadId!] =
+                  (deudaPorMuni[local.municipalidadId!] ?? 0) + faltante;
+            }
+
             creados++;
+            batchOps++;
+
+            // Commit intermedio si alcanzamos 400 operaciones
+            if (batchOps >= 400) {
+              await batchPendientes.commit();
+              batchPendientes = firestore.batch();
+              batchOps = 0;
+            }
           }
         }
       }
+    }
+
+    // 4. Commit final: agregar updates de deuda/stats al último batch
+    if (creados > 0) {
+      for (final entry in deudaPorLocal.entries) {
+        await localDs.actualizarDeudaAcumulada(entry.key, entry.value, batch: batchPendientes);
+        batchOps++;
+      }
+      for (final entry in deudaPorMuni.entries) {
+        await _statsDs.actualizarDeudaGenerada(
+          municipalidadId: entry.key,
+          montoDeuda: entry.value,
+          batch: batchPendientes,
+        );
+        batchOps++;
+      }
+      await batchPendientes.commit();
     }
 
     return creados;
@@ -280,6 +346,10 @@ class DeudaService {
 
   /// Registra deudas pendientes para un local en un rango de fechas.
   /// Salta días que ya tengan cualquier registro de cobro (idempotencia).
+  ///
+  /// **Optimizado**: Acumula todas las inserciones en un WriteBatch y
+  /// realiza un solo update de deuda/estadísticas al final, en lugar de
+  /// hacer N viajes de red individuales.
   Future<int> registrarDeudaPorRango({
     required Local local,
     required DateTime start,
@@ -287,6 +357,9 @@ class DeudaService {
     required String? cobradorId,
   }) async {
     if (local.id == null) return 0;
+
+    final lid = local.id!;
+    final cuota = local.cuotaDiaria ?? 0;
 
     // 1. Normalizar fechas (start siempre antes que end)
     DateTime fechaInicio = DateTime(start.year, start.month, start.day);
@@ -299,7 +372,7 @@ class DeudaService {
 
     // 2. Carga masiva de cobros existentes en el rango para evitar duplicados
     final existentes = await cobroDs.listarPorLocalesYRango(
-      localIds: [local.id!],
+      localIds: [lid],
       inicio: fechaInicio,
       fin: fechaFin,
     );
@@ -311,8 +384,14 @@ class DeudaService {
       mapaExistencia.add("${f.year}${f.month}${f.day}");
     }
 
+    // 3. Construir batch masivo en memoria
+    final now = Timestamp.now();
+    final ahoraMatch = DateTime.now();
+    WriteBatch batch = firestore.batch();
     int creados = 0;
-    // 3. Iterar día por día
+    int batchOps = 0;
+    num totalDeudaGenerada = 0;
+
     for (DateTime fecha = fechaInicio;
         !fecha.isAfter(fechaFin);
         fecha = fecha.add(const Duration(days: 1))) {
@@ -321,17 +400,67 @@ class DeudaService {
       // Saltar si ya existe registro (pagado o pendiente)
       if (mapaExistencia.contains(fechaKey)) continue;
 
-      // Se eliminó la restricción de local.creadoEn para permitir 
-      // registrar deudas de años anteriores aunque el local 
-      // sea nuevo en el sistema digital.
+      final docId =
+          'COB-$lid-${fecha.year}${fecha.month.toString().padLeft(2, '0')}${fecha.day.toString().padLeft(2, '0')}';
+      final ref = firestore.collection(FirestoreCollections.cobros).doc(docId);
 
-      await _crearPendiente(
-        local: local,
-        fecha: fecha,
-        cobradorId: cobradorId,
-        observaciones: 'Deuda registrada manualmente por rango de fechas',
+      final fechaConHora = DateTime(
+        fecha.year,
+        fecha.month,
+        fecha.day,
+        ahoraMatch.hour,
+        ahoraMatch.minute,
       );
+
+      batch.set(ref, {
+        'actualizadoEn': now,
+        'actualizadoPor': cobradorId ?? 'sistema',
+        'cobradorId': cobradorId ?? '',
+        'creadoEn': now,
+        'creadoPor': cobradorId ?? 'sistema',
+        'cuotaDiaria': cuota,
+        'estado': 'pendiente',
+        'fecha': Timestamp.fromDate(fechaConHora),
+        'localId': lid,
+        'mercadoId': local.mercadoId,
+        'monto': 0,
+        'pagoACuota': 0,
+        'municipalidadId': local.municipalidadId,
+        'observaciones': 'Deuda registrada manualmente por rango de fechas',
+        'saldoPendiente': cuota,
+        'correlativo': 0,
+        'anioCorrelativo': fecha.year,
+      });
+
+      totalDeudaGenerada += cuota;
       creados++;
+      batchOps++;
+
+      // Firestore limita un batch a 500 operaciones; hacemos commit cada 400
+      // para dejar margen a las operaciones finales de deuda/stats.
+      if (batchOps >= 400) {
+        await batch.commit();
+        batch = firestore.batch();
+        batchOps = 0;
+      }
+    }
+
+    // 4. Agregar las operaciones de actualización de deuda y estadísticas
+    //    al último batch (un solo update en lugar de N).
+    if (creados > 0) {
+      // Incrementar deuda acumulada del local (una sola vez con el total)
+      await localDs.actualizarDeudaAcumulada(lid, totalDeudaGenerada, batch: batch);
+
+      // Actualizar estadísticas globales (una sola vez con el total)
+      if (local.municipalidadId != null) {
+        await _statsDs.actualizarDeudaGenerada(
+          municipalidadId: local.municipalidadId!,
+          montoDeuda: totalDeudaGenerada,
+          batch: batch,
+        );
+      }
+
+      await batch.commit();
     }
 
     return creados;
