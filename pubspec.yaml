@@ -90,6 +90,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/import/
+    - assets/import/locales_con_codigo_pto_ordenado_con_clave_corregido.csv
 
   # To add assets to your application, add an assets section, like this:
   # assets:
