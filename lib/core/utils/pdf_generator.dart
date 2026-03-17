@@ -877,7 +877,7 @@ class PdfGenerator {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
-                        'Registros',
+                        'Registros (boletas)',
                         textAlign: pw.TextAlign.center,
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
@@ -933,6 +933,15 @@ class PdfGenerator {
                 ),
                 // Filas de datos
                 ...cortesCobradores.map((corte) {
+                  final String? rangoBoletas;
+                  if (corte.primerBoleta != null && corte.ultimaBoleta != null) {
+                    rangoBoletas = corte.primerBoleta == corte.ultimaBoleta
+                        ? corte.primerBoleta
+                        : '${corte.primerBoleta} - ${corte.ultimaBoleta}';
+                  } else {
+                    rangoBoletas = null;
+                  }
+
                   return pw.TableRow(
                     children: [
                       pw.Padding(
@@ -944,10 +953,24 @@ class PdfGenerator {
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '${corte.cantidadRegistros}',
-                          textAlign: pw.TextAlign.center,
-                          style: const pw.TextStyle(fontSize: 9),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.center,
+                          children: [
+                            pw.Text(
+                              '${corte.cantidadRegistros}',
+                              textAlign: pw.TextAlign.center,
+                              style: const pw.TextStyle(fontSize: 9),
+                            ),
+                            if (rangoBoletas != null)
+                              pw.Text(
+                                rangoBoletas,
+                                textAlign: pw.TextAlign.center,
+                                style: const pw.TextStyle(
+                                  fontSize: 7,
+                                  color: PdfColors.grey700,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       pw.Padding(

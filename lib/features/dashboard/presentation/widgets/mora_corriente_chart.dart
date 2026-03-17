@@ -15,6 +15,7 @@ class MoraCorrienteChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(statsProvider);
+    final rt = ref.watch(dashboardRealTimeStatsProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     return statsAsync.when(
@@ -22,16 +23,21 @@ class MoraCorrienteChart extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (stats) {
         // Totales del periodo
-        final totalRecaudado = _totalPeriodo(stats, period, field: 'recaudado');
+        final totalRecaudadoRaw = _totalPeriodo(stats, period, field: 'recaudado');
+        final totalRecaudado = totalRecaudadoRaw > 0
+            ? totalRecaudadoRaw
+            : (rt.recaudadoPeriodo.toDouble());
         final moraPeriodo = _totalPeriodo(stats, period, field: 'mora');
         final moraAcumulada = (stats.totalMoraRecuperada ?? 0).toDouble();
+        final moraRt = rt.totalMoraRecuperada.toDouble();
         final totalMora = moraPeriodo > 0 ? moraPeriodo : moraAcumulada;
+        final totalMoraFinal = totalMora > 0 ? totalMora : moraRt;
         final corriente = (totalRecaudado - totalMora).clamp(
           0.0,
           double.infinity,
         );
 
-        if (corriente <= 0 && totalMora <= 0) {
+        if (corriente <= 0 && totalMoraFinal <= 0) {
           return Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -57,7 +63,7 @@ class MoraCorrienteChart extends ConsumerWidget {
           );
         }
 
-        final maxY = (corriente + totalMora) * 1.25;
+        final maxY = (corriente + totalMoraFinal) * 1.25;
 
         final barGroups = [
           BarChartGroupData(
@@ -73,7 +79,7 @@ class MoraCorrienteChart extends ConsumerWidget {
                 ),
               ),
               BarChartRodData(
-                toY: totalMora,
+                toY: totalMoraFinal,
                 color: const Color(0xFFFF9F43),
                 width: 20,
                 borderRadius: const BorderRadius.vertical(

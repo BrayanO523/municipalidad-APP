@@ -18,6 +18,34 @@ class AuthDatasource {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  String? _normalizarCodigo(String? codigo) {
+    final trimmed = codigo?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed.toUpperCase();
+  }
+
+  Future<bool> codigoCobradorDisponible({
+    required String municipalidadId,
+    required String codigo,
+    String? excluirUsuarioId,
+  }) async {
+    final codigoNormalizado = _normalizarCodigo(codigo);
+    if (codigoNormalizado == null) return false;
+
+    final query = await _firestore
+        .collection(FirestoreCollections.usuarios)
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .where('rol', isEqualTo: 'cobrador')
+        .where('codigoCobrador', isEqualTo: codigoNormalizado)
+        .get();
+
+    if (query.docs.isEmpty) return true;
+    if (excluirUsuarioId != null) {
+      return query.docs.every((doc) => doc.id == excluirUsuarioId);
+    }
+    return false;
+  }
+
   Future<User?> login(String email, String password) async {
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
@@ -68,10 +96,22 @@ class AuthDatasource {
 
       final uid = userCredential.user!.uid;
 
-      // Autogenerar código si viene vacío
-      String? finalCodigo = codigoCobrador;
-      if (finalCodigo == null || finalCodigo.trim().isEmpty) {
+      // Autogenerar código si viene vacío y normalizar a MAYÚSCULAS
+      String finalCodigo =
+          _normalizarCodigo(codigoCobrador) ??
+              await sugerirSiguienteCodigoCobrador(municipalidadId);
+      if (finalCodigo.isEmpty) {
         finalCodigo = await sugerirSiguienteCodigoCobrador(municipalidadId);
+      }
+      final disponible = await codigoCobradorDisponible(
+        municipalidadId: municipalidadId,
+        codigo: finalCodigo,
+        excluirUsuarioId: uid,
+      );
+      if (!disponible) {
+        throw Exception(
+          'El código $finalCodigo ya está asignado a otro cobrador en esta municipalidad.',
+        );
       }
 
       // 3. Crear el documento en Firestore
@@ -155,8 +195,38 @@ class AuthDatasource {
   }
 
   Future<void> actualizarUsuario(String uid, Map<String, dynamic> data) async {
+    final dataCopy = Map<String, dynamic>.from(data);
+    if (dataCopy.containsKey('codigoCobrador')) {
+      final codigoNormalizado = _normalizarCodigo(dataCopy['codigoCobrador']);
+      dataCopy['codigoCobrador'] = codigoNormalizado;
+
+      if (codigoNormalizado != null && codigoNormalizado.isNotEmpty) {
+        String? municipalidadId = dataCopy['municipalidadId'];
+        if (municipalidadId == null) {
+          final snapshot = await _firestore
+              .collection(FirestoreCollections.usuarios)
+              .doc(uid)
+              .get();
+          municipalidadId = snapshot.data()?['municipalidadId'];
+        }
+
+        if (municipalidadId != null) {
+          final disponible = await codigoCobradorDisponible(
+            municipalidadId: municipalidadId,
+            codigo: codigoNormalizado,
+            excluirUsuarioId: uid,
+          );
+          if (!disponible) {
+            throw Exception(
+              'El código $codigoNormalizado ya está asignado a otro cobrador en esta municipalidad.',
+            );
+          }
+        }
+      }
+    }
+
     await _firestore.collection(FirestoreCollections.usuarios).doc(uid).update({
-      ...data,
+      ...dataCopy,
       'actualizadoEn': FieldValue.serverTimestamp(),
       'actualizadoPor': currentFirebaseUser?.uid,
     });

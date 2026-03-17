@@ -212,15 +212,24 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: codigoCtrl,
+                        textCapitalization: TextCapitalization.characters,
                         decoration: InputDecoration(
-                          labelText: isEditing
-                              ? 'Código Cobrador'
-                              : 'Código Cobrador (Autogenerado)',
+                          labelText: 'Código Cobrador',
                           hintText: 'C1',
                           filled: true,
+                          helperText: 'No repetir con otro cobrador de la misma municipalidad',
                         ),
-                        readOnly: true,
-                        enabled: false,
+                        onChanged: (val) {
+                          final upper = val.toUpperCase();
+                          if (val != upper) {
+                            codigoCtrl.value = codigoCtrl.value.copyWith(
+                              text: upper,
+                              selection: TextSelection.collapsed(
+                                offset: upper.length,
+                              ),
+                            );
+                          }
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -887,15 +896,55 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                     final nombre = nombreCtrl.text.trim();
                     final email = emailCtrl.text.trim();
                     final pass = passCtrl.text.trim();
-                    final codigo = codigoCtrl.text.trim().toUpperCase();
+                    final municipalidadId = currentAdmin?.municipalidadId ?? '';
+                    var codigo = codigoCtrl.text.trim().toUpperCase();
 
                     if (nombre.isEmpty ||
                         (!isEditing && (email.isEmpty || pass.isEmpty))) {
                       return;
                     }
 
+                    if (municipalidadId.isEmpty) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No se puede guardar: el administrador no tiene municipalidad asignada.',
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
                     try {
                       final ds = ref.read(authDatasourceProvider);
+                      if (codigo.isEmpty) {
+                        codigo = await ds.sugerirSiguienteCodigoCobrador(
+                          municipalidadId,
+                        );
+                        codigoCtrl.text = codigo;
+                      }
+
+                      final codigoLibre = await ds.codigoCobradorDisponible(
+                        municipalidadId: municipalidadId,
+                        codigo: codigo,
+                        excluirUsuarioId: usuario?.id,
+                      );
+
+                      if (!codigoLibre) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Ya existe un cobrador con el código $codigo en esta municipalidad.',
+                              ),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
                       if (isEditing) {
                         await ds.actualizarUsuario(usuario.id!, {
                           'nombre': nombre,
@@ -908,7 +957,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                           email: email,
                           password: pass,
                           nombre: nombre,
-                          municipalidadId: currentAdmin?.municipalidadId ?? '',
+                          municipalidadId: municipalidadId,
                           mercadoId: selectedMercadoId,
                           rutaAsignada: selectedLocalesIds,
                           codigoCobrador: codigo,

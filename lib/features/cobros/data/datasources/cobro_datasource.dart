@@ -78,6 +78,7 @@ class CobroDatasource {
       final montoCobrado = (finalCobroData['monto'] as num?) ?? 0;
       final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
       final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
+      final montoMora = (finalCobroData['montoMora'] as num?) ?? 0;
 
       final mercadoId = cobroData['mercadoId'] as String?;
       if (mercadoId != null) {
@@ -87,6 +88,7 @@ class CobroDatasource {
           montoCobrado: montoCobrado,
           abonoDeuda: abonoDeuda,
           incrementoSaldo: incrementoSaldo,
+          montoMora: montoMora,
           batch: batch,
         );
       }

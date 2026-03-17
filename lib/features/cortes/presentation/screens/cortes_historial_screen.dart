@@ -898,7 +898,9 @@ class _CorteTileDetallado extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Boletas: ${corte.primerBoleta} → ${corte.ultimaBoleta}',
+                                  corte.primerBoleta == corte.ultimaBoleta
+                                      ? 'Boleta: ${corte.primerBoleta}'
+                                      : 'Boletas: ${corte.primerBoleta} - ${corte.ultimaBoleta}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,

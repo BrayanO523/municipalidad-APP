@@ -208,15 +208,13 @@ class CortesMercadoScreen extends ConsumerWidget {
                       horizontal: isWide ? 32 : 16,
                       vertical: 16,
                     ),
-                    sliver: SliverToBoxAdapter(
-                      child: _BotonesImpresion(
-                        state: state,
-                        onImprimirTodos: () => _imprimirTodos(context, state),
-                        onImprimirIndividuales: () =>
-                            _imprimirIndividuales(context, state),
-                      ),
+                  sliver: SliverToBoxAdapter(
+                    child: _BotonesImpresion(
+                      state: state,
+                      onImprimirTodos: () => _imprimirTodos(context, state),
                     ),
                   ),
+                ),
                 ],
 
                 // ─── Botón confirmar ───
@@ -260,60 +258,6 @@ class CortesMercadoScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _imprimirIndividuales(
-    BuildContext context,
-    cmn.CorteMercadoState state,
-  ) async {
-    // Para impresión individual, mostrar diálogo para seleccionar qué cortes imprimir
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Imprimir Cortes Individuales'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: state.cortesDelDia.length,
-            itemBuilder: (context, index) {
-              final corte = state.cortesDelDia[index];
-              return ListTile(
-                title: Text(corte.cobradorNombre),
-                subtitle: Text(CurrencyFormatter.format(corte.totalCobrado)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.print),
-                  onPressed: () async {
-                    Navigator.of(ctx).pop();
-                    try {
-                      // Para impresión individual, necesitamos obtener los cobros del corte
-                      // Por ahora, mostrar mensaje
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Imprimiendo corte de ${corte.cobradorNombre}...',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                    }
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -707,7 +651,9 @@ class _CorteCobradorTile extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${corte.primerBoleta} → ${corte.ultimaBoleta}',
+                              corte.primerBoleta == corte.ultimaBoleta
+                                  ? corte.primerBoleta!
+                                  : '${corte.primerBoleta} - ${corte.ultimaBoleta}',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -976,12 +922,10 @@ class _FechaButton extends StatelessWidget {
 class _BotonesImpresion extends StatelessWidget {
   final cmn.CorteMercadoState state;
   final VoidCallback onImprimirTodos;
-  final VoidCallback onImprimirIndividuales;
 
   const _BotonesImpresion({
     required this.state,
     required this.onImprimirTodos,
-    required this.onImprimirIndividuales,
   });
 
   @override
@@ -1006,22 +950,6 @@ class _BotonesImpresion extends StatelessWidget {
                 label: const Text('Imprimir Todos'),
                 onPressed: state.cortesDelDia.isNotEmpty
                     ? onImprimirTodos
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.print, size: 18),
-                label: const Text('Imprimir Individuales'),
-                onPressed: state.cortesDelDia.isNotEmpty
-                    ? onImprimirIndividuales
                     : null,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(

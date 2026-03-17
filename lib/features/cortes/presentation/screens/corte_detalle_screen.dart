@@ -232,15 +232,13 @@ class CorteDetalleScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
 
-                        // ── Cobrados ──
+                        // ── Cobrados (estilo similar a pendientes) ──
                         if (cobrados.isNotEmpty) ...[
-                          _BoletasSection(
-                            titulo: 'Cobros y Abonos (${cobrados.length})',
-                            color: AppColors.success,
-                            items: cobrados,
+                          _CobradosInfoSection(
+                            cobrados: cobrados,
                             subtotal: totalCobrados,
+                            color: AppColors.success,
                             icon: Icons.check_circle,
-                            isWide: isWide,
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -1050,6 +1048,124 @@ class _PendientesInfoSection extends StatelessWidget {
             );
           }),
           const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _CobradosInfoSection extends StatelessWidget {
+  final List<CobroConDetalle> cobrados;
+  final double subtotal;
+  final Color color;
+  final IconData icon;
+
+  const _CobradosInfoSection({
+    required this.cobrados,
+    required this.subtotal,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: Border(
+                bottom: BorderSide(color: color.withValues(alpha: 0.15)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  'Cobrados / Abonos (${cobrados.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: color,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  CurrencyFormatter.format(subtotal),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...cobrados.map((item) {
+            final cobro = item.cobro;
+            return Column(
+              children: [
+                ListTile(
+                  dense: true,
+                  leading: Icon(Icons.confirmation_number, color: color, size: 18),
+                  title: Text(
+                    item.localNombre,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    cobro.numeroBoletaFmt,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        CurrencyFormatter.format((cobro.monto ?? 0).toDouble()),
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        (cobro.estado ?? '').toUpperCase(),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(
+                  height: 0,
+                  thickness: 0.6,
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
