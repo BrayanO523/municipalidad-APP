@@ -97,6 +97,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         debugPrint('Bluetooth: Error en reconexión automática: $e');
         return false;
       });
+      if (!mounted) return;
     }
   }
 
@@ -144,9 +145,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       final localDs = ref.read(localDatasourceProvider);
 
       // CRÍTICO: Esperar a que stats cargue para obtener fechaInicioOperaciones.
-      // Si no esperamos, stats.value puede ser null y el DeudaService
-      // generaría pendientes de 7 días atrás erróneamente.
       final stats = await ref.read(statsProvider.future);
+      if (!mounted) return;
 
       final service = DeudaService(
         cobroDs: cobroDs,
@@ -161,6 +161,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         cobradorId: usuario.id,
         fechaInicioOperaciones: stats.fechaInicioOperaciones,
       );
+
+      if (!mounted) return;
 
       // Guardar que ya se revisó hoy
       await prefs.setString(hoyKey, hoyString);
@@ -1191,11 +1193,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final cuotaTotalHoy = pagadoHoyPrev + dist.pagoACuotaHoy;
     final estado = cuotaTotalHoy >= cuotaHoy
         ? 'cobrado'
-        : cuotaTotalHoy > 0
+        : montoEfectivo > 0
         ? 'abono_parcial'
         : 'pendiente';
 
-    final double saldoResultante = dist.deudaFinalResultante.toDouble();
+    final double saldoTotalResultante = (dist.deudaFinalResultante + dist.estadoCuotaHoy).toDouble();
     final double favorResultante = dist.saldoFavorFinalResultante.toDouble();
 
     // Monto registrado en el cobro: solo el efectivo
@@ -1250,7 +1252,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 return '${prefijo}Distribuido: ${partes.join(", ")}';
               }()
             : observaciones,
-        saldoPendiente: dist.estadoCuotaHoy,
+        saldoPendiente: saldoTotalResultante,
         deudaAnterior: deudaTotalInicial,
         montoAbonadoDeuda: dist.paraDeudaReal,
         nuevoSaldoFavor: favorResultante,
@@ -1321,7 +1323,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           local: local,
           monto: monto.toDouble(),
           fecha: now,
-          saldoPendiente: saldoResultante,
+          saldoPendiente: saldoTotalResultante,
           deudaAnterior: deudaTotalInicial.toDouble(),
           montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
           pagoHoy: pagoHoyVal,

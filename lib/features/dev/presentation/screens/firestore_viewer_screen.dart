@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/firestore_collections.dart';
+import '../../../../core/utils/cobros_migration.dart';
 import '../viewmodels/firestore_viewer_notifier.dart';
 
 class FirestoreViewerScreen extends ConsumerWidget {
@@ -117,6 +118,25 @@ class FirestoreViewerScreen extends ConsumerWidget {
                         offset: state.searchTerm.length,
                       ),
                   ),
+                const SizedBox(height: 12),
+                // Botones de Mantenimiento
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _MigrationButton(
+                        label: 'Migrar Mercados',
+                        onPressed: () => CobrosMigration.rellenarMercadoId(),
+                      ),
+                      const SizedBox(width: 8),
+                      _MigrationButton(
+                        label: 'Vincular a Choluteca',
+                        onPressed: () => CobrosMigration.vincularTodoACholuteca(),
+                        color: Colors.blue.shade800,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -351,5 +371,47 @@ class FirestoreViewerScreen extends ConsumerWidget {
     }
 
     return result;
+  }
+}
+
+class _MigrationButton extends StatelessWidget {
+  final String label;
+  final Future<String> Function() onPressed;
+  final Color? color;
+
+  const _MigrationButton({
+    required this.label,
+    required this.onPressed,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: () async {
+        final result = await onPressed() as dynamic;
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Resultado de Migración'),
+              content: SingleChildScrollView(child: Text(result.toString())),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            ),
+          );
+        }
+      },
+      style: FilledButton.styleFrom(
+        backgroundColor: color ?? Colors.deepPurple,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      ),
+      child: Text(label),
+    );
   }
 }

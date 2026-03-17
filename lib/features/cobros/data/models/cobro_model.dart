@@ -116,6 +116,7 @@ class CobroJson extends Cobro {
       'telefonoRepresentante': telefonoRepresentante,
       'correlativo': correlativo,
       'anioCorrelativo': anioCorrelativo,
+      'numeroBoleta': numeroBoleta,
       'deudaAnterior': deudaAnterior,
       'montoAbonadoDeuda': montoAbonadoDeuda,
       'nuevoSaldoFavor': nuevoSaldoFavor,
