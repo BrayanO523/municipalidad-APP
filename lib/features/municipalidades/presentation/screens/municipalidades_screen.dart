@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/id_normalizer.dart';
@@ -111,85 +112,20 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
   }
 
   void _showFormDialog(BuildContext context, {Municipalidad? municipalidad}) {
-    final isEditing = municipalidad != null;
-    final nombreCtrl = TextEditingController(text: municipalidad?.nombre);
-    final municipioCtrl = TextEditingController(text: municipalidad?.municipio);
-    final departamentoCtrl = TextEditingController(
-      text: municipalidad?.departamento,
-    );
-    final porcentajeCtrl = TextEditingController(
-      text: municipalidad?.porcentaje?.toString() ?? '',
-    );
-
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isEditing ? 'Editar Municipalidad' : 'Nueva Municipalidad'),
-        content: SizedBox(
-          width: 450,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: municipioCtrl,
-                decoration: const InputDecoration(labelText: 'Municipio'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: departamentoCtrl,
-                decoration: const InputDecoration(labelText: 'Departamento'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: porcentajeCtrl,
-                decoration: const InputDecoration(labelText: 'Porcentaje'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final ds = ref.read(municipalidadDatasourceProvider);
-              final now = DateTime.now();
-              final docId = isEditing
-                  ? municipalidad.id!
-                  : IdNormalizer.municipalidadId(nombreCtrl.text);
-
-              final model = MunicipalidadJson(
-                activa: true,
-                actualizadoEn: now,
-                actualizadoPor: 'admin',
-                creadoEn: isEditing ? municipalidad.creadoEn : now,
-                creadoPor: isEditing ? municipalidad.creadoPor : 'admin',
-                departamento: departamentoCtrl.text,
-                id: docId,
-                municipio: municipioCtrl.text,
-                nombre: nombreCtrl.text,
-                porcentaje: num.tryParse(porcentajeCtrl.text),
-              );
-
-              if (isEditing) {
-                await ds.actualizar(docId, model.toJson());
-              } else {
-                await ds.crear(docId, model.toJson());
-              }
-              ref.read(municipalidadesPaginadasProvider.notifier).recargar();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: Text(isEditing ? 'Actualizar' : 'Crear'),
-          ),
-        ],
+      builder: (ctx) => _MunicipalidadFormDialog(
+        municipalidad: municipalidad,
+        onSave: (model, docId, isEditing) async {
+          final ds = ref.read(municipalidadDatasourceProvider);
+          if (isEditing) {
+            await ds.actualizar(docId, model.toJson());
+          } else {
+            await ds.crear(docId, model.toJson());
+          }
+          ref.read(municipalidadesPaginadasProvider.notifier).recargar();
+          if (ctx.mounted) Navigator.pop(ctx);
+        },
       ),
     );
   }
@@ -493,6 +429,241 @@ class _PaginationBar extends StatelessWidget {
                   .onSurface
                   .withValues(alpha: 0.24),
           tooltip: 'Página siguiente',
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// Diálogo de creación/edición de Municipalidad con selector de
+// fecha de referencia de mora.
+// ============================================================
+class _MunicipalidadFormDialog extends StatefulWidget {
+  final Municipalidad? municipalidad;
+  final Future<void> Function(
+    MunicipalidadJson model,
+    String docId,
+    bool isEditing,
+  ) onSave;
+
+  const _MunicipalidadFormDialog({
+    required this.municipalidad,
+    required this.onSave,
+  });
+
+  @override
+  State<_MunicipalidadFormDialog> createState() =>
+      _MunicipalidadFormDialogState();
+}
+
+class _MunicipalidadFormDialogState
+    extends State<_MunicipalidadFormDialog> {
+  late final TextEditingController _nombreCtrl;
+  late final TextEditingController _municipioCtrl;
+  late final TextEditingController _departamentoCtrl;
+  late final TextEditingController _porcentajeCtrl;
+  late final TextEditingController _sloganCtrl;
+  DateTime? _fechaReferenciaMora;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final m = widget.municipalidad;
+    _nombreCtrl = TextEditingController(text: m?.nombre);
+    _municipioCtrl = TextEditingController(text: m?.municipio);
+    _departamentoCtrl = TextEditingController(text: m?.departamento);
+    _porcentajeCtrl =
+        TextEditingController(text: m?.porcentaje?.toString() ?? '');
+    _sloganCtrl = TextEditingController(text: m?.slogan);
+    _fechaReferenciaMora = m?.fechaReferenciaMora;
+  }
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _municipioCtrl.dispose();
+    _departamentoCtrl.dispose();
+    _porcentajeCtrl.dispose();
+    _sloganCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFechaReferencia() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaReferenciaMora ?? DateTime(now.year, now.month, 1),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1),
+      helpText: 'Fecha límite: deudas ANTERIORES a esta fecha se consideran mora',
+    );
+    if (picked != null) {
+      setState(() => _fechaReferenciaMora = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.municipalidad != null;
+    final fmtFecha = _fechaReferenciaMora != null
+        ? DateFormat('dd/MM/yyyy').format(_fechaReferenciaMora!)
+        : 'Sin configurar (usa el 1ro del mes actual)';
+
+    return AlertDialog(
+      title: Text(isEditing ? 'Editar Municipalidad' : 'Nueva Municipalidad'),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 450,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _nombreCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _municipioCtrl,
+                decoration: const InputDecoration(labelText: 'Municipio'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _departamentoCtrl,
+                decoration: const InputDecoration(labelText: 'Departamento'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _porcentajeCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Porcentaje (%)'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _sloganCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Slogan (opcional)'),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              // --- Fecha de referencia de mora ---
+              Text(
+                'Recaudación de Mora',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Las deudas con fecha ANTERIOR a esta se clasifican como mora.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _pickFechaReferencia,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outline),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          fmtFecha,
+                          style: TextStyle(
+                            color: _fechaReferenciaMora != null
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      if (_fechaReferenciaMora != null)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () =>
+                              setState(() => _fechaReferenciaMora = null),
+                          tooltip: 'Quitar fecha (usa el mes actual)',
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _saving
+              ? null
+              : () async {
+                  setState(() => _saving = true);
+                  try {
+                    final now = DateTime.now();
+                    final m = widget.municipalidad;
+                    final isEd = m != null;
+                    final docId = isEd
+                        ? m.id!
+                        : IdNormalizer.municipalidadId(_nombreCtrl.text);
+
+                    final model = MunicipalidadJson(
+                      activa: isEd ? (m.activa ?? true) : true,
+                      actualizadoEn: now,
+                      actualizadoPor: 'admin',
+                      creadoEn: isEd ? m.creadoEn : now,
+                      creadoPor: isEd ? m.creadoPor : 'admin',
+                      departamento: _departamentoCtrl.text,
+                      id: docId,
+                      municipio: _municipioCtrl.text,
+                      nombre: _nombreCtrl.text,
+                      porcentaje: num.tryParse(_porcentajeCtrl.text),
+                      slogan: _sloganCtrl.text.isNotEmpty
+                          ? _sloganCtrl.text
+                          : null,
+                      fechaReferenciaMora: _fechaReferenciaMora,
+                    );
+
+                    await widget.onSave(model, docId, isEd);
+                  } finally {
+                    if (mounted) setState(() => _saving = false);
+                  }
+                },
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(isEditing ? 'Actualizar' : 'Crear'),
         ),
       ],
     );

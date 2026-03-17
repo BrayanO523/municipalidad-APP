@@ -28,6 +28,7 @@ abstract class CobroRepository {
     Cobro cobro,
     String localId, {
     num montoAbonadoDeuda,
+    DateTime? fechaReferenciaMora,
   });
 
   /// Elimina un cobro y revierte su impacto financiero en el local (deuda/saldo).

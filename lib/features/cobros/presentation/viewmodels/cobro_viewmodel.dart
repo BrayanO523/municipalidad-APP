@@ -26,16 +26,18 @@ class CobroViewModel extends AsyncNotifier<void> {
     required String localId,
     required num montoAbonadoDeuda,
     required num incrementoSaldoFavor,
+    DateTime? fechaReferenciaMora,
   }) async {
     try {
       state = const AsyncValue.loading();
 
-      // 1. Ejecutar registro de cobro (con FIFO). 
+      // 1. Ejecutar registro de cobro (con FIFO).
       // NOTA: registrarCobroCompleto ya actualiza los balances del local de forma atómica en Firestore.
       final resultado = await _cobroRepository.registrarCobroCompleto(
         cobro,
         localId,
         montoAbonadoDeuda: montoAbonadoDeuda,
+        fechaReferenciaMora: fechaReferenciaMora,
       );
 
       state = const AsyncValue.data(null);

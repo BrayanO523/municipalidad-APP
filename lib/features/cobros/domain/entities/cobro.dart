@@ -25,6 +25,10 @@ class Cobro {
   final List<String>? idsDeudasSaldadas;
   final List<DateTime>? fechasDeudasSaldadas;
 
+  /// Monto del cobro que fue destinado a saldar deudas anteriores
+  /// al mes de referencia de Mora configurado por la municipalidad.
+  final num? montoMora;
+
   const Cobro({
     this.cobradorId,
     this.actualizadoEn,
@@ -51,6 +55,7 @@ class Cobro {
     this.pagoACuota,
     this.idsDeudasSaldadas,
     this.fechasDeudasSaldadas,
+    this.montoMora,
   });
 
   Cobro copyWith({
@@ -79,6 +84,7 @@ class Cobro {
     num? pagoACuota,
     List<String>? idsDeudasSaldadas,
     List<DateTime>? fechasDeudasSaldadas,
+    num? montoMora,
   }) {
     return Cobro(
       cobradorId: cobradorId ?? this.cobradorId,
@@ -107,6 +113,7 @@ class Cobro {
       pagoACuota: pagoACuota ?? this.pagoACuota,
       idsDeudasSaldadas: idsDeudasSaldadas ?? this.idsDeudasSaldadas,
       fechasDeudasSaldadas: fechasDeudasSaldadas ?? this.fechasDeudasSaldadas,
+      montoMora: montoMora ?? this.montoMora,
     );
   }
 

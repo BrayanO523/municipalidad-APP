@@ -16,6 +16,7 @@ class MunicipalidadJson extends Municipalidad {
     super.nombre,
     super.porcentaje,
     super.slogan,
+    super.fechaReferenciaMora,
   });
 
   factory MunicipalidadJson.fromJson(
@@ -43,6 +44,7 @@ class MunicipalidadJson extends Municipalidad {
       nombre: json['nombre'],
       porcentaje: parseNum(json['porcentaje']),
       slogan: json['slogan'],
+      fechaReferenciaMora: (json['fechaReferenciaMora'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -60,6 +62,7 @@ class MunicipalidadJson extends Municipalidad {
       nombre: entity.nombre,
       porcentaje: entity.porcentaje,
       slogan: entity.slogan,
+      fechaReferenciaMora: entity.fechaReferenciaMora,
     );
   }
 
@@ -78,6 +81,8 @@ class MunicipalidadJson extends Municipalidad {
       'nombre': nombre,
       'porcentaje': porcentaje,
       'slogan': slogan,
+      if (fechaReferenciaMora != null)
+        'fechaReferenciaMora': Timestamp.fromDate(fechaReferenciaMora!),
     };
   }
 }

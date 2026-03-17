@@ -552,6 +552,8 @@ class DashboardRealTimeStats {
   final num saldoAFavorTotal;
   final int cantidadMercados;
   final int cantidadLocales;
+  /// Total de mora recuperada en el periodo actual (suma de cobro.montoMora).
+  final num totalMoraRecuperada;
 
   DashboardRealTimeStats({
     this.recaudadoPeriodo = 0,
@@ -562,6 +564,7 @@ class DashboardRealTimeStats {
     this.saldoAFavorTotal = 0,
     this.cantidadMercados = 0,
     this.cantidadLocales = 0,
+    this.totalMoraRecuperada = 0,
   });
 }
 
@@ -612,6 +615,14 @@ final dashboardRealTimeStatsProvider =
   }
 
   num pendienteHoy = 0;
+  num totalMoraRecuperada = 0;
+
+  for (final c in cobros) {
+    if (c.estado != 'anulado') {
+      totalMoraRecuperada += (c.montoMora ?? 0);
+    }
+  }
+
   if (filter.period == DashboardPeriod.hoy) {
     pendienteHoy = totalCuotaDiaria - totalRecaudado;
   }
@@ -625,6 +636,7 @@ final dashboardRealTimeStatsProvider =
     saldoAFavorTotal: totalSaldoAFavor,
     cantidadMercados: mercados.length,
     cantidadLocales: localesActivos.length,
+    totalMoraRecuperada: totalMoraRecuperada,
   );
 });
 

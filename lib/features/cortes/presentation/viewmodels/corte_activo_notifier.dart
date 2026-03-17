@@ -19,6 +19,11 @@ class CorteActivoState {
   /// Lista ligera [{localId, nombreSocial, tipoIncidencia, comentario, timestamp}].
   final List<Map<String, dynamic>> gestionesInfo;
 
+  /// Total de mora recaudada en los cobros del día.
+  final double totalMora;
+  /// Total de recaudación corriente (no mora) del día.
+  final double totalCorriente;
+
   const CorteActivoState({
     this.isLoading = false,
     this.error,
@@ -31,6 +36,8 @@ class CorteActivoState {
     this.yaRealizadoHoy = false,
     this.pendientesInfo = const [],
     this.gestionesInfo = const [],
+    this.totalMora = 0,
+    this.totalCorriente = 0,
   });
 
   CorteActivoState copyWith({
@@ -45,6 +52,8 @@ class CorteActivoState {
     bool? yaRealizadoHoy,
     List<Map<String, dynamic>>? pendientesInfo,
     List<Map<String, dynamic>>? gestionesInfo,
+    double? totalMora,
+    double? totalCorriente,
   }) {
     return CorteActivoState(
       isLoading: isLoading ?? this.isLoading,
@@ -58,6 +67,8 @@ class CorteActivoState {
       yaRealizadoHoy: yaRealizadoHoy ?? this.yaRealizadoHoy,
       pendientesInfo: pendientesInfo ?? this.pendientesInfo,
       gestionesInfo: gestionesInfo ?? this.gestionesInfo,
+      totalMora: totalMora ?? this.totalMora,
+      totalCorriente: totalCorriente ?? this.totalCorriente,
     );
   }
 }
@@ -78,6 +89,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
     final gestionesHoy = gestionesAsync.value ?? [];
 
     double total = 0;
+    double totalMora = 0;
     final List<String> ids = [];
     final Map<String, num> pagosCuotaPorLocal = {};
     final Set<String> idsLocalesConMovimiento = {};
@@ -100,6 +112,8 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       // Dinero físico recaudado del día. Un abono parcial también cuenta.
       if (monto > 0) {
         total += monto;
+        // Sumar mora si este cobro tiene montoMora guardado
+        totalMora += (cobro.montoMora ?? 0).toDouble();
       }
 
       // Pagos a cuota por local (igual al dashboard)
@@ -211,6 +225,8 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       yaRealizadoHoy: realizado,
       pendientesInfo: listaPendientes,
       gestionesInfo: listaGestiones,
+      totalMora: totalMora,
+      totalCorriente: total - totalMora,
     );
   }
 
@@ -284,6 +300,8 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
         gestionesInfo: state.gestionesInfo,
         primerBoleta: primerBoleta,
         ultimaBoleta: ultimaBoleta,
+        totalMora: state.totalMora,
+        totalCorriente: state.totalCorriente,
       );
 
       final repo = ref.read(corteRepositoryProvider);

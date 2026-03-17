@@ -672,12 +672,19 @@ class CobroDatasource {
   }
 
   /// Busca los cobros pendientes más antiguos (FIFO) y los marca como cobrados.
-  /// Retorna los IDs de los cobros saldados Y sus fechas para mostrar en el recibo.
-  Future<({List<String> ids, List<DateTime> fechas})> saldarDeudaHistoria(
+  /// Retorna los IDs de los cobros saldados, sus fechas, y el monto que corresponde a Mora.
+  /// - [fechaReferenciaMora]: Deudas del mes anterior a esta fecha se clasifican como "Mora".
+  ///   Si es null, se usa el primer día del mes actual como referencia.
+  Future<({List<String> ids, List<DateTime> fechas, num montoMora})> saldarDeudaHistoria(
     String localId,
-    num montoASaldar,
-  ) async {
-    if (montoASaldar <= 0) return (ids: <String>[], fechas: <DateTime>[]);
+    num montoASaldar, {
+    DateTime? fechaReferenciaMora,
+  }) async {
+    if (montoASaldar <= 0) return (ids: <String>[], fechas: <DateTime>[], montoMora: 0);
+
+    // Inicio del mes de referencia (por defecto: mes actual)
+    final ref = fechaReferenciaMora ?? DateTime.now();
+    final inicioMesReferencia = DateTime(ref.year, ref.month, 1);
 
     // Timeout estricto para no colgar la UI
     final connectivityResult = await Connectivity().checkConnectivity().timeout(
@@ -706,6 +713,7 @@ class CobroDatasource {
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
+    num montoMoraAcumulado = 0;
     final List<String> idsSaldados = [];
     final List<DateTime> fechasSaldadas = [];
 
@@ -722,6 +730,9 @@ class CobroDatasource {
         fechaDoc = fechaRaw.toDate();
       }
 
+      // Determinar si esta deuda es "Mora" (su fecha es anterior al mes de referencia)
+      final esMora = fechaDoc != null && fechaDoc.isBefore(inicioMesReferencia);
+
       if (restante >= saldoPendiente) {
         // Se salda completamente este día
         batch.update(doc.reference, {
@@ -731,6 +742,7 @@ class CobroDatasource {
               '${data['observaciones'] ?? ''}\nSaldado por abono general.'
                   .trim(),
         });
+        if (esMora) montoMoraAcumulado += saldoPendiente;
         restante -= saldoPendiente;
         // Solo agregar a fechasSaldadas si el día fue cubierto al 100%
         if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
@@ -740,6 +752,7 @@ class CobroDatasource {
           'estado': 'abono_parcial',
           'saldoPendiente': saldoPendiente - restante,
         });
+        if (esMora) montoMoraAcumulado += restante;
         restante = 0;
       }
 
@@ -755,7 +768,7 @@ class CobroDatasource {
       );
     }
 
-    return (ids: idsSaldados, fechas: fechasSaldadas);
+    return (ids: idsSaldados, fechas: fechasSaldadas, montoMora: montoMoraAcumulado);
   }
 
   /// Revierte los cobros históricos que fueron saldados por un cobro que se está eliminando.

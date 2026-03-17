@@ -74,11 +74,11 @@ class CobroRepositoryImpl implements CobroRepository {
     Cobro cobro,
     String localId, {
     num montoAbonadoDeuda = 0,
+    DateTime? fechaReferenciaMora,
   }) async {
     final cobroJson = CobroJson.fromEntity(cobro).toJson();
 
     // 1. Intentar registrar en Firestore (Offline/Online)
-    // Esto lo encola en caché y nos da 0 si estamos offline
     final numeroBoleta = await _remoteDatasource.crearCobroConCorrelativo(
       cobroId: cobro.id!,
       cobroData: cobroJson,
@@ -94,29 +94,32 @@ class CobroRepositoryImpl implements CobroRepository {
     );
 
     // 3. Lo guardamos en Hive para el Local NoSQL
-    // Status 1 porque ya está en la caché interna formal de Firestore para subir cuando haya internet.
     final cobroHive = CobroHive.fromDomain(cobroFinal, syncStatus: 1);
     await _localDatasource.guardarCobro(cobroHive);
 
     // 4. FIFO: Procesar el historial de deuda local pendiente usando el monto abonado a deuda
     List<String> idsDeudasSaldadas = [];
     List<DateTime> fechasSaldadas = [];
+    num montoMora = 0;
     if (cobroFinal.localId != null && montoAbonadoDeuda > 0) {
       final resultado = await _remoteDatasource.saldarDeudaHistoria(
         cobroFinal.localId!,
         montoAbonadoDeuda,
+        fechaReferenciaMora: fechaReferenciaMora,
       );
       idsDeudasSaldadas = resultado.ids;
       fechasSaldadas = resultado.fechas;
+      montoMora = resultado.montoMora;
     }
 
-    // 5. Si hubo deudas saldadas, actualizar el documento del cobro con esos IDs y fechas
+    // 5. Si hubo deudas saldadas, actualizar el documento del cobro con esos IDs, fechas y mora
     if (idsDeudasSaldadas.isNotEmpty && cobro.id != null) {
       await _remoteDatasource.actualizar(cobro.id!, {
         'idsDeudasSaldadas': idsDeudasSaldadas,
         'fechasDeudasSaldadas': fechasSaldadas
             .map((d) => Timestamp.fromDate(d))
             .toList(),
+        if (montoMora > 0) 'montoMora': montoMora,
       });
     }
 

@@ -91,13 +91,13 @@ class RecaudacionBarChart extends StatelessWidget {
                       Icon(
                         Icons.bar_chart_rounded,
                         size: 40,
-                        color: colorScheme.onSurface.withOpacity(0.24),
+                        color: colorScheme.onSurface.withValues(alpha: 0.24),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Sin recaudación hoy',
                         style: TextStyle(
-                          color: colorScheme.onSurface.withOpacity(0.54),
+                          color: colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                       ),
                     ],
@@ -196,4 +196,3 @@ class RecaudacionBarChart extends StatelessWidget {
     );
   }
 }
-

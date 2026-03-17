@@ -12,6 +12,11 @@ class Municipalidad {
   final num? porcentaje;
   final String? slogan;
 
+  /// Fecha de referencia para calcular Mora.
+  /// Deudas anteriores al mes/año de esta fecha se consideran Mora.
+  /// Si es null se usa el mes actual por defecto.
+  final DateTime? fechaReferenciaMora;
+
   const Municipalidad({
     this.activa,
     this.actualizadoEn,
@@ -25,5 +30,6 @@ class Municipalidad {
     this.nombre,
     this.porcentaje,
     this.slogan,
+    this.fechaReferenciaMora,
   });
 }

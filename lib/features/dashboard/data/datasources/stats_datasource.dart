@@ -18,6 +18,9 @@ class StatsModel {
   // Mapa agrupado por "yyyy-MM-dd"
   final Map<String, dynamic> diario;
 
+  /// Total acumulado de Mora recuperada (pagos a deudas de meses anteriores al de referencia).
+  final num totalMoraRecuperada;
+
   StatsModel({
     this.totalCobrado = 0,
     this.totalDeuda = 0,
@@ -28,6 +31,7 @@ class StatsModel {
     this.ultimaActualizacion,
     this.fechaInicioOperaciones,
     this.diario = const {},
+    this.totalMoraRecuperada = 0,
   });
 
   factory StatsModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +45,7 @@ class StatsModel {
       ultimaActualizacion: (json['ultimaActualizacion'] as Timestamp?)?.toDate(),
       fechaInicioOperaciones: (json['fechaInicioOperaciones'] as Timestamp?)?.toDate(),
       diario: json['diario'] as Map<String, dynamic>? ?? {},
+      totalMoraRecuperada: (json['totalMoraRecuperada'] as num?) ?? 0,
     );
   }
 
@@ -51,6 +56,7 @@ class StatsModel {
     'totalCuotaDiaria': totalCuotaDiaria,
     'cantidadLocales': cantidadLocales,
     'cantidadMercados': cantidadMercados,
+    'totalMoraRecuperada': totalMoraRecuperada,
     'ultimaActualizacion': FieldValue.serverTimestamp(),
     'diario': diario,
   };
@@ -61,6 +67,14 @@ class StatsModel {
     final obj = diario[key];
     if (obj == null || obj is! Map) return 0;
     return (obj['recaudado'] as num?) ?? 0;
+  }
+
+  /// Mora recuperada hoy.
+  num get moraHoy {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final obj = diario[key];
+    if (obj == null || obj is! Map) return 0;
+    return (obj['mora'] as num?) ?? 0;
   }
 
   /// Obtiene la cantidad de recibos emitidos el día actual local.
@@ -104,6 +118,7 @@ class StatsDatasource {
     required num montoCobrado,
     required num abonoDeuda,
     required num incrementoSaldo,
+    num montoMora = 0,
     WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -114,6 +129,10 @@ class StatsDatasource {
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(montoCobrado),
       'diario.$key.cobros': FieldValue.increment(1),
+      if (montoMora > 0) ...{
+        'totalMoraRecuperada': FieldValue.increment(montoMora),
+        'diario.$key.mora': FieldValue.increment(montoMora),
+      },
     };
 
     if (batch != null) {
@@ -135,6 +154,7 @@ class StatsDatasource {
     required num abonoDeuda,
     required num incrementoSaldo,
     required DateTime fechaCobroOriginal,
+    num montoMora = 0,
     WriteBatch? batch,
   }) async {
     final key = DateFormat('yyyy-MM-dd').format(fechaCobroOriginal);
@@ -145,6 +165,10 @@ class StatsDatasource {
       'ultimaActualizacion': FieldValue.serverTimestamp(),
       'diario.$key.recaudado': FieldValue.increment(-montoCobrado),
       'diario.$key.cobros': FieldValue.increment(-1),
+      if (montoMora > 0) ...{
+        'totalMoraRecuperada': FieldValue.increment(-montoMora),
+        'diario.$key.mora': FieldValue.increment(-montoMora),
+      },
     };
 
     if (batch != null) {

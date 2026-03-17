@@ -294,7 +294,6 @@ class CortesMercadoScreen extends ConsumerWidget {
                           ),
                         ),
                       );
-                      // TODO: Implementar impresión individual con cobros
                     } catch (e) {
                       ScaffoldMessenger.of(
                         context,
@@ -694,14 +693,17 @@ class _CorteCobradorTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (corte.primerBoleta != null && corte.ultimaBoleta != null) ...[
+                      if (corte.primerBoleta != null &&
+                          corte.ultimaBoleta != null) ...[
                         const SizedBox(height: 4),
                         Row(
                           children: [
                             Icon(
                               Icons.confirmation_number_outlined,
                               size: 12,
-                              color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -709,7 +711,9 @@ class _CorteCobradorTile extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.8,
+                                ),
                               ),
                             ),
                           ],

@@ -502,6 +502,71 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
+          // ── Desglose Mora / Corriente (sólo si hay datos) ──
+          if ((corte.totalMora ?? 0) > 0) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Corriente',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 11),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          CurrencyFormatter.format(corte.totalCorriente ?? 0),
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                      width: 1,
+                      height: 32,
+                      color: Colors.white.withValues(alpha: 0.2)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mora',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 11),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          CurrencyFormatter.format(corte.totalMora ?? 0),
+                          style: const TextStyle(
+                            color: Colors.orangeAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
           // Fecha
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

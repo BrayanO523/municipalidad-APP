@@ -215,4 +215,142 @@ class CobrosMigration {
 
     return log.toString();
   }
+
+  /// Calcula y asigna "mora" a los cobros históricos.
+  /// Toma todos los cobros donde `montoMora` es nulo pero `montoAbonadoDeuda > 0`,
+  /// asumiendo que el pago de deuda antigua fue mora.
+  /// Luego actualiza los documentos de estadísticas globales y por mercado.
+  static Future<String> migrarMoraHistorica() async {
+    final db = FirebaseFirestore.instance;
+    final log = StringBuffer();
+    int cobrosActualizados = 0;
+
+    try {
+      log.writeln('🚀 Iniciando cálculo de Mora Histórica...');
+      final cobrosSnap = await db.collection(FirestoreCollections.cobros).get();
+
+      // Para acumular las actualizaciones de estadísticas.
+      // Clave: municipalidadId o municipalidadId_mercadoId
+      final Map<String, num> statsTotalMora = {};
+      final Map<String, Map<String, num>> statsDiarioMora = {};
+
+      WriteBatch batch = db.batch();
+      int count = 0;
+
+      for (var doc in cobrosSnap.docs) {
+        final data = doc.data();
+        final montoAbonadoDeuda = (data['montoAbonadoDeuda'] as num?) ?? 0;
+        final montoMoraExistente = (data['montoMora'] as num?);
+
+        // Si pagó deuda pero no tiene calculado el montoMora, lo recalculamos.
+        if (montoMoraExistente == null && montoAbonadoDeuda > 0) {
+          final munId = data['municipalidadId'] as String?;
+          final merId = data['mercadoId'] as String?;
+          if (munId == null) continue;
+
+          final fechaMap = data['fecha'];
+          if (fechaMap == null || fechaMap is! Timestamp) continue;
+
+          final fechaCobro = fechaMap.toDate();
+          // La mora histórica se define como cualquier pago a una deuda 
+          // anterior al mes en curso del cobro
+          final refMora = DateTime(fechaCobro.year, fechaCobro.month, 1);
+          final dateKey = '${fechaCobro.year}-${fechaCobro.month.toString().padLeft(2, '0')}-${fechaCobro.day.toString().padLeft(2, '0')}';
+
+          final fechasRaw = data['fechasDeudasSaldadas'] as List<dynamic>? ?? [];
+          num moraCalculada = 0;
+
+          if (fechasRaw.isNotEmpty) {
+            int moraCount = 0;
+            for (var r in fechasRaw) {
+              final f = (r as Timestamp).toDate();
+              if (f.isBefore(refMora)) {
+                moraCount++;
+              }
+            }
+            if (moraCount > 0) {
+              // Asumimos cuotas equitativas para todas las deudas saldadas en el mismo recibo.
+              moraCalculada = (montoAbonadoDeuda / fechasRaw.length) * moraCount;
+            }
+          } else {
+             // Si el recibo pagó deuda pero, por un motivo histórico muy antiguo, 
+             // no guardó el array de fechas, se vuelve imposible determinar si era 
+             // mora vencida o deuda del mes. Podemos asumir conservadoramente mora.
+             moraCalculada = montoAbonadoDeuda;
+          }
+
+          if (moraCalculada > 0) {
+            batch.update(doc.reference, {'montoMora': moraCalculada});
+
+            // Acumular para el documento de la municipalidad
+            statsTotalMora[munId] = (statsTotalMora[munId] ?? 0) + moraCalculada;
+            statsDiarioMora.putIfAbsent(munId, () => {});
+            statsDiarioMora[munId]![dateKey] = (statsDiarioMora[munId]![dateKey] ?? 0) + moraCalculada;
+
+            // Acumular para el documento del mercado
+            if (merId != null) {
+              final merStatsKey = '${munId}_$merId';
+              statsTotalMora[merStatsKey] = (statsTotalMora[merStatsKey] ?? 0) + moraCalculada;
+              statsDiarioMora.putIfAbsent(merStatsKey, () => {});
+              statsDiarioMora[merStatsKey]![dateKey] = (statsDiarioMora[merStatsKey]![dateKey] ?? 0) + moraCalculada;
+            }
+          }
+
+          cobrosActualizados++;
+          count++;
+
+          if (count >= 400) {
+            await batch.commit();
+            batch = db.batch();
+            count = 0;
+            log.writeln('   - Batch 400 cobros procesados...');
+          }
+        }
+      }
+
+      if (count > 0) {
+        await batch.commit();
+      }
+
+      log.writeln('💰 Cobros históricos actualizados: $cobrosActualizados');
+      log.writeln('📊 Actualizando agregaciones en Stats...');
+
+      // Actualizar los documentos de stats
+      batch = db.batch();
+      for (final statKey in statsTotalMora.keys) {
+        final parts = statKey.split('_');
+        final munId = parts[0];
+        final merId = parts.length > 1 ? parts[1] : null;
+
+        DocumentReference statRef;
+        if (merId == null) {
+          statRef = db.collection('stats_general').doc(munId);
+        } else {
+          statRef = db.collection('stats_general').doc(munId).collection('por_mercado').doc(merId);
+        }
+
+        final updates = <String, dynamic>{
+          'totalMoraRecuperada': FieldValue.increment(statsTotalMora[statKey]!),
+        };
+
+        final diario = statsDiarioMora[statKey];
+        if (diario != null) {
+          diario.forEach((dateKey, moraAmount) {
+            updates['diario.$dateKey.mora'] = FieldValue.increment(moraAmount);
+          });
+        }
+
+        batch.update(statRef, updates);
+      }
+
+      await batch.commit();
+      log.writeln('✅ Stats actualizados correctamente.');
+      log.writeln('🎉 Migración completada.');
+
+    } catch (e) {
+      log.writeln('❌ Error en migración de Mora: $e');
+    }
+
+    return log.toString();
+  }
 }

@@ -13,6 +13,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/recent_cobros_table.dart';
 import '../widgets/dashboard_charts.dart';
+import '../widgets/mora_corriente_chart.dart';
 import '../../../../core/utils/mass_import_eventuales.dart';
 import '../../../../core/utils/mass_import_locales.dart';
 import '../../../../core/utils/mass_import_faltantes_locales_inmaculada.dart';
@@ -87,6 +88,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final rt = ref.watch(dashboardRealTimeStatsProvider);
     final filter = ref.watch(dashboardFilterProvider);
+    final statsAsync = ref.watch(statsProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -165,10 +167,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── KPI cards — fila 2: deudas y saldo a favor ───────────────
+                // ── KPI cards — fila 2: deudas, saldo a favor y MORA ──────────
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
+                    final stats = statsAsync.value;
+                    final crossAxisCount = constraints.maxWidth > 900
+                        ? (rt.totalMoraRecuperada > 0 ? 4 : 3)
+                        : constraints.maxWidth > 500
+                        ? 2
+                        : 1;
                     final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
                     return Wrap(
                       spacing: 16,
@@ -204,16 +211,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             subtitle: 'Total global de créditos',
                           ),
                         ),
+                        // ── KPI Mora Recuperada (solo si hay mora) ────────────
+                        if (rt.totalMoraRecuperada > 0 ||
+                            (stats?.totalMoraRecuperada ?? 0) > 0)
+                          SizedBox(
+                            width: cardW,
+                            child: MetricCard(
+                              title: 'Mora Recuperada ${filter.label}',
+                              value: DateFormatter.formatCurrency(
+                                  rt.totalMoraRecuperada),
+                              icon: Icons.currency_exchange_rounded,
+                              color: const Color(0xFFFF9F43),
+                              subtitle: stats != null
+                                  ? 'Acumulado: ${DateFormatter.formatCurrency(stats.totalMoraRecuperada)}'
+                                  : null,
+                            ),
+                          ),
                       ],
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
-                // ── Gráficos ──────────────────────────────────────────────────
+                // ── Gráficos principales ──────────────────────────────────────
                 DashboardChartsWidget(
                   cobrosHoy: cobrosHoy.value ?? [],
                 ),
+
+                // ── Gráfico Mora vs Corriente (solo si hay mora acumulada) ────
+                if ((statsAsync.value?.totalMoraRecuperada ?? 0) > 0 ||
+                    rt.totalMoraRecuperada > 0) ...[
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 300,
+                    child: MoraCorrienteChart(dias: 7),
+                  ),
+                ],
 
                 const SizedBox(height: 24),
 
@@ -911,6 +944,80 @@ class _DashboardHeader extends ConsumerWidget {
                 label: const Text('Vincular a Choluteca'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            if (_kShowDevTools)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Migrar Mora Histórica'),
+                      content: const Text(
+                        'Esta acción recalculará la mora para todos los cobros históricos anteriores a hoy. ¿Desea proceder?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Migrar Mora'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    try {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Migrando Mora (puede tardar unos segundos)...')),
+                      );
+                      
+                      final res = await CobrosMigration.migrarMoraHistorica();
+                      
+                      if (!context.mounted) return;
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Resultado de Migración'),
+                          content: SingleChildScrollView(child: Text(res)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                      ref.invalidate(dashboardRealTimeStatsProvider);
+                      ref.invalidate(statsProvider);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.history_rounded, size: 18),
+                label: const Text('Migrar Mora Histórica'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

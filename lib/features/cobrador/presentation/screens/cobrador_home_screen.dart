@@ -1264,6 +1264,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         localId: local.id!,
         montoAbonadoDeuda: dist.paraDeudaReal,
         incrementoSaldoFavor: dist.deltaSaldoFavor,
+        fechaReferenciaMora: muni?.fechaReferenciaMora,
       );
 
       final String correlativoStr = resultado.numeroBoleta ?? '0';

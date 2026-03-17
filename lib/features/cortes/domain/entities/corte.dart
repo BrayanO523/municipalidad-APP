@@ -35,6 +35,12 @@ class Corte extends Equatable {
   final String? primerBoleta;
   final String? ultimaBoleta;
 
+  // --- Desglose Mora / Corriente ---
+  /// Total recaudado correspondiente a deudas de meses anteriores al de referencia.
+  final double? totalMora;
+  /// Total recaudado correspondiente al mes de referencia (corriente).
+  final double? totalCorriente;
+
   const Corte({
     required this.id,
     required this.cobradorId,
@@ -57,6 +63,8 @@ class Corte extends Equatable {
     this.gestionesInfo,
     this.primerBoleta,
     this.ultimaBoleta,
+    this.totalMora,
+    this.totalCorriente,
   });
 
   bool get esCorteMercado => tipo == 'mercado';
@@ -84,5 +92,7 @@ class Corte extends Equatable {
         gestionesInfo,
         primerBoleta,
         ultimaBoleta,
+        totalMora,
+        totalCorriente,
       ];
 }

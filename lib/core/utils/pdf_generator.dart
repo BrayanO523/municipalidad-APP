@@ -48,6 +48,10 @@ class PdfGenerator {
       0,
       (sum, i) => sum + ((i['montoPendiente'] as num?)?.toDouble() ?? 0),
     );
+    // 4. Desglose mora / corriente
+    final totalMoraCorte = (corte.totalMora ?? cobrados.fold<double>(0, (s, c) => s + (c.montoMora ?? 0).toDouble())).toDouble();
+    final totalCorrienteCorte = (totalCobrado - totalMoraCorte).clamp(0.0, double.infinity);
+    final tieneMora = totalMoraCorte > 0;
 
     pdf.addPage(
       pw.MultiPage(
@@ -133,6 +137,37 @@ class PdfGenerator {
                         color: PdfColors.green800,
                       ),
                     ),
+                    if (tieneMora) ...[
+                      pw.SizedBox(height: 3),
+                      pw.Row(
+                        mainAxisSize: pw.MainAxisSize.min,
+                        children: [
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: pw.BoxDecoration(
+                              color: const PdfColor.fromInt(0xFFD1FAE5),
+                              borderRadius: pw.BorderRadius.circular(4),
+                            ),
+                            child: pw.Text(
+                              'Corriente: ${CurrencyFormatter.format(totalCorrienteCorte)}',
+                              style: pw.TextStyle(fontSize: 8, color: PdfColors.green900, fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                          pw.SizedBox(width: 6),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: pw.BoxDecoration(
+                              color: const PdfColor.fromInt(0xFFFFEDD5),
+                              borderRadius: pw.BorderRadius.circular(4),
+                            ),
+                            child: pw.Text(
+                              'Mora: ${CurrencyFormatter.format(totalMoraCorte)}',
+                              style: pw.TextStyle(fontSize: 8, color: const PdfColor.fromInt(0xFFC2410C), fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     pw.SizedBox(height: 4),
                     pw.Text(
                       'Pendiente: ${CurrencyFormatter.format(totalPendiente)}',
@@ -656,6 +691,12 @@ class PdfGenerator {
       0,
       (sum, c) => sum + (c.cantidadPendientes ?? 0),
     );
+    final totalMoraConsolidado = cortesCobradores.fold<double>(
+      0,
+      (sum, c) => sum + (c.totalMora ?? 0).toDouble(),
+    );
+    final totalCorrienteConsolidado = (totalConsolidado - totalMoraConsolidado).clamp(0.0, double.infinity);
+    final tieneMoraConsolidado = totalMoraConsolidado > 0;
 
     pdf.addPage(
       pw.MultiPage(
@@ -750,13 +791,50 @@ class PdfGenerator {
                       ),
                     ],
                   ),
-                  pw.Text(
-                    'Total Recaudado: ${CurrencyFormatter.format(totalConsolidado)}',
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.green800,
-                    ),
+
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Total Recaudado: ${CurrencyFormatter.format(totalConsolidado)}',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.green800,
+                        ),
+                      ),
+                      if (tieneMoraConsolidado) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Row(
+                          mainAxisSize: pw.MainAxisSize.min,
+                          children: [
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: pw.BoxDecoration(
+                                color: const PdfColor.fromInt(0xFFD1FAE5),
+                                borderRadius: pw.BorderRadius.circular(4),
+                              ),
+                              child: pw.Text(
+                                'Corriente: ${CurrencyFormatter.format(totalCorrienteConsolidado)}',
+                                style: pw.TextStyle(fontSize: 8, color: PdfColors.green900, fontWeight: pw.FontWeight.bold),
+                              ),
+                            ),
+                            pw.SizedBox(width: 6),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: pw.BoxDecoration(
+                                color: const PdfColor.fromInt(0xFFFFEDD5),
+                                borderRadius: pw.BorderRadius.circular(4),
+                              ),
+                              child: pw.Text(
+                                'Mora: ${CurrencyFormatter.format(totalMoraConsolidado)}',
+                                style: pw.TextStyle(fontSize: 8, color: const PdfColor.fromInt(0xFFC2410C), fontWeight: pw.FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

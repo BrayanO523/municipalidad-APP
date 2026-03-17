@@ -24,6 +24,8 @@ class CorteModel extends Corte {
     super.gestionesInfo,
     super.primerBoleta,
     super.ultimaBoleta,
+    super.totalMora,
+    super.totalCorriente,
   });
 
   factory CorteModel.fromMap(Map<String, dynamic> map, String id) {
@@ -64,6 +66,8 @@ class CorteModel extends Corte {
           : null,
       primerBoleta: map['primerBoleta'] as String?,
       ultimaBoleta: map['ultimaBoleta'] as String?,
+      totalMora: (map['totalMora'] as num?)?.toDouble(),
+      totalCorriente: (map['totalCorriente'] as num?)?.toDouble(),
     );
   }
 
@@ -89,6 +93,8 @@ class CorteModel extends Corte {
       if (gestionesInfo != null) 'gestionesInfo': gestionesInfo,
       if (primerBoleta != null) 'primerBoleta': primerBoleta,
       if (ultimaBoleta != null) 'ultimaBoleta': ultimaBoleta,
+      if (totalMora != null) 'totalMora': totalMora,
+      if (totalCorriente != null) 'totalCorriente': totalCorriente,
     };
   }
 
@@ -115,6 +121,8 @@ class CorteModel extends Corte {
       gestionesInfo: corte.gestionesInfo,
       primerBoleta: corte.primerBoleta,
       ultimaBoleta: corte.ultimaBoleta,
+      totalMora: corte.totalMora,
+      totalCorriente: corte.totalCorriente,
     );
   }
 }
