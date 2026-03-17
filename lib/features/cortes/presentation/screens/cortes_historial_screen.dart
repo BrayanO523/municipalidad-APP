@@ -886,6 +886,27 @@ class _CorteTileDetallado extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (corte.primerBoleta != null && corte.ultimaBoleta != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.confirmation_number_outlined,
+                                  size: 12,
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Boletas: ${corte.primerBoleta} → ${corte.ultimaBoleta}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

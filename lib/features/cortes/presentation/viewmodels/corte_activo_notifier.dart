@@ -245,6 +245,24 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
           .add(const Duration(days: 1))
           .subtract(const Duration(milliseconds: 1));
 
+      // --- CÁLCULO DEL RANGO DE BOLETAS ---
+      final cobros = ref.read(cobrosHoyCobradorProvider).value ?? [];
+      final cobrosValidos = cobros.where((c) => 
+        c.estado != 'anulado' && 
+        (c.monto ?? 0) > 0 && 
+        c.correlativo != null
+      ).toList();
+
+      String? primerBoleta;
+      String? ultimaBoleta;
+
+      if (cobrosValidos.isNotEmpty) {
+        // Ordenar por correlativo para encontrar el primero y el último
+        cobrosValidos.sort((a, b) => (a.correlativo ?? 0).compareTo(b.correlativo ?? 0));
+        primerBoleta = cobrosValidos.first.numeroBoletaFmt;
+        ultimaBoleta = cobrosValidos.last.numeroBoletaFmt;
+      }
+
       final nuevoCorte = Corte(
         id: '',
         cobradorId: user.id!,
@@ -264,6 +282,8 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
         mercadoNombre: mercadoNombre,
         pendientesInfo: state.pendientesInfo,
         gestionesInfo: state.gestionesInfo,
+        primerBoleta: primerBoleta,
+        ultimaBoleta: ultimaBoleta,
       );
 
       final repo = ref.read(corteRepositoryProvider);
@@ -292,4 +312,3 @@ final corteActivoProvider =
     NotifierProvider<CorteActivoNotifier, CorteActivoState>(
   CorteActivoNotifier.new,
 );
-
