@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 // Provider expuesto a la UI
 final firestoreViewerProvider =
@@ -15,6 +16,9 @@ class FirestoreViewerState {
   final String? error;
   final DocumentSnapshot? ultimoDoc;
   final String searchTerm;
+  final String filterField;
+  final String filterValue;
+  final List<String> availableFields;
 
   FirestoreViewerState({
     this.coleccionActual,
@@ -24,6 +28,9 @@ class FirestoreViewerState {
     this.error,
     this.ultimoDoc,
     this.searchTerm = '',
+    this.filterField = '',
+    this.filterValue = '',
+    this.availableFields = const [],
   });
 
   FirestoreViewerState copyWith({
@@ -34,6 +41,9 @@ class FirestoreViewerState {
     String? error,
     DocumentSnapshot? ultimoDoc,
     String? searchTerm,
+    String? filterField,
+    String? filterValue,
+    List<String>? availableFields,
     bool clearError = false,
   }) {
     return FirestoreViewerState(
@@ -44,6 +54,9 @@ class FirestoreViewerState {
       error: clearError ? null : (error ?? this.error),
       ultimoDoc: ultimoDoc ?? this.ultimoDoc,
       searchTerm: searchTerm ?? this.searchTerm,
+      filterField: filterField ?? this.filterField,
+      filterValue: filterValue ?? this.filterValue,
+      availableFields: availableFields ?? this.availableFields,
     );
   }
 }
@@ -60,6 +73,9 @@ class FirestoreViewerNotifier extends Notifier<FirestoreViewerState> {
     state = FirestoreViewerState(
       coleccionActual: nombreColeccion,
       cargando: true,
+      filterField: '',
+      filterValue: '',
+      availableFields: const [],
     );
     _cargarPagina();
   }
@@ -81,64 +97,134 @@ class FirestoreViewerNotifier extends Notifier<FirestoreViewerState> {
   }
 
   Future<void> cargarMas() async {
-    if (state.cargando || !state.hayMas || state.coleccionActual == null)
+    if (state.cargando || !state.hayMas || state.coleccionActual == null) {
       return;
+    }
 
     state = state.copyWith(cargando: true, clearError: true);
+    await _cargarPagina();
+  }
+
+  void aplicarFiltroCampoValor(String field, String value) {
+    // Solo disponible en debug
+    if (!kDebugMode) return;
+    state = state.copyWith(
+      filterField: field.trim(),
+      filterValue: value.trim(),
+      documentos: [],
+      ultimoDoc: null,
+      hayMas: true,
+      cargando: true,
+      clearError: true,
+    );
+    if (state.coleccionActual != null) {
+      _cargarPagina();
+    }
+  }
+
+  Future<void> eliminarDoc(String docId) async {
+    if (!kDebugMode) return;
+    if (state.coleccionActual == null) return;
+    final db = FirebaseFirestore.instance;
+    await db.collection(state.coleccionActual!).doc(docId).delete();
+    // Refrescar vista
+    state = state.copyWith(
+      documentos: [],
+      ultimoDoc: null,
+      hayMas: true,
+      cargando: true,
+    );
+    await _cargarPagina();
+  }
+
+  Future<void> actualizarDoc(String docId, Map<String, dynamic> data,
+      {bool merge = true}) async {
+    if (!kDebugMode) return;
+    if (state.coleccionActual == null) return;
+    final db = FirebaseFirestore.instance;
+    await db
+        .collection(state.coleccionActual!)
+        .doc(docId)
+        .set(data, SetOptions(merge: merge));
+    state = state.copyWith(
+      documentos: [],
+      ultimoDoc: null,
+      hayMas: true,
+      cargando: true,
+    );
     await _cargarPagina();
   }
 
   Future<void> _cargarPagina() async {
     try {
       final db = FirebaseFirestore.instance;
-      Query<Map<String, dynamic>> query = db
-          .collection(state.coleccionActual!)
-          .limit(_limit);
+      Query<Map<String, dynamic>> baseQuery = db.collection(state.coleccionActual!);
 
-      if (state.ultimoDoc != null) {
-        query = query.startAfterDocument(state.ultimoDoc!);
+      DocumentSnapshot? last = state.ultimoDoc;
+      final List<DocumentSnapshot<Map<String, dynamic>>> matches = [];
+      bool hasMore = true;
+      int guard = 0;
+      final Set<String> fields = state.availableFields.toSet();
+
+      while (hasMore && matches.length < _limit && guard < 10) {
+        guard++;
+        var query = baseQuery.limit(_limit);
+        if (last != null) query = query.startAfterDocument(last);
+
+        final snap = await query.get();
+        if (snap.docs.isEmpty) {
+          hasMore = false;
+          break;
+        }
+
+        final nuevosDocs = snap.docs;
+        last = nuevosDocs.last;
+        for (final d in nuevosDocs) {
+          fields.addAll(d.data().keys);
+        }
+        final searchTerm = state.searchTerm.toLowerCase();
+        final filterField = state.filterField;
+        final filterValue = state.filterValue.toLowerCase();
+
+        for (final doc in nuevosDocs) {
+          final Map<String, dynamic> data = doc.data();
+          final searchable = _convertToSearchableString(data).toLowerCase();
+
+          final bySearch = searchTerm.isEmpty
+              ? true
+              : (doc.id.toLowerCase().contains(searchTerm) ||
+                  searchable.contains(searchTerm));
+
+          final byField = (filterField.isEmpty || filterValue.isEmpty)
+              ? true
+              : (() {
+                  final val = data[filterField];
+                  if (val == null) return false;
+                  final s = val.toString().toLowerCase();
+                  return s.contains(filterValue);
+                })();
+
+          if (bySearch && byField) {
+            matches.add(doc);
+          }
+        }
+
+        hasMore = nuevosDocs.length == _limit;
+
+        // Si estamos buscando y aún no encontramos nada, seguir a la siguiente página
+        if (state.searchTerm.isNotEmpty && matches.isEmpty && hasMore) {
+          continue;
+        } else {
+          break;
+        }
       }
-
-      // IMPORTANTE: Un GET() de una sola vez, NO un stream para no consumir cuota por interacciones
-      final querySnapshot = await query.get();
-
-      if (querySnapshot.docs.isEmpty) {
-        state = state.copyWith(cargando: false, hayMas: false);
-        return;
-      }
-
-      final nuevosDocs = querySnapshot.docs;
-
-      // Aplicar filtro de búsqueda si hay un término de búsqueda
-      final documentosFiltrados = state.searchTerm.isEmpty
-          ? nuevosDocs
-          : nuevosDocs.where((doc) {
-              final searchTerm = state.searchTerm.toLowerCase();
-
-              // Buscar en el ID del documento
-              if (doc.id.toLowerCase().contains(searchTerm)) {
-                return true;
-              }
-
-              // Buscar en el contenido del documento
-              final data = doc.data();
-              if (data != null) {
-                final jsonString = _convertToSearchableString(
-                  data,
-                ).toLowerCase();
-                return jsonString.contains(searchTerm);
-              }
-
-              return false;
-            }).toList();
 
       state = state.copyWith(
-        documentos: [...state.documentos, ...documentosFiltrados],
-        ultimoDoc: nuevosDocs.last,
+        documentos: [...state.documentos, ...matches],
+        ultimoDoc: last,
         cargando: false,
-        hayMas:
-            nuevosDocs.length ==
-            _limit, // Mantener la paginación basada en docs totales
+        hayMas: hasMore,
+        availableFields: fields.toList()..sort(),
       );
     } catch (e) {
       state = state.copyWith(cargando: false, error: e.toString());

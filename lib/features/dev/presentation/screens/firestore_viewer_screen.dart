@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../../core/utils/cobros_migration.dart';
 import '../viewmodels/firestore_viewer_notifier.dart';
@@ -119,6 +120,10 @@ class FirestoreViewerScreen extends ConsumerWidget {
                       ),
                   ),
                 const SizedBox(height: 12),
+                if (kDebugMode && state.coleccionActual != null)
+                  _FilterByFieldBar(state: state),
+                if (kDebugMode && state.coleccionActual != null)
+                  const SizedBox(height: 12),
                 // Botones de Mantenimiento
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -261,6 +266,31 @@ class FirestoreViewerScreen extends ConsumerWidget {
                                         fontFamily: 'monospace',
                                       ),
                                     ),
+                                    const Spacer(),
+                                    if (kDebugMode)
+                                      IconButton(
+                                        tooltip: 'Eliminar documento',
+                                        icon: const Icon(
+                                          Icons.delete_forever_rounded,
+                                          color: Colors.redAccent,
+                                        ),
+                                        onPressed: () =>
+                                            _confirmDelete(context, ref, doc.id),
+                                      ),
+                                    if (kDebugMode)
+                                      IconButton(
+                                        tooltip: 'Editar documento (JSON merge)',
+                                        icon: const Icon(
+                                          Icons.edit_rounded,
+                                          color: Colors.blueAccent,
+                                        ),
+                                        onPressed: () => _showEditDialog(
+                                          context: context,
+                                          ref: ref,
+                                          docId: doc.id,
+                                          data: data,
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 children: [
@@ -360,9 +390,12 @@ class FirestoreViewerScreen extends ConsumerWidget {
         value = _sanitizeForJson(value);
       } else if (value is List) {
         value = value.map((v) {
-          if (v is Map<String, dynamic>) return _sanitizeForJson(v);
-          if (v != null && v.runtimeType.toString() == 'Timestamp')
+          if (v is Map<String, dynamic>) {
+            return _sanitizeForJson(v);
+          }
+          if (v != null && v.runtimeType.toString() == 'Timestamp') {
             return '[Timestamp] ${v.toDate().toLocal().toString()}';
+          }
           return v;
         }).toList();
       }
@@ -371,6 +404,77 @@ class FirestoreViewerScreen extends ConsumerWidget {
     }
 
     return result;
+  }
+}
+
+class _FilterByFieldBar extends ConsumerWidget {
+  final FirestoreViewerState state;
+  const _FilterByFieldBar({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final valueCtrl = TextEditingController(text: state.filterValue);
+    final fields = state.availableFields.isNotEmpty
+        ? state.availableFields
+        : <String>['id', 'codigo', 'nombre'];
+    final selected = state.filterField.isNotEmpty
+        ? state.filterField
+        : (fields.isNotEmpty ? fields.first : '');
+
+    return Row(
+      children: [
+        const Icon(Icons.filter_alt_rounded, color: Colors.deepPurple),
+        const SizedBox(width: 8),
+        DropdownButton<String>(
+          value: selected.isEmpty ? null : selected,
+          hint: const Text('Campo'),
+          items: fields
+              .map((f) => DropdownMenuItem(
+                    value: f,
+                    child: Text(f),
+                  ))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) {
+              ref
+                  .read(firestoreViewerProvider.notifier)
+                  .aplicarFiltroCampoValor(val, state.filterValue);
+            }
+          },
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: valueCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Valor exacto',
+              isDense: true,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          icon: const Icon(Icons.search, size: 16),
+          label: const Text('Filtrar'),
+          onPressed: () {
+            ref.read(firestoreViewerProvider.notifier).aplicarFiltroCampoValor(
+                  selected,
+                  valueCtrl.text,
+                );
+          },
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton(
+          onPressed: () {
+            ref.read(firestoreViewerProvider.notifier).aplicarFiltroCampoValor(
+                  '',
+                  '',
+                );
+          },
+          child: const Text('Limpiar filtro'),
+        ),
+      ],
+    );
   }
 }
 
@@ -414,4 +518,137 @@ class _MigrationButton extends StatelessWidget {
       child: Text(label),
     );
   }
+}
+
+void _confirmDelete(BuildContext context, WidgetRef ref, String docId) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Eliminar documento'),
+      content: Text(
+        '¿Seguro que deseas eliminar el documento "$docId"? Esta acción no se puede deshacer.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+          ),
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await ref.read(firestoreViewerProvider.notifier).eliminarDoc(docId);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Documento eliminado')),
+              );
+            }
+          },
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showEditDialog({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String docId,
+  required Map<String, dynamic>? data,
+}) {
+  final initialText = _stringifyForEdit(data);
+  final controller = TextEditingController(
+    text: initialText,
+  );
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('Editar "$docId"'),
+      content: SizedBox(
+        width: 520,
+        child: TextField(
+          controller: controller,
+          maxLines: 18,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: '{ ... }',
+          ),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            try {
+              final parsed = jsonDecode(controller.text);
+              if (parsed is! Map<String, dynamic>) {
+                throw const FormatException('El JSON debe ser un objeto');
+              }
+              Navigator.pop(ctx);
+              await ref
+                  .read(firestoreViewerProvider.notifier)
+                  .actualizarDoc(docId, parsed);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Documento actualizado (merge=true)'),
+                ),
+              );
+            } catch (e) {
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text('Error al parsear/guardar: $e')),
+                );
+              }
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
+    ),
+  );
+}
+
+String _stringifyForEdit(Map<String, dynamic>? data) {
+  if (data == null) return '{}';
+  try {
+    final sanitized = _sanitizeMapForEdit(data);
+    return const JsonEncoder.withIndent('  ').convert(sanitized);
+  } catch (_) {
+    return data.toString();
+  }
+}
+
+Map<String, dynamic> _sanitizeMapForEdit(Map<String, dynamic> map) {
+  final Map<String, dynamic> result = {};
+  for (final entry in map.entries) {
+    var value = entry.value;
+    if (value != null && value.runtimeType.toString() == 'Timestamp') {
+      value = '[Timestamp] ${value.toDate().toLocal().toString()}';
+    } else if (value != null &&
+        value.runtimeType.toString() == 'DocumentReference') {
+      value = '[DocRef] ${value.path}';
+    } else if (value is Map<String, dynamic>) {
+      value = _sanitizeMapForEdit(value);
+    } else if (value is List) {
+      value = value
+          .map((v) => v is Map<String, dynamic>
+              ? _sanitizeMapForEdit(v)
+              : (v != null &&
+                      v.runtimeType.toString() == 'Timestamp')
+                  ? '[Timestamp] ${v.toDate().toLocal().toString()}'
+                  : v)
+          .toList();
+    }
+    result[entry.key] = value;
+  }
+  return result;
 }
