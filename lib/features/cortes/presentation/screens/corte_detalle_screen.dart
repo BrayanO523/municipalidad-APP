@@ -14,7 +14,12 @@ import 'package:go_router/go_router.dart';
 import '../viewmodels/cortes_paginados_notifier.dart';
 
 // Definición de tipo para mayor claridad
-typedef CobroConDetalle = ({Cobro cobro, String localNombre});
+typedef CobroConDetalle = ({
+  Cobro cobro,
+  String localNombre,
+  String? localCodigo,
+  String? localClave,
+});
 
 final cobrosPorCorteProvider =
     FutureProvider.family<List<CobroConDetalle>, List<String>>((ref, ids) async {
@@ -32,16 +37,25 @@ final cobrosPorCorteProvider =
       .toList();
 
   final locales = await localDs.listarPorIds(uniqueLocalIds);
-  final Map<String, String> localNamesMap = {
-    for (var l in locales) l.id!: l.nombreSocial ?? 'S/N'
+  final Map<String, (String nombre, String? codigo, String? clave)> localInfo = {
+    for (var l in locales)
+      l.id!: (
+        l.nombreSocial ?? 'S/N',
+        l.codigo,
+        l.clave ?? l.codigoCatastral
+      )
   };
 
   return cobros
-      .map((c) => (
-            cobro: c,
-            localNombre:
-                localNamesMap[c.localId] ?? (c.localId ?? 'ID Desconocido')
-          ))
+      .map((c) {
+        final info = c.localId != null ? localInfo[c.localId] : null;
+        return (
+          cobro: c,
+          localNombre: info?.$1 ?? (c.localId ?? 'ID Desconocido'),
+          localCodigo: info?.$2,
+          localClave: info?.$3,
+        );
+      })
       .toList();
 });
 
@@ -141,8 +155,14 @@ class CorteDetalleScreen extends ConsumerWidget {
               onPressed: () => PdfGenerator.printCorte(
                 corte,
                 items.map((item) => item.cobro).toList(),
-                localNames: {
-                  for (var item in items) item.cobro.localId!: item.localNombre
+                localInfo: {
+                  for (var item in items)
+                    if (item.cobro.localId != null)
+                      item.cobro.localId!: {
+                        'nombre': item.localNombre,
+                        if (item.localCodigo != null) 'codigo': item.localCodigo!,
+                        if (item.localClave != null) 'clave': item.localClave!,
+                      }
                 },
               ),
               tooltip: 'Exportar PDF',
@@ -333,8 +353,14 @@ class CorteDetalleScreen extends ConsumerWidget {
           onPressed: () => PdfGenerator.printCorte(
             corte,
             items.map((item) => item.cobro).toList(),
-            localNames: {
-              for (var item in items) item.cobro.localId!: item.localNombre
+            localInfo: {
+              for (var item in items)
+                if (item.cobro.localId != null)
+                  item.cobro.localId!: {
+                    'nombre': item.localNombre,
+                    if (item.localCodigo != null) 'codigo': item.localCodigo!,
+                    if (item.localClave != null) 'clave': item.localClave!,
+                  }
             },
           ),
           label: const Text('Compartir Reporte'),
@@ -621,6 +647,7 @@ class _MiniStat extends StatelessWidget {
 // Sección de boletas — elige automáticamente entre tabla (desktop) y
 // cards compactos (móvil).
 // ══════════════════════════════════════════════════════════════════════════
+// ignore: unused_element
 class _BoletasSection extends StatelessWidget {
   final String titulo;
   final Color color;
@@ -1128,12 +1155,31 @@ class _CobradosInfoSection extends StatelessWidget {
                     item.localNombre,
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
-                  subtitle: Text(
-                    cobro.numeroBoletaFmt,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cobro.numeroBoletaFmt,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                      if ((item.localCodigo ?? '').isNotEmpty ||
+                          (item.localClave ?? '').isNotEmpty)
+                        Text(
+                          [
+                            if ((item.localCodigo ?? '').isNotEmpty)
+                              'Cód: ${item.localCodigo}',
+                            if ((item.localClave ?? '').isNotEmpty)
+                              'Clave: ${item.localClave}',
+                          ].join(' • '),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                          ),
+                        ),
+                    ],
                   ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

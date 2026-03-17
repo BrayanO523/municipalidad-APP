@@ -304,8 +304,13 @@ class CorteNuevoScreen extends ConsumerWidget {
               PdfGenerator.printCorte(
                 corteParaPdf,
                 items.map((i) => i.cobro).toList(),
-                localNames: {
-                  for (var i in items) i.cobro.localId!: i.localNombre
+                localInfo: {
+                  for (var i in items)
+                    if (i.cobro.localId != null)
+                      i.cobro.localId!: {
+                        'nombre': i.localNombre,
+                        // No tenemos código/clave aquí, se conservan nombre
+                      }
                 },
               );
             },

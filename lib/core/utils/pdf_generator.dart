@@ -20,7 +20,7 @@ class PdfGenerator {
   static Future<Uint8List> generateCortePdf(
     Corte corte,
     List<Cobro> cobros, {
-    Map<String, String>? localNames,
+    Map<String, Map<String, String>>? localInfo,
   }) async {
     final fontRegular = await PdfGoogleFonts.poppinsRegular();
     final fontBold = await PdfGoogleFonts.poppinsBold();
@@ -196,7 +196,7 @@ class PdfGenerator {
                 ),
               ),
               pw.SizedBox(height: 8),
-              _buildTable(cobrados, localNames, PdfColors.green50),
+              _buildTable(cobrados, localInfo, PdfColors.green50),
               pw.SizedBox(height: 6),
               pw.Align(
                 alignment: pw.Alignment.centerRight,
@@ -297,14 +297,14 @@ class PdfGenerator {
 
   static pw.Widget _buildTable(
     List<Cobro> cobros,
-    Map<String, String>? localNames,
+    Map<String, Map<String, String>>? localInfo,
     PdfColor headerColor,
   ) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
       columnWidths: const {
-        0: pw.FlexColumnWidth(2), // No. Boleta
-        1: pw.FlexColumnWidth(3), // Local
+        0: pw.FlexColumnWidth(3), // Local
+        1: pw.FlexColumnWidth(2), // No. Boleta
         2: pw.FlexColumnWidth(1.5), // Monto
         3: pw.FlexColumnWidth(1.5), // Estado
       },
@@ -315,7 +315,7 @@ class PdfGenerator {
             pw.Padding(
               padding: const pw.EdgeInsets.all(6),
               child: pw.Text(
-                'No. Boleta',
+                'Local',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   fontSize: 10,
@@ -325,7 +325,7 @@ class PdfGenerator {
             pw.Padding(
               padding: const pw.EdgeInsets.all(6),
               child: pw.Text(
-                'Local',
+                'No. Boleta',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   fontSize: 10,
@@ -357,22 +357,38 @@ class PdfGenerator {
           ],
         ),
         ...cobros.map((cobro) {
-          final String localDisplay =
-              localNames?[cobro.localId] ?? 'Sin Nombre';
+          final info = localInfo?[cobro.localId];
+          final String localDisplay = info?['nombre'] ?? 'Sin Nombre';
+          final codigo = info?['codigo'];
+          final clave = info?['clave'];
           return pw.TableRow(
             verticalAlignment: pw.TableCellVerticalAlignment.middle,
             children: [
               pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
-                child: pw.Text(
-                  cobro.numeroBoletaFmt,
-                  style: const pw.TextStyle(fontSize: 9),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      localDisplay,
+                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                    ),
+                    if ((codigo != null && codigo.isNotEmpty) ||
+                        (clave != null && clave.isNotEmpty))
+                      pw.Text(
+                        [
+                          if (codigo != null && codigo.isNotEmpty) 'Cód: $codigo',
+                          if (clave != null && clave.isNotEmpty) 'Clave: $clave',
+                        ].join(' • '),
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                      ),
+                  ],
                 ),
               ),
               pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
                 child: pw.Text(
-                  localDisplay,
+                  cobro.numeroBoletaFmt,
                   style: const pw.TextStyle(fontSize: 9),
                 ),
               ),
@@ -644,12 +660,12 @@ class PdfGenerator {
   static Future<void> printCorte(
     Corte corte,
     List<Cobro> cobros, {
-    Map<String, String>? localNames,
+    Map<String, Map<String, String>>? localInfo,
   }) async {
     final pdfBytes = await generateCortePdf(
       corte,
       cobros,
-      localNames: localNames,
+      localInfo: localInfo,
     );
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfBytes,
