@@ -125,7 +125,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       (l) => l.id == _localSeleccionado!.id,
     );
 
-    // Si por alguna razÃ³n el local seleccionado no estÃ¡ en la pÃ¡gina actual o falla, seleccionamos el 0
+    // Si por alguna razón el local seleccionado no está en la página actual o falla, seleccionamos el 0
     if (currentIndex == -1) {
       setState(() => _localSeleccionado = localesActuales.first);
       return;
@@ -366,9 +366,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Migrar cÃ³digos'),
+        title: const Text('Migrar códigos'),
         content: const Text(
-          'Esto completarÃ¡ codigoLower para que el buscador por cÃ³digo funcione. Â¿Continuar?',
+          'Esto completará codigoLower para que el buscador por código funcione. ¿Continuar?',
         ),
         actions: [
           TextButton(
@@ -406,7 +406,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al migrar cÃ³digos: '),
+            content: Text('Error al migrar códigos: '),
             backgroundColor: Colors.red,
           ),
         );
@@ -686,7 +686,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               controller: controller,
               focusNode: focusNode,
               decoration: const InputDecoration(
-                hintText: 'Nombre o CÃ³digo local...',
+                hintText: 'Nombre o Código local...',
                 prefixIcon: Icon(Icons.search_rounded, size: 18),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
@@ -862,7 +862,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             }
           });
         } else {
-          // MÃ³vil: mostrar detalle como bottom sheet
+          // Móvil: mostrar detalle como bottom sheet
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
@@ -915,12 +915,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               .irAPaginaAnterior();
                         }
                       : null,
-                  tooltip: 'PÃ¡gina anterior',
+                  tooltip: 'Página anterior',
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
-                    'PÃ¡gina ${state.paginaActual}',
+                    'Página ${state.paginaActual}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -934,7 +934,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                               .irAPaginaSiguiente();
                         }
                       : null,
-                  tooltip: 'PÃ¡gina siguiente',
+                  tooltip: 'Página siguiente',
                 ),
               ],
             ),
@@ -1079,7 +1079,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         ),
                         _DetailRow(
                           icon: Icons.phone_rounded,
-                          label: 'TelÃ©fono',
+                          label: 'Teléfono',
                           value: local.telefonoRepresentante ?? '-',
                         ),
                         _DetailRow(
@@ -1094,7 +1094,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         ),
                         _DetailRow(
                           icon: Icons.square_foot_rounded,
-                          label: 'Espacio (mÂ²)',
+                          label: 'Espacio (m²)',
                           value: '${local.espacioM2 ?? 0}',
                         ),
                         _DetailRow(
@@ -1109,7 +1109,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         ),
                         _DetailRow(
                           icon: Icons.map_rounded,
-                          label: 'CÃ³digo Local',
+                          label: 'Código Local',
                           value: local.codigo ?? '-',
                         ),
                         _DetailRow(
@@ -1131,7 +1131,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     );
   }
 
-  /// VersiÃ³n "flat" del panel de detalle (sin Expanded) â€” para bottom sheet en mÃ³vil.
+  /// Versión "flat" del panel de detalle (sin Expanded) — para bottom sheet en móvil.
   Widget _buildPanelDetalleContent(BuildContext context, Local local) {
     final usuarios = ref.watch(usuariosProvider).value ?? [];
     final tipos = ref.watch(tiposNegocioProvider).value ?? [];
@@ -1189,7 +1189,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
         _DetailRow(
           icon: Icons.phone_rounded,
-          label: 'TelÃ©fono',
+          label: 'Teléfono',
           value: local.telefonoRepresentante ?? '-',
         ),
         _DetailRow(
@@ -1204,7 +1204,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
         _DetailRow(
           icon: Icons.square_foot_rounded,
-          label: 'Espacio (mÂ²)',
+          label: 'Espacio (m²)',
           value: '${local.espacioM2 ?? 0}',
         ),
         _DetailRow(
@@ -1219,7 +1219,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
         _DetailRow(
           icon: Icons.map_rounded,
-          label: 'CÃ³digo Local',
+          label: 'Código Local',
           value: local.codigo ?? '-',
         ),
         _DetailRow(
@@ -1324,7 +1324,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Local'),
         content: Text(
-          'Â¿EstÃ¡s seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acciÃ³n NO se puede deshacer.',
+          '¿Estás seguro de que deseas eliminar el local "${local.nombreSocial}"?\n\nEsta acción NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -1554,7 +1554,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-/// Widget de estado vacÃ­o reutilizable.
+/// Widget de estado vacío reutilizable.
 class _EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String mensaje;
@@ -1613,7 +1613,7 @@ class _PanelDetalleVacio extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Selecciona un local de la tabla\npara ver su informaciÃ³n completa.',
+                'Selecciona un local de la tabla\npara ver su información completa.',
                 style: TextStyle(
                   color: Theme.of(
                     context,
