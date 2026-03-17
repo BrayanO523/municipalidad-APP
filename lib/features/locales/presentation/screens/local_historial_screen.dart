@@ -73,7 +73,11 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                 .length;
             final totalRecaudado = combinedList.fold<num>(
               0,
-              (sum, c) => sum + (c.estado == 'cobrado' ? (c.monto ?? 0) : 0),
+              (sum, c) => sum + (
+                (['cobrado', 'abono_parcial', 'adelantado'].contains(c.estado) && (c.correlativo ?? 0) > 0)
+                ? (c.monto ?? 0)
+                : 0
+              ),
             );
             
             final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
@@ -721,11 +725,14 @@ class _CobroRow extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  estado == 'abono_parcial'
-                      ? 'abono'
-                      : estado == 'adelantado'
-                      ? 'adelantado'
-                      : estado,
+                  () {
+                    if (estado == 'abono_parcial') return 'abono';
+                    if (estado == 'adelantado') return 'adelantado';
+                    if (estado == 'cobrado' && (cobro.correlativo ?? 0) == 0) {
+                      return 'saldado';
+                    }
+                    return estado;
+                  }(),
                   style: TextStyle(
                     fontSize: 9,
                     color: estadoColor,

@@ -15,10 +15,14 @@ class DashboardChartsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Los streams de locales y mercados se obtienen aquí, no en el DashboardScreen,
-    // para que el screen principal no los abra al cargar la primera vista.
     final locales = ref.watch(localesProvider).value ?? [];
-    final mercados = ref.watch(mercadosProvider).value ?? [];
+    final allMercados = ref.watch(mercadosProvider).value ?? [];
+    final selectedMercadoId = ref.watch(dashboardMercadoIdProvider);
+
+    final mercados = selectedMercadoId != null
+        ? allMercados.where((m) => m.id == selectedMercadoId).toList()
+        : allMercados;
+
 
     return LayoutBuilder(
       builder: (context, constraints) {

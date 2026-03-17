@@ -31,6 +31,10 @@ class Corte extends Equatable {
   // --- Lista ligera de gestiones/incidencias del día ---
   final List<Map<String, dynamic>>? gestionesInfo;
 
+  // --- Rango de correlativos de boletas ---
+  final String? primerBoleta;
+  final String? ultimaBoleta;
+
   const Corte({
     required this.id,
     required this.cobradorId,
@@ -51,6 +55,8 @@ class Corte extends Equatable {
     this.cantidadPendientes,
     this.pendientesInfo,
     this.gestionesInfo,
+    this.primerBoleta,
+    this.ultimaBoleta,
   });
 
   bool get esCorteMercado => tipo == 'mercado';
@@ -76,5 +82,7 @@ class Corte extends Equatable {
         cantidadPendientes,
         pendientesInfo,
         gestionesInfo,
+        primerBoleta,
+        ultimaBoleta,
       ];
 }

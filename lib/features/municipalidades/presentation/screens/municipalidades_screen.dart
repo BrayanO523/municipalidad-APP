@@ -23,6 +23,7 @@ class _MunicipalidadesScreenState extends ConsumerState<MunicipalidadesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(municipalidadesPaginadasProvider.notifier).cargarPagina();
     });
   }

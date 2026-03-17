@@ -517,8 +517,8 @@ Future<void> showLocalFormDialog(
                                                 nombreCtrl.text,
                                               );
 
-                                        final mercs =
-                                            currentMercs.cast<MercadoJson>();
+                                        final mercs = currentMercs
+                                            .cast<MercadoJson>();
                                         final selectedMerc = mercs.firstWhere(
                                           (m) => m.id == selectedMercadoId,
                                           orElse: () => mercs.first,
@@ -601,7 +601,14 @@ Future<void> showLocalFormDialog(
                                             (nombreCtrl.text).toLowerCase();
 
                                         if (isEditing) {
-                                          await ds.actualizar(docId, jsonData);
+                                          final deltaCuota =
+                                              (model.cuotaDiaria ?? 0) -
+                                              (local.cuotaDiaria ?? 0);
+                                          await ds.actualizarConStats(
+                                            localId: docId,
+                                            data: jsonData,
+                                            deltaCuota: deltaCuota,
+                                          );
                                         } else {
                                           await ds.crear(docId, jsonData);
                                         }

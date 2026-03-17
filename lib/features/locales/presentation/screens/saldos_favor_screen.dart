@@ -23,17 +23,23 @@ class SaldosFavorScreen extends ConsumerStatefulWidget {
 
 class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = ref.read(localesPaginadosProvider);
+      if (state.filtroDeuda != LocalFiltroDeuda.soloSaldosAFavor) {
+        ref.read(localesPaginadosProvider.notifier).cambiarFiltroDeuda(LocalFiltroDeuda.soloSaldosAFavor);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(localesPaginadosProvider);
     final notifier = ref.read(localesPaginadosProvider.notifier);
     final mercados = ref.watch(mercadosProvider).value ?? [];
 
-    // Al iniciar, aseguramos que el filtro sea solo saldos a favor
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (state.filtroDeuda != LocalFiltroDeuda.soloSaldosAFavor) {
-        notifier.cambiarFiltroDeuda(LocalFiltroDeuda.soloSaldosAFavor);
-      }
-    });
 
     final list = state.locales;
 

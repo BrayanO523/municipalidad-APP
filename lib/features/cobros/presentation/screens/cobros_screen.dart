@@ -13,6 +13,7 @@ import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/custom_date_range_picker.dart';
 import '../../../../core/widgets/scrollable_table.dart';
 import '../../../../core/widgets/usuario_filter.dart';
+import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
@@ -94,9 +95,10 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
   void initState() {
     super.initState();
     // Arrancar con el rango de hoy
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _aplicar(_CobrosPeriod.hoy),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _aplicar(_CobrosPeriod.hoy);
+    });
   }
 
   void _aplicar(_CobrosPeriod p) async {
@@ -633,7 +635,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                           child: IconButton(
                                             icon: const Icon(Icons.print_rounded, size: 16),
                                             padding: EdgeInsets.zero,
-                                            onPressed: () => _imprimirCobro(context, ref, c),
+                                            onPressed: () => _imprimirCobro(c),
                                           ),
                                         ),
                                         SizedBox(
@@ -735,7 +737,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                         Icons.print_rounded,
                                         size: 20,
                                       ),
-                                      onPressed: () => _imprimirCobro(context, ref, c),
+                                      onPressed: () => _imprimirCobro(c),
                                     ),
                                     IconButton(
                                       icon: const Icon(
@@ -787,43 +789,12 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     );
   }
 
-  void _imprimirCobro(BuildContext context, WidgetRef ref, Cobro c) async {
-    final printer = ref.read(printerServiceProvider);
-    
-    final locales = ref.read(localesProvider).value ?? [];
-    final mercados = ref.read(mercadosProvider).value ?? [];
-    final usuarios = ref.read(usuariosProvider).value ?? [];
-
-    final local = locales.where((l) => l.id == c.localId).firstOrNull;
-
-    try {
-      final municipalidad = ref.read(municipalidadActualProvider);
-      await printer.printReceipt(
-        empresa: municipalidad?.nombre ?? 'Municipalidad',
-        mercado: nombreMercado(c.mercadoId, mercados),
-        local: nombreLocal(c.localId, locales),
-        monto: (c.monto ?? 0).toDouble(),
-        fecha: c.fecha ?? DateTime.now(),
-        numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
-        anioCorrelativo: c.anioCorrelativo ?? DateTime.now().year,
-        cobrador: nombreCobrador(c.cobradorId, usuarios),
-        saldoPendiente: (c.saldoPendiente ?? 0).toDouble(),
-        deudaAnterior: (c.deudaAnterior ?? 0).toDouble(),
-        montoAbonadoDeuda: (c.montoAbonadoDeuda ?? 0).toDouble(),
-        saldoAFavor: (c.nuevoSaldoFavor ?? 0).toDouble(),
-        slogan: municipalidad?.slogan,
-        clave: local?.clave,
-        codigoLocal: local?.codigo,
-        codigoCatastral: local?.codigoCatastral,
-      );
-
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al imprimir: $e')));
-      }
-    }
+  Future<void> _imprimirCobro(Cobro cobro) async {
+    await ReceiptDispatcher.imprimirDesdeCobro(
+      context: context,
+      ref: ref,
+      cobro: cobro,
+    );
   }
 
   void _confirmarEliminacion(BuildContext context, WidgetRef ref, Cobro c) {

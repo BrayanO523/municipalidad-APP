@@ -5,6 +5,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/usuario.dart';
 import '../viewmodels/usuarios_paginados_notifier.dart';
+import 'cobrador_historial_screen.dart';
 
 class UsuariosScreen extends ConsumerStatefulWidget {
   const UsuariosScreen({super.key});
@@ -20,6 +21,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(usuariosPaginadosProvider.notifier).cargarPagina();
     });
   }
@@ -1288,6 +1290,20 @@ class _UsuariosTable extends ConsumerWidget {
                   ),
                   onPressed: () => onEdit(u),
                   tooltip: 'Editar',
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.analytics_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => CobradorHistorialScreen(cobrador: u),
+                      ),
+                    );
+                  },
+                  tooltip: 'Ver Historial y Gráficos',
                 ),
                 IconButton(
                   icon: const Icon(

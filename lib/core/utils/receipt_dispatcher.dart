@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../features/locales/domain/entities/local.dart';
+import '../../features/cobros/domain/entities/cobro.dart';
 import '../../app/di/providers.dart';
 import 'date_formatter.dart';
 import 'date_range_formatter.dart';
@@ -450,9 +451,6 @@ class ReceiptDispatcher {
       diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
     }
 
-    debugPrint('===== DEBUG PDF INDIVIDUAL =====');
-    debugPrint('Slogan: "$slogan"');
-
     final fontDefault = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
     final fontItalic = await PdfGoogleFonts.robotoItalic();
@@ -619,11 +617,6 @@ class ReceiptDispatcher {
                   textAlign: pw.TextAlign.center,
                 ),
               ],
-              /*             pw.SizedBox(height: 4),
-              pw.Text(
-                'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
-                style: const pw.TextStyle(fontSize: 7),
-              ), */
               pw.SizedBox(height: 6),
             ],
           );
@@ -642,6 +635,119 @@ class ReceiptDispatcher {
           context,
         ).showSnackBar(SnackBar(content: Text('Error al compartir PDF: $e')));
       }
+    }
+  }
+
+  static Future<void> imprimirDesdeCobro({
+    required BuildContext context,
+    required WidgetRef ref,
+    required Cobro cobro,
+    Local? local,
+    String? municipalidadNombre,
+    String? mercadoNombre,
+    String? cobradorNombre,
+    String? slogan,
+  }) async {
+    // Si no se pasan los datos maestros, tratamos de obtenerlos de los providers
+    final localDoc = local ??
+        ref
+            .read(localesProvider)
+            .value
+            ?.where((l) => l.id == cobro.localId)
+            .firstOrNull;
+
+    final muni = municipalidadNombre ??
+        ref.read(municipalidadActualProvider)?.nombre ??
+        'MUNICIPALIDAD';
+
+    final merc = mercadoNombre ??
+        ref
+            .read(mercadosProvider)
+            .value
+            ?.where((m) => m.id == cobro.mercadoId)
+            .map((m) => m.nombre)
+            .firstOrNull;
+
+    final cobrador = cobradorNombre ??
+        ref
+            .read(usuariosProvider)
+            .value
+            ?.where((u) => u.id == cobro.cobradorId)
+            .map((u) => u.nombre)
+            .firstOrNull;
+
+    final sloganMuni = slogan ?? ref.read(municipalidadActualProvider)?.slogan;
+
+    // Calcular periodos (misma lógica que en móvil)
+    String? periodoAbonadoStr;
+    if (cobro.montoAbonadoDeuda != null && cobro.montoAbonadoDeuda! > 0) {
+      periodoAbonadoStr = DateRangeFormatter.formatearRangoAbonado(
+        cobro.fecha,
+        cobro.montoAbonadoDeuda!.toDouble(),
+        cobro.cuotaDiaria?.toDouble(),
+      );
+    }
+
+    String? periodoFavorStr;
+    if (cobro.nuevoSaldoFavor != null && cobro.nuevoSaldoFavor! > 0) {
+      final dias = (cobro.nuevoSaldoFavor! / (cobro.cuotaDiaria ?? 1)).floor();
+      final inicioFavor =
+          cobro.fecha?.add(const Duration(days: 1)) ?? DateTime.now();
+      periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+        inicioFavor,
+        dias,
+      );
+    }
+
+    // 1. Imprimir Ticket (Térmica)
+    await _imprimirTicket(
+      ref: ref,
+      muni: muni,
+      merc: merc,
+      localName: localDoc?.nombreSocial ?? 'Local',
+      monto: (cobro.monto ?? 0).toDouble(),
+      fecha: cobro.fecha ?? DateTime.now(),
+      saldoP: (cobro.saldoPendiente ?? 0).toDouble(),
+      favor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
+      deudaAnt: (cobro.deudaAnterior ?? 0).toDouble(),
+      abono: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
+      pagoHoy: (cobro.pagoACuota ?? 0).toDouble(),
+      abonoCuotaHoy: (cobro.pagoACuota ?? 0) > 0
+          ? (cobro.pagoACuota ?? 0).toDouble()
+          : null,
+      cobrador: cobrador,
+      boleta: cobro.numeroBoletaFmt,
+      periodoAbonadoStr: periodoAbonadoStr,
+      periodoSaldoAFavorStr: periodoFavorStr,
+      slogan: sloganMuni,
+      clave: localDoc?.clave,
+      codigoLocal: localDoc?.codigo,
+      codigoCatastral: localDoc?.codigoCatastral,
+    );
+
+    // 2. Compartir PDF (Digital)
+    if (context.mounted) {
+      await compartirPdf(
+        context: context,
+        local: localDoc ?? Local(id: cobro.localId ?? ''),
+        monto: (cobro.monto ?? 0).toDouble(),
+        fecha: cobro.fecha ?? DateTime.now(),
+        saldoPendiente: (cobro.saldoPendiente ?? 0).toDouble(),
+        deudaAnterior: (cobro.deudaAnterior ?? 0).toDouble(),
+        montoAbonadoDeuda: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
+        pagoHoy: (cobro.pagoACuota ?? 0).toDouble(),
+        abonoCuotaHoy: (cobro.pagoACuota ?? 0) > 0
+            ? (cobro.pagoACuota ?? 0).toDouble()
+            : null,
+        saldoAFavor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
+        numeroBoleta: cobro.numeroBoletaFmt,
+        muni: muni,
+        merc: merc,
+        cobrador: cobrador,
+        periodoAbonadoStr: periodoAbonadoStr,
+        periodoSaldoAFavorStr: periodoFavorStr,
+        slogan: sloganMuni,
+      );
     }
   }
 

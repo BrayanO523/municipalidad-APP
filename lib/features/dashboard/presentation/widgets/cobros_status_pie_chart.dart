@@ -78,9 +78,8 @@ class CobrosStatusPieChart extends StatelessWidget {
               )
             else
               Expanded(
-                child: RepaintBoundary(
-                  child: PieChart(
-                    PieChartData(
+                child: PieChart(
+                  PieChartData(
                       sectionsSpace: 2,
                       centerSpaceRadius: 40,
                       startDegreeOffset: -90,
@@ -137,7 +136,6 @@ class CobrosStatusPieChart extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
             const SizedBox(height: 16),
             Wrap(
               alignment: WrapAlignment.center,

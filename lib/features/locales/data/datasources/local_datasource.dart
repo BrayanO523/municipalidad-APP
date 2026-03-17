@@ -17,20 +17,22 @@ class LocalDatasource {
 
   // CREATE
   Future<void> crear(String docId, Map<String, dynamic> data) async {
-    await _collection.doc(docId).set(data);
-    
-    // Actualizar estadísticas (Suma atómica)
+    final batch = _firestore.batch();
+    batch.set(_collection.doc(docId), data);
+
     final municipalidadId = data['municipalidadId'] as String?;
     if (municipalidadId != null) {
-      final deudaInicial = (data['deudaAcumulada'] as num?) ?? 0;
-      final cuotaDiaria = (data['cuotaDiaria'] as num?) ?? 0;
-      _statsDs.actualizarConteo(
+      await _statsDs.actualizarConteo(
         municipalidadId: municipalidadId,
+        mercadoId: data['mercadoId'] as String?,
         deltaLocales: 1,
-        deltaDeuda: deudaInicial,
-        deltaCuotaDiaria: cuotaDiaria,
-      ).catchError((e) => debugPrint('Error actualizando stats local: $e'));
+        deltaDeuda: (data['deudaAcumulada'] as num?) ?? 0,
+        deltaSaldo: (data['saldoAFavor'] as num?) ?? 0,
+        deltaCuotaDiaria: (data['cuotaDiaria'] as num?) ?? 0,
+        batch: batch,
+      );
     }
+    await batch.commit();
   }
 
   // READ
@@ -524,9 +526,35 @@ class LocalDatasource {
     return LocalJson.fromJson(doc.data()!, docId: doc.id);
   }
 
+
   // UPDATE
   Future<void> actualizar(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).update(data);
+  }
+
+  /// Actualiza un local y sincroniza deltas de cuota y deuda con Stats.
+  Future<void> actualizarConStats({
+    required String localId,
+    required Map<String, dynamic> data,
+    num deltaCuota = 0,
+    num deltaDeuda = 0,
+    num deltaSaldo = 0,
+  }) async {
+    final batch = _firestore.batch();
+    batch.update(_collection.doc(localId), data);
+
+    final muniId = data['municipalidadId'] as String?;
+    if (muniId != null && (deltaCuota != 0 || deltaDeuda != 0 || deltaSaldo != 0)) {
+      await _statsDs.actualizarConteo(
+        municipalidadId: muniId,
+        mercadoId: data['mercadoId'] as String?,
+        deltaCuotaDiaria: deltaCuota,
+        deltaDeuda: deltaDeuda,
+        deltaSaldo: deltaSaldo,
+        batch: batch,
+      );
+    }
+    await batch.commit();
   }
 
   /// Incrementa (o decrementa) el saldoAFavor de un local de forma atómica.
@@ -580,6 +608,44 @@ class LocalDatasource {
         'ultimaTransaccion': Timestamp.now(),
       });
     });
+  }
+
+  /// Ajusta la deuda de un local manualmente y sincroniza con las estadísticas.
+  /// Si [esPago] es true, la reducción de deuda se cuenta como recaudación de hoy.
+  Future<void> ajustarDeudaManual({
+    required String localId,
+    required num nuevaDeuda,
+    required num deudaAnterior,
+    required String municipalidadId,
+    bool esPago = true,
+  }) async {
+    final batch = _firestore.batch();
+    final deltaDeuda = nuevaDeuda - deudaAnterior;
+
+    // 1. Actualizar el local
+    batch.update(_collection.doc(localId), {
+      'deudaAcumulada': nuevaDeuda,
+      'actualizadoEn': FieldValue.serverTimestamp(),
+      'ajustadoManualmente': true,
+    });
+
+    // 2. Actualizar Stats
+    // Si la deuda bajó (delta negativo) y es un pago, deltaRecaudado es el valor absoluto del pago.
+    final num deltaRecaudado = (esPago && deltaDeuda < 0) ? -deltaDeuda : 0;
+
+    final localSnap = await _collection.doc(localId).get();
+    final mercadoId = localSnap.data()?['mercadoId'] as String?;
+    if (mercadoId != null) {
+      await _statsDs.actualizarPorAjusteManual(
+        municipalidadId: municipalidadId,
+        mercadoId: mercadoId,
+        deltaDeuda: deltaDeuda,
+        deltaRecaudado: deltaRecaudado,
+        batch: batch,
+      );
+    }
+
+    await batch.commit();
   }
 
   /// Método Offline Safe: Usa FieldValue.increment que es soportado por la caché local de Firestore
@@ -649,12 +715,16 @@ class LocalDatasource {
     }
 
     if (targetMuniId != null) {
-      // 2. Restar 1 local, su deuda y su cuota diaria
+      // 2. Restar 1 local, su deuda, su saldo y su cuota diaria
       final cuotaDiaria = docSnap.exists ? ((docSnap.data()!['cuotaDiaria'] as num?) ?? 0) : 0;
+      final saldoActual = docSnap.exists ? ((docSnap.data()!['saldoAFavor'] as num?) ?? 0) : 0;
+
       _statsDs.actualizarConteo(
         municipalidadId: targetMuniId,
+        mercadoId: docSnap.data()?['mercadoId'] as String?,
         deltaLocales: -1,
         deltaDeuda: -deudaActual,
+        deltaSaldo: -saldoActual,
         deltaCuotaDiaria: -cuotaDiaria,
       ).catchError((e) => debugPrint('Error al restar stats por local eliminado: $e'));
     }

@@ -35,7 +35,7 @@ import '../../features/cortes/domain/entities/corte.dart';
 import '../../features/usuarios/presentation/screens/crear_admin_screen.dart';
 import '../../features/dev/presentation/screens/firestore_viewer_screen.dart';
 import '../../features/dev/presentation/screens/dev_seeder_screen.dart';
-import '../../features/locales/presentation/screens/ajuste_deudas_screen.dart';
+
 import '../di/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -204,11 +204,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               return CorteDetalleScreen(corte: corte);
             },
           ),
-          GoRoute(
-            path: '/gestor-deudas',
-            name: 'gestor-deudas',
-            builder: (context, state) => const AjusteDeudasScreen(),
-          ),
+
           // Solo disponible en debug, nunca en release/deploy
           if (kDebugMode) ...[
             GoRoute(

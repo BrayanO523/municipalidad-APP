@@ -112,8 +112,8 @@ class DeudaService {
     int batchOps = 0;
     // Acumular deuda por local para hacer un solo update al final
     final Map<String, num> deudaPorLocal = {};
-    // Acumular deuda por municipalidad para stats globales
-    final Map<String, num> deudaPorMuni = {};
+    // Acumular deuda por (muniId, mercadoId) para stats
+    final Map<String, Map<String, num>> deudaPorMuniMercado = {};
 
     for (DateTime fecha = fechaLimite; !fecha.isAfter(fechaFin); fecha = fecha.add(const Duration(days: 1))) {
       final fechaKey = "${fecha.year}${fecha.month}${fecha.day}";
@@ -189,9 +189,10 @@ class DeudaService {
 
             await localDs.actualizarSaldoAFavor(lid, -aCoverirConSaldo, batch: batchSaldo);
 
-            if (local.municipalidadId != null) {
+            if (local.municipalidadId != null && local.mercadoId != null) {
               await _statsDs.actualizarConsumoSaldo(
                 municipalidadId: local.municipalidadId!,
+                mercadoId: local.mercadoId!,
                 montoConsumido: aCoverirConSaldo,
                 batch: batchSaldo,
               );
@@ -241,9 +242,11 @@ class DeudaService {
 
             // Acumular totales en memoria
             deudaPorLocal[lid] = (deudaPorLocal[lid] ?? 0) + faltante;
-            if (local.municipalidadId != null) {
-              deudaPorMuni[local.municipalidadId!] =
-                  (deudaPorMuni[local.municipalidadId!] ?? 0) + faltante;
+            if (local.municipalidadId != null && local.mercadoId != null) {
+              final muniId = local.municipalidadId!;
+              final mercId = local.mercadoId!;
+              deudaPorMuniMercado.putIfAbsent(muniId, () => {});
+              deudaPorMuniMercado[muniId]![mercId] = (deudaPorMuniMercado[muniId]![mercId] ?? 0) + faltante;
             }
 
             creados++;
@@ -266,13 +269,19 @@ class DeudaService {
         await localDs.actualizarDeudaAcumulada(entry.key, entry.value, batch: batchPendientes);
         batchOps++;
       }
-      for (final entry in deudaPorMuni.entries) {
-        await _statsDs.actualizarDeudaGenerada(
-          municipalidadId: entry.key,
-          montoDeuda: entry.value,
-          batch: batchPendientes,
-        );
-        batchOps++;
+      for (final muniEntry in deudaPorMuniMercado.entries) {
+        final muniId = muniEntry.key;
+        for (final mercEntry in muniEntry.value.entries) {
+          final mercId = mercEntry.key;
+          final monto = mercEntry.value;
+          await _statsDs.actualizarDeudaGenerada(
+            municipalidadId: muniId,
+            mercadoId: mercId,
+            montoDeuda: monto,
+            batch: batchPendientes,
+          );
+          batchOps++;
+        }
       }
       await batchPendientes.commit();
     }
@@ -332,10 +341,11 @@ class DeudaService {
     // Incrementar deuda acumulada en el local
     await localDs.actualizarDeudaAcumulada(local.id!, faltante, batch: batch);
 
-    // Incrementar en las estadísticas globales (Dashboard)
-    if (local.municipalidadId != null) {
+    // Incrementar en las estadísticas globales y del mercado
+    if (local.municipalidadId != null && local.mercadoId != null) {
       await _statsDs.actualizarDeudaGenerada(
         municipalidadId: local.municipalidadId!,
+        mercadoId: local.mercadoId!,
         montoDeuda: faltante,
         batch: batch,
       );
@@ -451,10 +461,11 @@ class DeudaService {
       // Incrementar deuda acumulada del local (una sola vez con el total)
       await localDs.actualizarDeudaAcumulada(lid, totalDeudaGenerada, batch: batch);
 
-      // Actualizar estadísticas globales (una sola vez con el total)
-      if (local.municipalidadId != null) {
+      // Actualizar estadísticas (una sola vez con el total)
+      if (local.municipalidadId != null && local.mercadoId != null) {
         await _statsDs.actualizarDeudaGenerada(
           municipalidadId: local.municipalidadId!,
+          mercadoId: local.mercadoId!,
           montoDeuda: totalDeudaGenerada,
           batch: batch,
         );
