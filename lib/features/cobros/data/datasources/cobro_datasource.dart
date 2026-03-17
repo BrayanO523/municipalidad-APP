@@ -95,16 +95,16 @@ class CobroDatasource {
     await _localDs.actualizarDeudaAcumulada(localId, -abonoDeuda, batch: batch);
     await _localDs.actualizarSaldoAFavor(localId, incrementoSaldo, batch: batch);
 
+    // d. Actualizar el último correlativo del usuario (Cobrador) en el mismo Batch
+    // Esto asegura que el correlativo se sincronice en background junto con el cobro en modo offline.
+    final userRef = _firestore.collection(FirestoreCollections.usuarios).doc(userId);
+    batch.set(userRef, {
+      'ultimoCorrelativo': nuevoCorrelativo,
+      'anioCorrelativo': anioActual,
+    }, SetOptions(merge: true));
+
     // 6. Ejecutar el Lote Completo (TODO O NADA)
     await batch.commit();
-
-    // 7. Acciones secundarias (No críticas para la integridad del dashboard)
-    if (isOnline) {
-      _firestore.collection(FirestoreCollections.usuarios).doc(userId).update({
-        'ultimoCorrelativo': nuevoCorrelativo,
-        'anioCorrelativo': anioActual,
-      }).catchError((_) {});
-    }
 
     return numeroBoleta;
   }

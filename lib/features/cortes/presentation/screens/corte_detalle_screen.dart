@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/pdf_generator.dart';
@@ -303,7 +304,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                                 ],
                               ),
                               Text(
-                                'L. ${corte.totalCobrado.toStringAsFixed(2)}',
+                                CurrencyFormatter.format(corte.totalCobrado),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
@@ -454,7 +455,7 @@ class _HeaderCard extends StatelessWidget {
                             color: Colors.white70, fontSize: 11)),
                     const SizedBox(height: 4),
                     Text(
-                      'L. ${corte.totalCobrado.toStringAsFixed(2)}',
+                      CurrencyFormatter.format(corte.totalCobrado),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -649,7 +650,7 @@ class _BoletasSection extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'L. ${subtotal.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(subtotal),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -719,7 +720,7 @@ class _BoletasSection extends StatelessWidget {
               ),
             ),
             DataCell(Text(
-              'L. ${monto.toStringAsFixed(2)}',
+              CurrencyFormatter.format(monto),
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -827,7 +828,7 @@ class _BoletasSection extends StatelessWidget {
               ),
               // Monto
               Text(
-                'L. ${monto.toStringAsFixed(2)}',
+                CurrencyFormatter.format(monto),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -894,7 +895,7 @@ class _PendientesInfoSection extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'L. ${subtotal.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(subtotal),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: color,
@@ -959,7 +960,7 @@ class _PendientesInfoSection extends StatelessWidget {
                             child: Text(
                               saldoCubreCuota
                                   ? 'Tiene saldo a favor suficiente; falta registrar el cobro con saldo.'
-                                  : 'Saldo a favor disponible: L. ${saldoAFavor.toStringAsFixed(2)}',
+                                  : 'Saldo a favor disponible: ${CurrencyFormatter.format(saldoAFavor)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -972,7 +973,7 @@ class _PendientesInfoSection extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'L. ${monto.toStringAsFixed(2)}',
+                    CurrencyFormatter.format(monto),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

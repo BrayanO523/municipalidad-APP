@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/visual_debt_utils.dart';
 import '../../../locales/domain/entities/local.dart';
 
@@ -560,7 +561,7 @@ class _AjusteDeudasScreenState extends ConsumerState<AjusteDeudasScreen> {
 
   Future<void> _editarDeuda(BuildContext context, Local local, double deudaVisual) async {
     final montoCtrl = TextEditingController(
-      text: deudaVisual.toStringAsFixed(2),
+      text: CurrencyFormatter.formatRaw(deudaVisual),
     );
 
     final nuevoMonto = await showDialog<double>(

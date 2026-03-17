@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart';
-
+import 'currency_formatter.dart';
 abstract class DateFormatter {
   static final _dateFormat = DateFormat('dd/MM/yyyy');
   static final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
@@ -15,8 +15,8 @@ abstract class DateFormatter {
   }
 
   static String formatCurrency(num? amount) {
-    if (amount == null) return 'L 0.00';
-    return 'L ${amount.toStringAsFixed(2)}';
+    if (amount == null) return 'L. 0.00';
+    return CurrencyFormatter.format(amount.toDouble());
   }
 
   static String getMonthName(DateTime date) {

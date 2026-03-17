@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -125,7 +126,7 @@ class PdfGenerator {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text(
-                      'Recaudado: L. ${totalCobrado.toStringAsFixed(2)}',
+                      'Recaudado: ${CurrencyFormatter.format(totalCobrado)}',
                       style: pw.TextStyle(
                         fontSize: 16,
                         fontWeight: pw.FontWeight.bold,
@@ -134,7 +135,7 @@ class PdfGenerator {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'Pendiente: L. ${totalPendiente.toStringAsFixed(2)}',
+                      'Pendiente: ${CurrencyFormatter.format(totalPendiente)}',
                       style: pw.TextStyle(
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
@@ -165,7 +166,7 @@ class PdfGenerator {
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
-                  'Subtotal Cobrado: L. ${totalCobrado.toStringAsFixed(2)}',
+                  'Subtotal Cobrado: ${CurrencyFormatter.format(totalCobrado)}',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 11,
@@ -206,7 +207,7 @@ class PdfGenerator {
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
-                  'Subtotal Pendiente: L. ${totalPendiente.toStringAsFixed(2)}',
+                  'Subtotal Pendiente: ${CurrencyFormatter.format(totalPendiente)}',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     fontSize: 11,
@@ -343,7 +344,7 @@ class PdfGenerator {
               pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
                 child: pw.Text(
-                  'L. ${(cobro.monto ?? 0).toStringAsFixed(2)}',
+                  CurrencyFormatter.format((cobro.monto ?? 0).toDouble()),
                   textAlign: pw.TextAlign.right,
                   style: pw.TextStyle(
                     fontSize: 9,
@@ -444,7 +445,7 @@ class PdfGenerator {
               pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
                 child: pw.Text(
-                  'L. ${monto.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(monto),
                   textAlign: pw.TextAlign.right,
                   style: pw.TextStyle(
                     fontSize: 9,
@@ -750,7 +751,7 @@ class PdfGenerator {
                     ],
                   ),
                   pw.Text(
-                    'Total Recaudado: L. ${totalConsolidado.toStringAsFixed(2)}',
+                    'Total Recaudado: ${CurrencyFormatter.format(totalConsolidado)}',
                     style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
@@ -890,7 +891,7 @@ class PdfGenerator {
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
                         child: pw.Text(
-                          corte.totalCobrado.toStringAsFixed(2),
+                          CurrencyFormatter.format(corte.totalCobrado),
                           textAlign: pw.TextAlign.center,
                           style: const pw.TextStyle(fontSize: 9),
                         ),

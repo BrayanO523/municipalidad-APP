@@ -183,7 +183,14 @@ class AuthDatasource {
         }
         if (usuario.ultimoCorrelativo != null) {
           final int anio = usuario.anioCorrelativo ?? DateTime.now().year;
-          await prefs.setInt('correlativo_${usuario.id}_$anio', usuario.ultimoCorrelativo!);
+          final key = 'correlativo_${usuario.id}_$anio';
+          final int currentPrefs = prefs.getInt(key) ?? 0;
+          
+          // Solo actualizamos el correlativo local si el de la nube es MAYOR o IGUAL
+          // Esto evita que el caché de Firestore sobrescriba un correlativo generado offline
+          if (usuario.ultimoCorrelativo! >= currentPrefs) {
+            await prefs.setInt(key, usuario.ultimoCorrelativo!);
+          }
         }
       }
 
@@ -223,7 +230,13 @@ class AuthDatasource {
           }
           if (usuario.ultimoCorrelativo != null) {
             final int anio = usuario.anioCorrelativo ?? DateTime.now().year;
-            await prefs.setInt('correlativo_${usuario.id}_$anio', usuario.ultimoCorrelativo!);
+            final key = 'correlativo_${usuario.id}_$anio';
+            final int currentPrefs = prefs.getInt(key) ?? 0;
+            
+            // Solo actualizamos el correlativo local si el de la nube es MAYOR o IGUAL
+            if (usuario.ultimoCorrelativo! >= currentPrefs) {
+              await prefs.setInt(key, usuario.ultimoCorrelativo!);
+            }
           }
         } catch (_) {}
       }

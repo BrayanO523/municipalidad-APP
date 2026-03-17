@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/utils/pdf_generator.dart';
@@ -67,7 +68,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'L. ${state.total.toStringAsFixed(2)}',
+                            CurrencyFormatter.format(state.total),
                             style: TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
@@ -539,7 +540,7 @@ class _CobroTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'L. ${cobro.monto?.toStringAsFixed(2) ?? "0.00"}',
+              cobro.monto != null ? CurrencyFormatter.format(cobro.monto!.toDouble()) : 'L. 0.00',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -603,7 +604,7 @@ class _PendienteTile extends StatelessWidget {
             if (tieneSaldoAFavor)
               saldoCubreCuota
                   ? 'Saldo a favor cubre la cuota'
-                  : 'Saldo a favor: L. ${saldoAFavor.toStringAsFixed(2)}',
+                  : 'Saldo a favor: ${CurrencyFormatter.format(saldoAFavor)}',
           ].join(' • '),
           style: TextStyle(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -615,7 +616,7 @@ class _PendienteTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'L. ${montoPendiente.toStringAsFixed(2)}',
+              CurrencyFormatter.format(montoPendiente),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

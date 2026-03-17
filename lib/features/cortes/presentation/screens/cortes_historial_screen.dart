@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 import '../viewmodels/cortes_paginados_notifier.dart';
 import '../../../../app/theme/app_theme.dart';
@@ -734,7 +735,7 @@ class _ResumenPeriodo extends StatelessWidget {
         children: [
           _SummaryItem(
             icon: Icons.attach_money_rounded,
-            value: 'L. ${total.toStringAsFixed(2)}',
+            value: CurrencyFormatter.format(total),
             label: 'Recaudado',
             color: theme.colorScheme.primary,
           ),
@@ -893,7 +894,7 @@ class _CorteTileDetallado extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          'L. ${corte.totalCobrado.toStringAsFixed(2)}',
+                          CurrencyFormatter.format(corte.totalCobrado),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

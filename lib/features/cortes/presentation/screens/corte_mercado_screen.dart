@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -278,7 +279,7 @@ class CortesMercadoScreen extends ConsumerWidget {
               final corte = state.cortesDelDia[index];
               return ListTile(
                 title: Text(corte.cobradorNombre),
-                subtitle: Text('L. ${corte.totalCobrado.toStringAsFixed(2)}'),
+                subtitle: Text(CurrencyFormatter.format(corte.totalCobrado)),
                 trailing: IconButton(
                   icon: const Icon(Icons.print),
                   onPressed: () async {
@@ -549,7 +550,7 @@ class _ResumenCard extends StatelessWidget {
             children: [
               _StatItem(
                 icon: Icons.attach_money_rounded,
-                value: 'L. ${state.totalConsolidado.toStringAsFixed(2)}',
+                value: CurrencyFormatter.format(state.totalConsolidado),
                 label: 'Total',
                 large: true,
               ),
@@ -697,7 +698,7 @@ class _CorteCobradorTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'L. ${corte.totalCobrado.toStringAsFixed(2)}',
+                  CurrencyFormatter.format(corte.totalCobrado),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -794,7 +795,7 @@ class _BotonCorteMercado extends StatelessWidget {
         content: Text(
           '¿Deseas consolidar los ${state.cortesDelDia.length} cortes del día '
           'del mercado "${state.mercadoSeleccionado?.nombre}" por un total de '
-          'L. ${state.totalConsolidado.toStringAsFixed(2)}?\n\n'
+          '${CurrencyFormatter.format(state.totalConsolidado)}?\n\n'
           'Esta acción registrará el cierre oficial del mercado para hoy.',
         ),
         actions: [

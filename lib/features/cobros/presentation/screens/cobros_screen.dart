@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
@@ -557,7 +558,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'L. ${c.estado == 'pendiente' ? (c.saldoPendiente ?? 0).toStringAsFixed(2) : c.monto?.toStringAsFixed(2)}',
+                                          c.estado == 'pendiente' ? CurrencyFormatter.format((c.saldoPendiente ?? 0).toDouble()) : CurrencyFormatter.format((c.monto ?? 0).toDouble()),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 15,
@@ -695,7 +696,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                               DataCell(Text(nombreLocal(c.localId, locales))),
                               DataCell(
                                 Text(
-                                  'L. ${c.estado == 'pendiente' ? (c.saldoPendiente ?? 0).toStringAsFixed(2) : c.monto?.toStringAsFixed(2)}',
+                                  c.estado == 'pendiente' ? CurrencyFormatter.format((c.saldoPendiente ?? 0).toDouble()) : CurrencyFormatter.format((c.monto ?? 0).toDouble()),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     color: c.estado == 'pendiente' 
