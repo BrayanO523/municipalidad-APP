@@ -18,4 +18,13 @@ abstract class LocalRepository {
   });
   Future<List<Local>> obtenerPorMercado(String mercadoId);
   Future<int> recalcularDeudasBasadoEnHistorial();
+  Future<void> actualizarLocal(Local local, {num deltaCuota = 0, num deltaDeuda = 0});
+  Future<void> ajustarDeudaManual({
+    required String localId,
+    required num nuevaDeuda,
+    required num deudaAnterior,
+    required String municipalidadId,
+    bool esPago = true,
+  });
+  Future<void> crearLocal(Local local);
 }

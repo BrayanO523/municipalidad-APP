@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dropdown_search/dropdown_search.dart';
@@ -217,7 +217,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
               // Estado
               SizedBox(
-                width: isMobile ? double.infinity : 140,
+                width: isMobile ? double.infinity : 280,
                 child: _buildFiltroEstado(context, state),
               ),
 
@@ -605,9 +605,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               ),
             ),
             menuProps: MenuProps(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(6),
-              elevation: 2,
+              elevation: 4,
             ),
             fit: FlexFit.loose,
             emptyBuilder: (ctx, text) => Padding(
@@ -632,7 +632,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey.shade300, width: 0.8),
+                borderSide: BorderSide(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                  width: 1,
+                ),
               ),
             ),
             baseStyle: const TextStyle(fontSize: 11),

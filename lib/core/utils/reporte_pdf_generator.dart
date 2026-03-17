@@ -186,8 +186,8 @@ class ReportePdfGenerator {
           ...mercados.map((m) {
             final cobrosM = cobros.where((c) => c.mercadoId == m.id);
             final localesM = locales.where((l) => l.mercadoId == m.id);
-            final rM = cobrosM.where((c) => c.estado?.contains('cobrado') ?? false).fold<num>(0, (s, c) => s + (c.monto ?? 0));
-            final pM = cobrosM.where((c) => c.estado == 'pendiente').fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
+            final rM = cobrosM.fold<num>(0, (s, c) => s + (c.monto ?? 0));
+            final pM = cobrosM.where((c) => c.estado == 'pendiente' || c.estado == 'abono_parcial').fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
             final mM = localesM.fold<num>(0, (s, l) => s + (l.deudaAcumulada ?? 0));
             return pw.Container(
               margin: const pw.EdgeInsets.only(bottom: 10),
@@ -247,8 +247,8 @@ class ReportePdfGenerator {
     final pdf = pw.Document();
     final fecha = _fFechaHora.format(DateTime.now());
 
-    final totalCobrado = cobros.where((c) => c.estado?.contains('cobrado') ?? false).fold<num>(0, (s, c) => s + (c.monto ?? 0));
-    final totalPendiente = cobros.where((c) => c.estado == 'pendiente').fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
+    final totalCobrado = cobros.fold<num>(0, (s, c) => s + (c.monto ?? 0));
+    final totalPendiente = cobros.where((c) => c.estado == 'pendiente' || c.estado == 'abono_parcial').fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
 
     pdf.addPage(
       pw.MultiPage(

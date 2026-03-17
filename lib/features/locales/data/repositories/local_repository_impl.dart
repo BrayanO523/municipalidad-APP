@@ -7,6 +7,7 @@ import '../../domain/repositories/local_repository.dart';
 import '../datasources/local_datasource.dart';
 import '../datasources/local_local_datasource.dart';
 import '../models/hive/local_hive.dart';
+import '../models/local_model.dart';
 
 class LocalRepositoryImpl implements LocalRepository {
   final LocalDatasource _remoteDatasource;
@@ -138,8 +139,55 @@ class LocalRepositoryImpl implements LocalRepository {
   @override
   // ignore: deprecated_member_use_from_same_package
   @Deprecated('Ver LocalDatasource.recalcularDeudasBasadoEnHistorial')
+  @override
   Future<int> recalcularDeudasBasadoEnHistorial() async {
     // ignore: deprecated_member_use
     return await _remoteDatasource.recalcularDeudasBasadoEnHistorial();
+  }
+
+  @override
+  Future<void> actualizarLocal(Local local,
+      {num deltaCuota = 0, num deltaDeuda = 0}) async {
+    final model = LocalJson.fromEntity(local);
+    await _remoteDatasource.actualizarConStats(
+      localId: local.id!,
+      data: model.toJson(),
+      deltaCuota: deltaCuota,
+      deltaDeuda: deltaDeuda,
+    );
+    // Actualizar cache local
+    await _localDatasource.guardarLocal(LocalHive.fromDomain(local));
+  }
+
+  @override
+  Future<void> ajustarDeudaManual({
+    required String localId,
+    required num nuevaDeuda,
+    required num deudaAnterior,
+    required String municipalidadId,
+    bool esPago = true,
+  }) async {
+    await _remoteDatasource.ajustarDeudaManual(
+      localId: localId,
+      nuevaDeuda: nuevaDeuda,
+      deudaAnterior: deudaAnterior,
+      municipalidadId: municipalidadId,
+      esPago: esPago,
+    );
+
+    // Actualizar cache local
+    final actual = await obtenerPorId(localId);
+    if (actual != null) {
+      final actualizado = actual.copyWith(deudaAcumulada: nuevaDeuda);
+      await _localDatasource.guardarLocal(LocalHive.fromDomain(actualizado));
+    }
+  }
+
+  @override
+  Future<void> crearLocal(Local local) async {
+    final model = LocalJson.fromEntity(local);
+    await _remoteDatasource.crear(local.id!, model.toJson());
+    // Actualizar cache local
+    await _localDatasource.guardarLocal(LocalHive.fromDomain(local));
   }
 }

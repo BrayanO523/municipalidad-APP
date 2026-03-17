@@ -79,13 +79,17 @@ class CobroDatasource {
       final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
       final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
 
-      await _statsDs.actualizarAlCobrar(
-        municipalidadId: municipalidadId,
-        montoCobrado: montoCobrado,
-        abonoDeuda: abonoDeuda,
-        incrementoSaldo: incrementoSaldo,
-        batch: batch,
-      );
+      final mercadoId = cobroData['mercadoId'] as String?;
+      if (mercadoId != null) {
+        await _statsDs.actualizarAlCobrar(
+          municipalidadId: municipalidadId,
+          mercadoId: mercadoId,
+          montoCobrado: montoCobrado,
+          abonoDeuda: abonoDeuda,
+          incrementoSaldo: incrementoSaldo,
+          batch: batch,
+        );
+      }
     }
 
     // c. Actualizar el Local (Deuda y Saldo) en el mismo Batch
@@ -333,6 +337,42 @@ class CobroDatasource {
     }
   }
 
+  Stream<List<CobroJson>> streamPorCobrador(
+    String cobradorId, {
+    int limite = 200,
+    DateTime? inicio,
+    DateTime? fin,
+  }) {
+    var query = _collection.where('creadoPor', isEqualTo: cobradorId);
+
+    if (inicio != null) {
+      query = query.where(
+        'fecha',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(
+          DateTime(inicio.year, inicio.month, inicio.day),
+        ),
+      );
+    }
+    if (fin != null) {
+      query = query.where(
+        'fecha',
+        isLessThanOrEqualTo: Timestamp.fromDate(
+          DateTime(fin.year, fin.month, fin.day, 23, 59, 59),
+        ),
+      );
+    }
+
+    return query
+        .orderBy('fecha', descending: true)
+        .limit(limite)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+              .toList(),
+        );
+  }
+
   Stream<List<CobroJson>> streamPorLocal(String localId, {int limite = 20}) {
     return _collection
         .where('localId', isEqualTo: localId)
@@ -577,28 +617,40 @@ class CobroDatasource {
 
       if (targetMuniId != null) {
         if (estado == 'pendiente') {
-          await _statsDs.revertirPendiente(
-            municipalidadId: targetMuniId,
-            saldoPendiente: saldoPendiente,
-            fechaCobroOriginal: fechaCobro,
-            batch: batch,
-          );
+          final targetMercadoId = data['mercadoId'] as String?;
+          if (targetMercadoId != null) {
+            await _statsDs.revertirPendiente(
+              municipalidadId: targetMuniId,
+              mercadoId: targetMercadoId,
+              saldoPendiente: saldoPendiente,
+              fechaCobroOriginal: fechaCobro,
+              batch: batch,
+            );
+          }
         } else if (estado == 'cobrado_saldo') {
-          await _statsDs.revertirCobroSaldo(
-            municipalidadId: targetMuniId,
-            montoConsumido: montoCobrado,
-            fechaCobroOriginal: fechaCobro,
-            batch: batch,
-          );
+          final targetMercadoId = data['mercadoId'] as String?;
+          if (targetMercadoId != null) {
+            await _statsDs.revertirCobroSaldo(
+              municipalidadId: targetMuniId,
+              mercadoId: targetMercadoId,
+              montoConsumido: montoCobrado,
+              fechaCobroOriginal: fechaCobro,
+              batch: batch,
+            );
+          }
         } else {
-          await _statsDs.revertirCobro(
-            municipalidadId: targetMuniId,
-            montoCobrado: montoCobrado,
-            abonoDeuda: abonoDeuda,
-            incrementoSaldo: incrementoSaldo,
-            fechaCobroOriginal: fechaCobro,
-            batch: batch,
-          );
+          final targetMercadoId = data['mercadoId'] as String?;
+          if (targetMercadoId != null) {
+            await _statsDs.revertirCobro(
+              municipalidadId: targetMuniId,
+              mercadoId: targetMercadoId,
+              montoCobrado: montoCobrado,
+              abonoDeuda: abonoDeuda,
+              incrementoSaldo: incrementoSaldo,
+              fechaCobroOriginal: fechaCobro,
+              batch: batch,
+            );
+          }
         }
       }
 

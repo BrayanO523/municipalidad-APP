@@ -23,17 +23,23 @@ class DeudoresScreen extends ConsumerStatefulWidget {
 
 class _DeudoresScreenState extends ConsumerState<DeudoresScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = ref.read(localesPaginadosProvider);
+      if (state.filtroDeuda != LocalFiltroDeuda.soloDeudores) {
+        ref.read(localesPaginadosProvider.notifier).cambiarFiltroDeuda(LocalFiltroDeuda.soloDeudores);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(localesPaginadosProvider);
     final notifier = ref.read(localesPaginadosProvider.notifier);
     final mercados = ref.watch(mercadosProvider).value ?? [];
 
-    // Al iniciar, aseguramos que el filtro sea solo deudores
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (state.filtroDeuda != LocalFiltroDeuda.soloDeudores) {
-        notifier.cambiarFiltroDeuda(LocalFiltroDeuda.soloDeudores);
-      }
-    });
 
     final list = state.locales;
 

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../domain/entities/cobro.dart';
 import '../../domain/repositories/cobro_repository.dart';
-import '../../../locales/domain/repositories/local_repository.dart';
 import '../../../locales/domain/entities/local.dart';
 
 final cobroViewModelProvider = AsyncNotifierProvider<CobroViewModel, void>(() {
@@ -13,12 +12,10 @@ final cobroViewModelProvider = AsyncNotifierProvider<CobroViewModel, void>(() {
 
 class CobroViewModel extends AsyncNotifier<void> {
   late final CobroRepository _cobroRepository;
-  late final LocalRepository _localRepository;
 
   @override
   FutureOr<void> build() {
     _cobroRepository = ref.read(cobroRepositoryProvider);
-    _localRepository = ref.read(localRepositoryProvider);
   }
 
   /// Realiza todo el flujo de registro de un cobro garantizando MVVM
@@ -33,21 +30,14 @@ class CobroViewModel extends AsyncNotifier<void> {
     try {
       state = const AsyncValue.loading();
 
-      // 1. Ejecutar registro de cobro (con FIFO) y actualización de balances en paralelo
-      final results = await Future.wait([
-        _cobroRepository.registrarCobroCompleto(
-          cobro,
-          localId,
-          montoAbonadoDeuda: montoAbonadoDeuda,
-        ),
-        _localRepository.procesarPagoOfflineSafe(
-          localId,
-          montoAbonadoDeuda,
-          incrementoSaldoFavor,
-        ),
-      ]);
+      // 1. Ejecutar registro de cobro (con FIFO). 
+      // NOTA: registrarCobroCompleto ya actualiza los balances del local de forma atómica en Firestore.
+      final resultado = await _cobroRepository.registrarCobroCompleto(
+        cobro,
+        localId,
+        montoAbonadoDeuda: montoAbonadoDeuda,
+      );
 
-      final resultado = results[0] as ({String numeroBoleta, List<DateTime> fechasSaldadas});
       state = const AsyncValue.data(null);
       return (numeroBoleta: resultado.numeroBoleta, fechasSaldadas: resultado.fechasSaldadas);
     } catch (e, st) {
