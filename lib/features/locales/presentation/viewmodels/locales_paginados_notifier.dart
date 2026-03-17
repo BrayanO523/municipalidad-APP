@@ -197,18 +197,10 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
 
       List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
 
-      if (mercadoId != null) {
-        docs = await _ds.listarPaginaPorMercado(
-          mercadoId: mercadoId,
-          searchQuery: query,
-          lastDoc: lastDoc,
-          limit: _pageSize,
-          filtroDeuda: filtroDs,
-        );
-      } else if (municipalidadId != null) {
+      if (municipalidadId != null) {
         docs = await _ds.listarPaginaPorMunicipalidad(
           municipalidadId: municipalidadId,
-          mercadoId: null,
+          mercadoId: mercadoId,
           searchQuery: query,
           lastDoc: lastDoc,
           limit: _pageSize,
@@ -353,25 +345,15 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     while (hasMore) {
       List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
 
-      if (mercadoId != null) {
-        docs = await _ds.listarPaginaPorMercado(
-          mercadoId: mercadoId,
-          searchQuery: query,
-          lastDoc: lastDoc,
-          limit: _exportPageSize,
-          filtroDeuda: filtroDs,
-        );
-      } else {
-        docs = await _ds.listarPaginaPorMunicipalidad(
-          municipalidadId: municipalidadId!,
-          mercadoId: null,
-          searchQuery: query,
-          lastDoc: lastDoc,
-          limit: _exportPageSize,
-          filtroDeuda: filtroDs,
-          filterLocalIds: filterLocalIds,
-        );
-      }
+      docs = await _ds.listarPaginaPorMunicipalidad(
+        municipalidadId: municipalidadId!,
+        mercadoId: mercadoId,
+        searchQuery: query,
+        lastDoc: lastDoc,
+        limit: _exportPageSize,
+        filtroDeuda: filtroDs,
+        filterLocalIds: filterLocalIds,
+      );
 
       final nuevos = docs.map((doc) {
         return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;

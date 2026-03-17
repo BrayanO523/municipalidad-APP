@@ -145,170 +145,257 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final user = ref.watch(currentUsuarioProvider).value;
     final municipalidadId = user?.municipalidadId;
     final state = ref.watch(localesPaginadosProvider);
+    final notifier = ref.read(localesPaginadosProvider.notifier);
 
     return Card(
-      elevation: 2,
+      elevation: 3,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 1100;
-            final isMobile = constraints.maxWidth < 500;
+            final isTablet = constraints.maxWidth >= 650 && constraints.maxWidth < 1100;
+            final isDesktop = constraints.maxWidth >= 1100;
+            
+            final bool showUsuario = !(user?.esCobrador ?? true);
 
-            // Ancho fijo para cada filtro
-            const filterWidth = 200.0;
+            Widget infoPill(String text, {Color? color}) {
+              final theme = Theme.of(context);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (color ?? theme.colorScheme.primaryContainer)
+                      .withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              );
+            }
 
-            final List<Widget> filterContent = [
-              // Título
-              if (isWide)
-                SizedBox(
-                  width: 180,
+            final header = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.store_mall_directory_rounded,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Locales Comerciales',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        'Locales comerciales',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
                         state.mercadoSeleccionadoId != null
-                            ? 'Pág. ${state.paginaActual} · ${state.locales.length} locales'
-                            : 'Selecciona un mercado...',
+                            ? 'Página ${state.paginaActual} · ${state.locales.length} locales'
+                            : 'Selecciona un mercado para iniciar',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
+                              fontSize: 11,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-
-              // Mercado
-              SizedBox(
-                width: isMobile ? double.infinity : filterWidth,
-                child: _buildMercadoDropdown(context, municipalidadId),
-              ),
-
-              // Cobrador
-              if (!(user?.esCobrador ?? true))
-                SizedBox(
-                  width: isMobile ? double.infinity : filterWidth,
-                  child: _buildUsuarioFilter(context, state),
-                ),
-
-              // Búsqueda local
-              SizedBox(
-                width: isMobile ? double.infinity : filterWidth,
-                child: _buildLocalSearch(context, municipalidadId),
-              ),
-
-              // Estado
-              SizedBox(
-                width: isMobile ? double.infinity : 280,
-                child: _buildFiltroEstado(context, state),
-              ),
-
-              // Botón limpiar
-              IconButton(
-                icon: const Icon(Icons.filter_list_off_rounded),
-                tooltip: 'Limpiar filtros',
-                style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.1),
-                  foregroundColor: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _mercadoSeleccionado = null;
-                    _localSeleccionado = null;
-                    _searchKey = UniqueKey();
-                  });
-                  _debounce?.cancel();
-                  ref.read(localesPaginadosProvider.notifier).recargar();
-                },
-              ),
-
-              // Exportar CSV
-              if (kIsWeb)
-                SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: _isExportingCsv
-                        ? null
-                        : () => _exportarCsvWeb(context),
-                    icon: const Icon(Icons.download_rounded, size: 18),
-                    label: Text(
-                      _isExportingCsv ? 'Exportando...' : 'Exportar CSV',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                if (state.locales.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: infoPill(
+                      '${state.locales.length} locales',
+                      color: Theme.of(context).colorScheme.secondaryContainer,
                     ),
                   ),
+                IconButton(
+                  tooltip: 'Recargar',
+                  iconSize: 20,
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: () => notifier.recargar(),
                 ),
+                IconButton(
+                  tooltip: 'Limpiar filtros',
+                  iconSize: 20,
+                  icon: const Icon(Icons.filter_list_off_rounded),
+                  onPressed: () {
+                    setState(() {
+                      _mercadoSeleccionado = null;
+                      _localSeleccionado = null;
+                      _searchKey = UniqueKey();
+                    });
+                    _debounce?.cancel();
+                    notifier.recargar();
+                  },
+                ),
+              ],
+            );
 
-              // Migrar códigos (Dev)
-              if (_kShowDevTools && !(user?.esCobrador ?? true))
-                SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: _isMigratingCodigo
-                        ? null
-                        : () => _migrarCodigoLower(context),
-                    icon: const Icon(Icons.tune_rounded, size: 18),
-                    label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+            final buttonsRow = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (kIsWeb) ...[
+                  SizedBox(
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: _isExportingCsv
+                          ? null
+                          : () => _exportarCsvWeb(context),
+                      icon: const Icon(Icons.download_rounded, size: 18),
+                      label: Text(
+                        _isExportingCsv ? 'Exportando...' : 'Exportar CSV',
+                      ),
                     ),
                   ),
-                ),
-
-              // Agregar
-              SizedBox(
-                height: 44,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showFormDialog(context),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Agregar'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  const SizedBox(width: 6),
+                ],
+                if (_kShowDevTools && showUsuario) ...[
+                  SizedBox(
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: _isMigratingCodigo
+                          ? null
+                          : () => _migrarCodigoLower(context),
+                      icon: const Icon(Icons.tune_rounded, size: 18),
+                      label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar'),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                SizedBox(
+                  height: 40,
+                  child: FilledButton.icon(
+                    onPressed: () => _showFormDialog(context),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Agregar'),
                   ),
                 ),
-              ),
-            ];
+              ],
+            );
 
-            if (isWide) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [...filterContent],
-                ),
+            Widget filterContent;
+
+            if (isDesktop) {
+              filterContent = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId)),
+                      const SizedBox(width: 8),
+                      if (showUsuario) ...[
+                        Expanded(flex: 2, child: _buildUsuarioFilter(context, state)),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildFiltroEstado(context, state),
+                      buttonsRow,
+                    ],
+                  ),
+                ],
+              );
+            } else if (isTablet) {
+              filterContent = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(flex: 2, child: _buildMercadoDropdown(context, municipalidadId)),
+                      if (showUsuario) ...[
+                        const SizedBox(width: 8),
+                        Expanded(flex: 2, child: _buildUsuarioFilter(context, state)),
+                      ],
+                      const SizedBox(width: 8),
+                      Expanded(flex: 2, child: _buildLocalSearch(context, municipalidadId)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    children: [
+                      _buildFiltroEstado(context, state),
+                      buttonsRow,
+                    ],
+                  ),
+                ],
               );
             } else {
-              return Wrap(
-                spacing: 8,
-                runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.end,
-                children: filterContent,
+              // isMobile
+              filterContent = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildMercadoDropdown(context, municipalidadId),
+                  const SizedBox(height: 8),
+                  if (showUsuario) ...[
+                    _buildUsuarioFilter(context, state),
+                    const SizedBox(height: 8),
+                  ],
+                  _buildLocalSearch(context, municipalidadId),
+                  const SizedBox(height: 8),
+                  _buildFiltroEstado(context, state),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: buttonsRow,
+                  ),
+                ],
               );
             }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header,
+                const SizedBox(height: 12),
+                filterContent,
+              ],
+            );
           },
         ),
       ),
@@ -490,314 +577,269 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     BuildContext context,
     LocalesPaginadosState state,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Filtrar por Cobrador',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 6),
-        UsuarioFilter(
-          selectedUsuarioId: state.usuarioFiltradoId,
-          onUsuarioChanged: (u) {
-            ref
-                .read(localesPaginadosProvider.notifier)
-                .seleccionarUsuario(u?.id);
-          },
-        ),
-      ],
+    return UsuarioFilter(
+      selectedUsuarioId: state.usuarioFiltradoId,
+      label: 'Cobrador',
+      onUsuarioChanged: (u) {
+        ref
+            .read(localesPaginadosProvider.notifier)
+            .seleccionarUsuario(u?.id);
+      },
     );
   }
 
   Widget _buildMercadoDropdown(BuildContext context, String? municipalidadId) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Filtrar por Mercado',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            letterSpacing: 0.8,
+    return DropdownSearch<Mercado>(
+      asyncItems: (filter) async {
+        try {
+          final ds = ref.read(mercadoDatasourceProvider);
+          if (filter.isEmpty) {
+            // Sin texto: carga los primeros 30 del municipio.
+            final result = await ds.listarPagina(
+              municipalidadId: municipalidadId,
+              limit: 30,
+            );
+            return result.items
+                .map(
+                  (m) => Mercado(
+                    id: m.id,
+                    nombre: m.nombre,
+                    ubicacion: m.ubicacion,
+                    latitud: m.latitud,
+                    longitud: m.longitud,
+                    perimetro: m.perimetro,
+                    activo: m.activo,
+                  ),
+                )
+                .toList();
+          }
+          // Con texto: búsqueda por prefijo.
+          final resultados = await ds.buscarPorPrefijo(
+            prefijo: filter,
+            municipalidadId: municipalidadId,
+            limit: 15,
+          );
+          return resultados
+              .map(
+                (m) => Mercado(
+                  id: m.id,
+                  nombre: m.nombre,
+                  ubicacion: m.ubicacion,
+                  latitud: m.latitud,
+                  longitud: m.longitud,
+                  perimetro: m.perimetro,
+                  activo: m.activo,
+                ),
+              )
+              .toList();
+        } catch (e) {
+          final text = e.toString();
+          debugPrint(
+            '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
+          );
+          throw Exception(text);
+        }
+      },
+      itemAsString: (m) => m.nombre ?? m.id ?? '-',
+      compareFn: (a, b) => a.id == b.id,
+      selectedItem: _mercadoSeleccionado,
+      onChanged: (mercado) {
+        setState(() => _mercadoSeleccionado = mercado);
+        ref
+            .read(localesPaginadosProvider.notifier)
+            .seleccionarMercado(mercado);
+      },
+      popupProps: PopupProps.menu(
+        showSearchBox: true,
+        searchFieldProps: const TextFieldProps(
+          decoration: InputDecoration(
+            hintText: 'Buscar...',
+            prefixIcon: Icon(Icons.search_rounded, size: 14),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
           ),
         ),
-        const SizedBox(height: 6),
-        DropdownSearch<Mercado>(
-          asyncItems: (filter) async {
-            try {
-              final ds = ref.read(mercadoDatasourceProvider);
-              if (filter.isEmpty) {
-                // Sin texto: carga los primeros 30 del municipio.
-                final result = await ds.listarPagina(
-                  municipalidadId: municipalidadId,
-                  limit: 30,
-                );
-                return result.items
-                    .map(
-                      (m) => Mercado(
-                        id: m.id,
-                        nombre: m.nombre,
-                        ubicacion: m.ubicacion,
-                        latitud: m.latitud,
-                        longitud: m.longitud,
-                        perimetro: m.perimetro,
-                        activo: m.activo,
-                      ),
-                    )
-                    .toList();
-              }
-              // Con texto: búsqueda por prefijo.
-              final resultados = await ds.buscarPorPrefijo(
-                prefijo: filter,
-                municipalidadId: municipalidadId,
-                limit: 15,
-              );
-              return resultados
-                  .map(
-                    (m) => Mercado(
-                      id: m.id,
-                      nombre: m.nombre,
-                      ubicacion: m.ubicacion,
-                      latitud: m.latitud,
-                      longitud: m.longitud,
-                      perimetro: m.perimetro,
-                      activo: m.activo,
-                    ),
-                  )
-                  .toList();
-            } catch (e) {
-              final text = e.toString();
-              debugPrint(
-                '\n=== ERROR EN FIRESTORE ===\n$text\n==========================\n',
-              );
-              throw Exception(text);
-            }
-          },
-          itemAsString: (m) => m.nombre ?? m.id ?? '-',
-          compareFn: (a, b) => a.id == b.id,
-          selectedItem: _mercadoSeleccionado,
-          onChanged: (mercado) {
-            setState(() => _mercadoSeleccionado = mercado);
-            ref
-                .read(localesPaginadosProvider.notifier)
-                .seleccionarMercado(mercado);
-          },
-          popupProps: PopupProps.menu(
-            showSearchBox: true,
-            searchFieldProps: const TextFieldProps(
-              decoration: InputDecoration(
-                hintText: 'Buscar...',
-                prefixIcon: Icon(Icons.search_rounded, size: 14),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 6,
-                ),
-              ),
-            ),
-            menuProps: MenuProps(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(6),
-              elevation: 4,
-            ),
-            fit: FlexFit.loose,
-            emptyBuilder: (ctx, text) => Padding(
-              padding: const EdgeInsets.all(8),
-              child: const Text(
-                'No encontrado',
-                style: TextStyle(fontSize: 11),
-              ),
-            ),
-          ),
-          dropdownDecoratorProps: DropDownDecoratorProps(
-            dropdownSearchDecoration: InputDecoration(
-              hintText: 'Todos',
-              prefixIcon: const Icon(Icons.store_rounded, size: 14),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-              ),
-            ),
-            baseStyle: const TextStyle(fontSize: 11),
-          ),
-          clearButtonProps: const ClearButtonProps(isVisible: true),
+        menuProps: MenuProps(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(6),
+          elevation: 4,
         ),
-      ],
+        fit: FlexFit.loose,
+        emptyBuilder: (ctx, text) => Padding(
+          padding: const EdgeInsets.all(8),
+          child: const Text(
+            'No encontrado',
+            style: TextStyle(fontSize: 11),
+          ),
+        ),
+      ),
+      dropdownDecoratorProps: DropDownDecoratorProps(
+        dropdownSearchDecoration: InputDecoration(
+          labelText: 'Mercado',
+          hintText: 'Todos',
+          prefixIcon: const Icon(Icons.store_rounded, size: 16),
+          isDense: true,
+          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              width: 1,
+            ),
+          ),
+        ),
+        baseStyle: const TextStyle(fontSize: 13),
+      ),
+      clearButtonProps: const ClearButtonProps(isVisible: true),
     );
   }
 
   Widget _buildLocalSearch(BuildContext context, String? municipalidadId) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Buscar Local',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Autocomplete<Local>(
-          key: _searchKey,
-          optionsBuilder: (textEditingValue) async {
-            final patron = textEditingValue.text;
-            if (patron.length < 2) return [];
-            final ds = ref.read(localDatasourceProvider);
-            final results = await ds.buscarPorPrefijo(
-              prefijo: patron,
-              mercadoId: _mercadoSeleccionado?.id,
-              municipalidadId: municipalidadId,
-              limit: 8,
-            );
-            return results.cast<Local>();
-          },
-          displayStringForOption: (local) => local.nombreSocial ?? '',
-          fieldViewBuilder: (ctx, controller, focusNode, onFieldSubmitted) {
-            // Escuchar cambios para filtrar la lista principal (DataTable)
-            controller.addListener(() {
-              // Sincronizamos con el buscador del provider
-              _onSearchChanged(controller.text);
-            });
+    return Autocomplete<Local>(
+      key: _searchKey,
+      optionsBuilder: (textEditingValue) async {
+        final patron = textEditingValue.text;
+        if (patron.length < 2) return [];
+        final ds = ref.read(localDatasourceProvider);
+        final results = await ds.buscarPorPrefijo(
+          prefijo: patron,
+          mercadoId: _mercadoSeleccionado?.id,
+          municipalidadId: municipalidadId,
+          limit: 8,
+        );
+        return results.cast<Local>();
+      },
+      displayStringForOption: (local) => local.nombreSocial ?? '',
+      fieldViewBuilder: (ctx, controller, focusNode, onFieldSubmitted) {
+        // Escuchar cambios para filtrar la lista principal (DataTable)
+        controller.addListener(() {
+          // Sincronizamos con el buscador del provider
+          _onSearchChanged(controller.text);
+        });
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (_, value, __) {
             return TextField(
               controller: controller,
               focusNode: focusNode,
-              decoration: const InputDecoration(
-                hintText: 'Nombre o Código local...',
-                prefixIcon: Icon(Icons.search_rounded, size: 18),
+              decoration: InputDecoration(
+                labelText: 'Buscar Local',
+                hintText: 'Nombre, código o respresentante...',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                suffixIcon: value.text.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'Limpiar búsqueda',
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () {
+                          controller.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
                 ),
-              ),
-            );
-          },
-          optionsViewBuilder: (ctx, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(8),
-                color: Theme.of(context).colorScheme.surface,
-                child: SizedBox(
-                  width: 350,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (ctx, index) {
-                      final local = options.elementAt(index);
-                      return ListTile(
-                        dense: true,
-                        leading: Icon(
-                          Icons.storefront_rounded,
-                          size: 16,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
-                        title: Text(
-                          local.nombreSocial ?? '-',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          local.representante ?? local.mercadoId ?? '',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        onTap: () => onSelected(local),
-                      );
-                    },
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             );
           },
-          onSelected: (local) {
-            _debounce?.cancel();
-            ref
-                .read(localesPaginadosProvider.notifier)
-                .aplicarBusqueda(local.nombreSocial ?? '');
-          },
-        ),
-      ],
+        );
+      },
+      optionsViewBuilder: (ctx, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(8),
+            color: Theme.of(context).colorScheme.surface,
+            child: SizedBox(
+              width: 350,
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: options.length,
+                itemBuilder: (ctx, index) {
+                  final local = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(
+                      Icons.storefront_rounded,
+                      size: 16,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
+                    title: Text(
+                      local.nombreSocial ?? '-',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    subtitle: Text(
+                      local.representante ?? local.mercadoId ?? '',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    onTap: () => onSelected(local),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+      onSelected: (local) {
+        _debounce?.cancel();
+        ref
+            .read(localesPaginadosProvider.notifier)
+            .aplicarBusqueda(local.nombreSocial ?? '');
+      },
     );
   }
 
   Widget _buildFiltroEstado(BuildContext context, LocalesPaginadosState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Filtrar por Estado',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            letterSpacing: 0.8,
-          ),
+    return SegmentedButton<LocalFiltroDeuda>(
+      segments: const [
+        ButtonSegment(
+          value: LocalFiltroDeuda.todos,
+          label: Text('Todos'),
+          icon: Icon(Icons.list_rounded, size: 16),
         ),
-        const SizedBox(height: 6),
-        SegmentedButton<LocalFiltroDeuda>(
-          segments: const [
-            ButtonSegment(
-              value: LocalFiltroDeuda.todos,
-              label: Text('Todos'),
-              icon: Icon(Icons.list_rounded, size: 16),
-            ),
-            ButtonSegment(
-              value: LocalFiltroDeuda.soloDeudores,
-              label: Text('Deudores'),
-              icon: Icon(Icons.trending_down_rounded, size: 16),
-            ),
-            ButtonSegment(
-              value: LocalFiltroDeuda.soloSaldosAFavor,
-              label: Text('Saldos +'),
-              icon: Icon(Icons.trending_up_rounded, size: 16),
-            ),
-          ],
-          selected: {state.filtroDeuda},
-          onSelectionChanged: (newSelection) {
-            ref
-                .read(localesPaginadosProvider.notifier)
-                .cambiarFiltroDeuda(newSelection.first);
-          },
-          showSelectedIcon: false,
-          style: SegmentedButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            textStyle: const TextStyle(fontSize: 12),
-          ),
+        ButtonSegment(
+          value: LocalFiltroDeuda.soloDeudores,
+          label: Text('Deudores'),
+          icon: Icon(Icons.trending_down_rounded, size: 16),
+        ),
+        ButtonSegment(
+          value: LocalFiltroDeuda.soloSaldosAFavor,
+          label: Text('Saldos +'),
+          icon: Icon(Icons.trending_up_rounded, size: 16),
         ),
       ],
+      selected: {state.filtroDeuda},
+      onSelectionChanged: (newSelection) {
+        ref
+            .read(localesPaginadosProvider.notifier)
+            .cambiarFiltroDeuda(newSelection.first);
+      },
+      showSelectedIcon: false,
+      style: SegmentedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        textStyle: const TextStyle(fontSize: 12),
+      ),
     );
   }
 

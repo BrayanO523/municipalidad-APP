@@ -25,11 +25,22 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final state = ref.read(localesPaginadosProvider);
+      final notifier = ref.read(localesPaginadosProvider.notifier);
+
+      // 1) Forzar filtro de saldos a favor
       if (state.filtroDeuda != LocalFiltroDeuda.soloSaldosAFavor) {
-        ref.read(localesPaginadosProvider.notifier).cambiarFiltroDeuda(LocalFiltroDeuda.soloSaldosAFavor);
+        await notifier.cambiarFiltroDeuda(LocalFiltroDeuda.soloSaldosAFavor);
+      } else if (state.locales.isEmpty) {
+        // Si ya estaba en el filtro correcto pero no hay datos cargados, recargar.
+        await notifier.recargar();
+      }
+
+      // 2) Limpiar búsqueda heredada de otras pantallas para no quedar en blanco
+      if ((state.busqueda ?? '').isNotEmpty) {
+        await notifier.aplicarBusqueda('');
       }
     });
   }
