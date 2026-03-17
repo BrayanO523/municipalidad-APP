@@ -11,7 +11,6 @@ import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
-import '../widgets/recent_cobros_table.dart';
 import '../widgets/dashboard_charts.dart';
 import '../widgets/mora_corriente_chart.dart';
 import '../../../../core/utils/mass_import_eventuales.dart';
@@ -242,31 +241,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 if ((statsAsync.value?.totalMoraRecuperada ?? 0) > 0 ||
                     rt.totalMoraRecuperada > 0) ...[
                   const SizedBox(height: 24),
-                  SizedBox(
-                    height: 300,
-                    child: MoraCorrienteChart(dias: 7),
-                  ),
+                SizedBox(
+                  height: 300,
+                  child: MoraCorrienteChart(period: filter.period),
+                ),
                 ],
 
-                const SizedBox(height: 24),
-
-                // ── Cobros de la Fecha ────────────────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final titulo = filter.period == DashboardPeriod.hoy
-                        ? 'Cobros de Hoy'
-                        : 'Cobros del Periodo (${filter.label})';
-
-                    return Text(
-                      titulo,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                const RecentCobrosTable(),
               ],
             ),
           );
