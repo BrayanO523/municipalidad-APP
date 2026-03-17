@@ -304,7 +304,13 @@ final localesProvider = StreamProvider.autoDispose<List<Local>>((ref) {
     });
   }
 
-  // Para administradores, devolver todos los de la municipalidad
+  // Para administradores, devolver todos los de la municipalidad, 
+  // pero respetando el filtro de mercado seleccionado en el dashboard.
+  final mercadoId = ref.watch(dashboardMercadoIdProvider);
+  if (mercadoId != null) {
+    return ds.streamPorMercado(mercadoId);
+  }
+
   return ds.streamPorMunicipalidad(user.municipalidadId!);
 });
 
@@ -321,10 +327,15 @@ final tiposNegocioProvider = StreamProvider.autoDispose<List<TipoNegocio>>((
 
 final statsProvider = StreamProvider<StatsModel>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
-  if (user == null || user.municipalidadId == null)
+  if (user == null || user.municipalidadId == null) {
     return Stream.value(StatsModel());
+  }
+  
+  // Escuchar el filtro de mercado seleccionado
+  final mercadoId = ref.watch(dashboardMercadoIdProvider);
+  
   final ds = ref.read(statsDatasourceProvider);
-  return ds.streamStats(user.municipalidadId!);
+  return ds.streamStats(user.municipalidadId!, mercadoId: mercadoId);
 });
 
 class FechaFiltroCobrosNotifier extends Notifier<DateTimeRange?> {
@@ -474,6 +485,18 @@ final dashboardFilterProvider =
       DashboardFilterNotifier.new,
     );
 
+/// Notifier para el mercado seleccionado en el dashboard
+class DashboardMercadoIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+
+final dashboardMercadoIdProvider =
+    NotifierProvider<DashboardMercadoIdNotifier, String?>(
+  DashboardMercadoIdNotifier.new,
+);
+
 // Mantener compatibilidad mínima o migrar usos de fechaDashboardProvider
 @Deprecated('Usar dashboardFilterProvider')
 final fechaDashboardProvider = Provider<DateTime>((ref) {
@@ -490,7 +513,9 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
   // Determinar si hay que aplicar flag de cobrador
   final isCobrador = user.rol == 'cobrador';
   final cobradorIdParam = isCobrador ? user.id : null;
-  final mercadoIdParam = isCobrador ? user.mercadoId : null;
+  // Si es cobrador usa su mercado asignado; si es admin usa el filtro del dashboard.
+  final mercadoIdParam =
+      isCobrador ? user.mercadoId : ref.watch(dashboardMercadoIdProvider);
 
   if (filter.period == DashboardPeriod.hoy) {
     return ds.streamPorFecha(
@@ -516,6 +541,93 @@ final cobrosHoyProvider = StreamProvider.autoDispose<List<Cobro>>((ref) {
   }
 });
 
+/// Modelo completo para los KPIs del Dashboard basados en tiempo real.
+/// Combina datos de cobros del día con agregaciones de Firestore.
+class DashboardRealTimeStats {
+  final num recaudadoPeriodo;
+  final int cobrosPeriodo;
+  final num pendienteHoy;
+  final num cuotaEsperadaHoy;
+  final num deudaTotal;
+  final num saldoAFavorTotal;
+  final int cantidadMercados;
+  final int cantidadLocales;
+
+  DashboardRealTimeStats({
+    this.recaudadoPeriodo = 0,
+    this.cobrosPeriodo = 0,
+    this.pendienteHoy = 0,
+    this.cuotaEsperadaHoy = 0,
+    this.deudaTotal = 0,
+    this.saldoAFavorTotal = 0,
+    this.cantidadMercados = 0,
+    this.cantidadLocales = 0,
+  });
+}
+
+// Eliminadas agregaciones de Firestore por redundancia con localesProvider
+// La lógica fue movida a dashboardRealTimeStatsProvider para usar localesProvider en memoria.
+
+/// Provider que combina cobros del stream actual con agregaciones de Firestore
+/// para obtener KPIs precisos en tiempo real sin depender de la colección stats.
+final dashboardRealTimeStatsProvider =
+    Provider.autoDispose<DashboardRealTimeStats>((ref) {
+  final cobrosAsync = ref.watch(cobrosHoyProvider);
+  final cobros = cobrosAsync.value ?? [];
+  final localesAsync = ref.watch(localesProvider); // Usamos locasledProvider directamente
+  final locales = localesAsync.value ?? [];
+  final mercados = ref.watch(mercadosProvider).value ?? [];
+  final filter = ref.watch(dashboardFilterProvider);
+  final selectedMercadoId = ref.watch(dashboardMercadoIdProvider);
+
+  // Cálculos de recaudación (basados en el filtro de periodo)
+  num totalRecaudado = 0;
+  int totalCobrosCount = 0;
+
+  for (final c in cobros) {
+    if (c.estado != 'anulado') {
+      totalRecaudado += (c.monto ?? 0);
+      if ((c.correlativo ?? 0) > 0 || c.numeroBoleta != null) {
+        totalCobrosCount++;
+      }
+    }
+  }
+
+  // Cálculos de locales (agregación en memoria para consistencia total)
+  // Filtramos por mercado si hay uno seleccionado
+  final localesFiltrados = selectedMercadoId != null
+      ? locales.where((l) => l.mercadoId == selectedMercadoId).toList()
+      : locales;
+
+  final localesActivos = localesFiltrados.where((l) => l.activo == true).toList();
+  
+  num totalDeuda = 0;
+  num totalSaldoAFavor = 0;
+  num totalCuotaDiaria = 0;
+
+  for (final l in localesActivos) {
+    totalDeuda += (l.deudaAcumulada ?? 0);
+    totalSaldoAFavor += (l.saldoAFavor ?? 0);
+    totalCuotaDiaria += (l.cuotaDiaria ?? 0);
+  }
+
+  num pendienteHoy = 0;
+  if (filter.period == DashboardPeriod.hoy) {
+    pendienteHoy = totalCuotaDiaria - totalRecaudado;
+  }
+
+  return DashboardRealTimeStats(
+    recaudadoPeriodo: totalRecaudado,
+    cobrosPeriodo: totalCobrosCount,
+    pendienteHoy: pendienteHoy > 0 ? pendienteHoy : 0,
+    cuotaEsperadaHoy: totalCuotaDiaria,
+    deudaTotal: totalDeuda,
+    saldoAFavorTotal: totalSaldoAFavor,
+    cantidadMercados: mercados.length,
+    cantidadLocales: localesActivos.length,
+  );
+});
+
 final usuariosProvider = StreamProvider.autoDispose<List<Usuario>>((ref) {
   final user = ref.watch(currentUsuarioProvider).value;
   final ds = ref.read(authDatasourceProvider);
@@ -536,6 +648,30 @@ final localCobrosStreamProvider = StreamProvider.autoDispose
       // Límite de 100 cobros para evitar descargar años de historial completo.
       // En la pantalla de historial se usa paginación si se necesitan más.
       return ds.streamPorLocal(id, limite: 100);
+    });
+
+class CobradorHistorialRangoNotifier extends Notifier<DateTimeRange?> {
+  @override
+  DateTimeRange? build() => null;
+  void setRango(DateTimeRange? range) => state = range;
+}
+
+final cobradorHistorialRangoProvider =
+    NotifierProvider<CobradorHistorialRangoNotifier, DateTimeRange?>(
+      CobradorHistorialRangoNotifier.new,
+    );
+
+final cobradorCobrosStreamProvider = StreamProvider.autoDispose
+    .family<List<Cobro>, String>((ref, cobradorId) {
+      final range = ref.watch(cobradorHistorialRangoProvider);
+      final ds = ref.read(cobroDatasourceProvider);
+      
+      return ds.streamPorCobrador(
+        cobradorId, 
+        limite: range == null ? 200 : 500, // Aumentamos límite si hay filtro
+        inicio: range?.start,
+        fin: range?.end,
+      );
     });
 
 final localesCobradorProvider = StreamProvider<List<Local>>((ref) {

@@ -1,4 +1,4 @@
-﻿import 'package:fl_chart/fl_chart.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/date_formatter.dart';
@@ -21,7 +21,7 @@ class RecaudacionBarChart extends StatelessWidget {
 
     final mapMonto = <String, double>{};
     for (final c in cobrosHoy) {
-      if (c.mercadoId == null || c.estado == 'pendiente') continue;
+      if (c.mercadoId == null || c.estado == 'anulado') continue;
       mapMonto[c.mercadoId!] =
           (mapMonto[c.mercadoId!] ?? 0) + (c.monto?.toDouble() ?? 0);
     }
@@ -91,13 +91,13 @@ class RecaudacionBarChart extends StatelessWidget {
                       Icon(
                         Icons.bar_chart_rounded,
                         size: 40,
-                        color: colorScheme.onSurface.withValues(alpha: 0.24),
+                        color: colorScheme.onSurface.withOpacity(0.24),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Sin recaudación hoy',
                         style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: colorScheme.onSurface.withOpacity(0.54),
                         ),
                       ),
                     ],
@@ -106,8 +106,7 @@ class RecaudacionBarChart extends StatelessWidget {
               )
             else
               Expanded(
-                child: RepaintBoundary(
-                  child: BarChart(
+                child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
                       maxY: maxY,
@@ -189,7 +188,6 @@ class RecaudacionBarChart extends StatelessWidget {
                       ),
                       borderData: FlBorderData(show: false),
                     ),
-                  ),
                 ),
               ),
           ],

@@ -74,8 +74,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // Guardar que ya se revisó hoy en este navegador
       await prefs.setString(hoyKey, hoyString);
       
-      // Invalidar stats para reflejar cambios si los hubo
+      // Invalidar stats y agregaciones para reflejar cambios si los hubo
       ref.invalidate(statsProvider);
+      // ref.invalidate(statsAggregationsProvider); // Removido por refactor a localesProvider
     } catch (e) {
       debugPrint('⚠️ Error en verificación de deuda web: $e');
     }
@@ -84,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
-    final stats = ref.watch(statsProvider);
+    final rt = ref.watch(dashboardRealTimeStatsProvider);
     final filter = ref.watch(dashboardFilterProvider);
 
     return Scaffold(
@@ -124,100 +125,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       children: [
                         SizedBox(
                           width: cardW,
-                          child: stats.when(
-                            data: (s) => MetricCard(
-                              title: 'Recaudación Hoy',
-                              value: DateFormatter.formatCurrency(s.recaudacionHoy),
-                              icon: Icons.payments_rounded,
-                              color: const Color(0xFF00D9A6),
-                            ),
-                            loading: () => const MetricCard(
-                              title: 'Recaudación Hoy',
-                              value: '...',
-                              icon: Icons.payments_rounded,
-                              color: Color(0xFF00D9A6),
-                            ),
-                            error: (_, __) => const MetricCard(
-                              title: 'Recaudación Hoy',
-                              value: 'Error',
-                              icon: Icons.payments_rounded,
-                              color: Color(0xFF00D9A6),
-                            ),
+                          child: MetricCard(
+                            title: 'Recaudación ${filter.label}',
+                            value: DateFormatter.formatCurrency(rt.recaudadoPeriodo),
+                            icon: Icons.payments_rounded,
+                            color: const Color(0xFF00D9A6),
                           ),
                         ),
                         SizedBox(
                           width: cardW,
-                          child: stats.when(
-                            data: (s) => MetricCard(
-                              title: 'Cobros Hoy',
-                              value: '${s.cobrosHoy}',
-                              icon: Icons.receipt_long_rounded,
-                              color: const Color(0xFF6C63FF),
-                            ),
-                            loading: () => const MetricCard(
-                              title: 'Cobros Hoy',
-                              value: '...',
-                              icon: Icons.receipt_long_rounded,
-                              color: Color(0xFF6C63FF),
-                            ),
-                            error: (_, __) => const MetricCard(
-                              title: 'Cobros Hoy',
-                              value: 'Error',
-                              icon: Icons.receipt_long_rounded,
-                              color: Color(0xFF6C63FF),
-                            ),
+                          child: MetricCard(
+                            title: 'Cobros ${filter.label}',
+                            value: '${rt.cobrosPeriodo}',
+                            icon: Icons.receipt_long_rounded,
+                            color: const Color(0xFF6C63FF),
                           ),
                         ),
                         SizedBox(
                           width: cardW,
-                          child: stats.when(
-                            data: (s) {
-                              debugPrint('📈 DATA RECIBIDA DE STATS: m=${s.cantidadMercados}, l=${s.cantidadLocales}, d=${s.totalDeuda}, f=${s.totalSaldoAFavor}, c=${s.totalCobrado}');
-                              return MetricCard(
-                                title: 'Mercados Activos',
-                                value: '${s.cantidadMercados}',
-                                icon: Icons.store_rounded,
-                                color: const Color(0xFFFF9F43),
-                              );
-                            },
-                            loading: () => const MetricCard(
-                              title: 'Mercados Activos',
-                              value: '...',
-                              icon: Icons.store_rounded,
-                              color: Color(0xFFFF9F43),
-                            ),
-                            error: (err, stack) {
-                              debugPrint('❌ ERROR AL CARGAR STATS: $err\n$stack');
-                              return const MetricCard(
-                                title: 'Mercados Activos',
-                                value: 'Error',
-                                icon: Icons.store_rounded,
-                                color: Color(0xFFFF9F43),
-                              );
-                            },
+                          child: MetricCard(
+                            title: 'Mercados Activos',
+                            value: '${rt.cantidadMercados}',
+                            icon: Icons.store_rounded,
+                            color: const Color(0xFFFF9F43),
                           ),
                         ),
                         SizedBox(
                           width: cardW,
-                          child: stats.when(
-                            data: (s) => MetricCard(
-                              title: 'Locales Registrados',
-                              value: '${s.cantidadLocales}',
-                              icon: Icons.storefront_rounded,
-                              color: const Color(0xFFEE5A6F),
-                            ),
-                            loading: () => const MetricCard(
-                              title: 'Locales Registrados',
-                              value: '...',
-                              icon: Icons.storefront_rounded,
-                              color: Color(0xFFEE5A6F),
-                            ),
-                            error: (_, __) => const MetricCard(
-                              title: 'Locales Registrados',
-                              value: 'Error',
-                              icon: Icons.storefront_rounded,
-                              color: Color(0xFFEE5A6F),
-                            ),
+                          child: MetricCard(
+                            title: 'Locales Registrados',
+                            value: '${rt.cantidadLocales}',
+                            icon: Icons.storefront_rounded,
+                            color: const Color(0xFFEE5A6F),
                           ),
                         ),
                       ],
@@ -227,58 +166,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 16),
 
                 // ── KPI cards — fila 2: deudas y saldo a favor ───────────────
-                stats.when(
-                  data: (s) {
-                    final deudaTotal = s.totalDeuda;
-                    final saldoAFavorTotal = s.totalSaldoAFavor;
-
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
-                        final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
-                        return Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            SizedBox(
-                              width: cardW,
-                              child: MetricCard(
-                                title: 'Pendiente de Cobro Hoy',
-                                value: DateFormatter.formatCurrency(s.pendienteCobroHoy),
-                                icon: Icons.schedule_rounded,
-                                color: const Color(0xFFFF6B35),
-                                subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(s.totalCuotaDiaria)}',
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: MetricCard(
-                                title: 'Deuda Acumulada',
-                                value: DateFormatter.formatCurrency(deudaTotal),
-                                icon: Icons.warning_amber_rounded,
-                                color: const Color(0xFFEE5A6F),
-                                subtitle: 'Total global de deudas',
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: MetricCard(
-                                title: 'Saldo a Favor',
-                                value: DateFormatter.formatCurrency(
-                                  saldoAFavorTotal,
-                                ),
-                                icon: Icons.savings_rounded,
-                                color: const Color(0xFF00D9A6),
-                                subtitle: 'Total global de créditos',
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 500 ? 2 : 1;
+                    final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Pendiente de Cobro Hoy',
+                            value: DateFormatter.formatCurrency(rt.pendienteHoy),
+                            icon: Icons.schedule_rounded,
+                            color: const Color(0xFFFF6B35),
+                            subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(rt.cuotaEsperadaHoy)}',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Deuda Acumulada',
+                            value: DateFormatter.formatCurrency(rt.deudaTotal),
+                            icon: Icons.warning_amber_rounded,
+                            color: const Color(0xFFEE5A6F),
+                            subtitle: 'Total global de deudas',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Saldo a Favor',
+                            value: DateFormatter.formatCurrency(rt.saldoAFavorTotal),
+                            icon: Icons.savings_rounded,
+                            color: const Color(0xFF00D9A6),
+                            subtitle: 'Total global de créditos',
+                          ),
+                        ),
+                      ],
                     );
                   },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
                 ),
                 const SizedBox(height: 24),
 
@@ -404,6 +332,7 @@ class _DashboardHeader extends ConsumerWidget {
                 ),
               ],
             ),
+            _MarketSelector(),
             _PeriodSelector(),
             if (_kShowDevTools)
               ElevatedButton.icon(
@@ -1110,6 +1039,84 @@ class _DashboardHeader extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _MarketSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mercadosAsync = ref.watch(mercadosProvider);
+    final selectedId = ref.watch(dashboardMercadoIdProvider);
+
+    return mercadosAsync.when(
+      data: (mercados) {
+        if (mercados.isEmpty) return const SizedBox.shrink();
+
+        // Si no hay nada seleccionado, seleccionar el primero automáticamente
+        if (selectedId == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(dashboardMercadoIdProvider.notifier).set(mercados.first.id);
+          });
+          return const SizedBox.shrink();
+        }
+
+        // Verificar que el ID seleccionado sea válido (por si se eliminó o cambió)
+        final idValido = mercados.any((m) => m.id == selectedId) ? selectedId : null;
+        if (idValido == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(dashboardMercadoIdProvider.notifier).set(mercados.first.id);
+          });
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.storefront_rounded,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: idValido,
+                underline: const SizedBox(),
+                hint: const Text('Elegir Mercado', style: TextStyle(fontSize: 13)),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                items: mercados.map(
+                  (m) => DropdownMenuItem<String>(
+                    value: m.id,
+                    child: Text(m.nombre ?? 'Sin nombre'),
+                  ),
+                ).toList(),
+                onChanged: (id) {
+                  if (id != null) {
+                    ref.read(dashboardMercadoIdProvider.notifier).set(id);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox(
+        width: 100,
+        child: LinearProgressIndicator(),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
