@@ -353,8 +353,9 @@ class _CollectorRevenueChart extends StatelessWidget {
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final label = DateFormat('dd/MM').format(dates[group.x]);
                       return BarTooltipItem(
-                        DateFormat('dd/MM').format(dates[group.x]) + '\n',
+                        '$label\n',
                         const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         children: [
                           TextSpan(

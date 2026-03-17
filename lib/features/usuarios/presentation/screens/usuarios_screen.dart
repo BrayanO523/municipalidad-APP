@@ -320,8 +320,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                   final usuarios = usuariosAsync.value ?? [];
                                   final Set<String> localesOcupados = {};
                                   for (final u in usuarios) {
-                                    if (isEditing && u.id == usuario.id)
+                                    if (isEditing && u.id == usuario.id) {
                                       continue;
+                                    }
                                     if (u.rutaAsignada != null) {
                                       localesOcupados.addAll(u.rutaAsignada!);
                                     }
@@ -477,9 +478,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                         } else {
                                                           for (final l
                                                               in localesDisponibles) {
-                                                            if (l.id != null)
+                                                            if (l.id != null) {
                                                               checkedDisponibles
                                                                   .add(l.id!);
+                                                            }
                                                           }
                                                         }
                                                       }),
@@ -607,9 +609,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     : () => setDialogState(() {
                                                         for (final l
                                                             in localesDisponibles) {
-                                                          if (l.id != null)
+                                                          if (l.id != null) {
                                                             selectedLocalesIds
                                                                 .add(l.id!);
+                                                          }
                                                         }
                                                         checkedDisponibles
                                                             .clear();
@@ -658,19 +661,21 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     ),
                                                 onPressed:
                                                     checkedAsignados.isEmpty
-                                                    ? null
-                                                    : () => setDialogState(() {
-                                                        selectedLocalesIds
-                                                            .removeWhere(
-                                                              (id) =>
-                                                                  checkedAsignados
-                                                                      .contains(
-                                                                        id,
-                                                                      ),
-                                                            );
-                                                        checkedAsignados
-                                                            .clear();
-                                                      }),
+                                                        ? null
+                                                        : () => setDialogState(
+                                                              () {
+                                                                selectedLocalesIds
+                                                                    .removeWhere(
+                                                                  (id) =>
+                                                                      checkedAsignados
+                                                                          .contains(
+                                                                    id,
+                                                                  ),
+                                                                );
+                                                                checkedAsignados
+                                                                    .clear();
+                                                              },
+                                                            ),
                                               ),
                                             ),
                                             // Devolver todos <<
@@ -689,26 +694,28 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     ),
                                                 onPressed:
                                                     localesAsignados.isEmpty
-                                                    ? null
-                                                    : () => setDialogState(() {
-                                                        // Solo quitar los locales asignados que están filtrados
-                                                        final asignadosIds =
-                                                            localesAsignados
-                                                                .map(
-                                                                  (l) => l.id!,
-                                                                )
-                                                                .toSet();
-                                                        selectedLocalesIds
-                                                            .removeWhere(
-                                                              (id) =>
-                                                                  asignadosIds
-                                                                      .contains(
-                                                                        id,
-                                                                      ),
-                                                            );
-                                                        checkedAsignados
-                                                            .clear();
-                                                      }),
+                                                        ? null
+                                                        : () => setDialogState(
+                                                              () {
+                                                                final asignadosIds =
+                                                                    localesAsignados
+                                                                        .map(
+                                                                          (l) =>
+                                                                              l.id!,
+                                                                        )
+                                                                        .toSet();
+                                                                selectedLocalesIds
+                                                                    .removeWhere(
+                                                                  (id) =>
+                                                                      asignadosIds
+                                                                          .contains(
+                                                                    id,
+                                                                  ),
+                                                                );
+                                                                checkedAsignados
+                                                                    .clear();
+                                                              },
+                                                            ),
                                               ),
                                             ),
                                           ],
@@ -758,9 +765,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                         } else {
                                                           for (final l
                                                               in localesAsignados) {
-                                                            if (l.id != null)
+                                                            if (l.id != null) {
                                                               checkedAsignados
                                                                   .add(l.id!);
+                                                            }
                                                           }
                                                         }
                                                       }),
