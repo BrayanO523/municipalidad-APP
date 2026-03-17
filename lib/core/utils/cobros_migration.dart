@@ -340,7 +340,8 @@ class CobrosMigration {
           });
         }
 
-        batch.update(statRef, updates);
+        // Usar set+merge para crear el doc si no existe y evitar errores not-found.
+        batch.set(statRef, updates, SetOptions(merge: true));
       }
 
       await batch.commit();
