@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 
@@ -80,6 +81,8 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     final usuario = ref.watch(currentUsuarioProvider).value;
     final List<Local> localesData = ref.watch(localesProvider).value ?? [];
 
@@ -163,7 +166,7 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
                 Polyline(
                   points: rutaAproximacion,
                   strokeWidth: 4.0,
-                  color: Colors.orangeAccent.withValues(alpha: 0.8),
+                  color: semantic.warning.withValues(alpha: 0.8),
                   // isDotted no parece ser compatible con Polyline directamente en algunas versiones
                   // por lo que lo removemos si causa error o usamos pattern si está disponible
                 ),
@@ -177,7 +180,7 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
                 Polyline(
                   points: rutaCobro,
                   strokeWidth: 5.0,
-                  color: Colors.blue.withValues(alpha: 0.7),
+                  color: colorScheme.primary.withValues(alpha: 0.7),
                 ),
               ],
             ),
@@ -196,21 +199,24 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: semantic.success,
                           borderRadius: BorderRadius.circular(4),
-                          boxShadow: const [
-                            BoxShadow(blurRadius: 4, color: Colors.black26),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 4,
+                              color: colorScheme.shadow.withValues(alpha: 0.26),
+                            ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.store_rounded,
-                          color: Colors.white,
+                          color: semantic.onSuccess,
                           size: 20,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.arrow_drop_down,
-                        color: Colors.green,
+                        color: semantic.success,
                         size: 12,
                       ),
                     ],
@@ -227,18 +233,21 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
                   point: LatLng(loc.latitud!, loc.longitud!),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.redAccent,
+                      color: semantic.danger,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: const [
-                        BoxShadow(blurRadius: 4, color: Colors.black26),
+                      border: Border.all(color: semantic.onDanger, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          blurRadius: 4,
+                          color: colorScheme.shadow.withValues(alpha: 0.26),
+                        ),
                       ],
                     ),
                     child: Center(
                       child: Text(
                         '${idx + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: semantic.onDanger,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -261,14 +270,14 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.3),
+                          color: colorScheme.primary.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const Icon(Icons.circle, color: Colors.blue, size: 16),
-                      const Icon(
+                      Icon(Icons.circle, color: colorScheme.primary, size: 16),
+                      Icon(
                         Icons.circle_outlined,
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                         size: 16,
                       ),
                     ],

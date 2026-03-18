@@ -1,10 +1,11 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
@@ -12,7 +13,6 @@ import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/local.dart';
 import '../../../../core/widgets/usuario_filter.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
-
 
 class SaldosFavorScreen extends ConsumerStatefulWidget {
   const SaldosFavorScreen({super.key});
@@ -51,7 +51,6 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
     final notifier = ref.read(localesPaginadosProvider.notifier);
     final mercados = ref.watch(mercadosProvider).value ?? [];
 
-
     final list = state.locales;
 
     return Scaffold(
@@ -86,10 +85,11 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Filtro: Saldos a Favor',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: const Color(0xFF00D9A6),
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: context.semanticColors.success,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   )
@@ -113,7 +113,11 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                       ),
                       const SizedBox(width: 16),
                       // Filtro por Cobrador (Admin/Gestión)
-                      if (!(ref.watch(currentUsuarioProvider).value?.esCobrador ?? true))
+                      if (!(ref
+                              .watch(currentUsuarioProvider)
+                              .value
+                              ?.esCobrador ??
+                          true))
                         SizedBox(
                           width: 250,
                           child: UsuarioFilter(
@@ -126,100 +130,101 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                       const Spacer(),
                       Text(
                         'Filtro: Saldos a Favor',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: const Color(0xFF00D9A6),
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: context.semanticColors.success,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Column(
-                children: [
-                  if (state.cargando && list.isEmpty)
-                    const Expanded(
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (state.errorMsg != null)
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Error: ${state.errorMsg}',
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    )
-                  else if (list.isEmpty)
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.query_stats_rounded,
-                              size: 48,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.24),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No hay locales con saldo a favor actualmente',
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (state.cargando && list.isEmpty)
+                        const Expanded(
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (state.errorMsg != null)
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              'Error: ${state.errorMsg}',
                               style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.54),
+                                color: context.semanticColors.danger,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _Header(todos: list),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: _SaldosTable(
-                              locales: list,
-                              mercados: mercados,
+                          ),
+                        )
+                      else if (list.isEmpty)
+                        Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.query_stats_rounded,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.24),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No hay locales con saldo a favor actualmente',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          _PaginationBar(
-                            currentPage: state.paginaActual - 1,
-                            totalPages: state.hayMas
-                                ? state.paginaActual + 1
-                                : state.paginaActual,
-                            totalItems: list.length,
-                            pageSize: 20,
-                            onPrev: state.paginaActual > 1
-                                ? () => notifier.irAPaginaAnterior()
-                                : null,
-                            onNext: state.hayMas
-                                ? () => notifier.irAPaginaSiguiente()
-                                : null,
+                        )
+                      else
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Header(todos: list),
+                              const SizedBox(height: 16),
+                              Expanded(
+                                child: _SaldosTable(
+                                  locales: list,
+                                  mercados: mercados,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _PaginationBar(
+                                currentPage: state.paginaActual - 1,
+                                totalPages: state.hayMas
+                                    ? state.paginaActual + 1
+                                    : state.paginaActual,
+                                totalItems: list.length,
+                                pageSize: 20,
+                                onPrev: state.paginaActual > 1
+                                    ? () => notifier.irAPaginaAnterior()
+                                    : null,
+                                onNext: state.hayMas
+                                    ? () => notifier.irAPaginaSiguiente()
+                                    : null,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  if (state.cargando && list.isNotEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: LinearProgressIndicator(),
-                    ),
-                ],
-              ),
+                        ),
+                      if (state.cargando && list.isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: LinearProgressIndicator(),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            ],
-          ),
-        );
+          );
         },
       ),
     );
@@ -249,9 +254,11 @@ class _Header extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Listado de locales con crédito prepagado disponible',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
               ),
             ],
           ),
@@ -260,8 +267,8 @@ class _Header extends ConsumerWidget {
           icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
           label: const Text('Exportar PDF'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF00D9A6),
-            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            backgroundColor: context.semanticColors.success,
+            foregroundColor: context.semanticColors.onSuccess,
           ),
           onPressed: todos.isEmpty
               ? null
@@ -322,109 +329,119 @@ class _SaldosTableState extends State<_SaldosTable> {
             controller: _scrollVertical,
             scrollDirection: Axis.vertical,
             child: DataTable(
-            headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-            ),
-            columns: const [
-              DataColumn(label: Text('Local')),
-              DataColumn(label: Text('Mercado')),
-              DataColumn(label: Text('Representante')),
-              DataColumn(label: Text('Teléfono')),
-              DataColumn(label: Text('Saldo a Favor')),
-              DataColumn(label: Text('Balance Neto')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: widget.locales.map((l) {
-              return DataRow(
-                cells: [
-                  DataCell(
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.nombreSocial ?? '-',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+              headingRowColor: WidgetStateProperty.all(
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+              ),
+              columns: const [
+                DataColumn(label: Text('Local')),
+                DataColumn(label: Text('Mercado')),
+                DataColumn(label: Text('Representante')),
+                DataColumn(label: Text('Teléfono')),
+                DataColumn(label: Text('Saldo a Favor')),
+                DataColumn(label: Text('Balance Neto')),
+                DataColumn(label: Text('Acciones')),
+              ],
+              rows: widget.locales.map((l) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.nombreSocial ?? '-',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            l.id ?? '-',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        widget.mercados
+                                .cast<Mercado>()
+                                .firstWhere(
+                                  (m) => m.id == l.mercadoId,
+                                  orElse: () => const Mercado(nombre: '-'),
+                                )
+                                .nombre ??
+                            '-',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
-                        Text(
-                          l.id ?? '-',
+                      ),
+                    ),
+                    DataCell(Text(l.representante ?? '-')),
+                    DataCell(
+                      Text(
+                        l.telefonoRepresentante ?? '-',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.semanticColors.success.withValues(
+                            alpha: 0.1,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          DateFormatter.formatCurrency(l.saldoAFavor),
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            color: context.semanticColors.success,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      widget.mercados
-                              .cast<Mercado>()
-                              .firstWhere(
-                                (m) => m.id == l.mercadoId,
-                                orElse: () => const Mercado(nombre: '-'),
-                              )
-                              .nombre ??
-                          '-',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
-                  ),
-                  DataCell(Text(l.representante ?? '-')),
-                  DataCell(
-                    Text(
-                      l.telefonoRepresentante ?? '-',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.greenAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        DateFormatter.formatCurrency(l.saldoAFavor),
-                        style: const TextStyle(
-                          color: Colors.greenAccent,
-                          fontWeight: FontWeight.bold,
+                    DataCell(
+                      Text(
+                        DateFormatter.formatCurrency(l.balanceNeto),
+                        style: TextStyle(
+                          color: l.balanceNeto >= 0
+                              ? context.semanticColors.success
+                              : context.semanticColors.danger,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(
-                    Text(
-                      DateFormatter.formatCurrency(l.balanceNeto),
-                      style: TextStyle(
-                        color: l.balanceNeto >= 0
-                            ? const Color(0xFF00D9A6)
-                            : const Color(0xFFEE5A6F),
-                        fontWeight: FontWeight.w600,
+                    DataCell(
+                      IconButton(
+                        icon: const Icon(Icons.history_rounded, size: 20),
+                        onPressed: () => context.push(
+                          '/locales/${l.id}/historial',
+                          extra: l,
+                        ),
+                        tooltip: 'Ver Historial',
                       ),
                     ),
-                  ),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.history_rounded, size: 20),
-                      onPressed: () =>
-                          context.push('/locales/${l.id}/historial', extra: l),
-                      tooltip: 'Ver Historial',
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -466,10 +483,9 @@ class _PaginationBar extends StatelessWidget {
         Text(
           'Página ${currentPage + 1}',
           style: TextStyle(
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.54),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
             fontSize: 13,
           ),
         ),

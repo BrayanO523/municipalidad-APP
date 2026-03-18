@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../app/theme/app_theme.dart';
 
 enum MapPickerMode { point, polygon }
 
@@ -54,6 +55,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     return Dialog(
       insetPadding: EdgeInsets.all(24),
       child: ClipRRect(
@@ -85,7 +88,12 @@ class _MapPickerModalState extends State<MapPickerModal> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                    icon: Icon(
+                      Icons.close,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -124,8 +132,12 @@ class _MapPickerModalState extends State<MapPickerModal> {
                           polygons: [
                             Polygon(
                               points: widget.marketPerimeter!,
-                              color: Colors.blue.withValues(alpha: 0.15),
-                              borderColor: Colors.blue.withValues(alpha: 0.6),
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.15,
+                              ),
+                              borderColor: colorScheme.primary.withValues(
+                                alpha: 0.6,
+                              ),
                               borderStrokeWidth: 2,
                             ),
                           ],
@@ -137,8 +149,12 @@ class _MapPickerModalState extends State<MapPickerModal> {
                           polygons: widget.existingPolygons!.map((poly) {
                             return Polygon(
                               points: poly,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-                              borderColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.2),
+                              borderColor: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
                               borderStrokeWidth: 1.5,
                             );
                           }).toList(),
@@ -152,10 +168,14 @@ class _MapPickerModalState extends State<MapPickerModal> {
                               height: 12,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Colors.black45,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.45,
+                                    ),
                                     width: 1,
                                   ),
                                 ),
@@ -171,8 +191,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
                           polygons: [
                             Polygon(
                               points: _points,
-                              color: Colors.green.withValues(alpha: 0.2),
-                              borderColor: Colors.green,
+                              color: semantic.success.withValues(alpha: 0.2),
+                              borderColor: semantic.success,
                               borderStrokeWidth: 3,
                             ),
                           ],
@@ -184,9 +204,9 @@ class _MapPickerModalState extends State<MapPickerModal> {
                             point: p,
                             width: 30,
                             height: 30,
-                            child: const Icon(
+                            child: Icon(
                               Icons.location_on,
-                              color: Colors.redAccent,
+                              color: semantic.danger,
                               size: 30,
                             ),
                           );
@@ -205,7 +225,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black87,
+                        color: colorScheme.inverseSurface,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -213,7 +233,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
                             ? 'Toque el mapa para añadir vértices del perímetro'
                             : 'Toque el mapa para marcar la ubicación exacta',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: colorScheme.onInverseSurface,
                           fontSize: 13,
                         ),
                       ),
@@ -235,16 +255,20 @@ class _MapPickerModalState extends State<MapPickerModal> {
                         : _points.isEmpty
                         ? 'Ningún punto seleccionado'
                         : 'Ubicación seleccionada',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
                   ),
                   const Spacer(),
                   TextButton(
                     onPressed: () {
                       setState(() => _points.clear());
                     },
-                    child: const Text(
+                    child: Text(
                       'Limpiar',
-                      style: TextStyle(color: Colors.redAccent),
+                      style: TextStyle(color: semantic.danger),
                     ),
                   ),
                   const SizedBox(width: 8),

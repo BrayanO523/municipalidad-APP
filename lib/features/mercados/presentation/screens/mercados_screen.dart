@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../../../core/widgets/scrollable_table.dart';
@@ -46,7 +47,8 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _MercadosHeader(
-                  onSearch: (q) => ref.read(mercadosPaginadosProvider.notifier).buscar(q),
+                  onSearch: (q) =>
+                      ref.read(mercadosPaginadosProvider.notifier).buscar(q),
                   onAdd: () => _showFormDialog(context),
                   selectedColumn: _searchColumn,
                   onColumnChanged: (val) {
@@ -60,45 +62,56 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                   child: state.cargando && state.mercados.isEmpty
                       ? const Center(child: CircularProgressIndicator())
                       : state.errorMsg != null
-                          ? Center(
-                              child: Text(
-                                state.errorMsg!,
-                                style: const TextStyle(color: Colors.redAccent),
+                      ? Center(
+                          child: Text(
+                            state.errorMsg!,
+                            style: TextStyle(
+                              color: context.semanticColors.danger,
+                            ),
+                          ),
+                        )
+                      : state.mercados.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No se encontraron mercados',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.54),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Expanded(
+                              child: _MercadosTable(
+                                mercados: state.mercados,
+                                onEdit: (m) =>
+                                    _showFormDialog(context, mercado: m),
+                                onDelete: (m) => _confirmDelete(context, m),
                               ),
-                            )
-                          : state.mercados.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'No se encontraron mercados',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withValues(alpha: 0.54),
-                                    ),
-                                  ),
-                                )
-                              : Column(
-                                  children: [
-                                    Expanded(
-                                      child: _MercadosTable(
-                                        mercados: state.mercados,
-                                        onEdit: (m) => _showFormDialog(context, mercado: m),
-                                        onDelete: (m) => _confirmDelete(context, m),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _PaginationBar(
-                                      currentPage: state.paginaActual - 1,
-                                      onPrev: state.paginaActual > 1
-                                          ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaAnterior()
-                                          : null,
-                                      onNext: state.hayMas
-                                          ? () => ref.read(mercadosPaginadosProvider.notifier).irAPaginaSiguiente()
-                                          : null,
-                                      isCargando: state.cargando,
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            const SizedBox(height: 16),
+                            _PaginationBar(
+                              currentPage: state.paginaActual - 1,
+                              onPrev: state.paginaActual > 1
+                                  ? () => ref
+                                        .read(
+                                          mercadosPaginadosProvider.notifier,
+                                        )
+                                        .irAPaginaAnterior()
+                                  : null,
+                              onNext: state.hayMas
+                                  ? () => ref
+                                        .read(
+                                          mercadosPaginadosProvider.notifier,
+                                        )
+                                        .irAPaginaSiguiente()
+                                  : null,
+                              isCargando: state.cargando,
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -122,7 +135,10 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.semanticColors.danger,
+              foregroundColor: context.semanticColors.onDanger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
@@ -169,11 +185,16 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  tileColor: Colors.black12,
+                  tileColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  leading: const Icon(Icons.map_rounded, color: Colors.blueAccent),
+                  leading: Icon(
+                    Icons.map_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   title: Text(
                     'Perímetro del Mercado',
                     style: TextStyle(
@@ -182,17 +203,22 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                     ),
                   ),
                   subtitle: Text(
-                    mercado?.perimetro != null || (mercado?.perimetro?.isNotEmpty ?? false)
+                    mercado?.perimetro != null ||
+                            (mercado?.perimetro?.isNotEmpty ?? false)
                         ? 'Área definida (${mercado!.perimetro!.length} puntos)'
                         : 'Sin definir en el mapa',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                       fontSize: 12,
                     ),
                   ),
                   trailing: Icon(
                     Icons.chevron_right,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.24),
                   ),
                   onTap: () async {
                     final List<LatLng>? result = await showDialog<List<LatLng>>(
@@ -212,7 +238,9 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                           nombre: nombreCtrl.text,
                           ubicacion: ubicacionCtrl.text,
                           perimetro: result
-                              .map((p) => {'lat': p.latitude, 'lng': p.longitude})
+                              .map(
+                                (p) => {'lat': p.latitude, 'lng': p.longitude},
+                              )
                               .toList(),
                           latitud: result.first.latitude,
                           longitud: result.first.longitude,
@@ -301,15 +329,17 @@ class _MercadosHeader extends StatelessWidget {
             children: [
               Text(
                 'Mercados',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(
                 'Gestión de mercados de QRecauda',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
               ),
               const SizedBox(height: 12),
@@ -328,7 +358,9 @@ class _MercadosHeader extends StatelessWidget {
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -336,13 +368,21 @@ class _MercadosHeader extends StatelessWidget {
                         value: selectedColumn,
                         icon: Icon(
                           Icons.arrow_drop_down,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                         isDense: true,
                         dropdownColor: Theme.of(context).colorScheme.surface,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 13,
+                        ),
                         items: ['Nombre', 'Ubicación'].map((String value) {
-                          return DropdownMenuItem<String>(value: value, child: Text(value));
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
                         }).toList(),
                         onChanged: onColumnChanged,
                       ),
@@ -376,7 +416,9 @@ class _MercadosHeader extends StatelessWidget {
                   Text(
                     'Gestión de mercados de QRecauda',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                   ),
                 ],
@@ -386,7 +428,9 @@ class _MercadosHeader extends StatelessWidget {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(
@@ -394,13 +438,21 @@ class _MercadosHeader extends StatelessWidget {
                   value: selectedColumn,
                   icon: Icon(
                     Icons.arrow_drop_down,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                   ),
                   isDense: true,
                   dropdownColor: Theme.of(context).colorScheme.surface,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
                   items: ['Nombre', 'Ubicación'].map((String value) {
-                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
                   }).toList(),
                   onChanged: onColumnChanged,
                 ),
@@ -462,7 +514,9 @@ class _MercadosTable extends StatelessWidget {
                 DataCell(_ActiveChip(active: m.activo ?? false)),
                 DataCell(
                   Text(
-                    m.creadoEn != null ? DateFormatter.formatDate(m.creadoEn!) : '-',
+                    m.creadoEn != null
+                        ? DateFormatter.formatDate(m.creadoEn!)
+                        : '-',
                   ),
                 ),
                 DataCell(
@@ -475,10 +529,10 @@ class _MercadosTable extends StatelessWidget {
                         tooltip: 'Editar',
                       ),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.delete_rounded,
                           size: 18,
-                          color: Colors.redAccent,
+                          color: context.semanticColors.danger,
                         ),
                         onPressed: () => onDelete(m),
                         tooltip: 'Eliminar',
@@ -502,16 +556,20 @@ class _ActiveChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: (active ? const Color(0xFF00D9A6) : Colors.grey).withValues(alpha: 0.15),
+        color: (active ? semantic.success : colorScheme.outline).withValues(
+          alpha: 0.15,
+        ),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         active ? 'Activo' : 'Inactivo',
         style: TextStyle(
-          color: active ? const Color(0xFF00D9A6) : Colors.grey,
+          color: active ? semantic.success : colorScheme.outline,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -559,7 +617,9 @@ class _PaginationBar extends StatelessWidget {
         Text(
           'Página ${currentPage + 1}',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.54),
             fontSize: 13,
             fontWeight: FontWeight.bold,
           ),
@@ -577,4 +637,3 @@ class _PaginationBar extends StatelessWidget {
     );
   }
 }
-

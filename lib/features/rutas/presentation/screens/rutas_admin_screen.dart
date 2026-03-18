@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../usuarios/domain/entities/usuario.dart';
 
@@ -42,10 +43,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
 
     final mapLocales = {for (var l in localesDelMercado) l.id!: l};
 
-    final selectedMercado =
-        mercados.isEmpty || _selectedMercadoId == null
-            ? null
-            : mercados.firstWhere((m) => m.id == _selectedMercadoId);
+    final selectedMercado = mercados.isEmpty || _selectedMercadoId == null
+        ? null
+        : mercados.firstWhere((m) => m.id == _selectedMercadoId);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -56,7 +56,12 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           if (isMobile) {
             return Stack(
               children: [
-                _buildMap(context, selectedMercado, localesDelMercado, mapLocales),
+                _buildMap(
+                  context,
+                  selectedMercado,
+                  localesDelMercado,
+                  mapLocales,
+                ),
                 DraggableScrollableSheet(
                   initialChildSize: 0.4,
                   minChildSize: 0.15,
@@ -71,7 +76,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.shadow.withValues(alpha: 0.2),
                             blurRadius: 10,
                             offset: const Offset(0, -2),
                           ),
@@ -84,10 +91,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                             width: 40,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.2),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -148,6 +154,8 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     bool isMobile = false,
     ScrollController? scrollController,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Shared widgets: header controls (mercado, cobrador, ruta header)
     List<Widget> buildHeaderControls() {
       return [
@@ -163,7 +171,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
         Text(
           '1. Mercado',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 13,
           ),
         ),
@@ -174,7 +184,10 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           decoration: InputDecoration(
             filled: true,
             fillColor: Theme.of(context).cardTheme.color,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
           ),
           items: mercados
               .map(
@@ -199,7 +212,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
         Text(
           '2. Cobrador',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 13,
           ),
         ),
@@ -210,7 +225,10 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           decoration: InputDecoration(
             filled: true,
             fillColor: Theme.of(context).cardTheme.color,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
           ),
           hint: const Text('Elija un cobrador'),
           items: cobradores
@@ -251,7 +269,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                 Text(
                   'Arrastre para ordenar',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                     fontSize: 11,
                   ),
                 ),
@@ -279,37 +299,37 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
               child: Text(
                 'Seleccione mercado y cobrador',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
               ),
             ),
           ),
         ];
       }
-      return _rutaActual
-          .where((id) => mapLocales.containsKey(id))
-          .map((locId) {
+      return _rutaActual.where((id) => mapLocales.containsKey(id)).map((locId) {
         final loc = mapLocales[locId]!;
         final index = _rutaActual.indexOf(locId);
         return Card(
           key: ValueKey(locId),
-          color: Colors.blueAccent.withValues(alpha: 0.05),
+          color: colorScheme.primary.withValues(alpha: 0.05),
           elevation: 0,
           margin: const EdgeInsets.symmetric(vertical: 4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: Colors.blueAccent.withValues(alpha: 0.1),
+              color: colorScheme.primary.withValues(alpha: 0.15),
             ),
           ),
           child: ListTile(
             dense: true,
             leading: CircleAvatar(
               maxRadius: 12,
-              backgroundColor: Colors.blueAccent,
+              backgroundColor: colorScheme.primary,
               child: Text(
                 '${index + 1}',
-                style: const TextStyle(fontSize: 10, color: Colors.white),
+                style: TextStyle(fontSize: 10, color: colorScheme.onPrimary),
               ),
             ),
             title: Text(
@@ -321,10 +341,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
             ),
             trailing: Icon(
               Icons.drag_handle,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.3),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
           ),
         );
@@ -338,10 +357,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
         child: _rutaActual.isEmpty
             ? ListView(
                 controller: scrollController,
-                children: [
-                  ...buildHeaderControls(),
-                  ...buildRouteItems(),
-                ],
+                children: [...buildHeaderControls(), ...buildRouteItems()],
               )
             : Column(
                 children: [
@@ -362,49 +378,59 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       children: _rutaActual
                           .where((id) => mapLocales.containsKey(id))
                           .map((locId) {
-                        final loc = mapLocales[locId]!;
-                        final index = _rutaActual.indexOf(locId);
-                        return ReorderableDragStartListener(
-                          key: ValueKey(locId),
-                          index: index,
-                          child: Card(
-                            color: Colors.blueAccent.withValues(alpha: 0.05),
-                            elevation: 0,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: Colors.blueAccent.withValues(alpha: 0.1),
-                              ),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              leading: CircleAvatar(
-                                maxRadius: 12,
-                                backgroundColor: Colors.blueAccent,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                            final loc = mapLocales[locId]!;
+                            final index = _rutaActual.indexOf(locId);
+                            return ReorderableDragStartListener(
+                              key: ValueKey(locId),
+                              index: index,
+                              child: Card(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.05,
+                                ),
+                                elevation: 0,
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                  ),
+                                ),
+                                child: ListTile(
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    maxRadius: 12,
+                                    backgroundColor: colorScheme.primary,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    loc.nombreSocial ?? 'Local',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                    Icons.drag_handle,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.3),
+                                  ),
                                 ),
                               ),
-                              title: Text(
-                                loc.nombreSocial ?? 'Local',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              trailing: Icon(
-                                Icons.drag_handle,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.3),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          })
+                          .toList(),
                     ),
                   ),
                 ],
@@ -426,7 +452,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     child: Text(
                       'Seleccione mercado y cobrador',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.54),
                       ),
                     ),
                   )
@@ -443,49 +471,57 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     children: _rutaActual
                         .where((id) => mapLocales.containsKey(id))
                         .map((locId) {
-                      final loc = mapLocales[locId]!;
-                      final index = _rutaActual.indexOf(locId);
-                      return ReorderableDragStartListener(
-                        key: ValueKey(locId),
-                        index: index,
-                        child: Card(
-                          color: Colors.blueAccent.withValues(alpha: 0.05),
-                          elevation: 0,
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: Colors.blueAccent.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: ListTile(
-                            dense: true,
-                            leading: CircleAvatar(
-                              maxRadius: 12,
-                              backgroundColor: Colors.blueAccent,
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(fontSize: 10, color: Colors.white),
+                          final loc = mapLocales[locId]!;
+                          final index = _rutaActual.indexOf(locId);
+                          return ReorderableDragStartListener(
+                            key: ValueKey(locId),
+                            index: index,
+                            child: Card(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.05,
+                              ),
+                              elevation: 0,
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                ),
+                              ),
+                              child: ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  maxRadius: 12,
+                                  backgroundColor: colorScheme.primary,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  loc.nombreSocial ?? 'Local',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                trailing: Icon(
+                                  Icons.drag_handle,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.3),
+                                ),
                               ),
                             ),
-                            title: Text(
-                              loc.nombreSocial ?? 'Local',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontSize: 13,
-                              ),
-                            ),
-                            trailing: Icon(
-                              Icons.drag_handle,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.3),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        })
+                        .toList(),
                   ),
           ),
           const SizedBox(height: 16),
@@ -525,8 +561,12 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     points: selectedMercado!.perimetro!
                         .map((p) => LatLng(p['lat']!, p['lng']!))
                         .toList(),
-                    color: Colors.blue.withValues(alpha: 0.05),
-                    borderColor: Colors.blue.withValues(alpha: 0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.05),
+                    borderColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.2),
                     borderStrokeWidth: 1,
                   ),
                 ],
@@ -536,9 +576,15 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                   .where((l) => l.perimetro != null && l.perimetro!.isNotEmpty)
                   .map((l) {
                     return Polygon(
-                      points: l.perimetro!.map((p) => LatLng(p['lat']!, p['lng']!)).toList(),
-                      color: Colors.greenAccent.withValues(alpha: 0.2),
-                      borderColor: Colors.greenAccent.withValues(alpha: 0.5),
+                      points: l.perimetro!
+                          .map((p) => LatLng(p['lat']!, p['lng']!))
+                          .toList(),
+                      color: context.semanticColors.success.withValues(
+                        alpha: 0.2,
+                      ),
+                      borderColor: context.semanticColors.success.withValues(
+                        alpha: 0.5,
+                      ),
                       borderStrokeWidth: 2,
                     );
                   })
@@ -551,11 +597,14 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     points: _rutaActual
                         .where((id) => mapLocales.containsKey(id))
                         .map((id) {
-                      final loc = mapLocales[id]!;
-                      return LatLng(loc.latitud!, loc.longitud!);
-                    }).toList(),
+                          final loc = mapLocales[id]!;
+                          return LatLng(loc.latitud!, loc.longitud!);
+                        })
+                        .toList(),
                     strokeWidth: 4.0,
-                    color: Colors.blueAccent.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.7),
                   ),
               ],
             ),
@@ -572,13 +621,17 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          const Icon(Icons.location_on, color: Colors.redAccent, size: 30),
+                          Icon(
+                            Icons.location_on,
+                            color: context.semanticColors.danger,
+                            size: 30,
+                          ),
                           Positioned(
                             top: 2,
                             child: Text(
                               '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: context.semanticColors.onDanger,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 10,
                               ),
@@ -646,9 +699,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           SnackBar(
             content: Text(
               'Ruta guardada exitosamente',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              style: TextStyle(color: context.semanticColors.onSuccess),
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: context.semanticColors.success,
           ),
         );
       }
@@ -658,9 +711,9 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
           SnackBar(
             content: Text(
               'Error al guardar: $e',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              style: TextStyle(color: context.semanticColors.onDanger),
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: context.semanticColors.danger,
           ),
         );
       }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
@@ -36,6 +37,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
       localCobrosStreamProvider(widget.local.id ?? ''),
     );
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     final mercados = ref.watch(mercadosProvider).value ?? [];
 
     return localAsync.when(
@@ -53,10 +55,11 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
               local: local,
               actualCobros: cobrosList,
             );
-            final adelantadosVirtuales = VisualDebtUtils.generarAdelantadosVirtuales(
-              local: local,
-              actualCobros: cobrosList,
-            );
+            final adelantadosVirtuales =
+                VisualDebtUtils.generarAdelantadosVirtuales(
+                  local: local,
+                  actualCobros: cobrosList,
+                );
 
             final List<Cobro> combinedList = [
               ...cobrosList,
@@ -73,15 +76,26 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                 .length;
             final totalRecaudado = combinedList.fold<num>(
               0,
-              (sum, c) => sum + (
-                (['cobrado', 'abono_parcial', 'adelantado'].contains(c.estado) && (c.correlativo ?? 0) > 0)
-                ? (c.monto ?? 0)
-                : 0
-              ),
+              (sum, c) =>
+                  sum +
+                  (([
+                            'cobrado',
+                            'abono_parcial',
+                            'adelantado',
+                          ].contains(c.estado) &&
+                          (c.correlativo ?? 0) > 0)
+                      ? (c.monto ?? 0)
+                      : 0),
             );
-            
-            final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
-            final balanceNetoVisual = VisualDebtUtils.calcularBalanceNetoVisual(local, cobrosList);
+
+            final deudaVisual = VisualDebtUtils.calcularDeudaVisual(
+              local,
+              cobrosList,
+            );
+            final balanceNetoVisual = VisualDebtUtils.calcularBalanceNetoVisual(
+              local,
+              cobrosList,
+            );
 
             combinedList.sort(
               (a, b) =>
@@ -184,7 +198,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                                 value: DateFormatter.formatCurrency(
                                   local.saldoAFavor ?? 0,
                                 ),
-                                color: const Color(0xFF00D9A6),
+                                color: semantic.success,
                                 icon: Icons.savings_rounded,
                               ),
                               _KpiItem(
@@ -192,7 +206,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                                 value: DateFormatter.formatCurrency(
                                   deudaVisual,
                                 ),
-                                color: const Color(0xFFEE5A6F),
+                                color: semantic.danger,
                                 icon: Icons.warning_amber_rounded,
                               ),
                               _KpiItem(
@@ -201,8 +215,8 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                                   balanceNetoVisual,
                                 ),
                                 color: balanceNetoVisual >= 0
-                                    ? const Color(0xFF00D9A6)
-                                    : const Color(0xFFEE5A6F),
+                                    ? semantic.success
+                                    : semantic.danger,
                                 icon: balanceNetoVisual >= 0
                                     ? Icons.account_balance_wallet_rounded
                                     : Icons.account_balance_rounded,
@@ -216,20 +230,20 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               _KpiItem(
                                 label: 'Días Cobrados',
                                 value: '$diasCobrados',
-                                color: Colors.green,
+                                color: semantic.success,
                                 icon: Icons.check_circle_rounded,
                               ),
                               _KpiItem(
                                 label: 'Días Pendientes',
                                 value: '$diasPendientes',
-                                color: const Color(0xFFEE5A6F),
+                                color: semantic.danger,
                                 icon: Icons.cancel_rounded,
                               ),
                               _KpiItem(
                                 label: 'Días Adelantados',
                                 value:
                                     '${((local.saldoAFavor ?? 0) / ((local.cuotaDiaria ?? 0) > 0 ? local.cuotaDiaria! : 1)).floor()}',
-                                color: const Color(0xFFFF9F43),
+                                color: semantic.warning,
                                 icon: Icons.fast_forward_rounded,
                               ),
                             ],
@@ -242,7 +256,7 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                                 value: DateFormatter.formatCurrency(
                                   totalRecaudado,
                                 ),
-                                color: const Color(0xFF6C63FF),
+                                color: semantic.info,
                                 icon: Icons.payments_rounded,
                               ),
                               _KpiItem(
@@ -479,6 +493,7 @@ class _FiltroBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
     final opciones = [
       (
         'todos',
@@ -490,13 +505,13 @@ class _FiltroBar extends StatelessWidget {
         'cobrado',
         'Cobrados',
         cobros.where((c) => c.estado == 'cobrado').length,
-        Colors.green,
+        semantic.success,
       ),
       (
         'pendiente',
         'Pendientes',
         cobros.where((c) => c.estado == 'pendiente').length,
-        const Color(0xFFEE5A6F),
+        semantic.danger,
       ),
       (
         'abono_parcial',
@@ -506,7 +521,7 @@ class _FiltroBar extends StatelessWidget {
               (c) => c.estado == 'abono_parcial' || c.estado == 'adelantado',
             )
             .length,
-        const Color(0xFFFF9F43),
+        semantic.warning,
       ),
     ];
 
@@ -563,6 +578,7 @@ class _CobroRow extends ConsumerWidget {
   const _CobroRow({required this.cobro});
 
   Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
+    final semantic = context.semanticColors;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -578,7 +594,10 @@ class _CobroRow extends ConsumerWidget {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: semantic.danger,
+              foregroundColor: semantic.onDanger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
@@ -591,9 +610,9 @@ class _CobroRow extends ConsumerWidget {
       await repo.eliminarCobro(cobro);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('✅ Cobro eliminado y saldos revertidos'),
-            backgroundColor: Colors.green,
+            backgroundColor: semantic.success,
           ),
         );
       }
@@ -602,7 +621,7 @@ class _CobroRow extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error al eliminar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: semantic.danger,
           ),
         );
       }
@@ -613,22 +632,27 @@ class _CobroRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final estado = cobro.estado ?? 'desconocido';
     final fecha = cobro.fecha;
+    final semantic = context.semanticColors;
 
     Color estadoColor;
     IconData estadoIcon;
     switch (estado) {
       case 'cobrado':
-        estadoColor = Colors.green;
+        estadoColor = semantic.success;
         estadoIcon = Icons.check_circle_rounded;
+        break;
       case 'pendiente':
-        estadoColor = const Color(0xFFEE5A6F);
+        estadoColor = semantic.danger;
         estadoIcon = Icons.cancel_rounded;
+        break;
       case 'abono_parcial':
-        estadoColor = const Color(0xFFFF9F43);
+        estadoColor = semantic.warning;
         estadoIcon = Icons.timelapse_rounded;
+        break;
       case 'adelantado':
-        estadoColor = const Color(0xFFFF9F43);
+        estadoColor = semantic.warning;
         estadoIcon = Icons.fast_forward_rounded;
+        break;
       default:
         estadoColor = Theme.of(
           context,
@@ -760,13 +784,13 @@ class _CobroRow extends ConsumerWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.10),
+                        color: semantic.danger.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         Icons.delete_outline_rounded,
                         size: 16,
-                        color: Colors.red.shade400,
+                        color: semantic.danger,
                       ),
                     ),
                   ),

@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 
 import '../../../../core/utils/qr_pdf_generator.dart';
@@ -415,6 +416,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   }
 
   Future<void> _exportarCsvWeb(BuildContext context) async {
+    final semantic = context.semanticColors;
     if (!kIsWeb || _isExportingCsv) return;
 
     setState(() => _isExportingCsv = true);
@@ -441,7 +443,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('CSV exportado: ${locales.length} locales'),
-            backgroundColor: Colors.green,
+            backgroundColor: semantic.success,
           ),
         );
       }
@@ -450,7 +452,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al exportar CSV: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: semantic.danger,
           ),
         );
       }
@@ -460,6 +462,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   }
 
   Future<void> _migrarCodigoLower(BuildContext context) async {
+    final semantic = context.semanticColors;
     if (_isMigratingCodigo) return;
 
     final confirm = await showDialog<bool>(
@@ -497,7 +500,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Migración completa: $updated locales actualizados'),
-            backgroundColor: Colors.green,
+            backgroundColor: semantic.success,
           ),
         );
       }
@@ -506,7 +509,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al migrar códigos: '),
-            backgroundColor: Colors.red,
+            backgroundColor: semantic.danger,
           ),
         );
       }
@@ -849,11 +852,15 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+            Icon(
+              Icons.error_outline,
+              color: context.semanticColors.danger,
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
               state.errorMsg!,
-              style: const TextStyle(color: Colors.redAccent),
+              style: TextStyle(color: context.semanticColors.danger),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -1407,7 +1414,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.semanticColors.danger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
@@ -1503,9 +1512,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         nuevoSaldo < 0) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Valores invalidos: usa numeros >= 0.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: context.semanticColors.danger,
           ),
         );
       }
@@ -1543,9 +1552,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Deuda y saldo actualizados (debug).'),
-            backgroundColor: Colors.green,
+            backgroundColor: context.semanticColors.success,
           ),
         );
       }
@@ -1554,7 +1563,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al actualizar: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: context.semanticColors.danger,
           ),
         );
       }
@@ -1651,7 +1660,9 @@ class _LocalesListView extends ConsumerWidget {
                       return Text(
                         DateFormatter.formatCurrency(deudaVisual),
                         style: TextStyle(
-                          color: deudaVisual > 0 ? Colors.redAccent : null,
+                          color: deudaVisual > 0
+                              ? context.semanticColors.danger
+                              : null,
                           fontWeight: deudaVisual > 0 ? FontWeight.bold : null,
                         ),
                       );
@@ -1663,7 +1674,7 @@ class _LocalesListView extends ConsumerWidget {
                     DateFormatter.formatCurrency(l.saldoAFavor),
                     style: TextStyle(
                       color: (l.saldoAFavor ?? 0) > 0
-                          ? Colors.greenAccent
+                          ? context.semanticColors.success
                           : null,
                       fontWeight: (l.saldoAFavor ?? 0) > 0
                           ? FontWeight.bold
@@ -1699,10 +1710,10 @@ class _LocalesListView extends ConsumerWidget {
                         tooltip: 'Editar',
                       ),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.delete_rounded,
                           size: 18,
-                          color: Colors.redAccent,
+                          color: context.semanticColors.danger,
                         ),
                         onPressed: () => onDelete(l),
                         tooltip: 'Eliminar',
