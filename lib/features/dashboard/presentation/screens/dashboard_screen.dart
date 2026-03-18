@@ -472,44 +472,48 @@ class _ParticipacionCobradoresChart extends StatelessWidget {
             ? semantic.success
             : semantic.warning;
 
-        return Padding(
-          padding: EdgeInsets.only(bottom: idx == top.length - 1 ? 0 : 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+        return Tooltip(
+          message:
+              '$nombre\nMonto: ${DateFormatter.formatCurrency(item.value)}\nParticipacion: ${porcentaje.toStringAsFixed(porcentaje >= 10 ? 0 : 1)}%',
+          child: Padding(
+            padding: EdgeInsets.only(bottom: idx == top.length - 1 ? 0 : 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${DateFormatter.formatCurrency(item.value)} | ${porcentaje.toStringAsFixed(porcentaje >= 10 ? 0 : 1)}%',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(width: 8),
+                    Text(
+                      '${DateFormatter.formatCurrency(item.value)} | ${porcentaje.toStringAsFixed(porcentaje >= 10 ? 0 : 1)}%',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  value: ratio,
-                  backgroundColor: colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    minHeight: 8,
+                    value: ratio,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),
@@ -548,44 +552,48 @@ class _MoraCobradoresChart extends StatelessWidget {
         final nombre = nombres[item.key] ?? item.key;
         final ratio = (item.value.toDouble() / maxMora).clamp(0.0, 1.0);
         final barColor = idx == 0 ? semantic.danger : semantic.warning;
-        return Padding(
-          padding: EdgeInsets.only(bottom: idx == top.length - 1 ? 0 : 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+        return Tooltip(
+          message:
+              '$nombre\nMora recuperada: ${DateFormatter.formatCurrency(item.value)}',
+          child: Padding(
+            padding: EdgeInsets.only(bottom: idx == top.length - 1 ? 0 : 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormatter.formatCurrency(item.value),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormatter.formatCurrency(item.value),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  value: ratio,
-                  backgroundColor: colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    minHeight: 8,
+                    value: ratio,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),
@@ -622,54 +630,61 @@ class _CumplimientoPeriodoChart extends StatelessWidget {
         ? 'Meta en progreso'
         : 'Meta rezagada';
 
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: normalized,
-                strokeWidth: 6,
-                color: color,
-                backgroundColor: colorScheme.surfaceContainerHighest,
-              ),
-              Icon(Icons.track_changes_rounded, size: 18, color: color),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                estado,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Recaudado ${DateFormatter.formatCurrency(recaudado)} de ${DateFormatter.formatCurrency(meta)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+    return Tooltip(
+      message:
+          'Cumplimiento: ${cumplimiento.toStringAsFixed(cumplimiento >= 10 ? 0 : 1)}%\n'
+          'Recaudado: ${DateFormatter.formatCurrency(recaudado)}\n'
+          'Meta: ${DateFormatter.formatCurrency(meta)}'
+          '${pendiente > 0 ? '\nPendiente: ${DateFormatter.formatCurrency(pendiente)}' : ''}',
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: normalized,
+                  strokeWidth: 6,
+                  color: color,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
                 ),
-              ),
-              if (pendiente > 0)
+                Icon(Icons.track_changes_rounded, size: 18, color: color),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  'Pendiente: ${DateFormatter.formatCurrency(pendiente)}',
+                  estado,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Recaudado ${DateFormatter.formatCurrency(recaudado)} de ${DateFormatter.formatCurrency(meta)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
-            ],
+                if (pendiente > 0)
+                  Text(
+                    'Pendiente: ${DateFormatter.formatCurrency(pendiente)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

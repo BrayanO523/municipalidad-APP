@@ -8,21 +8,18 @@ import 'recaudacion_bar_chart.dart';
 class DashboardChartsWidget extends ConsumerWidget {
   final List<Cobro> cobrosHoy;
 
-  const DashboardChartsWidget({
-    super.key,
-    required this.cobrosHoy,
-  });
+  const DashboardChartsWidget({super.key, required this.cobrosHoy});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locales = ref.watch(localesProvider).value ?? [];
     final allMercados = ref.watch(mercadosProvider).value ?? [];
     final selectedMercadoId = ref.watch(dashboardMercadoIdProvider);
+    final filter = ref.watch(dashboardFilterProvider);
 
     final mercados = selectedMercadoId != null
         ? allMercados.where((m) => m.id == selectedMercadoId).toList()
         : allMercados;
-
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -35,6 +32,7 @@ class DashboardChartsWidget extends ConsumerWidget {
                   child: CobrosStatusPieChart(
                     cobrosHoy: cobrosHoy,
                     locales: locales,
+                    pendingLabel: filter.label,
                   ),
                 ),
               ),
@@ -59,6 +57,7 @@ class DashboardChartsWidget extends ConsumerWidget {
                 child: CobrosStatusPieChart(
                   cobrosHoy: cobrosHoy,
                   locales: locales,
+                  pendingLabel: filter.label,
                 ),
               ),
               const SizedBox(height: 16),
@@ -77,4 +76,3 @@ class DashboardChartsWidget extends ConsumerWidget {
     );
   }
 }
-
