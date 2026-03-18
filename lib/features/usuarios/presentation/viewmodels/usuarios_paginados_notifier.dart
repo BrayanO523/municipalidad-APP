@@ -133,6 +133,17 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
           return (u.email ?? '').toLowerCase().contains(q);
         case 'Codigo':
           return (u.codigoCobrador ?? '').toLowerCase().contains(q);
+        case 'Anio':
+          return (u.anioCorrelativo ?? DateTime.now().year).toString().contains(
+            q,
+          );
+        case 'Ultimo correlativo':
+          return (u.ultimoCorrelativo ?? 0).toString().contains(q);
+        case 'Estado':
+          final estado = (u.ultimoCorrelativo ?? 0) > 0
+              ? 'activo'
+              : 'sin cobros';
+          return estado.contains(q);
         case 'Mercado':
           return (u.mercadoId ?? '').toLowerCase().contains(q);
         case 'Nombre':
