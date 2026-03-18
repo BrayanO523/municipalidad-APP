@@ -10,17 +10,21 @@ class UsuariosPaginadosState {
   final String? errorMsg;
   final bool hayMas;
   final int paginaActual;
-  final List<QueryDocumentSnapshot?> snapshotsPaginas;
-  final String? searchQuery;
+  final int totalPaginas;
+  final int totalRegistros;
+  final String searchQuery;
+  final String searchColumn;
 
-  UsuariosPaginadosState({
+  const UsuariosPaginadosState({
     this.usuarios = const [],
     this.cargando = false,
     this.errorMsg,
     this.hayMas = false,
     this.paginaActual = 1,
-    this.snapshotsPaginas = const [null],
-    this.searchQuery,
+    this.totalPaginas = 1,
+    this.totalRegistros = 0,
+    this.searchQuery = '',
+    this.searchColumn = 'Nombre',
   });
 
   UsuariosPaginadosState copyWith({
@@ -29,17 +33,22 @@ class UsuariosPaginadosState {
     String? errorMsg,
     bool? hayMas,
     int? paginaActual,
-    List<QueryDocumentSnapshot?>? snapshotsPaginas,
+    int? totalPaginas,
+    int? totalRegistros,
     String? searchQuery,
+    String? searchColumn,
+    bool clearError = false,
   }) {
     return UsuariosPaginadosState(
       usuarios: usuarios ?? this.usuarios,
       cargando: cargando ?? this.cargando,
-      errorMsg: errorMsg,
+      errorMsg: clearError ? null : (errorMsg ?? this.errorMsg),
       hayMas: hayMas ?? this.hayMas,
       paginaActual: paginaActual ?? this.paginaActual,
-      snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
+      totalPaginas: totalPaginas ?? this.totalPaginas,
+      totalRegistros: totalRegistros ?? this.totalRegistros,
       searchQuery: searchQuery ?? this.searchQuery,
+      searchColumn: searchColumn ?? this.searchColumn,
     );
   }
 }
@@ -48,14 +57,13 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
   static const int _pageSize = 20;
 
   @override
-  UsuariosPaginadosState build() {
-    return UsuariosPaginadosState();
-  }
+  UsuariosPaginadosState build() => const UsuariosPaginadosState();
 
   Future<void> cargarPagina({bool reiniciar = false}) async {
     if (state.cargando) return;
 
-    state = state.copyWith(cargando: true, errorMsg: null);
+    final targetPage = reiniciar ? 1 : state.paginaActual;
+    state = state.copyWith(cargando: true, clearError: true);
 
     try {
       final firestore = ref.read(firestoreProvider);
@@ -70,44 +78,38 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
         query = query.where('municipalidadId', isEqualTo: municipalidadId);
       }
 
-      query = query.orderBy('nombre');
+      final result = await query.get();
+      final todos = result.docs.map(_mapDocToUsuario).toList()
+        ..sort((a, b) => (a.nombre ?? '').compareTo(b.nombre ?? ''));
 
-      final snapshotActual =
-          reiniciar ? null : state.snapshotsPaginas[state.paginaActual - 1];
-
-      if (snapshotActual != null) {
-        query = query.startAfterDocument(snapshotActual);
-      }
-
-      final result = await query.limit(_pageSize + 1).get();
-
-      final docs = result.docs;
-      final hayMas = docs.length > _pageSize;
-      final docsAMostrar = hayMas ? docs.sublist(0, _pageSize) : docs;
-
-      final usuariosList =
-          docsAMostrar.map((doc) {
-            return _mapDocToUsuario(doc);
-          }).toList();
-
-      final nuevasPaginas = List<QueryDocumentSnapshot?>.from(
-        state.snapshotsPaginas,
+      final filtrados = _aplicarBusqueda(
+        todos,
+        query: state.searchQuery,
+        column: state.searchColumn,
       );
-      if (reiniciar) {
-        nuevasPaginas.clear();
-        nuevasPaginas.add(null);
-      }
 
-      if (hayMas && nuevasPaginas.length <= state.paginaActual) {
-        nuevasPaginas.add(docsAMostrar.last);
-      }
+      final totalRegistros = filtrados.length;
+      final totalPaginas = totalRegistros == 0
+          ? 1
+          : (totalRegistros / _pageSize).ceil();
+      final paginaActual = targetPage.clamp(1, totalPaginas);
+
+      final start = (paginaActual - 1) * _pageSize;
+      final endExclusive = (start + _pageSize > totalRegistros)
+          ? totalRegistros
+          : start + _pageSize;
+
+      final usuariosPagina = start >= totalRegistros
+          ? <Usuario>[]
+          : filtrados.sublist(start, endExclusive);
 
       state = state.copyWith(
-        usuarios: usuariosList,
+        usuarios: usuariosPagina,
         cargando: false,
-        hayMas: hayMas,
-        paginaActual: reiniciar ? 1 : state.paginaActual,
-        snapshotsPaginas: nuevasPaginas,
+        hayMas: paginaActual < totalPaginas,
+        paginaActual: paginaActual,
+        totalPaginas: totalPaginas,
+        totalRegistros: totalRegistros,
       );
     } catch (e) {
       state = state.copyWith(
@@ -115,6 +117,31 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
         errorMsg: 'Error al cargar usuarios: $e',
       );
     }
+  }
+
+  List<Usuario> _aplicarBusqueda(
+    List<Usuario> usuarios, {
+    required String query,
+    required String column,
+  }) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return usuarios;
+
+    bool matches(Usuario u) {
+      switch (column) {
+        case 'Correo electronico':
+          return (u.email ?? '').toLowerCase().contains(q);
+        case 'Codigo':
+          return (u.codigoCobrador ?? '').toLowerCase().contains(q);
+        case 'Mercado':
+          return (u.mercadoId ?? '').toLowerCase().contains(q);
+        case 'Nombre':
+        default:
+          return (u.nombre ?? '').toLowerCase().contains(q);
+      }
+    }
+
+    return usuarios.where(matches).toList(growable: false);
   }
 
   Usuario _mapDocToUsuario(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -138,14 +165,14 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
   }
 
   void irAPaginaSiguiente() {
-    if (state.hayMas && !state.cargando) {
+    if (!state.cargando && state.paginaActual < state.totalPaginas) {
       state = state.copyWith(paginaActual: state.paginaActual + 1);
       cargarPagina();
     }
   }
 
   void irAPaginaAnterior() {
-    if (state.paginaActual > 1 && !state.cargando) {
+    if (!state.cargando && state.paginaActual > 1) {
       state = state.copyWith(paginaActual: state.paginaActual - 1);
       cargarPagina();
     }
@@ -156,10 +183,25 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
     cargarPagina(reiniciar: true);
   }
 
+  void cambiarColumnaBusqueda(String column) {
+    if (state.searchColumn == column) return;
+    state = state.copyWith(searchColumn: column);
+    cargarPagina(reiniciar: true);
+  }
+
+  Future<void> restablecerFiltros() async {
+    state = state.copyWith(
+      searchQuery: '',
+      searchColumn: 'Nombre',
+      paginaActual: 1,
+    );
+    await cargarPagina(reiniciar: true);
+  }
+
   Future<void> recargar() => cargarPagina(reiniciar: true);
 }
 
-final usuariosPaginadosProvider = NotifierProvider<
-  UsuariosPaginadosNotifier,
-  UsuariosPaginadosState
->(() => UsuariosPaginadosNotifier());
+final usuariosPaginadosProvider =
+    NotifierProvider<UsuariosPaginadosNotifier, UsuariosPaginadosState>(
+      UsuariosPaginadosNotifier.new,
+    );

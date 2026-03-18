@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,6 +18,8 @@ class UsuariosScreen extends ConsumerStatefulWidget {
 }
 
 class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _debounce;
   String _searchColumn = 'Nombre';
 
   @override
@@ -28,33 +32,59 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
   }
 
   @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      ref.read(usuariosPaginadosProvider.notifier).buscar(value);
+    });
+  }
+
+  Future<void> _limpiarFiltros() async {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    setState(() => _searchColumn = 'Nombre');
+    await ref.read(usuariosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(usuariosPaginadosProvider);
+    final notifier = ref.read(usuariosPaginadosProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: LayoutBuilder(
         builder: (context, outerConstraints) {
-          final isMobile = outerConstraints.maxWidth <= 700;
+          final isMobile = outerConstraints.maxWidth <= 760;
           return Padding(
             padding: isMobile
-                ? const EdgeInsets.all(12)
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
                 : const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _UsuariosHeader(
-                  onSearch: (q) =>
-                      ref.read(usuariosPaginadosProvider.notifier).buscar(q),
+                  paginaActual: state.paginaActual,
+                  totalRegistros: state.totalRegistros,
+                  searchController: _searchCtrl,
+                  onSearch: _onSearchChanged,
+                  onReload: notifier.recargar,
+                  onClear: _limpiarFiltros,
                   onAdd: () => _showFormDialog(context),
                   selectedColumn: _searchColumn,
                   onColumnChanged: (val) {
-                    if (val != null) {
-                      setState(() => _searchColumn = val);
-                    }
+                    if (val == null) return;
+                    setState(() => _searchColumn = val);
+                    notifier.cambiarColumnaBusqueda(val);
                   },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Expanded(
                   child: state.cargando && state.usuarios.isEmpty
                       ? const Center(child: CircularProgressIndicator())
@@ -67,53 +97,60 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                             ),
                           ),
                         )
-                      : state.usuarios.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No se encontraron usuarios',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.54),
-                            ),
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            Expanded(
-                              child: _UsuariosTable(
-                                usuarios: state.usuarios,
-                                onEdit: (u) =>
-                                    _showFormDialog(context, usuario: u),
-                                onDelete: (u) => _confirmDelete(context, u),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _PaginationBar(
-                              currentPage: state.paginaActual - 1,
-                              onPrev: state.paginaActual > 1
-                                  ? () => ref
-                                        .read(
-                                          usuariosPaginadosProvider.notifier,
-                                        )
-                                        .irAPaginaAnterior()
-                                  : null,
-                              onNext: state.hayMas
-                                  ? () => ref
-                                        .read(
-                                          usuariosPaginadosProvider.notifier,
-                                        )
-                                        .irAPaginaSiguiente()
-                                  : null,
-                              isCargando: state.cargando,
-                            ),
-                          ],
-                        ),
+                      : _buildContentCard(context, state),
                 ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildContentCard(BuildContext context, UsuariosPaginadosState state) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: state.usuarios.isEmpty
+                ? Center(
+                    child: Text(
+                      'No se encontraron cobradores',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.54),
+                      ),
+                    ),
+                  )
+                : _UsuariosTable(
+                    usuarios: state.usuarios,
+                    onEdit: (u) => _showFormDialog(context, usuario: u),
+                    onDelete: (u) => _confirmDelete(context, u),
+                  ),
+          ),
+          if (state.totalRegistros > 0)
+            _PaginationBar(
+              currentPage: state.paginaActual,
+              totalPages: state.totalPaginas,
+              onPrev: state.paginaActual > 1
+                  ? ref
+                        .read(usuariosPaginadosProvider.notifier)
+                        .irAPaginaAnterior
+                  : null,
+              onNext: state.paginaActual < state.totalPaginas
+                  ? ref
+                        .read(usuariosPaginadosProvider.notifier)
+                        .irAPaginaSiguiente
+                  : null,
+              isCargando: state.cargando,
+            ),
+        ],
       ),
     );
   }
@@ -1001,230 +1038,272 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 }
 
 class _UsuariosHeader extends StatelessWidget {
+  final int paginaActual;
+  final int totalRegistros;
+  final TextEditingController searchController;
   final ValueChanged<String> onSearch;
+  final VoidCallback onReload;
+  final Future<void> Function() onClear;
   final VoidCallback onAdd;
   final String selectedColumn;
   final ValueChanged<String?> onColumnChanged;
-
   const _UsuariosHeader({
+    required this.paginaActual,
+    required this.totalRegistros,
+    required this.searchController,
     required this.onSearch,
+    required this.onReload,
+    required this.onClear,
     required this.onAdd,
     required this.selectedColumn,
     required this.onColumnChanged,
   });
-
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-
-        if (isMobile) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 3,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.08)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final isDesktop = w >= 1100;
+            final isTablet = w >= 760 && w < 1100;
+            final isMobile = w < 760;
+            Widget actions({required bool compact}) {
+              final compactStyle = OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              );
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  Icon(
-                    Icons.people_alt_rounded,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Cobradores',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onReload,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('Recargar'),
                     ),
                   ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Crear', style: TextStyle(fontSize: 13)),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: () => onClear(),
+                      icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
+                      label: const Text('Limpiar'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
+                        ),
                       ),
+                      onPressed: onAdd,
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: const Text('Agregar'),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedColumn,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
-                        isDense: true,
-                        dropdownColor: Theme.of(context).colorScheme.surface,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 12,
-                        ),
-                        items: ['Nombre', 'Correo Electrónico'].map((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: onColumnChanged,
+              );
+            }
+
+            final headerLeft = Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.people_alt_rounded,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cobradores',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
                       ),
+                      Text(
+                        'Pagina ' +
+                            paginaActual.toString() +
+                            ' - ' +
+                            totalRegistros.toString() +
+                            ' registros',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.62),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            final header = isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      headerLeft,
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: actions(compact: true),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: headerLeft),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: actions(compact: !isDesktop),
+                        ),
+                      ),
+                    ],
+                  );
+            Widget filtersDesktop() {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: _SearchColumnDropdown(
+                      value: selectedColumn,
+                      onChanged: onColumnChanged,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: TextField(
-                        onChanged: onSearch,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 13,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Buscar...',
-                          hintStyle: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.54),
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.54),
-                            size: 18,
-                          ),
-                          filled: true,
-                          fillColor: Theme.of(context).cardTheme.color,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 0,
-                          ),
-                        ),
-                      ),
+                    child: _SearchInput(
+                      controller: searchController,
+                      onChanged: onSearch,
                     ),
                   ),
                 ],
-              ),
-            ],
-          );
-        }
+              );
+            }
 
-        // Desktop layout
-        return Row(
-          children: [
-            Icon(
-              Icons.people_alt_rounded,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Gestión de Cobradores',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+            Widget filtersTablet() {
+              return Column(
+                children: [
+                  _SearchColumnDropdown(
+                    value: selectedColumn,
+                    onChanged: onColumnChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  _SearchInput(
+                    controller: searchController,
+                    onChanged: onSearch,
+                  ),
+                ],
+              );
+            }
+
+            final filtersGroup = Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedColumn,
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                  ),
-                  isDense: true,
-                  dropdownColor: Theme.of(context).colorScheme.surface,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 13,
-                  ),
-                  items: ['Nombre', 'Correo Electrónico'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: onColumnChanged,
+                borderRadius: BorderRadius.circular(12),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.22,
+                ),
+                border: Border.all(
+                  color: colorScheme.onSurface.withValues(alpha: 0.08),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 250,
-              child: TextField(
-                onChanged: onSearch,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 13,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Buscar cobrador...',
-                  hintStyle: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                    size: 18,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).cardTheme.color,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Crear Cobrador'),
-            ),
-          ],
-        );
-      },
+              child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [header, const SizedBox(height: 8), filtersGroup],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchColumnDropdown extends StatelessWidget {
+  final String value;
+  final ValueChanged<String?> onChanged;
+  const _SearchColumnDropdown({required this.value, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      decoration: InputDecoration(
+        labelText: 'Buscar por',
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
+        DropdownMenuItem(
+          value: 'Correo electronico',
+          child: Text('Correo electronico'),
+        ),
+        DropdownMenuItem(value: 'Codigo', child: Text('Codigo')),
+        DropdownMenuItem(value: 'Mercado', child: Text('Mercado (ID)')),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _SearchInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _SearchInput({required this.controller, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Buscar cobrador',
+        hintText: 'Nombre, correo, codigo o mercado...',
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }
@@ -1233,228 +1312,232 @@ class _UsuariosTable extends ConsumerWidget {
   final List<Usuario> usuarios;
   final ValueChanged<Usuario> onEdit;
   final ValueChanged<Usuario> onDelete;
-
   const _UsuariosTable({
     required this.usuarios,
     required this.onEdit,
     required this.onDelete,
   });
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mercados = ref.watch(mercadosProvider).value ?? [];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+    return ListView.separated(
+      itemCount: usuarios.length,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
       ),
-      child: ListView.separated(
-        itemCount: usuarios.length,
-        separatorBuilder: (_, __) => Divider(
-          height: 1,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-        itemBuilder: (context, index) {
-          final u = usuarios[index];
-          final strMercado =
-              mercados.where((m) => m.id == u.mercadoId).firstOrNull?.nombre ??
-              'No asignado';
-
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
-              child: Text(
-                u.nombre?.substring(0, 1).toUpperCase() ?? 'U',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            title: Text(
-              u.nombre ?? '',
+      itemBuilder: (context, index) {
+        final u = usuarios[index];
+        final strMercado =
+            mercados.where((m) => m.id == u.mercadoId).firstOrNull?.nombre ??
+            'No asignado';
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 8,
+          ),
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.2),
+            child: Text(
+              u.nombre?.substring(0, 1).toUpperCase() ?? 'U',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            subtitle: LayoutBuilder(
-              builder: (context, subtitleConstraints) {
-                final isNarrow = subtitleConstraints.maxWidth < 300;
-                if (isNarrow) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        u.email ?? '',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Código: ${u.codigoCobrador ?? 'S/C'} • $strMercado',
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (u.creadoEn != null)
-                        Text(
-                          'Creado: ${DateFormatter.formatDate(u.creadoEn!)}',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.4),
-                            fontSize: 11,
-                          ),
-                        ),
-                    ],
-                  );
-                }
+          ),
+          title: Text(
+            u.nombre ?? '',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: LayoutBuilder(
+            builder: (context, subtitleConstraints) {
+              final isNarrow = subtitleConstraints.maxWidth < 300;
+              if (isNarrow) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${u.email} • Código: ${u.codigoCobrador ?? 'S/C'} • Mercado: $strMercado',
+                      u.email ?? '',
                       style: TextStyle(
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.54),
                         fontSize: 12,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      u.creadoEn != null
-                          ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
-                          : 'Creado: -',
+                      'Codigo: ' +
+                          (u.codigoCobrador ?? 'S/C') +
+                          ' - ' +
+                          strMercado,
                       style: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.4),
+                        ).colorScheme.onSurface.withValues(alpha: 0.54),
                         fontSize: 11,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (u.creadoEn != null)
+                      Text(
+                        'Creado: ' + DateFormatter.formatDate(u.creadoEn!),
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.4),
+                          fontSize: 11,
+                        ),
+                      ),
                   ],
                 );
-              },
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.edit_rounded,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (u.email ?? '') +
+                        ' - Codigo: ' +
+                        (u.codigoCobrador ?? 'S/C') +
+                        ' - Mercado: ' +
+                        strMercado,
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                      fontSize: 12,
+                    ),
                   ),
-                  onPressed: () => onEdit(u),
-                  tooltip: 'Editar',
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.analytics_rounded,
-                    color: Theme.of(context).colorScheme.primary,
+                  Text(
+                    u.creadoEn != null
+                        ? 'Creado: ' + DateFormatter.formatDate(u.creadoEn!)
+                        : 'Creado: -',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+                      fontSize: 11,
+                    ),
                   ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            CobradorHistorialScreen(cobrador: u),
-                      ),
-                    );
-                  },
-                  tooltip: 'Ver Historial y Gráficos',
+                ],
+              );
+            },
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.edit_rounded,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.delete_rounded,
-                    color: context.semanticColors.danger,
-                  ),
-                  onPressed: () => onDelete(u),
-                  tooltip: 'Eliminar',
+                onPressed: () => onEdit(u),
+                tooltip: 'Editar',
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.analytics_rounded,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CobradorHistorialScreen(cobrador: u),
+                    ),
+                  );
+                },
+                tooltip: 'Ver historial',
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.delete_rounded,
+                  color: context.semanticColors.danger,
+                ),
+                onPressed: () => onDelete(u),
+                tooltip: 'Eliminar',
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
+  final int totalPages;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final bool isCargando;
-
   const _PaginationBar({
     required this.currentPage,
+    required this.totalPages,
     required this.onPrev,
     required this.onNext,
     required this.isCargando,
   });
-
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (isCargando)
-          const Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Pagina ' + currentPage.toString() + ' de ' + totalPages.toString(),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded),
-          onPressed: isCargando ? null : onPrev,
-          color: onPrev != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Página ${currentPage + 1}',
-          style: TextStyle(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina siguiente',
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded),
-          onPressed: isCargando ? null : onNext,
-          color: onNext != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
