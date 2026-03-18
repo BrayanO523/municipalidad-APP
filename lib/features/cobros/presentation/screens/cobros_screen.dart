@@ -478,6 +478,18 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                         }).toList(),
                     onChanged: (v) => setState(() => _searchColumn = v!),
                   ),
+                  if (kDebugMode && widget.state.seleccionados.isNotEmpty) ...[
+                    const SizedBox(width: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.delete_sweep, size: 18),
+                      label: Text('Eliminar (${widget.state.seleccionados.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _confirmarEliminacionMultiple(context, ref),
+                    ),
+                  ],
                 ],
               );
             },
@@ -539,12 +551,14 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                   color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
                                 ),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Fila 1: Local + Monto
+                              child: Stack(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Fila 1: Local + Monto
                                     Row(
                                       children: [
                                         Expanded(
@@ -651,6 +665,21 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                   ],
                                 ),
                               ),
+                              if (kDebugMode)
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: Checkbox(
+                                    value: widget.state.seleccionados.contains(c.id),
+                                    onChanged: (val) {
+                                      if (c.id != null) {
+                                        ref.read(cobrosPaginadosProvider.notifier).toggleSeleccion(c.id!);
+                                      }
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
                             );
                           },
                         ),
@@ -679,20 +708,42 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    columns: const [
-                      DataColumn(label: Text('Fecha')),
-                      DataColumn(label: Text('Mercado')),
-                      DataColumn(label: Text('Local')),
-                      DataColumn(label: Text('Monto')),
-                      DataColumn(label: Text('Estado')),
-                      DataColumn(label: Text('Cobrador')),
-                      DataColumn(label: Text('Boleta')),
-                      DataColumn(label: Text('Acciones')),
+                    columns: [
+                      if (kDebugMode)
+                        DataColumn(
+                           label: Checkbox(
+                             value: filtered.isNotEmpty && filtered.every((c) => widget.state.seleccionados.contains(c.id)),
+                             onChanged: (val) {
+                               ref.read(cobrosPaginadosProvider.notifier).seleccionarTodos(filtered);
+                             },
+                           ),
+                        ),
+                      const DataColumn(label: Text('Fecha')),
+                      const DataColumn(label: Text('Mercado')),
+                      const DataColumn(label: Text('Local')),
+                      const DataColumn(label: Text('Monto')),
+                      const DataColumn(label: Text('Estado')),
+                      const DataColumn(label: Text('Cobrador')),
+                      const DataColumn(label: Text('Boleta')),
+                      const DataColumn(label: Text('Acciones')),
                     ],
                     rows:
                         filtered.map((c) {
                           return DataRow(
+                            selected: widget.state.seleccionados.contains(c.id),
+                            onSelectChanged: kDebugMode ? (val) {
+                              if (c.id != null) ref.read(cobrosPaginadosProvider.notifier).toggleSeleccion(c.id!);
+                            } : null,
                             cells: [
+                              if (kDebugMode)
+                                DataCell(
+                                  Checkbox(
+                                    value: widget.state.seleccionados.contains(c.id),
+                                    onChanged: (val) {
+                                      if (c.id != null) ref.read(cobrosPaginadosProvider.notifier).toggleSeleccion(c.id!);
+                                    },
+                                  ),
+                                ),
                               DataCell(Text(DateFormatter.formatDateTime(c.fecha))),
                               DataCell(Text(nombreMercado(c.mercadoId, mercados))),
                               DataCell(Text(nombreLocal(c.localId, locales))),
@@ -827,6 +878,44 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                   }
                 },
                 child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _confirmarEliminacionMultiple(BuildContext context, WidgetRef ref) {
+    if (!kDebugMode) return;
+    
+    final seleccionados = ref.read(cobrosPaginadosProvider).seleccionados;
+    if (seleccionados.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (dialogCtx) => AlertDialog(
+            title: const Text('Eliminar Múltiples Cobros', style: TextStyle(color: Colors.red)),
+            content: Text(
+              '¿Estás seguro de eliminar ${seleccionados.length} cobro(s)? Esta es una acción destructiva de DEBUG y borrará cada registro seleccionado. Esta operación podría tardar varios segundos según la cantidad.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.warning, size: 16),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  Navigator.pop(dialogCtx);
+                  await ref.read(cobrosPaginadosProvider.notifier).eliminarSeleccionados(ref);
+                  if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Eliminación múltiple completada.')),
+                      );
+                  }
+                },
+                label: const Text('ELIMINAR TODOS'),
               ),
             ],
           ),

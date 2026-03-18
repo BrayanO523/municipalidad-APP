@@ -225,6 +225,10 @@ class PdfGenerator {
               _buildGestionesTable(gestionesInfo, PdfColors.brown50),
               pw.SizedBox(height: 24),
             ],
+            if (gestionesInfo.isNotEmpty) ...[
+              _buildIncidenciasTabla(gestionesInfo, localInfo),
+              pw.SizedBox(height: 24),
+            ],
 
             // â”€â”€ Tabla Pendientes (desde pendientesInfo) â”€â”€
             if (pendientesInfo.isNotEmpty) ...[
@@ -417,6 +421,101 @@ class PdfGenerator {
       ],
     );
   }
+
+  static pw.Widget _buildIncidenciasTabla(
+    List<Map<String, dynamic>> gestionesInfo,
+    Map<String, Map<String, String>>? localInfo,
+  ) {
+    if (gestionesInfo.isEmpty) return pw.SizedBox();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Incidencias del día',
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.brown900,
+          ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(3), // Local
+            1: pw.FlexColumnWidth(2.5), // Boleta
+            2: pw.FlexColumnWidth(2.5), // Motivo
+            3: pw.FlexColumnWidth(3), // Comentario
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.brown50),
+              children: [
+                _cellHeader('Local'),
+                _cellHeader('Boleta'),
+                _cellHeader('Motivo'),
+                _cellHeader('Comentario'),
+              ],
+            ),
+            ...gestionesInfo.map((g) {
+              final localId = g['localId'] as String?;
+              final info = (localId != null && localInfo != null)
+                  ? localInfo[localId]
+                  : null;
+              final localNombre = info?['nombre'] ?? g['nombreSocial'] ?? 'S/N';
+              final codigo = info?['codigo'] ?? g['codigo'] ?? '';
+              final clave = info?['clave'] ?? g['clave'] ?? '';
+              final boleta = g['boleta'] as String? ?? '';
+              final tipo = g['tipoIncidencia'] as String? ?? 'OTRO';
+              final comentario = g['comentario'] as String? ?? '';
+
+              final detallesLocal = [
+                if (codigo.isNotEmpty) 'Cód: $codigo',
+                if (clave.isNotEmpty) 'Clave: $clave',
+              ].join(' \u2022 ');
+
+              return pw.TableRow(
+                verticalAlignment: pw.TableCellVerticalAlignment.middle,
+                children: [
+                  _cellBody(
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(localNombre, style: const pw.TextStyle(fontSize: 9)),
+                        if (detallesLocal.isNotEmpty)
+                          pw.Text(
+                            detallesLocal,
+                            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+                          ),
+                      ],
+                    ),
+                  ),
+                  _cellBody(pw.Text(boleta.isNotEmpty ? boleta : '-', style: const pw.TextStyle(fontSize: 9))),
+                  _cellBody(pw.Text(_labelTipoIncidencia(tipo), style: const pw.TextStyle(fontSize: 9))),
+                  _cellBody(pw.Text(
+                    comentario.isNotEmpty ? comentario : '-',
+                    style: const pw.TextStyle(fontSize: 9),
+                  )),
+                ],
+              );
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _cellHeader(String text) => pw.Padding(
+        padding: const pw.EdgeInsets.all(6),
+        child: pw.Text(
+          text,
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+        ),
+      );
+
+  static pw.Widget _cellBody(pw.Widget child) =>
+      pw.Padding(padding: const pw.EdgeInsets.all(6), child: child);
 
   static pw.Widget _buildPendientesTable(
     List<Map<String, dynamic>> pendientesInfo,

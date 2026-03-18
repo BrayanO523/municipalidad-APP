@@ -101,5 +101,20 @@ class CorteRepositoryImpl implements CorteRepository {
       fecha: fecha,
     );
   }
+
+  @override
+  Stream<List<Corte>> streamCortesRangoPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime desde,
+    required DateTime hasta,
+  }) {
+    return datasource.streamCortesRangoPorMercado(
+      mercadoId: mercadoId,
+      municipalidadId: municipalidadId,
+      desde: desde,
+      hasta: hasta,
+    );
+  }
 }
 

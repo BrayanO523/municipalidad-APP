@@ -11,7 +11,8 @@ class CorteMercadoState {
   final bool isLoading;
   final String? error;
   final Mercado? mercadoSeleccionado;
-  final DateTime fechaSeleccionada;
+  final DateTime fechaDesde;
+  final DateTime fechaHasta;
   final List<Corte> cortesDelDia;
   final bool yaRealizadoHoy;
   final bool exitoAlRealizar;
@@ -20,7 +21,8 @@ class CorteMercadoState {
     this.isLoading = false,
     this.error,
     this.mercadoSeleccionado,
-    required this.fechaSeleccionada,
+    required this.fechaDesde,
+    required this.fechaHasta,
     this.cortesDelDia = const [],
     this.yaRealizadoHoy = false,
     this.exitoAlRealizar = false,
@@ -45,7 +47,8 @@ class CorteMercadoState {
     bool? isLoading,
     String? error,
     Mercado? mercadoSeleccionado,
-    DateTime? fechaSeleccionada,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
     List<Corte>? cortesDelDia,
     bool? yaRealizadoHoy,
     bool? exitoAlRealizar,
@@ -55,7 +58,8 @@ class CorteMercadoState {
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       mercadoSeleccionado: mercadoSeleccionado ?? this.mercadoSeleccionado,
-      fechaSeleccionada: fechaSeleccionada ?? this.fechaSeleccionada,
+      fechaDesde: fechaDesde ?? this.fechaDesde,
+      fechaHasta: fechaHasta ?? this.fechaHasta,
       cortesDelDia: cortesDelDia ?? this.cortesDelDia,
       yaRealizadoHoy: yaRealizadoHoy ?? this.yaRealizadoHoy,
       exitoAlRealizar: exitoAlRealizar ?? this.exitoAlRealizar,
@@ -72,7 +76,8 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
   @override
   CorteMercadoState build() {
     ref.onDispose(() => _subscription?.cancel());
-    return CorteMercadoState(fechaSeleccionada: DateTime.now());
+    final hoy = DateTime.now();
+    return CorteMercadoState(fechaDesde: hoy, fechaHasta: hoy);
   }
 
   /// Selecciona un mercado y se suscribe al stream de cortes del día en tiempo real.
@@ -85,8 +90,7 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
     await _suscribirStream(mercado);
   }
 
-  /// Cambia la fecha seleccionada y recarga los cortes.
-  Future<void> seleccionarFecha(DateTime fecha) async {
+  Future<void> seleccionarFechaUnica(DateTime fecha) async {
     final mercado = state.mercadoSeleccionado;
     if (mercado == null) return;
 
@@ -94,7 +98,38 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
     _subscription = null;
 
     state = state.copyWith(
-      fechaSeleccionada: fecha,
+      fechaDesde: fecha,
+      fechaHasta: fecha,
+      isLoading: true,
+      clearError: true,
+    );
+    await _suscribirStream(mercado);
+  }
+
+  Future<void> seleccionarDesde(DateTime fecha) async {
+    final mercado = state.mercadoSeleccionado;
+    if (mercado == null) return;
+    final ajustadaHasta = state.fechaHasta.isBefore(fecha) ? fecha : state.fechaHasta;
+    await _subscription?.cancel();
+    _subscription = null;
+    state = state.copyWith(
+      fechaDesde: fecha,
+      fechaHasta: ajustadaHasta,
+      isLoading: true,
+      clearError: true,
+    );
+    await _suscribirStream(mercado);
+  }
+
+  Future<void> seleccionarHasta(DateTime fecha) async {
+    final mercado = state.mercadoSeleccionado;
+    if (mercado == null) return;
+    final ajustadaDesde = state.fechaDesde.isAfter(fecha) ? fecha : state.fechaDesde;
+    await _subscription?.cancel();
+    _subscription = null;
+    state = state.copyWith(
+      fechaDesde: ajustadaDesde,
+      fechaHasta: fecha,
       isLoading: true,
       clearError: true,
     );
@@ -120,26 +155,28 @@ class CorteMercadoNotifier extends Notifier<CorteMercadoState> {
 
       final repo = ref.read(corteRepositoryProvider);
       final now = DateTime.now();
-      final fecha = state.fechaSeleccionada;
+      final desde = state.fechaDesde;
+      final hasta = state.fechaHasta;
 
       // Verificar si ya realizó corte de mercado hoy (solo si la fecha seleccionada es hoy)
-      final yaRealizado =
-          fecha.year == now.year &&
-              fecha.month == now.month &&
-              fecha.day == now.day
+      final incluyeHoy = !now.isBefore(DateTime(desde.year, desde.month, desde.day)) &&
+          !now.isAfter(DateTime(hasta.year, hasta.month, hasta.day, 23, 59, 59, 999));
+      final yaRealizado = incluyeHoy
           ? (await repo.existeCorteMercadoHoy(
-              mercadoId: mercado.id!,
-              municipalidadId: user.municipalidadId ?? '',
-              fecha: now,
-            )).getOrElse((_) => false)
+                mercadoId: mercado.id!,
+                municipalidadId: user.municipalidadId ?? '',
+                fecha: now,
+              ))
+              .getOrElse((_) => false)
           : false;
 
       // Suscribirse al stream en tiempo real
       _subscription = repo
-          .streamCortesDiaPorMercado(
+          .streamCortesRangoPorMercado(
             mercadoId: mercado.id!,
             municipalidadId: user.municipalidadId ?? '',
-            fecha: fecha,
+            desde: desde,
+            hasta: hasta,
           )
           .listen(
             (cortes) {

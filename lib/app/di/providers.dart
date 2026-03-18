@@ -746,6 +746,42 @@ final cobrosHoyCobradorProvider = StreamProvider<List<Cobro>>((ref) {
 
 // â”€â”€ Gestiones / Incidencias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+final deudasVencidasCobradorProvider =
+    StreamProvider<Map<String, double>>((ref) {
+      final user = ref.watch(currentUsuarioProvider).value;
+      final locales = ref.watch(localesCobradorProvider).value ?? const <Local>[];
+      if (user == null || locales.isEmpty) {
+        return Stream.value(const <String, double>{});
+      }
+
+      final routeIds = locales.map((l) => l.id).whereType<String>().toSet();
+      if (routeIds.isEmpty) {
+        return Stream.value(const <String, double>{});
+      }
+
+      final ds = ref.read(cobroDatasourceProvider);
+      final hoy = DateTime.now();
+
+      return ds
+          .streamDeudasVencidasHasta(
+            hoy,
+            municipalidadId: user.municipalidadId,
+            mercadoId: user.mercadoId,
+          )
+          .map((cobros) {
+            final acumulado = <String, double>{};
+            for (final cobro in cobros) {
+              final localId = cobro.localId;
+              if (localId == null || !routeIds.contains(localId)) continue;
+              final saldo =
+                  (cobro.saldoPendiente ?? cobro.cuotaDiaria ?? 0).toDouble();
+              if (saldo <= 0) continue;
+              acumulado[localId] = (acumulado[localId] ?? 0) + saldo;
+            }
+            return acumulado;
+          });
+    });
+
 final gestionDatasourceProvider = Provider<GestionDatasource>(
   (ref) => GestionDatasource(ref.read(firestoreProvider)),
 );

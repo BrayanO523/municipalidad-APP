@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -12,7 +12,6 @@ import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/dashboard_charts.dart';
-import '../widgets/mora_corriente_chart.dart';
 import '../../../../core/utils/mass_import_eventuales.dart';
 import '../../../../core/utils/mass_import_locales.dart';
 import '../../../../core/utils/mass_import_faltantes_locales_inmaculada.dart';
@@ -78,7 +77,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.invalidate(statsProvider);
       // ref.invalidate(statsAggregationsProvider); // Removido por refactor a localesProvider
     } catch (e) {
-      debugPrint('⚠️ Error en verificación de deuda web: $e');
+      debugPrint('Error en verificación de deuda web: $e');
     }
   }
 
@@ -87,7 +86,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final rt = ref.watch(dashboardRealTimeStatsProvider);
     final filter = ref.watch(dashboardFilterProvider);
-    final statsAsync = ref.watch(statsProvider);
+    final moraPeriodo = rt.totalMoraRecuperada;
+    final totalPeriodo = rt.recaudadoPeriodo;
+    final corrientePeriodo = (totalPeriodo - moraPeriodo).clamp(
+      0,
+      double.infinity,
+    );
+    final showPendienteHoy = filter.period == DashboardPeriod.hoy;
+    final cobrosValidos = (cobrosHoy.value ?? [])
+        .where((c) => c.estado != 'anulado')
+        .where((c) => (c.correlativo ?? 0) > 0 || c.numeroBoleta != null)
+        .toList();
+    final localesQuePagaron = cobrosValidos
+        .map((c) => c.localId)
+        .whereType<String>()
+        .toSet()
+        .length;
+    final ticketPromedio = rt.cobrosPeriodo > 0
+        ? totalPeriodo / rt.cobrosPeriodo
+        : 0;
+    final coberturaCobro = rt.cantidadLocales > 0
+        ? (localesQuePagaron / rt.cantidadLocales) * 100
+        : 0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -102,14 +122,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Header ───────────────────────────────────────────────────
+                // Header
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Expanded(child: _DashboardHeader())],
+                  children: [
+                    Expanded(
+                      child: _DashboardHeader(
+                        cantidadMercados: rt.cantidadMercados,
+                        cantidadLocales: rt.cantidadLocales,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
-                // ── KPI cards — fila 1: recaudación del día ──────────────────
+                // KPIs operativos del periodo
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final crossAxisCount = constraints.maxWidth > 1000
@@ -127,10 +154,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         SizedBox(
                           width: cardW,
                           child: MetricCard(
-                            title: 'Recaudación ${filter.label}',
-                            value: DateFormatter.formatCurrency(rt.recaudadoPeriodo),
+                            title: 'Corriente ${filter.label}',
+                            value: DateFormatter.formatCurrency(
+                              corrientePeriodo,
+                            ),
                             icon: Icons.payments_rounded,
                             color: const Color(0xFF00D9A6),
+                            subtitle: 'Total del periodo menos mora recuperada',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Mora Recuperada ${filter.label}',
+                            value: DateFormatter.formatCurrency(moraPeriodo),
+                            icon: Icons.currency_exchange_rounded,
+                            color: const Color(0xFFFF9F43),
+                            subtitle: 'Pagos aplicados a deuda vencida',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Total Recaudado ${filter.label}',
+                            value: DateFormatter.formatCurrency(totalPeriodo),
+                            icon: Icons.account_balance_wallet_rounded,
+                            color: const Color(0xFF6C63FF),
+                            subtitle: 'Corriente + mora del periodo',
                           ),
                         ),
                         SizedBox(
@@ -139,25 +189,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Cobros ${filter.label}',
                             value: '${rt.cobrosPeriodo}',
                             icon: Icons.receipt_long_rounded,
-                            color: const Color(0xFF6C63FF),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: MetricCard(
-                            title: 'Mercados Activos',
-                            value: '${rt.cantidadMercados}',
-                            icon: Icons.store_rounded,
-                            color: const Color(0xFFFF9F43),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: MetricCard(
-                            title: 'Locales Registrados',
-                            value: '${rt.cantidadLocales}',
-                            icon: Icons.storefront_rounded,
                             color: const Color(0xFFEE5A6F),
+                            subtitle: 'Recibos válidos emitidos en el periodo',
                           ),
                         ),
                       ],
@@ -166,12 +199,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── KPI cards — fila 2: deudas, saldo a favor y MORA ──────────
+                // KPIs de cartera
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final stats = statsAsync.value;
                     final crossAxisCount = constraints.maxWidth > 900
-                        ? (rt.totalMoraRecuperada > 0 ? 4 : 3)
+                        ? (showPendienteHoy ? 3 : 2)
                         : constraints.maxWidth > 500
                         ? 2
                         : 1;
@@ -180,16 +212,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       spacing: 16,
                       runSpacing: 16,
                       children: [
-                        SizedBox(
-                          width: cardW,
-                          child: MetricCard(
-                            title: 'Pendiente de Cobro Hoy',
-                            value: DateFormatter.formatCurrency(rt.pendienteHoy),
-                            icon: Icons.schedule_rounded,
-                            color: const Color(0xFFFF6B35),
-                            subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(rt.cuotaEsperadaHoy)}',
+                        if (showPendienteHoy)
+                          SizedBox(
+                            width: cardW,
+                            child: MetricCard(
+                              title: 'Pendiente de Cobro Hoy',
+                              value: DateFormatter.formatCurrency(
+                                rt.pendienteHoy,
+                              ),
+                              icon: Icons.schedule_rounded,
+                              color: const Color(0xFFFF6B35),
+                              subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(rt.cuotaEsperadaHoy)}',
+                            ),
                           ),
-                        ),
                         SizedBox(
                           width: cardW,
                           child: MetricCard(
@@ -210,42 +245,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             subtitle: 'Total global de créditos',
                           ),
                         ),
-                        // ── KPI Mora Recuperada (solo si hay mora) ────────────
-                        if (rt.totalMoraRecuperada > 0 ||
-                            (stats?.totalMoraRecuperada ?? 0) > 0)
-                          SizedBox(
-                            width: cardW,
-                            child: MetricCard(
-                              title: 'Mora Recuperada ${filter.label}',
-                              value: DateFormatter.formatCurrency(
-                                  rt.totalMoraRecuperada),
-                              icon: Icons.currency_exchange_rounded,
-                              color: const Color(0xFFFF9F43),
-                              subtitle: stats != null
-                                  ? 'Acumulado: ${DateFormatter.formatCurrency(stats.totalMoraRecuperada)}'
-                                  : null,
-                            ),
-                          ),
                       ],
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
-                // ── Gráficos principales ──────────────────────────────────────
+                // Gráficos principales
                 DashboardChartsWidget(
                   cobrosHoy: cobrosHoy.value ?? [],
                 ),
 
-                // ── Gráfico Mora vs Corriente (solo si hay mora acumulada) ────
-                if ((statsAsync.value?.totalMoraRecuperada ?? 0) > 0 ||
-                    rt.totalMoraRecuperada > 0) ...[
-                  const SizedBox(height: 24),
-                SizedBox(
-                  height: 300,
-                  child: MoraCorrienteChart(period: filter.period),
+                const SizedBox(height: 24),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.maxWidth > 1100
+                        ? 3
+                        : constraints.maxWidth > 700
+                        ? 2
+                        : 1;
+                    final cardW =
+                        (constraints.maxWidth - (16 * (crossAxisCount - 1))) /
+                        crossAxisCount;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Ticket Promedio ${filter.label}',
+                            value: DateFormatter.formatCurrency(ticketPromedio),
+                            icon: Icons.point_of_sale_rounded,
+                            color: const Color(0xFF4DA3FF),
+                            subtitle: 'Promedio por recibo emitido',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Locales que Pagaron ${filter.label}',
+                            value: '$localesQuePagaron',
+                            icon: Icons.how_to_reg_rounded,
+                            color: const Color(0xFF00C48C),
+                            subtitle: 'Locales únicos con cobro válido',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardW,
+                          child: MetricCard(
+                            title: 'Cobertura de Cobro ${filter.label}',
+                            value:
+                                '${coberturaCobro.toStringAsFixed(coberturaCobro >= 10 ? 0 : 1)}%',
+                            icon: Icons.radar_rounded,
+                            color: const Color(0xFFFFB84D),
+                            subtitle:
+                                '$localesQuePagaron de ${rt.cantidadLocales} locales activos',
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                ],
 
               ],
             ),
@@ -256,99 +317,257 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Widgets de apoyo ─────────────────────────────────────────────────────────
+class _HeaderStatPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _HeaderStatPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withAlpha(30),
+            color.withAlpha(12),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(56)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: color.withAlpha(36),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 15, color: color),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurface.withAlpha(140),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _DashboardHeader extends ConsumerWidget {
+  final int cantidadMercados;
+  final int cantidadLocales;
+
+  const _DashboardHeader({
+    required this.cantidadMercados,
+    required this.cantidadLocales,
+  });
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(dashboardFilterProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dashboard',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.surfaceContainerHigh.withAlpha(210),
+            colorScheme.surfaceContainerLow.withAlpha(190),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 16,
-          runSpacing: 12,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  onTap: () async {
-                    final range = await showDialog<DateTimeRange>(
-                      context: context,
-                      builder: (context) =>
-                          CustomDateRangePicker(initialRange: filter.range),
-                    );
-
-                    if (range != null) {
-                      // Si seleccionamos un rango manualmente, forzamos a que el periodo sea personalizado
-                      ref
-                          .read(dashboardFilterProvider.notifier)
-                          .setPeriod(DashboardPeriod.personalizado);
-                      ref
-                          .read(dashboardFilterProvider.notifier)
-                          .setCustomRange(range);
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 4.0,
-                      horizontal: 2.0,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outlineVariant.withAlpha(90)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(18),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 12,
+            spacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Dashboard',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withAlpha(138),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          filter.range.start != filter.range.end
-                              ? '${DateFormatter.formatDate(filter.range.start)} - ${DateFormatter.formatDate(filter.range.end)}'
-                              : DateFormatter.formatDate(filter.range.start),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withAlpha(138),
-                                decoration: TextDecoration.underline,
-                                fontWeight: FontWeight.w500,
-                              ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Monitorea recaudación, mora y cartera desde un solo panel.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withAlpha(150),
                     ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withAlpha(24),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: colorScheme.primary.withAlpha(54)),
+                ),
+                child: Text(
+                  'Vista ${filter.label}',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Text(
-                  filter.description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withAlpha(138),
-                    fontStyle: FontStyle.italic,
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withAlpha(120),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colorScheme.outlineVariant.withAlpha(70)),
+            ),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 12,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        final range = await showDialog<DateTimeRange>(
+                          context: context,
+                          builder: (context) =>
+                              CustomDateRangePicker(initialRange: filter.range),
+                        );
+
+                        if (range != null) {
+                          ref
+                              .read(dashboardFilterProvider.notifier)
+                              .setPeriod(DashboardPeriod.personalizado);
+                          ref
+                              .read(dashboardFilterProvider.notifier)
+                              .setCustomRange(range);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 2,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              filter.range.start != filter.range.end
+                                  ? '${DateFormatter.formatDate(filter.range.start)} - ${DateFormatter.formatDate(filter.range.end)}'
+                                  : DateFormatter.formatDate(filter.range.start),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: colorScheme.onSurface,
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Text(
+                      filter.description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withAlpha(138),
+                      ),
+                    ),
+                  ],
+                ),
+                _MarketSelector(),
+                _PeriodSelector(),
+                _HeaderStatPill(
+                  icon: Icons.store_rounded,
+                  label: 'Mercados',
+                  value: '$cantidadMercados',
+                  color: const Color(0xFFFF9F43),
+                ),
+                _HeaderStatPill(
+                  icon: Icons.storefront_rounded,
+                  label: 'Locales',
+                  value: '$cantidadLocales',
+                  color: const Color(0xFFEE5A6F),
                 ),
               ],
             ),
-            _MarketSelector(),
-            _PeriodSelector(),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_kShowDevTools)
+                ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
@@ -634,9 +853,9 @@ class _DashboardHeader extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('ImportaciÃ³n de Faltantes (Locales)'),
+                      title: const Text('Importación de Faltantes (Locales)'),
                       content: const Text(
-                        'Se importarÃ¡n 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada ConcepciÃ³n usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). Â¿Desea proceder?',
+                        'Se importarán 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada Concepción usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). ¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -707,7 +926,7 @@ class _DashboardHeader extends ConsumerWidget {
                         style: TextStyle(color: Colors.red),
                       ),
                       content: const Text(
-                        'Se eliminarÃ¡n los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algÃºn local ya fue modificado o tiene movimientos, NO se borrarÃ¡. Â¿Desea proceder?',
+                        'Se eliminarán los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algún local ya fue modificado o tiene movimientos, NO se borrará. ¿Desea proceder?',
                       ),
                       actions: [
                         TextButton(
@@ -733,7 +952,7 @@ class _DashboardHeader extends ConsumerWidget {
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Revirtiendo importaciÃ³n de faltantes...'),
+                          content: Text('Revirtiendo importación de faltantes...'),
                         ),
                       );
                       final res =
@@ -1052,7 +1271,7 @@ class _DashboardHeader extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('✅ Estadísticas sincronizadas con éxito.'),
+                          content: Text('Estadísticas sincronizadas con éxito.'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -1063,7 +1282,7 @@ class _DashboardHeader extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('❌ Error al recalcular: $e'),
+                          content: Text('Error al recalcular: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -1126,6 +1345,7 @@ class _DashboardHeader extends ConsumerWidget {
           ],
         ),
       ],
+    ),
     );
   }
 }
@@ -1140,21 +1360,15 @@ class _MarketSelector extends ConsumerWidget {
       data: (mercados) {
         if (mercados.isEmpty) return const SizedBox.shrink();
 
-        // Si no hay nada seleccionado, seleccionar el primero automáticamente
-        if (selectedId == null) {
+        // Si el mercado seleccionado ya no existe, volver a "Todos".
+        final idValido = selectedId == null ||
+                mercados.any((m) => m.id == selectedId)
+            ? selectedId
+            : null;
+        if (selectedId != null && idValido == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(dashboardMercadoIdProvider.notifier).set(mercados.first.id);
+            ref.read(dashboardMercadoIdProvider.notifier).set(null);
           });
-          return const SizedBox.shrink();
-        }
-
-        // Verificar que el ID seleccionado sea válido (por si se eliminó o cambió)
-        final idValido = mercados.any((m) => m.id == selectedId) ? selectedId : null;
-        if (idValido == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(dashboardMercadoIdProvider.notifier).set(mercados.first.id);
-          });
-          return const SizedBox.shrink();
         }
 
         return Container(
@@ -1175,24 +1389,28 @@ class _MarketSelector extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 8),
-              DropdownButton<String>(
+              DropdownButton<String?>(
                 value: idValido,
                 underline: const SizedBox(),
-                hint: const Text('Elegir Mercado', style: TextStyle(fontSize: 13)),
+                hint: const Text('Todos', style: TextStyle(fontSize: 13)),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                items: mercados.map(
-                  (m) => DropdownMenuItem<String>(
-                    value: m.id,
-                    child: Text(m.nombre ?? 'Sin nombre'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todos los mercados'),
                   ),
-                ).toList(),
+                  ...mercados.map(
+                    (m) => DropdownMenuItem<String?>(
+                      value: m.id,
+                      child: Text(m.nombre ?? 'Sin nombre'),
+                    ),
+                  ),
+                ],
                 onChanged: (id) {
-                  if (id != null) {
-                    ref.read(dashboardMercadoIdProvider.notifier).set(id);
-                  }
+                  ref.read(dashboardMercadoIdProvider.notifier).set(id);
                 },
               ),
             ],

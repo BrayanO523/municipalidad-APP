@@ -16,7 +16,6 @@ import '../../../locales/presentation/widgets/local_form_dialog.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
-import '../../../../core/utils/visual_debt_utils.dart';
 import '../../../cobros/data/services/deuda_service.dart';
 import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 import '../widgets/deuda_rango_dialog.dart';
@@ -177,6 +176,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         .fold<num>(0, (acc, c) => acc + (c.pagoACuota ?? 0));
   }
 
+  double _deudaVencidaReal(Local local) {
+    final localId = local.id;
+    if (localId == null) return (local.deudaAcumulada ?? 0).toDouble();
+    final deudasMap = ref.read(deudasVencidasCobradorProvider).value;
+    return deudasMap?[localId] ?? (local.deudaAcumulada ?? 0).toDouble();
+  }
+
   Cobro? _cobroDelLocal(String localId, List<Cobro> cobrosHoy) {
     try {
       return cobrosHoy.lastWhere((c) => c.localId == localId);
@@ -265,6 +271,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   Future<void> _registrarSinPago(Local local, List<Cobro> cobrosHoy) async {
+    final deudaVencidaActual = _deudaVencidaReal(local);
     final confirm = await showModalBottomSheet<bool>(
       context: context,
       builder: (ctx) => Padding(
@@ -295,7 +302,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 ).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
-            if ((local.deudaAcumulada ?? 0) > 0) ...[
+            if (deudaVencidaActual > 0) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -308,7 +315,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Deuda acumulada: ${DateFormatter.formatCurrency(local.deudaAcumulada)}',
+                  'Deuda acumulada: ${DateFormatter.formatCurrency(deudaVencidaActual)}',
                   style: TextStyle(color: AppColors.danger, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
@@ -502,6 +509,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final saldoActual = local.saldoAFavor ?? 0;
     final pagadoHoy = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final cuotaCubierta = pagadoHoy >= cuota;
+    final deudaVencidaActual = _deudaVencidaReal(local);
 
     // Si tiene saldo a favor suficiente y NO ha pagado hoy, auto-cobrar con el crédito
     if (saldoActual >= cuota && cuota > 0 && !cuotaCubierta) {
@@ -637,7 +645,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
                       final dist = CalculadoraDistribucionPago.calcular(
                         montoEfectivo: currMonto,
-                        deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+                        deudaAcumuladaInicial: deudaVencidaActual,
                         cuotaDiaria: cuota,
                         pagadoHoyPreviamente: pagadoHoy,
                         saldoFavorInicial: saldoActual,
@@ -745,11 +753,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                 ),
                                 valueColor: AppColors.success,
                               ),
-                            if ((local.deudaAcumulada ?? 0) > 0)
+                            if (deudaVencidaActual > 0)
                               buildDynamicRow(
                                 label: 'Deuda acumulada',
                                 value: DateFormatter.formatCurrency(
-                                  local.deudaAcumulada ?? 0,
+                                  deudaVencidaActual,
                                 ),
                                 valueColor: AppColors.danger,
                               ),
@@ -954,6 +962,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
     await _guardarCobro(
       local: local,
+      deudaVencidaActual: deudaVencidaActual,
       montoEfectivo: montoEfectivo,
       saldoAExtraer: saldoAExtraer,
       observaciones: obsCtrl.text,
@@ -968,6 +977,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final now = DateTime.now();
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
     final usuario = ref.read(currentUsuarioProvider).value;
+    final deudaVencidaActual = _deudaVencidaReal(local);
 
     // Leer providers síncronamente antes de los await
     final cobroDs = ref.read(cobroDatasourceProvider);
@@ -1048,8 +1058,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           local: local,
           monto: cuota.toDouble(),
           fecha: now,
-          saldoPendiente: (local.deudaAcumulada ?? 0).toDouble(),
-          deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+          saldoPendiente: deudaVencidaActual,
+          deudaAnterior: deudaVencidaActual,
           montoAbonadoDeuda: 0, // En este caso fue saldo a favor
           pagoHoy: 0,
           abonoCuotaHoy: cuota.toDouble(),
@@ -1144,6 +1154,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   /// Acepta montoEfectivo (cash) y saldoAExtraer (crédito explícito del saldo a favor).
   Future<void> _guardarCobro({
     required Local local,
+    required double deudaVencidaActual,
     required num montoEfectivo,
     required num saldoAExtraer,
     required String observaciones,
@@ -1174,7 +1185,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final now = DateTime.now();
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
 
-    final deudaTotalInicial = (local.deudaAcumulada ?? 0);
+    final deudaTotalInicial = deudaVencidaActual;
     final cuotaHoy = local.cuotaDiaria ?? 0;
     final num pagadoHoyPrev = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final saldoInicial = local.saldoAFavor ?? 0;
@@ -1197,7 +1208,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ? 'abono_parcial'
         : 'pendiente';
 
-    final double saldoTotalResultante = (dist.deudaFinalResultante + dist.estadoCuotaHoy).toDouble();
+    final double saldoTotalResultante =
+        (dist.deudaFinalResultante + dist.estadoCuotaHoy).toDouble();
+    final double deudaVencidaRestante = dist.deudaFinalResultante.toDouble();
     final double favorResultante = dist.saldoFavorFinalResultante.toDouble();
 
     // Monto registrado en el cobro: solo el efectivo
@@ -1315,8 +1328,13 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
         final double cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
         final double abonoCuotaHoyVal = dist.pagoACuotaHoy.toDouble();
-        double pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
-        if (pagoHoyVal < 0) pagoHoyVal = 0;
+        double? pagoHoyVal;
+        double? abonoCuotaHoyMostrar;
+        if (abonoCuotaHoyVal > 0) {
+          pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
+          if (pagoHoyVal < 0) pagoHoyVal = 0;
+          abonoCuotaHoyMostrar = abonoCuotaHoyVal;
+        }
 
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -1324,11 +1342,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           local: local,
           monto: monto.toDouble(),
           fecha: now,
-          saldoPendiente: saldoTotalResultante,
+          saldoPendiente: deudaVencidaRestante,
           deudaAnterior: deudaTotalInicial.toDouble(),
           montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
           pagoHoy: pagoHoyVal,
-          abonoCuotaHoy: abonoCuotaHoyVal,
+          abonoCuotaHoy: abonoCuotaHoyMostrar,
           saldoAFavor: favorResultante.toDouble(),
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
@@ -1362,6 +1380,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final usuario = ref.watch(currentUsuarioProvider).value;
     final localesAsync = ref.watch(localesCobradorProvider);
     final cobrosAsync = ref.watch(cobrosHoyCobradorProvider);
+    final deudasVencidasMap =
+        ref.watch(deudasVencidasCobradorProvider).value ?? const <String, double>{};
 
     return localesAsync.when(
       loading: () =>
@@ -1500,7 +1520,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           );
         } else if (_ordenActual == 'deuda') {
           localesFiltrados.sort(
-            (a, b) => (a.deudaAcumulada ?? 0).compareTo(b.deudaAcumulada ?? 0),
+            (a, b) => (deudasVencidasMap[a.id ?? ''] ?? 0).compareTo(
+              deudasVencidasMap[b.id ?? ''] ?? 0,
+            ),
           );
         }
 
@@ -1922,6 +1944,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                             kIsWeb && (usuario?.esAdmin ?? false);
 
                         final gestionado = idsGestionadosHoySet.contains(lid);
+                        final deudaVencida =
+                            deudasVencidasMap[lid] ??
+                            (local.deudaAcumulada ?? 0).toDouble();
 
                         return _LocalCard(
                           local: local,
@@ -1930,6 +1955,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           gestionado: gestionado,
                           cobroExistente: ultimoCobro,
                           cobrosHoy: cobrosHoy,
+                          deudaVencida: deudaVencida,
                           onCobrar: () => _registrarCobro(local, cobrosHoy),
                           onEditar: () => showLocalFormDialog(
                             context,
@@ -2229,6 +2255,7 @@ class _LocalCard extends StatelessWidget {
   final bool gestionado;
   final Cobro? cobroExistente;
   final List<Cobro> cobrosHoy;
+  final double deudaVencida;
   final VoidCallback onCobrar;
   final VoidCallback? onSinPago;
   final VoidCallback? onIncidencia;
@@ -2245,6 +2272,7 @@ class _LocalCard extends StatelessWidget {
     this.gestionado = false,
     required this.cobroExistente,
     required this.cobrosHoy,
+    required this.deudaVencida,
     required this.onCobrar,
     this.onSinPago,
     this.onIncidencia,
@@ -2259,10 +2287,10 @@ class _LocalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // -- LÓGICA VISUAL DINÁMICA: Usar VisualDebtUtils como en estado deCuenta --
-    // Esto genera un cobro virtual para hoy si el local no ha pagado y no tiene saldo a favor
-    final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosHoy);
-    final tieneDeuda = deudaVisual > 0;
+    // -- LÓGICA VISUAL DINÁMICA: deuda previa vs deuda del día --
+    // Solo se mostrará badge de deuda cuando exista deuda acumulada de días anteriores.
+    final deudaTotalVencida = deudaVencida;
+    final tieneDeudaAnterior = deudaTotalVencida > 0;
     final tieneSaldo = (local.saldoAFavor ?? 0) > 0;
     final cardStatusColor = (cuotaCubierta || cobrado)
         ? AppColors.success
@@ -2407,11 +2435,11 @@ class _LocalCard extends StatelessWidget {
                                   alpha: 0.7,
                                 ),
                               ),
-                              if (tieneDeuda)
+                              if (tieneDeudaAnterior)
                                 _SmallBadge(
                                   icon: Icons.warning_amber_rounded,
                                   label:
-                                      '-${DateFormatter.formatCurrency(deudaVisual)}',
+                                      '-${DateFormatter.formatCurrency(deudaTotalVencida)}',
                                   color: AppColors.danger,
                                 ),
                               if (tieneSaldo)

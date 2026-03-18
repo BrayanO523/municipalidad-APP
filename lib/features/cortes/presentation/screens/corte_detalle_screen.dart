@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,16 +9,24 @@ import '../../../../core/utils/pdf_generator.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../domain/entities/corte.dart';
 import '../../../cobros/domain/entities/cobro.dart';
+import '../../../locales/domain/entities/local.dart';
 
 import 'package:go_router/go_router.dart';
 import '../viewmodels/cortes_paginados_notifier.dart';
 
-// Definición de tipo para mayor claridad
+// DefiniciÃ³n de tipo para mayor claridad
 typedef CobroConDetalle = ({
   Cobro cobro,
   String localNombre,
   String? localCodigo,
   String? localClave,
+  num? cuotaDiaria,
+  String? ruta,
+  String? frecuenciaCobro,
+  num? saldoAFavor,
+  num? deudaAcumulada,
+  String? representante,
+  String? telefono,
 });
 
 final cobrosPorCorteProvider =
@@ -37,23 +45,23 @@ final cobrosPorCorteProvider =
       .toList();
 
   final locales = await localDs.listarPorIds(uniqueLocalIds);
-  final Map<String, (String nombre, String? codigo, String? clave)> localInfo = {
-    for (var l in locales)
-      l.id!: (
-        l.nombreSocial ?? 'S/N',
-        l.codigo,
-        l.clave ?? l.codigoCatastral
-      )
-  };
+  final Map<String, Local> localMap = {for (var l in locales) l.id!: l};
 
   return cobros
       .map((c) {
-        final info = c.localId != null ? localInfo[c.localId] : null;
+        final loc = c.localId != null ? localMap[c.localId] : null;
         return (
           cobro: c,
-          localNombre: info?.$1 ?? (c.localId ?? 'ID Desconocido'),
-          localCodigo: info?.$2,
-          localClave: info?.$3,
+          localNombre: loc?.nombreSocial ?? (c.localId ?? 'ID Desconocido'),
+          localCodigo: loc?.codigo,
+          localClave: loc?.clave ?? loc?.codigoCatastral,
+          cuotaDiaria: loc?.cuotaDiaria,
+          ruta: loc?.ruta,
+          frecuenciaCobro: loc?.frecuenciaCobro,
+          saldoAFavor: loc?.saldoAFavor,
+          deudaAcumulada: loc?.deudaAcumulada,
+          representante: loc?.representante,
+          telefono: loc?.telefonoRepresentante,
         );
       })
       .toList();
@@ -82,7 +90,7 @@ class CorteDetalleScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Corte'),
         content: const Text(
-          '¿Estás seguro de que deseas eliminar este registro de corte? Esta acción no afectará los cobros individuales registrados.',
+          'Â¿EstÃ¡s seguro de que deseas eliminar este registro de corte? Esta acciÃ³n no afectarÃ¡ los cobros individuales registrados.',
         ),
         actions: [
           TextButton(
@@ -183,7 +191,7 @@ class CorteDetalleScreen extends ConsumerWidget {
           constraints: BoxConstraints(maxWidth: isWide ? 950 : double.infinity),
           child: CustomScrollView(
             slivers: [
-              // ── Header Card ──
+              // â”€â”€ Header Card â”€â”€
               SliverPadding(
                 padding: EdgeInsets.all(isWide ? 24 : 16),
                 sliver: SliverToBoxAdapter(
@@ -195,7 +203,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                 ),
               ),
 
-              // ── Contenido de Boletas ──
+              // â”€â”€ Contenido de Boletas â”€â”€
               cobrosAsync.when(
                 data: (items) {
                   if (items.isEmpty) {
@@ -228,7 +236,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
-                        // Título sección
+                        // TÃ­tulo secciÃ³n
                         Row(
                           children: [
                             Container(
@@ -252,18 +260,19 @@ class CorteDetalleScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
 
-                        // ── Cobrados (estilo similar a pendientes) ──
+                        // â”€â”€ Cobrados (estilo similar a pendientes) â”€â”€
                         if (cobrados.isNotEmpty) ...[
                           _CobradosInfoSection(
                             cobrados: cobrados,
                             subtotal: totalCobrados,
                             color: AppColors.success,
                             icon: Icons.check_circle,
+                            gestionesInfo: corte.gestionesInfo ?? const [],
                           ),
                           const SizedBox(height: 16),
                         ],
 
-                        // ── Gestiones/Incidencias (desde gestionesInfo del corte) ──
+                        // â”€â”€ Gestiones/Incidencias (desde gestionesInfo del corte) â”€â”€
                         if (corte.gestionesInfo != null &&
                             corte.gestionesInfo!.isNotEmpty) ...[
                           _GestionesInfoSection(
@@ -275,11 +284,12 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // ── Pendientes (desde pendientesInfo del corte) ──
+                        // â”€â”€ Pendientes (desde pendientesInfo del corte) â”€â”€
                         if (corte.pendientesInfo != null &&
                             corte.pendientesInfo!.isNotEmpty) ...[
                           _PendientesInfoSection(
                             pendientesInfo: corte.pendientesInfo!,
+                            gestionesInfo: corte.gestionesInfo ?? const [],
                             color: AppColors.warning,
                             icon: Icons.schedule,
                             isWide: isWide,
@@ -287,7 +297,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // ── Total general ──
+                        // â”€â”€ Total general â”€â”€
                         Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -373,7 +383,7 @@ class CorteDetalleScreen extends ConsumerWidget {
   }
 }
 
-// ── Header Card con gradiente ──
+// â”€â”€ Header Card con gradiente â”€â”€
 class _HeaderCard extends StatelessWidget {
   final Corte corte;
   final DateFormat formatter;
@@ -462,7 +472,7 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Estadísticas principales
+          // EstadÃ­sticas principales
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -494,7 +504,7 @@ class _HeaderCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.2)),
                 _MiniStat(
                   icon: Icons.check_circle,
-                  value: '${corte.cantidadCobrados ?? '–'}',
+                  value: '${corte.cantidadCobrados ?? 'â€“'}',
                   label: 'Cobrados',
                   color: Colors.greenAccent,
                 ),
@@ -504,7 +514,7 @@ class _HeaderCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.2)),
                 _MiniStat(
                   icon: Icons.schedule,
-                  value: '${corte.cantidadPendientes ?? '–'}',
+                  value: '${corte.cantidadPendientes ?? 'â€“'}',
                   label: 'Pendientes',
                   color: Colors.orangeAccent,
                 ),
@@ -526,70 +536,99 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // ── Desglose Mora / Corriente (sólo si hay datos) ──
-          if ((corte.totalMora ?? 0) > 0) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Corriente',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 11),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          CurrencyFormatter.format(corte.totalCorriente ?? 0),
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
+          // â”€â”€ Desglose Mora / Corriente â”€â”€
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0DB36B).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  Container(
-                      width: 1,
-                      height: 32,
-                      color: Colors.white.withValues(alpha: 0.2)),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Mora',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 11),
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          CurrencyFormatter.format(corte.totalMora ?? 0),
-                          style: const TextStyle(
-                            color: Colors.orangeAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                        padding: const EdgeInsets.all(8),
+                        child: const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Corriente',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          Text(
+                            CurrencyFormatter.format(corte.totalCorriente ?? 0),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF28C38).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: const Icon(Icons.warning_amber, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mora',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            CurrencyFormatter.format(corte.totalMora ?? 0),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
 
           // Fecha
           Row(
@@ -643,10 +682,10 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// Sección de boletas — elige automáticamente entre tabla (desktop) y
-// cards compactos (móvil).
-// ══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SecciÃ³n de boletas â€” elige automÃ¡ticamente entre tabla (desktop) y
+// cards compactos (mÃ³vil).
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ignore: unused_element
 class _BoletasSection extends StatelessWidget {
   final String titulo;
@@ -684,7 +723,7 @@ class _BoletasSection extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Header de sección
+          // Header de secciÃ³n
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -710,7 +749,7 @@ class _BoletasSection extends StatelessWidget {
             ),
           ),
 
-          // Contenido adaptativo: tabla en desktop, cards en móvil
+          // Contenido adaptativo: tabla en desktop, cards en mÃ³vil
           if (isWide)
             _buildDesktopTable(theme)
           else
@@ -755,7 +794,7 @@ class _BoletasSection extends StatelessWidget {
     );
   }
 
-  // ── Vista Desktop: DataTable completa ──
+  // â”€â”€ Vista Desktop: DataTable completa â”€â”€
   Widget _buildDesktopTable(ThemeData theme) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -844,7 +883,7 @@ class _BoletasSection extends StatelessWidget {
     );
   }
 
-  // ── Vista Móvil: Cards compactos tipo ListTile ──
+  // â”€â”€ Vista MÃ³vil: Cards compactos tipo ListTile â”€â”€
   Widget _buildMobileCards(ThemeData theme) {
     return ListView.separated(
       shrinkWrap: true,
@@ -874,7 +913,7 @@ class _BoletasSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
-              // Ícono de estado
+              // Ãcono de estado
               Container(
                 width: 34,
                 height: 34,
@@ -933,15 +972,17 @@ class _BoletasSection extends StatelessWidget {
   }
 }
 
-// ── Sección de pendientes leída de corte.pendientesInfo ──
+// â”€â”€ SecciÃ³n de pendientes leÃ­da de corte.pendientesInfo â”€â”€
 class _PendientesInfoSection extends StatelessWidget {
   final List<Map<String, dynamic>> pendientesInfo;
+  final List<Map<String, dynamic>> gestionesInfo;
   final Color color;
   final IconData icon;
   final bool isWide;
 
   const _PendientesInfoSection({
     required this.pendientesInfo,
+    required this.gestionesInfo,
     required this.color,
     required this.icon,
     required this.isWide,
@@ -1006,11 +1047,27 @@ class _PendientesInfoSection extends StatelessWidget {
                 (info['saldoAFavor'] as num?)?.toDouble() ?? 0;
             final tieneSaldoAFavor = info['tieneSaldoAFavor'] == true;
             final saldoCubreCuota = info['saldoCubreCuota'] == true;
+            final localId = info['localId'] ?? info['local_id'];
+            final incidenciasLocal = gestionesInfo
+                .where((g) => (g['localId'] ?? g['local_id']) == localId)
+                .toList();
 
-            return Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              child: Row(
+            return InkWell(
+              onTap: () => _showPendienteBottomSheet(
+                context,
+                nombre,
+                codigo,
+                clave,
+                monto,
+                saldoAFavor,
+                tieneSaldoAFavor,
+                saldoCubreCuota,
+                incidenciasLocal,
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                child: Row(
                 children: [
                   Container(
                     width: 28,
@@ -1035,9 +1092,9 @@ class _PendientesInfoSection extends StatelessWidget {
                         if (codigo.isNotEmpty || clave.isNotEmpty)
                           Text(
                             [
-                              if (codigo.isNotEmpty) 'Cód: $codigo',
+                              if (codigo.isNotEmpty) 'Codigo: $codigo',
                               if (clave.isNotEmpty) 'Clave: $clave',
-                            ].join(' • '),
+                            ].join(' | '),
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
@@ -1072,10 +1129,220 @@ class _PendientesInfoSection extends StatelessWidget {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           }),
           const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+
+  void _showPendienteBottomSheet(
+    BuildContext context,
+    String nombre,
+    String codigo,
+    String clave,
+    double monto,
+    double saldoAFavor,
+    bool tieneSaldoAFavor,
+    bool saldoCubreCuota,
+    List<Map<String, dynamic>> incidencias,
+  ) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nombre,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        if (codigo.isNotEmpty || clave.isNotEmpty)
+                          Text(
+                            [
+                              if (codigo.isNotEmpty) 'Codigo: $codigo',
+                              if (clave.isNotEmpty) 'Clave: $clave',
+                            ].join(' | '),
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.format(monto),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _chip('Monto pendiente: ${CurrencyFormatter.format(monto)}'),
+                  if (tieneSaldoAFavor)
+                    _chip(
+                      saldoCubreCuota
+                          ? 'Saldo a favor cubre cuota'
+                          : 'Saldo a favor: ${CurrencyFormatter.format(saldoAFavor)}',
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Incidencias del dia (${incidencias.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (incidencias.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'Sin incidencias registradas.',
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: incidencias.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      indent: 8,
+                      endIndent: 8,
+                      color: theme.dividerColor.withValues(alpha: 0.15),
+                    ),
+                    itemBuilder: (ctx, idx) {
+                      final inc = incidencias[idx];
+                      final titulo = inc['titulo'] as String? ??
+                          inc['motivo'] as String? ??
+                          'Incidencia';
+                      final desc = inc['descripcion'] as String? ??
+                          inc['detalle'] as String? ??
+                          inc['comentario'] as String? ??
+                          '';
+                      final hora = inc['fecha'] ?? inc['hora'];
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.report_problem,
+                                color: theme.colorScheme.error, size: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        titulo,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (hora != null)
+                                      Text(
+                                        '$hora',
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                if (desc.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    desc,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _chip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1086,12 +1353,14 @@ class _CobradosInfoSection extends StatelessWidget {
   final double subtotal;
   final Color color;
   final IconData icon;
+  final List<Map<String, dynamic>> gestionesInfo;
 
   const _CobradosInfoSection({
     required this.cobrados,
     required this.subtotal,
     required this.color,
     required this.icon,
+    required this.gestionesInfo,
   });
 
   @override
@@ -1146,6 +1415,10 @@ class _CobradosInfoSection extends StatelessWidget {
           ),
           ...cobrados.map((item) {
             final cobro = item.cobro;
+            final incidenciasLocal = gestionesInfo.where((g) {
+              final gid = g['localId'] as String?;
+              return gid != null && gid == cobro.localId;
+            }).toList();
             return Column(
               children: [
                 ListTile(
@@ -1170,15 +1443,15 @@ class _CobradosInfoSection extends StatelessWidget {
                         Text(
                           [
                             if ((item.localCodigo ?? '').isNotEmpty)
-                              'Cód: ${item.localCodigo}',
+                              'CÃ³d: ${item.localCodigo}',
                             if ((item.localClave ?? '').isNotEmpty)
                               'Clave: ${item.localClave}',
-                          ].join(' • '),
+                          ].join(' | '),
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                           ),
-                        ),
+                      ),
                     ],
                   ),
                   trailing: Column(
@@ -1201,7 +1474,22 @@ class _CobradosInfoSection extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
+                      if (incidenciasLocal.isNotEmpty)
+                        Text(
+                          'Incidencias: ${incidenciasLocal.length}',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
+                  ),
+                  onTap: () => _showLocalBottomSheet(
+                    context,
+                    theme,
+                    item,
+                    incidenciasLocal,
                   ),
                 ),
                 Divider(
@@ -1216,9 +1504,233 @@ class _CobradosInfoSection extends StatelessWidget {
       ),
     );
   }
+
+  void _showLocalBottomSheet(
+    BuildContext context,
+    ThemeData theme,
+    CobroConDetalle item,
+    List<Map<String, dynamic>> incidenciasLocal,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final cobro = item.cobro;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Encabezado
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.store_mall_directory, color: theme.colorScheme.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.localNombre,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Text(
+                          'Boleta: ${cobro.numeroBoletaFmt}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        CurrencyFormatter.format((cobro.monto ?? 0).toDouble()),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      Text(
+                        (cobro.estado ?? '').toUpperCase(),
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // InformaciÃ³n adicional del local
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  if ((item.localCodigo ?? '').isNotEmpty)
+                    _infoChip('CÃ³digo: ${item.localCodigo}'),
+                  if ((item.localClave ?? '').isNotEmpty)
+                    _infoChip('Clave: ${item.localClave}'),
+                  if ((item.ruta ?? '').isNotEmpty) _infoChip('Ruta: ${item.ruta}'),
+                  if ((item.frecuenciaCobro ?? '').isNotEmpty)
+                    _infoChip('Frecuencia: ${item.frecuenciaCobro}'),
+                  if (item.cuotaDiaria != null)
+                    _infoChip('Cuota: ${CurrencyFormatter.format(item.cuotaDiaria!.toDouble())}'),
+                  if (item.saldoAFavor != null)
+                    _infoChip('Saldo a favor: ${CurrencyFormatter.format(item.saldoAFavor!.toDouble())}'),
+                  if (item.deudaAcumulada != null)
+                    _infoChip('Deuda: ${CurrencyFormatter.format(item.deudaAcumulada!.toDouble())}'),
+                  if ((item.representante ?? '').isNotEmpty)
+                    _infoChip('Rep.: ${item.representante}'),
+                  if ((item.telefono ?? '').isNotEmpty)
+                    _infoChip('Tel: ${item.telefono}'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Incidencias del dÃ­a (${incidenciasLocal.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (incidenciasLocal.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Sin incidencias registradas para este local.',
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: incidenciasLocal.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      indent: 8,
+                      endIndent: 8,
+                      color: theme.dividerColor.withValues(alpha: 0.15),
+                    ),
+                    itemBuilder: (ctx, idx) {
+                      final inc = incidenciasLocal[idx];
+                      final titulo = inc['titulo'] as String? ??
+                          inc['motivo'] as String? ??
+                          'Incidencia';
+                      final desc = inc['descripcion'] as String? ??
+                          inc['detalle'] as String? ??
+                          inc['comentario'] as String? ??
+                          '';
+                      final hora = inc['fecha'] ?? inc['hora'];
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.report_problem,
+                                color: theme.colorScheme.error, size: 18),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        titulo,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (hora != null)
+                                      Text(
+                                        '$hora',
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                if (desc.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    desc,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _infoChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
 }
 
-// ── Sección de gestiones/incidencias leída de corte.gestionesInfo ──
+// â”€â”€ SecciÃ³n de gestiones/incidencias leÃ­da de corte.gestionesInfo â”€â”€
 class _GestionesInfoSection extends StatelessWidget {
   final List<Map<String, dynamic>> gestionesInfo;
   final Color color;
@@ -1243,7 +1755,7 @@ class _GestionesInfoSection extends StatelessWidget {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver más tarde';
+        return 'Volver mÃ¡s tarde';
       default:
         return 'Otro motivo';
     }
@@ -1327,10 +1839,10 @@ class _GestionesInfoSection extends StatelessWidget {
                         ),
                         Text(
                           [
-                            if (codigo.isNotEmpty) 'Cód: $codigo',
+                            if (codigo.isNotEmpty) 'Codigo: $codigo',
                             if (clave.isNotEmpty) 'Clave: $clave',
-                            comentario.isNotEmpty ? '${_labelTipo(tipo)} · $comentario' : _labelTipo(tipo),
-                          ].join(' • '),
+                            comentario.isNotEmpty ? '${_labelTipo(tipo)} - $comentario' : _labelTipo(tipo),
+                          ].join(' | '),
                           style: TextStyle(
                             fontSize: 11,
                             color:

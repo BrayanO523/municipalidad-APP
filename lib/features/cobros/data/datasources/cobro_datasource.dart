@@ -422,6 +422,36 @@ class CobroDatasource {
     );
   }
 
+  Stream<List<CobroJson>> streamDeudasVencidasHasta(
+    DateTime fechaLimite, {
+    String? municipalidadId,
+    String? mercadoId,
+  }) {
+    final limite = DateTime(
+      fechaLimite.year,
+      fechaLimite.month,
+      fechaLimite.day,
+    );
+
+    Query<Map<String, dynamic>> query = _collection
+        .where('estado', whereIn: ['pendiente', 'abono_parcial'])
+        .where('fecha', isLessThan: Timestamp.fromDate(limite))
+        .orderBy('fecha', descending: false);
+
+    if (municipalidadId != null) {
+      query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    }
+    if (mercadoId != null) {
+      query = query.where('mercadoId', isEqualTo: mercadoId);
+    }
+
+    return query.snapshots().map(
+      (snapshot) => snapshot.docs
+          .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
+          .toList(),
+    );
+  }
+
   /// Obtiene cobros en un rango de fechas de forma atómica (Sin stream) para ahorrar lecturas.
   Future<List<CobroJson>> listarPorRangoFechas(
     DateTime inicio,

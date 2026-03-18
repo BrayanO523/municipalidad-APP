@@ -2,6 +2,23 @@ import '../../features/cobros/domain/entities/cobro.dart';
 import '../../features/locales/domain/entities/local.dart';
 
 class VisualDebtUtils {
+  static num calcularDeudaVencidaReal(List<Cobro> actualCobros) {
+    final ahora = DateTime.now();
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+
+    return actualCobros
+        .where(
+          (c) =>
+              (c.estado == 'pendiente' || c.estado == 'abono_parcial') &&
+              c.fecha != null &&
+              c.fecha!.isBefore(hoy),
+        )
+        .fold<num>(
+          0,
+          (sum, c) => sum + (c.saldoPendiente ?? c.cuotaDiaria ?? 0),
+        );
+  }
+
   /// Retorna un objeto [Cobro] virtual para hoy si el local no ha pagado
   /// y no tiene días adelantados que cubran la jornada.
   static Cobro? generarHoyPendienteVirtual({
@@ -62,12 +79,14 @@ class VisualDebtUtils {
           c.fecha!.day == hoy.day,
     );
 
-    final fechaInicio = hoyTieneRegistro ? hoy.add(const Duration(days: 1)) : hoy;
+    final fechaInicio = hoyTieneRegistro
+        ? hoy.add(const Duration(days: 1))
+        : hoy;
 
     return List.generate(numAdelantados, (i) {
       final baseDate = fechaInicio.add(Duration(days: i));
       final timeBase = local.actualizadoEn ?? ahora;
-      
+
       return Cobro(
         id: 'VIRTUAL-ADE-$i',
         localId: local.id,
@@ -90,9 +109,13 @@ class VisualDebtUtils {
   /// Calcula la deuda acumulada "visual" incluyendo el pendiente de hoy si aplica.
   static num calcularDeudaVisual(Local local, List<Cobro> actualCobros) {
     final deudaBase = local.deudaAcumulada ?? 0;
-    final hoyVirtual = generarHoyPendienteVirtual(local: local, actualCobros: actualCobros);
-    
-    return deudaBase + (hoyVirtual != null ? (hoyVirtual.saldoPendiente ?? 0) : 0);
+    final hoyVirtual = generarHoyPendienteVirtual(
+      local: local,
+      actualCobros: actualCobros,
+    );
+
+    return deudaBase +
+        (hoyVirtual != null ? (hoyVirtual.saldoPendiente ?? 0) : 0);
   }
 
   /// Calcula el balance neto "visual" (Saldo a favor - Deuda visual).

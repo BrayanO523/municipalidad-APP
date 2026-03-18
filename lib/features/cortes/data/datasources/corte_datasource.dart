@@ -161,6 +161,30 @@ class CorteDatasource {
             .toList());
   }
 
+  Stream<List<CorteModel>> streamCortesRangoPorMercado({
+    required String mercadoId,
+    required String municipalidadId,
+    required DateTime desde,
+    required DateTime hasta,
+  }) {
+    final inicio = DateTime(desde.year, desde.month, desde.day);
+    final fin = DateTime(hasta.year, hasta.month, hasta.day)
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
+
+    return _firestore
+        .collection('cortes')
+        .where('municipalidadId', isEqualTo: municipalidadId)
+        .where('mercadoId', isEqualTo: mercadoId)
+        .where('fechaCorte', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+        .where('fechaCorte', isLessThanOrEqualTo: Timestamp.fromDate(fin))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => CorteModel.fromMap(doc.data(), doc.id))
+            .where((c) => c.tipo != 'mercado')
+            .toList());
+  }
+
   /// Stream en tiempo real de cortes del día de un cobrador específico.
   Stream<List<CorteModel>> streamCortesDiaPorCobrador({
     required String cobradorId,

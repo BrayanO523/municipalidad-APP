@@ -9,8 +9,13 @@ import '../../../../core/utils/date_formatter.dart';
 /// En lugar de mostrar diario, muestra el total del periodo actual (hoy/semana/mes).
 class MoraCorrienteChart extends ConsumerWidget {
   final DashboardPeriod period;
+  final DateTimeRange range;
 
-  const MoraCorrienteChart({super.key, required this.period});
+  const MoraCorrienteChart({
+    super.key,
+    required this.period,
+    required this.range,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,16 +28,26 @@ class MoraCorrienteChart extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (stats) {
         // Totales del periodo
-        final totalRecaudadoRaw = _totalPeriodo(stats, period, field: 'recaudado');
+        final totalRecaudadoRaw = _totalPeriodo(
+          stats,
+          period,
+          range,
+          field: 'recaudado',
+        );
         final totalRecaudado = totalRecaudadoRaw > 0
             ? totalRecaudadoRaw
             : (rt.recaudadoPeriodo.toDouble());
-        final moraPeriodo = _totalPeriodo(stats, period, field: 'mora');
-        final moraAcumulada = (stats.totalMoraRecuperada ?? 0).toDouble();
+        final moraPeriodo = _totalPeriodo(
+          stats,
+          period,
+          range,
+          field: 'mora',
+        );
+        final moraAcumulada = stats.totalMoraRecuperada.toDouble();
         final moraRt = rt.totalMoraRecuperada.toDouble();
         final totalMora = moraPeriodo > 0 ? moraPeriodo : moraAcumulada;
         final totalMoraFinal = totalMora > 0 ? totalMora : moraRt;
-        final corriente = (totalRecaudado - totalMora).clamp(
+        final corriente = (totalRecaudado - totalMoraFinal).clamp(
           0.0,
           double.infinity,
         );
@@ -198,7 +213,12 @@ class MoraCorrienteChart extends ConsumerWidget {
   }
 }
 
-double _totalPeriodo(stats, DashboardPeriod period, {required String field}) {
+double _totalPeriodo(
+  stats,
+  DashboardPeriod period,
+  DateTimeRange range, {
+  required String field,
+}) {
   // StatsModel expected: diario map with keys yyyy-MM-dd and fields 'recaudado', 'mora'
   final now = DateTime.now();
 
@@ -230,7 +250,21 @@ double _totalPeriodo(stats, DashboardPeriod period, {required String field}) {
       case DashboardPeriod.anio:
         return date.year == now.year;
       case DashboardPeriod.personalizado:
-        return true; // Asumir que ya viene filtrado arriba; se suman todos
+        final rangeStart = DateTime(
+          range.start.year,
+          range.start.month,
+          range.start.day,
+        );
+        final rangeEnd = DateTime(
+          range.end.year,
+          range.end.month,
+          range.end.day,
+          23,
+          59,
+          59,
+          999,
+        );
+        return !date.isBefore(rangeStart) && !date.isAfter(rangeEnd);
     }
   }
 

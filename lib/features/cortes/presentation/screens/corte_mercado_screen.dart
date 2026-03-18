@@ -69,8 +69,11 @@ class CortesMercadoScreen extends ConsumerWidget {
                   ),
                   sliver: SliverToBoxAdapter(
                     child: _SelectorFecha(
-                      fechaSeleccionada: state.fechaSeleccionada,
-                      onFechaSeleccionada: notifier.seleccionarFecha,
+                      fechaDesde: state.fechaDesde,
+                      fechaHasta: state.fechaHasta,
+                      onCambiarDesde: notifier.seleccionarDesde,
+                      onCambiarHasta: notifier.seleccionarHasta,
+                      onSeleccionRapida: notifier.seleccionarFechaUnica,
                     ),
                   ),
                 ),
@@ -242,7 +245,7 @@ class CortesMercadoScreen extends ConsumerWidget {
       await PdfGenerator.printCorteMercado(
         state.cortesDelDia,
         state.mercadoSeleccionado?.nombre ?? 'Mercado',
-        state.fechaSeleccionada,
+        state.fechaHasta,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -492,7 +495,7 @@ class _ResumenCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _StatItem(
-                icon: Icons.attach_money_rounded,
+                icon: Icons.payments_rounded,
                 value: CurrencyFormatter.format(state.totalConsolidado),
                 label: 'Total',
                 large: true,
@@ -579,6 +582,7 @@ class _CorteCobradorTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final incidencias = corte.gestionesInfo ?? const [];
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -676,7 +680,15 @@ class _CorteCobradorTile extends StatelessWidget {
                     color: theme.colorScheme.primary,
                   ),
                 ),
-                const SizedBox(width: 8),
+                if (incidencias.isNotEmpty) ...[
+                  IconButton(
+                    icon: const Icon(Icons.report, color: Colors.orange),
+                    tooltip: 'Ver incidencias',
+                    onPressed: () => _showIncidenciasSheet(context, theme, incidencias),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                const SizedBox(width: 6),
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
@@ -687,6 +699,132 @@ class _CorteCobradorTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showIncidenciasSheet(
+    BuildContext context,
+    ThemeData theme,
+    List<Map<String, dynamic>> incidencias,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.report, color: theme.colorScheme.error),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Incidencias del día',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (incidencias.isEmpty)
+                Text(
+                  'Sin incidencias registradas.',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: incidencias.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.15),
+                  ),
+                  itemBuilder: (ctx, i) {
+                    final inc = incidencias[i];
+                    final nombre = inc['nombreSocial'] as String? ?? 'S/N';
+                    final codigo = inc['codigo'] as String? ?? '';
+                    final clave = inc['clave'] as String? ?? '';
+                    final tipo = inc['tipoIncidencia'] as String? ?? 'OTRO';
+                    final comentario = inc['comentario'] as String? ?? '';
+                    final tsRaw = inc['timestamp'] as String? ?? '';
+                    String horaStr = '';
+                    if (tsRaw.isNotEmpty) {
+                      try {
+                        final dt = DateTime.parse(tsRaw);
+                        horaStr =
+                            '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                      } catch (_) {}
+                    }
+                    final detalles = [
+                      if (codigo.isNotEmpty) 'Cód: $codigo',
+                      if (clave.isNotEmpty) 'Clave: $clave',
+                    ].join(' • ');
+
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.report_problem, color: Colors.orange),
+                      title: Text(
+                        nombre,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tipo,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (comentario.isNotEmpty)
+                            Text(
+                              comentario,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                fontSize: 12,
+                              ),
+                            ),
+                          if (detalles.isNotEmpty)
+                            Text(
+                              detalles,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: horaStr.isNotEmpty
+                          ? Text(
+                              horaStr,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            )
+                          : null,
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -796,18 +934,27 @@ class _BotonCorteMercado extends StatelessWidget {
 }
 
 class _SelectorFecha extends StatelessWidget {
-  final DateTime fechaSeleccionada;
-  final Function(DateTime) onFechaSeleccionada;
+  final DateTime fechaDesde;
+  final DateTime fechaHasta;
+  final Function(DateTime) onCambiarDesde;
+  final Function(DateTime) onCambiarHasta;
+  final Function(DateTime) onSeleccionRapida;
 
   const _SelectorFecha({
-    required this.fechaSeleccionada,
-    required this.onFechaSeleccionada,
+    required this.fechaDesde,
+    required this.fechaHasta,
+    required this.onCambiarDesde,
+    required this.onCambiarHasta,
+    required this.onSeleccionRapida,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final now = DateTime.now();
+    void seleccionarDiaRapido(DateTime fecha) {
+      onSeleccionRapida(fecha);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -827,45 +974,72 @@ class _SelectorFecha extends StatelessWidget {
               label: 'Ayer',
               fecha: now.subtract(const Duration(days: 1)),
               seleccionada: _isSameDate(
-                fechaSeleccionada,
+                fechaDesde,
                 now.subtract(const Duration(days: 1)),
-              ),
-              onTap: () =>
-                  onFechaSeleccionada(now.subtract(const Duration(days: 1))),
+              ) &&
+                  _isSameDate(
+                    fechaHasta,
+                    now.subtract(const Duration(days: 1)),
+                  ),
+              onTap: () => seleccionarDiaRapido(now.subtract(const Duration(days: 1))),
             ),
             const SizedBox(width: 8),
             _FechaButton(
               label: 'Hoy',
               fecha: now,
-              seleccionada: _isSameDate(fechaSeleccionada, now),
-              onTap: () => onFechaSeleccionada(now),
+              seleccionada: _isSameDate(fechaDesde, now) &&
+                  _isSameDate(fechaHasta, now),
+              onTap: () => seleccionarDiaRapido(now),
             ),
             const SizedBox(width: 8),
             _FechaButton(
               label: 'Mañana',
               fecha: now.add(const Duration(days: 1)),
               seleccionada: _isSameDate(
-                fechaSeleccionada,
-                now.add(const Duration(days: 1)),
-              ),
-              onTap: () =>
-                  onFechaSeleccionada(now.add(const Duration(days: 1))),
+                    fechaDesde,
+                    now.add(const Duration(days: 1)),
+                  ) &&
+                  _isSameDate(
+                    fechaHasta,
+                    now.add(const Duration(days: 1)),
+                  ),
+              onTap: () => seleccionarDiaRapido(now.add(const Duration(days: 1))),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.calendar_today, size: 18),
-                label: Text(DateFormat('dd/MM/yyyy').format(fechaSeleccionada)),
+                label: Text('Desde: ${DateFormat('dd/MM/yyyy').format(fechaDesde)}'),
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
-                    initialDate: fechaSeleccionada,
-                    firstDate: now.subtract(const Duration(days: 30)),
-                    lastDate: now.add(const Duration(days: 30)),
+                    initialDate: fechaDesde,
+                    firstDate: now.subtract(const Duration(days: 60)),
+                    lastDate: now.add(const Duration(days: 60)),
                   );
-                  if (picked != null) {
-                    onFechaSeleccionada(picked);
-                  }
+                  if (picked != null) onCambiarDesde(picked);
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.date_range, size: 18),
+                label: Text('Hasta: ${DateFormat('dd/MM/yyyy').format(fechaHasta)}'),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: fechaHasta,
+                    firstDate: now.subtract(const Duration(days: 60)),
+                    lastDate: now.add(const Duration(days: 60)),
+                  );
+                  if (picked != null) onCambiarHasta(picked);
                 },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(

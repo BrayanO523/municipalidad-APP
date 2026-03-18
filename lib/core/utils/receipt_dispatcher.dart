@@ -10,6 +10,119 @@ import '../../app/di/providers.dart';
 import 'date_formatter.dart';
 import 'date_range_formatter.dart';
 
+class _ReceiptCobroSnapshot {
+  final double saldoPendiente;
+  final double deudaAnterior;
+  final double montoAbonadoDeuda;
+  final double? pagoHoy;
+  final double? abonoCuotaHoy;
+  final double saldoAFavor;
+  final List<DateTime> fechasCubiertas;
+  final String? periodoAbonadoStr;
+  final String? periodoSaldoAFavorStr;
+
+  const _ReceiptCobroSnapshot({
+    required this.saldoPendiente,
+    required this.deudaAnterior,
+    required this.montoAbonadoDeuda,
+    required this.pagoHoy,
+    required this.abonoCuotaHoy,
+    required this.saldoAFavor,
+    required this.fechasCubiertas,
+    required this.periodoAbonadoStr,
+    required this.periodoSaldoAFavorStr,
+  });
+
+  factory _ReceiptCobroSnapshot.fromCobro(Cobro cobro) {
+    final cuotaDiaria = (cobro.cuotaDiaria ?? 0).toDouble();
+    final deudaAnterior = (cobro.deudaAnterior ?? 0).toDouble();
+    final fechasDeuda = List<DateTime>.from(cobro.fechasDeudasSaldadas ?? []);
+    final pagoCuotaRaw = (cobro.pagoACuota ?? 0).toDouble();
+
+    double montoAbonadoDeuda = (cobro.montoAbonadoDeuda ?? 0).toDouble();
+    if (montoAbonadoDeuda <= 0 && fechasDeuda.isNotEmpty && deudaAnterior > 0) {
+      final montoCobro = (cobro.monto ?? 0).toDouble();
+      montoAbonadoDeuda = montoCobro.clamp(0.0, deudaAnterior);
+    }
+
+    final saldoRecalculado = (deudaAnterior - montoAbonadoDeuda).clamp(
+      0.0,
+      double.infinity,
+    );
+    double saldoPendiente = (cobro.saldoPendiente ?? 0).toDouble();
+    if (saldoPendiente <= 0 || saldoPendiente > saldoRecalculado) {
+      saldoPendiente = saldoRecalculado;
+    }
+
+    final abonoCuotaHoy = pagoCuotaRaw > 0 ? pagoCuotaRaw : null;
+    double? pagoHoy;
+    if (abonoCuotaHoy != null && cuotaDiaria > 0) {
+      pagoHoy = (cuotaDiaria - abonoCuotaHoy).clamp(0.0, cuotaDiaria);
+    }
+
+    final fechasCubiertas = <DateTime>[
+      ...fechasDeuda.map((d) => DateTime(d.year, d.month, d.day)),
+    ];
+    final fechaCobro = cobro.fecha;
+    if (abonoCuotaHoy != null && fechaCobro != null) {
+      final fechaHoy = DateTime(
+        fechaCobro.year,
+        fechaCobro.month,
+        fechaCobro.day,
+      );
+      final yaIncluida = fechasCubiertas.any(
+        (d) =>
+            d.year == fechaHoy.year &&
+            d.month == fechaHoy.month &&
+            d.day == fechaHoy.day,
+      );
+      if (!yaIncluida) {
+        fechasCubiertas.add(fechaHoy);
+      }
+    }
+    fechasCubiertas.sort((a, b) => a.compareTo(b));
+
+    final periodoAbonadoStr = fechasCubiertas.isEmpty
+        ? null
+        : DateRangeFormatter.formatearRangos(fechasCubiertas);
+
+    final saldoAFavor = (cobro.nuevoSaldoFavor ?? 0).toDouble();
+    String? periodoSaldoAFavorStr;
+    if (saldoAFavor > 0 && cuotaDiaria > 0) {
+      final dias = (saldoAFavor / cuotaDiaria).floor();
+      if (dias > 0) {
+        DateTime inicioFavor;
+        if (fechasCubiertas.isNotEmpty) {
+          inicioFavor = fechasCubiertas.last.add(const Duration(days: 1));
+        } else {
+          final base = fechaCobro ?? DateTime.now();
+          inicioFavor = DateTime(
+            base.year,
+            base.month,
+            base.day,
+          ).add(const Duration(days: 1));
+        }
+        periodoSaldoAFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
+          inicioFavor,
+          dias,
+        );
+      }
+    }
+
+    return _ReceiptCobroSnapshot(
+      saldoPendiente: saldoPendiente,
+      deudaAnterior: deudaAnterior,
+      montoAbonadoDeuda: montoAbonadoDeuda,
+      pagoHoy: pagoHoy,
+      abonoCuotaHoy: abonoCuotaHoy,
+      saldoAFavor: saldoAFavor,
+      fechasCubiertas: fechasCubiertas,
+      periodoAbonadoStr: periodoAbonadoStr,
+      periodoSaldoAFavorStr: periodoSaldoAFavorStr,
+    );
+  }
+}
+
 class ReceiptDispatcher {
   static Future<void> presentReceiptOptions({
     required BuildContext context,
@@ -649,18 +762,21 @@ class ReceiptDispatcher {
     String? slogan,
   }) async {
     // Si no se pasan los datos maestros, tratamos de obtenerlos de los providers
-    final localDoc = local ??
+    final localDoc =
+        local ??
         ref
             .read(localesProvider)
             .value
             ?.where((l) => l.id == cobro.localId)
             .firstOrNull;
 
-    final muni = municipalidadNombre ??
+    final muni =
+        municipalidadNombre ??
         ref.read(municipalidadActualProvider)?.nombre ??
         'MUNICIPALIDAD';
 
-    final merc = mercadoNombre ??
+    final merc =
+        mercadoNombre ??
         ref
             .read(mercadosProvider)
             .value
@@ -668,7 +784,8 @@ class ReceiptDispatcher {
             .map((m) => m.nombre)
             .firstOrNull;
 
-    final cobrador = cobradorNombre ??
+    final cobrador =
+        cobradorNombre ??
         ref
             .read(usuariosProvider)
             .value
@@ -677,28 +794,7 @@ class ReceiptDispatcher {
             .firstOrNull;
 
     final sloganMuni = slogan ?? ref.read(municipalidadActualProvider)?.slogan;
-
-    // Calcular periodos (misma lógica que en móvil)
-    String? periodoAbonadoStr;
-    if (cobro.montoAbonadoDeuda != null && cobro.montoAbonadoDeuda! > 0) {
-      periodoAbonadoStr = DateRangeFormatter.formatearRangoAbonado(
-        cobro.fecha,
-        cobro.montoAbonadoDeuda!.toDouble(),
-        cobro.cuotaDiaria?.toDouble(),
-      );
-    }
-
-    String? periodoFavorStr;
-    if (cobro.nuevoSaldoFavor != null && cobro.nuevoSaldoFavor! > 0) {
-      final dias = (cobro.nuevoSaldoFavor! / (cobro.cuotaDiaria ?? 1)).floor();
-      final inicioFavor =
-          cobro.fecha?.add(const Duration(days: 1)) ?? DateTime.now();
-      periodoFavorStr = DateRangeFormatter.calcularPeriodoFuturo(
-        inicioFavor,
-        dias,
-      );
-    }
-
+    final snapshot = _ReceiptCobroSnapshot.fromCobro(cobro);
     // 1. Imprimir Ticket (Térmica)
     await _imprimirTicket(
       ref: ref,
@@ -707,18 +803,17 @@ class ReceiptDispatcher {
       localName: localDoc?.nombreSocial ?? 'Local',
       monto: (cobro.monto ?? 0).toDouble(),
       fecha: cobro.fecha ?? DateTime.now(),
-      saldoP: (cobro.saldoPendiente ?? 0).toDouble(),
-      favor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
-      deudaAnt: (cobro.deudaAnterior ?? 0).toDouble(),
-      abono: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
-      pagoHoy: (cobro.pagoACuota ?? 0).toDouble(),
-      abonoCuotaHoy: (cobro.pagoACuota ?? 0) > 0
-          ? (cobro.pagoACuota ?? 0).toDouble()
-          : null,
+      saldoP: snapshot.saldoPendiente,
+      favor: snapshot.saldoAFavor,
+      deudaAnt: snapshot.deudaAnterior,
+      abono: snapshot.montoAbonadoDeuda,
+      pagoHoy: snapshot.pagoHoy,
+      abonoCuotaHoy: snapshot.abonoCuotaHoy,
       cobrador: cobrador,
       boleta: cobro.numeroBoletaFmt,
-      periodoAbonadoStr: periodoAbonadoStr,
-      periodoSaldoAFavorStr: periodoFavorStr,
+      fechasSaldadas: snapshot.fechasCubiertas,
+      periodoAbonadoStr: snapshot.periodoAbonadoStr,
+      periodoSaldoAFavorStr: snapshot.periodoSaldoAFavorStr,
       slogan: sloganMuni,
       clave: localDoc?.clave,
       codigoLocal: localDoc?.codigo,
@@ -732,20 +827,19 @@ class ReceiptDispatcher {
         local: localDoc ?? Local(id: cobro.localId ?? ''),
         monto: (cobro.monto ?? 0).toDouble(),
         fecha: cobro.fecha ?? DateTime.now(),
-        saldoPendiente: (cobro.saldoPendiente ?? 0).toDouble(),
-        deudaAnterior: (cobro.deudaAnterior ?? 0).toDouble(),
-        montoAbonadoDeuda: (cobro.montoAbonadoDeuda ?? 0).toDouble(),
-        pagoHoy: (cobro.pagoACuota ?? 0).toDouble(),
-        abonoCuotaHoy: (cobro.pagoACuota ?? 0) > 0
-            ? (cobro.pagoACuota ?? 0).toDouble()
-            : null,
-        saldoAFavor: (cobro.nuevoSaldoFavor ?? 0).toDouble(),
+        saldoPendiente: snapshot.saldoPendiente,
+        deudaAnterior: snapshot.deudaAnterior,
+        montoAbonadoDeuda: snapshot.montoAbonadoDeuda,
+        pagoHoy: snapshot.pagoHoy,
+        abonoCuotaHoy: snapshot.abonoCuotaHoy,
+        saldoAFavor: snapshot.saldoAFavor,
         numeroBoleta: cobro.numeroBoletaFmt,
         muni: muni,
         merc: merc,
         cobrador: cobrador,
-        periodoAbonadoStr: periodoAbonadoStr,
-        periodoSaldoAFavorStr: periodoFavorStr,
+        fechasSaldadas: snapshot.fechasCubiertas,
+        periodoAbonadoStr: snapshot.periodoAbonadoStr,
+        periodoSaldoAFavorStr: snapshot.periodoSaldoAFavorStr,
         slogan: sloganMuni,
       );
     }

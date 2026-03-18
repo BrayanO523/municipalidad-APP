@@ -30,6 +30,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   bool _isRegistering = false;
   String? _error;
 
+  double _deudaVencidaReal(Local local) {
+    final localId = local.id;
+    if (localId == null) return (local.deudaAcumulada ?? 0).toDouble();
+    final deudasMap = ref.read(deudasVencidasCobradorProvider).value;
+    return deudasMap?[localId] ?? (local.deudaAcumulada ?? 0).toDouble();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -91,7 +98,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           final rutasAsignadas = usuario?.rutaAsignada ?? [];
           if (!rutasAsignadas.contains(local.id)) {
             setState(() {
-              _error = 'Acceso Denegado: Este local no está asignado a tu ruta o mercado.';
+              _error =
+                  'Acceso Denegado: Este local no está asignado a tu ruta o mercado.';
               _buscando = false;
             });
             return;
@@ -164,10 +172,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                     Builder(
                       builder: (context) {
                         final currMonto = double.tryParse(montoCtrl.text) ?? 0;
+                        final deudaVencidaActual = _deudaVencidaReal(local);
 
                         final dist = CalculadoraDistribucionPago.calcular(
                           montoEfectivo: currMonto,
-                          deudaAcumuladaInicial: local.deudaAcumulada ?? 0,
+                          deudaAcumuladaInicial: deudaVencidaActual,
                           cuotaDiaria: local.cuotaDiaria ?? 0,
                           pagadoHoyPreviamente: pagadoHoy,
                           saldoFavorInicial: local.saldoAFavor ?? 0,
@@ -284,11 +293,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                   ),
                                   valueColor: AppColors.success,
                                 ),
-                              if ((local.deudaAcumulada ?? 0) > 0)
+                              if (deudaVencidaActual > 0)
                                 buildDynamicRow(
                                   label: 'Deuda acumulada',
                                   value: DateFormatter.formatCurrency(
-                                    local.deudaAcumulada ?? 0,
+                                    deudaVencidaActual,
                                   ),
                                   valueColor: AppColors.danger,
                                 ),
@@ -459,7 +468,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final mercadoNombre = merc?.nombre;
 
     // CONGELAR VALORES INICIALES (Evita que la vista lea el objeto mutado post-await)
-    final num deudaTotalInicial = local.deudaAcumulada ?? 0;
+    final double deudaTotalInicial = _deudaVencidaReal(local);
 
     final cuota = local.cuotaDiaria ?? 0;
     final saldoFavorExistente = local.saldoAFavor ?? 0;
@@ -537,8 +546,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                 return '${prefijo}Distribuido: ${partes.join(", ")}';
               }()
             : observaciones,
-        saldoPendiente: dist.estadoCuotaHoy,
-        deudaAnterior: local.deudaAcumulada ?? 0,
+        saldoPendiente: (dist.deudaFinalResultante + dist.estadoCuotaHoy)
+            .toDouble(),
+        deudaAnterior: deudaTotalInicial,
         montoAbonadoDeuda: dist.paraDeudaReal,
         nuevoSaldoFavor: favorResultante,
         telefonoRepresentante: local.telefonoRepresentante,
@@ -596,8 +606,15 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
         final double cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
         final double abonoCuotaHoyVal = dist.pagoACuotaHoy.toDouble();
-        double pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
-        if (pagoHoyVal < 0) pagoHoyVal = 0;
+        double? pagoHoyVal;
+        double? abonoCuotaHoyMostrar;
+        if (abonoCuotaHoyVal > 0) {
+          pagoHoyVal = cuotaLocal - abonoCuotaHoyVal;
+          if (pagoHoyVal < 0) pagoHoyVal = 0;
+          abonoCuotaHoyMostrar = abonoCuotaHoyVal;
+        }
+        final double deudaVencidaRestante = dist.deudaFinalResultante
+            .toDouble();
 
         await ReceiptDispatcher.presentReceiptOptions(
           context: context,
@@ -605,11 +622,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           local: local,
           monto: monto.toDouble(),
           fecha: now,
-          saldoPendiente: saldoResultante,
-          deudaAnterior: (local.deudaAcumulada ?? 0).toDouble(),
+          saldoPendiente: deudaVencidaRestante,
+          deudaAnterior: deudaTotalInicial,
           montoAbonadoDeuda: dist.paraDeudaReal.toDouble(),
           pagoHoy: pagoHoyVal,
-          abonoCuotaHoy: abonoCuotaHoyVal,
+          abonoCuotaHoy: abonoCuotaHoyMostrar,
           saldoAFavor: favorResultante,
           numeroBoleta: correlativoStr,
           municipalidadNombre: municipalidadNombre,
@@ -661,9 +678,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '📋 Incidencia registrada: ${result.tipo.label}',
-            ),
+            content: Text('📋 Incidencia registrada: ${result.tipo.label}'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -843,6 +858,9 @@ class _LocalDetailPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final deudasMap = ref.watch(deudasVencidasCobradorProvider).value;
+    final deuda =
+        deudasMap?[local.id] ?? (local.deudaAcumulada ?? 0).toDouble();
 
     final mercados = ref
         .watch(mercadosProvider)
@@ -934,7 +952,6 @@ class _LocalDetailPanel extends ConsumerWidget {
                   Builder(
                     builder: (context) {
                       final cuota = (local.cuotaDiaria ?? 0).toDouble();
-                      final deuda = (local.deudaAcumulada ?? 0).toDouble();
                       final saldoFavor = (local.saldoAFavor ?? 0).toDouble();
 
                       // Calcular rango de deuda si existe

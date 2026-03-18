@@ -15,6 +15,7 @@ class CobrosPaginadosState {
   final DateTimeRange? rangoFechas;
   final String? mercadoId;
   final String? cobradorId;
+  final Set<String> seleccionados;
 
   CobrosPaginadosState({
     this.cobros = const [],
@@ -26,6 +27,7 @@ class CobrosPaginadosState {
     this.rangoFechas,
     this.mercadoId,
     this.cobradorId,
+    this.seleccionados = const {},
   });
 
   CobrosPaginadosState copyWith({
@@ -38,6 +40,7 @@ class CobrosPaginadosState {
     DateTimeRange? rangoFechas,
     String? mercadoId,
     String? cobradorId,
+    Set<String>? seleccionados,
   }) {
     return CobrosPaginadosState(
       cobros: cobros ?? this.cobros,
@@ -49,6 +52,7 @@ class CobrosPaginadosState {
       rangoFechas: rangoFechas ?? this.rangoFechas,
       mercadoId: mercadoId ?? this.mercadoId,
       cobradorId: cobradorId ?? this.cobradorId,
+      seleccionados: seleccionados ?? this.seleccionados,
     );
   }
 }
@@ -64,7 +68,7 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
   Future<void> cargarPagina({bool reiniciar = false}) async {
     if (state.cargando) return;
 
-    state = state.copyWith(cargando: true, errorMsg: null);
+    state = state.copyWith(cargando: true, errorMsg: null, seleccionados: reiniciar ? const {} : state.seleccionados);
 
     try {
       final firestore = ref.read(firestoreProvider);
@@ -206,7 +210,63 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
   }
 
   Future<void> recargar() => cargarPagina(reiniciar: true);
+  
+  void toggleSeleccion(String id) {
+    final nuevasSelecciones = Set<String>.from(state.seleccionados);
+    if (nuevasSelecciones.contains(id)) {
+      nuevasSelecciones.remove(id);
+    } else {
+      nuevasSelecciones.add(id);
+    }
+    state = state.copyWith(seleccionados: nuevasSelecciones);
+  }
+
+  void seleccionarTodos(List<Cobro> visibles) {
+    final nuevasSelecciones = Set<String>.from(state.seleccionados);
+    bool todosSeleccionados = visibles.every((c) => nuevasSelecciones.contains(c.id));
+    
+    if (todosSeleccionados) {
+       for (final c in visibles) {
+         if (c.id != null) nuevasSelecciones.remove(c.id);
+       }
+    } else {
+       for (final c in visibles) {
+         if (c.id != null) nuevasSelecciones.add(c.id!);
+       }
+    }
+    
+    state = state.copyWith(seleccionados: nuevasSelecciones);
+  }
+
+  void limpiarSeleccion() {
+    state = state.copyWith(seleccionados: const {});
+  }
+
+  Future<void> eliminarSeleccionados(WidgetRef ref) async {
+    if (state.seleccionados.isEmpty) return;
+    
+    state = state.copyWith(cargando: true);
+    try {
+      final repository = ref.read(cobroRepositoryProvider);
+      
+      for (final id in state.seleccionados) {
+        final cobro = state.cobros.firstWhere((c) => c.id == id, orElse: () => Cobro());
+        if (cobro.id != null) {
+          await repository.eliminarCobro(cobro);
+        }
+      }
+      
+      state = state.copyWith(seleccionados: const {});
+      await cargarPagina(reiniciar: true);
+    } catch (e) {
+      state = state.copyWith(
+        cargando: false,
+        errorMsg: 'Error al eliminar: $e',
+      );
+    }
+  }
 }
+
 
 final cobrosPaginadosProvider = NotifierProvider<
   CobrosPaginadosNotifier,
