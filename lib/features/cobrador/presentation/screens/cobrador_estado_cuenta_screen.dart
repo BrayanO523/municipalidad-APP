@@ -608,26 +608,70 @@ class _CobrosList extends ConsumerWidget {
     Cobro cobro,
     DateTime fechaSeleccionada,
   ) {
-    final cuota = (cobro.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
-    final deudaBase = (cobro.deudaAnterior ?? 0).toDouble();
     final fechaNorm = _normalizarDia(fechaSeleccionada);
-    final fechaCobro = _normalizarDia(
-      cobro.fecha ?? cobro.creadoEn ?? DateTime.now(),
-    );
+    final boletaId = cobro.numeroBoleta ?? cobro.correlativo?.toString();
+    final boletaValida =
+        boletaId != null && boletaId.isNotEmpty && boletaId != '0';
 
-    final fechasDeuda =
-        (cobro.fechasDeudasSaldadas ?? []).map(_normalizarDia).toSet().toList()
-          ..sort();
+    final registrosRelacionados = boletaValida
+        ? cobros.where((c) {
+            final id = c.numeroBoleta ?? c.correlativo?.toString();
+            return id == boletaId;
+          }).toList()
+        : <Cobro>[cobro];
+    if (registrosRelacionados.isEmpty) {
+      registrosRelacionados.add(cobro);
+    }
 
-    final indexDeuda = fechasDeuda.indexWhere((d) => _esMismoDia(d, fechaNorm));
-    if (indexDeuda >= 0) {
+    double cuota = (local.cuotaDiaria ?? 0).toDouble();
+    for (final r in registrosRelacionados) {
+      final cuotaRegistro = (r.cuotaDiaria ?? 0).toDouble();
+      if (cuotaRegistro > cuota) cuota = cuotaRegistro;
+    }
+
+    double deudaBase = 0;
+    for (final r in registrosRelacionados) {
+      final deudaRegistro = (r.deudaAnterior ?? 0).toDouble();
+      if (deudaRegistro > deudaBase) deudaBase = deudaRegistro;
+    }
+    if (deudaBase <= 0) {
+      deudaBase = (cobro.deudaAnterior ?? 0).toDouble();
+    }
+
+    double abonoDeudaTotal = 0;
+    for (final r in registrosRelacionados) {
+      final abonoRegistro = (r.montoAbonadoDeuda ?? 0).toDouble();
+      if (abonoRegistro > abonoDeudaTotal) abonoDeudaTotal = abonoRegistro;
+    }
+
+    final fechasDeudaSet = <DateTime>{};
+    for (final r in registrosRelacionados) {
+      for (final d in (r.fechasDeudasSaldadas ?? const <DateTime>[])) {
+        fechasDeudaSet.add(_normalizarDia(d));
+      }
+    }
+    final fechasDeuda = fechasDeudaSet.toList();
+    final existeFechaDeuda = fechasDeuda.any((d) => _esMismoDia(d, fechaNorm));
+    if (existeFechaDeuda) {
+      // Índice cronológico real: cuántas fechas de deuda están antes del día seleccionado.
+      final indexDeuda = fechasDeuda.where((d) => d.isBefore(fechaNorm)).length;
       final deudaAntesFecha = (deudaBase - (indexDeuda * cuota)).clamp(
         0.0,
         double.infinity,
       );
-      final abonoDeuda = cuota > 0
-          ? cuota
-          : (cobro.montoAbonadoDeuda ?? cobro.monto ?? 0).toDouble();
+      double abonoDeuda;
+      if (abonoDeudaTotal > 0 && cuota > 0) {
+        final abonoPrevio = (indexDeuda * cuota).toDouble();
+        final restante = (abonoDeudaTotal - abonoPrevio).clamp(
+          0.0,
+          double.infinity,
+        );
+        abonoDeuda = restante.clamp(0.0, cuota);
+      } else if (cuota > 0) {
+        abonoDeuda = cuota;
+      } else {
+        abonoDeuda = (cobro.montoAbonadoDeuda ?? cobro.monto ?? 0).toDouble();
+      }
       final deudaDespuesFecha = (deudaAntesFecha - abonoDeuda).clamp(
         0.0,
         double.infinity,
@@ -647,16 +691,34 @@ class _CobrosList extends ConsumerWidget {
       );
     }
 
-    final deudaTrasHistoricas = (deudaBase - (fechasDeuda.length * cuota))
-        .clamp(0.0, double.infinity);
-    final abonoCuotaHoy = (cobro.pagoACuota ?? 0).toDouble();
-    if (abonoCuotaHoy > 0 && _esMismoDia(fechaNorm, fechaCobro)) {
+    final abonoHistoricoEstimado = abonoDeudaTotal > 0
+        ? abonoDeudaTotal
+        : (fechasDeuda.length * cuota).toDouble();
+    final deudaTrasHistoricas = (deudaBase - abonoHistoricoEstimado).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    double abonoCuotaHoy = 0;
+    DateTime? fechaCobroCuota;
+    for (final r in registrosRelacionados) {
+      final pagoCuota = (r.pagoACuota ?? 0).toDouble();
+      if (pagoCuota <= 0) continue;
+      final fechaCobro = _normalizarDia(r.fecha ?? r.creadoEn ?? DateTime.now());
+      if (_esMismoDia(fechaCobro, fechaNorm)) {
+        abonoCuotaHoy = pagoCuota;
+        fechaCobroCuota = r.fecha ?? r.creadoEn ?? fechaSeleccionada;
+        break;
+      }
+    }
+
+    if (abonoCuotaHoy > 0) {
       final pagoHoy = cuota > 0
           ? (cuota - abonoCuotaHoy).clamp(0.0, cuota)
           : 0.0;
       return _FechaBoletaSnapshot(
         monto: abonoCuotaHoy,
-        fechaRecibo: cobro.fecha ?? cobro.creadoEn ?? fechaSeleccionada,
+        fechaRecibo: fechaCobroCuota ?? fechaSeleccionada,
         deudaAnterior: deudaTrasHistoricas,
         saldoPendiente: deudaTrasHistoricas,
         montoAbonadoDeuda: 0,
@@ -1140,7 +1202,8 @@ class _GrupoBoletaCard extends ConsumerWidget {
       }
     }
 
-    final List<DateTime> fechasOrdenadas = fechasExtraidas.toList()..sort();
+    final List<DateTime> fechasOrdenadas = fechasExtraidas.toList()
+      ..sort((a, b) => b.compareTo(a));
     final rangoStr = DateRangeFormatter.formatearRangos(fechasOrdenadas) ?? '-';
 
     double montoDisplay = masterPayment != null
