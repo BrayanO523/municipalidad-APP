@@ -16,6 +16,7 @@ class LocalesPaginadosState {
   final List<Local> locales;
   final bool cargando;
   final bool hayMas;
+  final int totalPaginas;
   final String? errorMsg;
   final String? mercadoSeleccionadoId;
   final String? busqueda;
@@ -30,6 +31,7 @@ class LocalesPaginadosState {
     this.locales = const [],
     this.cargando = false,
     this.hayMas = true,
+    this.totalPaginas = 1,
     this.errorMsg,
     this.mercadoSeleccionadoId,
     this.busqueda,
@@ -45,6 +47,7 @@ class LocalesPaginadosState {
     List<Local>? locales,
     bool? cargando,
     bool? hayMas,
+    int? totalPaginas,
     String? errorMsg,
     String? mercadoSeleccionadoId,
     String? busqueda,
@@ -57,21 +60,27 @@ class LocalesPaginadosState {
     bool clearError = false,
     bool clearUltimoDoc = false,
     bool clearBusqueda = false,
+    bool clearMercadoSeleccionado = false,
+    bool clearUsuarioFiltrado = false,
   }) {
     return LocalesPaginadosState(
       locales: locales ?? this.locales,
       cargando: cargando ?? this.cargando,
       hayMas: hayMas ?? this.hayMas,
+      totalPaginas: totalPaginas ?? this.totalPaginas,
       errorMsg: clearError ? null : (errorMsg ?? this.errorMsg),
-      mercadoSeleccionadoId:
-          mercadoSeleccionadoId ?? this.mercadoSeleccionadoId,
+      mercadoSeleccionadoId: clearMercadoSeleccionado
+          ? null
+          : (mercadoSeleccionadoId ?? this.mercadoSeleccionadoId),
       busqueda: clearBusqueda ? null : (busqueda ?? this.busqueda),
       paginaActual: paginaActual ?? this.paginaActual,
       snapshotsPaginas: snapshotsPaginas ?? this.snapshotsPaginas,
       localesPagadosHoy: localesPagadosHoy ?? this.localesPagadosHoy,
       ultimoDoc: clearUltimoDoc ? null : (ultimoDoc ?? this.ultimoDoc),
       filtroDeuda: filtroDeuda ?? this.filtroDeuda,
-      usuarioFiltradoId: usuarioFiltradoId ?? this.usuarioFiltradoId,
+      usuarioFiltradoId: clearUsuarioFiltrado
+          ? null
+          : (usuarioFiltradoId ?? this.usuarioFiltradoId),
     );
   }
 }
@@ -95,6 +104,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       mercadoSeleccionadoId: mercado?.id,
       busqueda: null,
       cargando: true,
+      totalPaginas: 1,
       paginaActual: 1,
       snapshotsPaginas: [null],
       localesPagadosHoy: const {},
@@ -109,6 +119,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       busqueda: busqueda,
       locales: [],
       hayMas: true,
+      totalPaginas: 1,
       cargando: true,
       paginaActual: 1,
       snapshotsPaginas: [null],
@@ -125,6 +136,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       filtroDeuda: filtro,
       locales: [],
       hayMas: true,
+      totalPaginas: 1,
       cargando: true,
       paginaActual: 1,
       snapshotsPaginas: [null],
@@ -139,13 +151,35 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
   Future<void> seleccionarUsuario(String? usuarioId) async {
     state = state.copyWith(
       usuarioFiltradoId: usuarioId,
+      clearUsuarioFiltrado: usuarioId == null,
       locales: [],
       hayMas: true,
+      totalPaginas: 1,
       cargando: true,
       paginaActual: 1,
       snapshotsPaginas: [null],
       clearUltimoDoc: true,
       clearError: true,
+      localesPagadosHoy: const {},
+    );
+    await _fetchPagina(lastDoc: null);
+  }
+
+  /// Limpia filtros y recarga desde cero.
+  Future<void> restablecerFiltros() async {
+    state = state.copyWith(
+      locales: [],
+      hayMas: true,
+      totalPaginas: 1,
+      cargando: true,
+      paginaActual: 1,
+      snapshotsPaginas: [null],
+      filtroDeuda: LocalFiltroDeuda.todos,
+      clearUltimoDoc: true,
+      clearError: true,
+      clearBusqueda: true,
+      clearMercadoSeleccionado: true,
+      clearUsuarioFiltrado: true,
       localesPagadosHoy: const {},
     );
     await _fetchPagina(lastDoc: null);
@@ -189,15 +223,38 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       final municipalidadId = _municipalidadId;
       final mercadoId = state.mercadoSeleccionadoId;
       final query = state.busqueda;
-      
+
       // Mapear el nombre del enum al string esperado por el datasource
       String filtroDs = 'todos';
-      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) filtroDs = 'deudores';
-      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) filtroDs = 'saldos';
+      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores)
+        filtroDs = 'deudores';
+      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor)
+        filtroDs = 'saldos';
+
+      List<String>? filterLocalIds;
+      if (state.usuarioFiltradoId != null) {
+        final usuarios = ref.read(usuariosProvider).value ?? [];
+        final usuario = usuarios.whereType<Usuario>().firstWhere(
+          (u) => u.id == state.usuarioFiltradoId,
+          orElse: () => const Usuario(),
+        );
+        filterLocalIds = usuario.rutaAsignada;
+      }
 
       List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+      int? totalRegistros;
 
       if (municipalidadId != null) {
+        if (lastDoc == null) {
+          totalRegistros = await _ds.contarLocalesPorMunicipalidad(
+            municipalidadId: municipalidadId,
+            mercadoId: mercadoId,
+            searchQuery: query,
+            filtroDeuda: filtroDs,
+            filterLocalIds: filterLocalIds,
+          );
+        }
+
         docs = await _ds.listarPaginaPorMunicipalidad(
           municipalidadId: municipalidadId,
           mercadoId: mercadoId,
@@ -205,15 +262,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
           lastDoc: lastDoc,
           limit: _pageSize,
           filtroDeuda: filtroDs,
-          filterLocalIds: state.usuarioFiltradoId != null
-              ? (ref.read(usuariosProvider).value ?? [])
-                  .whereType<Usuario>()
-                  .firstWhere(
-                    (u) => u.id == state.usuarioFiltradoId,
-                    orElse: () => const Usuario(),
-                  )
-                  .rutaAsignada
-              : null,
+          filterLocalIds: filterLocalIds,
         );
       } else {
         state = state.copyWith(cargando: false, hayMas: false);
@@ -231,6 +280,9 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         hayMas: docs.length >= _pageSize,
         cargando: false,
         ultimoDoc: ultimoDoc,
+        totalPaginas: totalRegistros == null
+            ? state.totalPaginas
+            : (totalRegistros == 0 ? 1 : (totalRegistros / _pageSize).ceil()),
         clearError: true,
       );
 
@@ -253,47 +305,91 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
 
     final ahora = DateTime.now();
     final hoyInicio = DateTime(ahora.year, ahora.month, ahora.day);
+    final firestore = FirebaseFirestore.instance;
+    final ids = locales
+        .map((l) => l.id)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.isEmpty) return;
 
+    try {
+      final Map<String, bool> pagaronHoy = {};
+      final hoyTs = Timestamp.fromDate(hoyInicio);
+
+      for (final batch in _chunkIds(ids, 30)) {
+        final snapshot = await firestore
+            .collection('cobros')
+            .where('localId', whereIn: batch)
+            .where('fecha', isGreaterThanOrEqualTo: hoyTs)
+            .orderBy('fecha', descending: true)
+            .get();
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final localId = data['localId'] as String?;
+          if (localId == null) continue;
+          if (pagaronHoy[localId] == true) continue;
+          if (data['estado'] == 'cobrado' || (data['monto'] ?? 0) > 0) {
+            pagaronHoy[localId] = true;
+          }
+        }
+      }
+
+      state = state.copyWith(localesPagadosHoy: pagaronHoy);
+    } catch (e) {
+      debugPrint(
+        'Batch de pagos-hoy no disponible, usando fallback por local: $e',
+      );
+      await _verificarPagosHoyFallback(locales: locales, hoyInicio: hoyInicio);
+    }
+  }
+
+  Future<void> _verificarPagosHoyFallback({
+    required List<Local> locales,
+    required DateTime hoyInicio,
+  }) async {
     try {
       final firestore = FirebaseFirestore.instance;
       final Map<String, bool> pagaronHoy = {};
 
-      // Usamos limit(3) y orderBy('fecha', descending: true) para aprovechar
-      // el índice compuesto que ya existe para el historial de cobros.
-      // Limit 3 previene que una "Deuda" automática tape al "Cobro" del día de hoy
-      // si pasaron los dos eventos el mismo día.
-      await Future.wait(locales.map((l) async {
-        final localId = l.id;
-        if (localId == null) return;
+      await Future.wait(
+        locales.map((l) async {
+          final localId = l.id;
+          if (localId == null || localId.isEmpty) return;
 
-        final snapshot = await firestore
-            .collection('cobros')
-            .where('localId', isEqualTo: localId)
-            .orderBy('fecha', descending: true)
-            .limit(3)
-            .get();
+          final snapshot = await firestore
+              .collection('cobros')
+              .where('localId', isEqualTo: localId)
+              .orderBy('fecha', descending: true)
+              .limit(3)
+              .get();
 
-        for (var doc in snapshot.docs) {
-          final data = doc.data();
-          final fechaObj = data['fecha'];
-          if (fechaObj is Timestamp) {
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final fechaObj = data['fecha'];
+            if (fechaObj is! Timestamp) continue;
             final fecha = fechaObj.toDate();
-            // Si el cobro fue hecho hoy (después de las 00:00) y es un cobro real
-            if (!fecha.isBefore(hoyInicio)) {
-              if (data['estado'] == 'cobrado' || (data['monto'] ?? 0) > 0) {
-                pagaronHoy[localId] = true;
-                break; // Encontramos un pago, pasamos al siguiente local
-              }
-            } else {
-              break; // Como está ordenado DESC, si ya pasamos a ayer, no hay más para buscar
+            if (fecha.isBefore(hoyInicio)) break;
+            if (data['estado'] == 'cobrado' || (data['monto'] ?? 0) > 0) {
+              pagaronHoy[localId] = true;
+              break;
             }
           }
-        }
-      }));
+        }),
+      );
 
       state = state.copyWith(localesPagadosHoy: pagaronHoy);
     } catch (e) {
-      debugPrint('Error verificando pagos hoy: $e');
+      debugPrint('Error verificando pagos hoy (fallback): $e');
+    }
+  }
+
+  Iterable<List<String>> _chunkIds(List<String> ids, int size) sync* {
+    for (var i = 0; i < ids.length; i += size) {
+      final end = i + size > ids.length ? ids.length : i + size;
+      yield ids.sublist(i, end);
     }
   }
 
@@ -302,6 +398,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     state = state.copyWith(
       locales: [],
       hayMas: true,
+      totalPaginas: 1,
       cargando: true,
       paginaActual: 1,
       snapshotsPaginas: [null],
@@ -321,18 +418,18 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
 
     // Mapear el nombre del enum al string esperado por el datasource
     String filtroDs = 'todos';
-    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) filtroDs = 'deudores';
-    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) filtroDs = 'saldos';
+    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores)
+      filtroDs = 'deudores';
+    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor)
+      filtroDs = 'saldos';
 
     List<String>? filterLocalIds;
     if (state.usuarioFiltradoId != null) {
       final usuarios = ref.read(usuariosProvider).value ?? [];
-      final usuario = usuarios
-          .whereType<Usuario>()
-          .firstWhere(
-            (u) => u.id == state.usuarioFiltradoId,
-            orElse: () => const Usuario(),
-          );
+      final usuario = usuarios.whereType<Usuario>().firstWhere(
+        (u) => u.id == state.usuarioFiltradoId,
+        orElse: () => const Usuario(),
+      );
       filterLocalIds = usuario.rutaAsignada;
     }
 
