@@ -36,10 +36,10 @@ class LocalesScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalesScreenState extends ConsumerState<LocalesScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   Key _searchKey = UniqueKey();
   Timer? _debounce;
+  int _autocompleteRequestToken = 0;
   Mercado? _mercadoSeleccionado;
   Local? _localSeleccionado;
   bool _isExportingCsv = false;
@@ -64,7 +64,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _searchCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -142,11 +141,26 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     }
   }
 
+  Future<void> _limpiarFiltros(
+    LocalesPaginadosNotifier notifier, {
+    bool limpiarSeleccion = true,
+  }) async {
+    setState(() {
+      _mercadoSeleccionado = null;
+      if (limpiarSeleccion) _localSeleccionado = null;
+      _searchKey = UniqueKey();
+      _autocompleteRequestToken++;
+    });
+    _debounce?.cancel();
+    await notifier.restablecerFiltros();
+  }
+
   Widget _buildFiltros(BuildContext context) {
     final user = ref.watch(currentUsuarioProvider).value;
     final municipalidadId = user?.municipalidadId;
     final state = ref.watch(localesPaginadosProvider);
     final notifier = ref.read(localesPaginadosProvider.notifier);
+    final showUsuario = !(user?.esCobrador ?? true);
 
     return Card(
       elevation: 3,
@@ -160,41 +174,91 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isTablet =
-                constraints.maxWidth >= 650 && constraints.maxWidth < 1100;
-            final isDesktop = constraints.maxWidth >= 1100;
+            final w = constraints.maxWidth;
+            final isDesktop = w >= 1100;
+            final isTablet = w >= 760 && w < 1100;
+            final isMobile = w < 760;
 
-            final bool showUsuario = !(user?.esCobrador ?? true);
+            Widget actions({required bool compact}) {
+              ButtonStyle compactStyle = OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              );
 
-            Widget infoPill(String text, {Color? color}) {
-              final theme = Theme.of(context);
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (color ?? theme.colorScheme.primaryContainer)
-                      .withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onPrimaryContainer,
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: notifier.recargar,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('Recargar'),
+                    ),
                   ),
-                ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: () => _limpiarFiltros(notifier),
+                      icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
+                      label: const Text('Limpiar'),
+                    ),
+                  ),
+                  if (kIsWeb)
+                    SizedBox(
+                      height: 34,
+                      child: OutlinedButton.icon(
+                        style: compactStyle,
+                        onPressed: _isExportingCsv
+                            ? null
+                            : () => _exportarCsvWeb(context),
+                        icon: const Icon(Icons.download_rounded, size: 15),
+                        label: Text(_isExportingCsv ? 'Exportando...' : 'CSV'),
+                      ),
+                    ),
+                  if (_kShowDevTools && showUsuario)
+                    SizedBox(
+                      height: 34,
+                      child: OutlinedButton.icon(
+                        style: compactStyle,
+                        onPressed: _isMigratingCodigo
+                            ? null
+                            : () => _migrarCodigoLower(context),
+                        icon: const Icon(Icons.tune_rounded, size: 15),
+                        label: Text(
+                          _isMigratingCodigo ? 'Migrando...' : 'Migrar',
+                        ),
+                      ),
+                    ),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
+                        ),
+                      ),
+                      onPressed: () => _showFormDialog(context),
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: const Text('Agregar'),
+                    ),
+                  ),
+                ],
               );
             }
 
-            final header = Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            final headerLeft = Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: Theme.of(
                       context,
@@ -203,7 +267,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   ),
                   child: Icon(
                     Icons.store_mall_directory_rounded,
-                    size: 20,
+                    size: 18,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
@@ -221,14 +285,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             ),
                       ),
                       Text(
-                        state.mercadoSeleccionadoId != null
-                            ? 'Página ${state.paginaActual} · ${state.locales.length} locales'
-                            : 'Selecciona un mercado para iniciar',
+                        'Pagina ${state.paginaActual} · ${state.locales.length} locales',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ).colorScheme.onSurface.withValues(alpha: 0.62),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -236,178 +298,137 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     ],
                   ),
                 ),
-                if (state.locales.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: infoPill(
-                      '${state.locales.length} locales',
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                    ),
-                  ),
-                IconButton(
-                  tooltip: 'Recargar',
-                  iconSize: 20,
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: () => notifier.recargar(),
-                ),
-                IconButton(
-                  tooltip: 'Limpiar filtros',
-                  iconSize: 20,
-                  icon: const Icon(Icons.filter_list_off_rounded),
-                  onPressed: () {
-                    setState(() {
-                      _mercadoSeleccionado = null;
-                      _localSeleccionado = null;
-                      _searchKey = UniqueKey();
-                    });
-                    _debounce?.cancel();
-                    notifier.recargar();
-                  },
-                ),
               ],
             );
 
-            final buttonsRow = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (kIsWeb) ...[
-                  SizedBox(
-                    height: 40,
-                    child: OutlinedButton.icon(
-                      onPressed: _isExportingCsv
-                          ? null
-                          : () => _exportarCsvWeb(context),
-                      icon: const Icon(Icons.download_rounded, size: 18),
-                      label: Text(
-                        _isExportingCsv ? 'Exportando...' : 'Exportar CSV',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                if (_kShowDevTools && showUsuario) ...[
-                  SizedBox(
-                    height: 40,
-                    child: OutlinedButton.icon(
-                      onPressed: _isMigratingCodigo
-                          ? null
-                          : () => _migrarCodigoLower(context),
-                      icon: const Icon(Icons.tune_rounded, size: 18),
-                      label: Text(
-                        _isMigratingCodigo ? 'Migrando...' : 'Migrar',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                SizedBox(
-                  height: 40,
-                  child: FilledButton.icon(
-                    onPressed: () => _showFormDialog(context),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Agregar'),
-                  ),
-                ),
-              ],
-            );
-
-            Widget filterContent;
-
-            if (isDesktop) {
-              filterContent = Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+            final header = isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: _buildMercadoDropdown(context, municipalidadId),
-                      ),
-                      const SizedBox(width: 8),
-                      if (showUsuario) ...[
-                        Expanded(
-                          flex: 2,
-                          child: _buildUsuarioFilter(context, state),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        flex: 3,
-                        child: _buildLocalSearch(context, municipalidadId),
+                      headerLeft,
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: actions(compact: true),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [_buildFiltroEstado(context, state), buttonsRow],
-                  ),
-                ],
-              );
-            } else if (isTablet) {
-              filterContent = Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 2,
-                        child: _buildMercadoDropdown(context, municipalidadId),
-                      ),
-                      if (showUsuario) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: _buildUsuarioFilter(context, state),
-                        ),
-                      ],
+                      Expanded(child: headerLeft),
                       const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: _buildLocalSearch(context, municipalidadId),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: actions(compact: !isDesktop),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.end,
-                    children: [_buildFiltroEstado(context, state), buttonsRow],
-                  ),
-                ],
-              );
-            } else {
-              // isMobile
-              filterContent = Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                  );
+
+            Widget filtersDesktopRow() {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildMercadoDropdown(context, municipalidadId),
-                  const SizedBox(height: 8),
+                  Expanded(
+                    flex: 24,
+                    child: _buildMercadoDropdown(context, municipalidadId),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 30,
+                    child: _buildLocalSearch(context, municipalidadId),
+                  ),
                   if (showUsuario) ...[
-                    _buildUsuarioFilter(context, state),
-                    const SizedBox(height: 8),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 22,
+                      child: _buildUsuarioFilter(context, state),
+                    ),
                   ],
-                  _buildLocalSearch(context, municipalidadId),
-                  const SizedBox(height: 8),
-                  _buildFiltroEstado(context, state),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: buttonsRow,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: showUsuario ? 24 : 32,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _buildFiltroEstado(context, state),
+                    ),
                   ),
                 ],
               );
             }
 
+            Widget filtersTablet() {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildMercadoDropdown(context, municipalidadId),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildLocalSearch(context, municipalidadId),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (showUsuario) ...[
+                        Expanded(child: _buildUsuarioFilter(context, state)),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildFiltroEstado(context, state),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            final filtersGroup = Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.08),
+                ),
+              ),
+              child: isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildMercadoDropdown(context, municipalidadId),
+                        const SizedBox(height: 8),
+                        _buildLocalSearch(context, municipalidadId),
+                        if (showUsuario) ...[
+                          const SizedBox(height: 8),
+                          _buildUsuarioFilter(context, state),
+                        ],
+                        const SizedBox(height: 8),
+                        _buildFiltroEstado(context, state),
+                      ],
+                    )
+                  : (isTablet ? filtersTablet() : filtersDesktopRow()),
+            );
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [header, const SizedBox(height: 12), filterContent],
+              children: [header, const SizedBox(height: 8), filtersGroup],
             );
           },
         ),
@@ -707,8 +728,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     return Autocomplete<Local>(
       key: _searchKey,
       optionsBuilder: (textEditingValue) async {
-        final patron = textEditingValue.text;
+        final patron = textEditingValue.text.trim();
         if (patron.length < 2) return [];
+        final requestToken = ++_autocompleteRequestToken;
+        await Future<void>.delayed(const Duration(milliseconds: 280));
+        if (requestToken != _autocompleteRequestToken) return const [];
         final ds = ref.read(localDatasourceProvider);
         final results = await ds.buscarPorPrefijo(
           prefijo: patron,
@@ -716,21 +740,18 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           municipalidadId: municipalidadId,
           limit: 8,
         );
+        if (requestToken != _autocompleteRequestToken) return const [];
         return results.cast<Local>();
       },
       displayStringForOption: (local) => local.nombreSocial ?? '',
       fieldViewBuilder: (ctx, controller, focusNode, onFieldSubmitted) {
-        // Escuchar cambios para filtrar la lista principal (DataTable)
-        controller.addListener(() {
-          // Sincronizamos con el buscador del provider
-          _onSearchChanged(controller.text);
-        });
         return ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (_, value, __) {
             return TextField(
               controller: controller,
               focusNode: focusNode,
+              onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 labelText: 'Buscar Local',
                 hintText: 'Nombre, código o respresentante...',
@@ -741,6 +762,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         tooltip: 'Limpiar búsqueda',
                         icon: const Icon(Icons.close_rounded, size: 18),
                         onPressed: () {
+                          _autocompleteRequestToken++;
                           controller.clear();
                           _onSearchChanged('');
                         },
@@ -805,6 +827,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         );
       },
       onSelected: (local) {
+        _autocompleteRequestToken++;
         _debounce?.cancel();
         ref
             .read(localesPaginadosProvider.notifier)
@@ -814,34 +837,61 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   }
 
   Widget _buildFiltroEstado(BuildContext context, LocalesPaginadosState state) {
-    return SegmentedButton<LocalFiltroDeuda>(
-      segments: const [
-        ButtonSegment(
-          value: LocalFiltroDeuda.todos,
-          label: Text('Todos'),
-          icon: Icon(Icons.list_rounded, size: 16),
+    return SizedBox(
+      height: 40,
+      child: Center(
+        child: SegmentedButton<LocalFiltroDeuda>(
+          segments: const [
+            ButtonSegment(
+              value: LocalFiltroDeuda.todos,
+              label: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.list_rounded, size: 16),
+                  SizedBox(width: 6),
+                  Text('Todos'),
+                ],
+              ),
+            ),
+            ButtonSegment(
+              value: LocalFiltroDeuda.soloDeudores,
+              label: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.trending_down_rounded, size: 16),
+                  SizedBox(width: 6),
+                  Text('Deuda'),
+                ],
+              ),
+            ),
+            ButtonSegment(
+              value: LocalFiltroDeuda.soloSaldosAFavor,
+              label: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.trending_up_rounded, size: 16),
+                  SizedBox(width: 6),
+                  Text('Saldos +'),
+                ],
+              ),
+            ),
+          ],
+          selected: {state.filtroDeuda},
+          onSelectionChanged: (newSelection) {
+            ref
+                .read(localesPaginadosProvider.notifier)
+                .cambiarFiltroDeuda(newSelection.first);
+          },
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            textStyle: const TextStyle(fontSize: 12),
+          ),
         ),
-        ButtonSegment(
-          value: LocalFiltroDeuda.soloDeudores,
-          label: Text('Deudores'),
-          icon: Icon(Icons.trending_down_rounded, size: 16),
-        ),
-        ButtonSegment(
-          value: LocalFiltroDeuda.soloSaldosAFavor,
-          label: Text('Saldos +'),
-          icon: Icon(Icons.trending_up_rounded, size: 16),
-        ),
-      ],
-      selected: {state.filtroDeuda},
-      onSelectionChanged: (newSelection) {
-        ref
-            .read(localesPaginadosProvider.notifier)
-            .cambiarFiltroDeuda(newSelection.first);
-      },
-      showSelectedIcon: false,
-      style: SegmentedButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        textStyle: const TextStyle(fontSize: 12),
       ),
     );
   }
@@ -968,9 +1018,19 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Página ${state.paginaActual}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  child: Builder(
+                    builder: (_) {
+                      final paginaActual =
+                          state.paginaActual > state.totalPaginas
+                          ? state.totalPaginas
+                          : state.paginaActual;
+                      final label =
+                          'Página $paginaActual de ${state.totalPaginas}';
+                      return Text(
+                        label,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      );
+                    },
                   ),
                 ),
                 IconButton(
@@ -1318,85 +1378,89 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   void _showQrDialog(BuildContext context, Local local) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(local.nombreSocial ?? 'QR del Local'),
-        content: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: QrImageView(
-                  data: local.id ?? 'sin-id',
-                  version: QrVersions.auto,
-                  size: 220,
-                  backgroundColor: Theme.of(context).colorScheme.onSurface,
-                  errorCorrectionLevel: QrErrorCorrectLevel.Q,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Colors.black,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: Text(local.nombreSocial ?? 'QR del Local'),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withValues(alpha: 0.12),
+                    ),
                   ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Colors.black,
+                  child: QrImageView(
+                    data: local.id ?? 'sin-id',
+                    version: QrVersions.auto,
+                    size: 220,
+                    backgroundColor: Colors.white,
+                    errorCorrectionLevel: QrErrorCorrectLevel.Q,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Colors.black,
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'ID: ${local.id}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                const SizedBox(height: 16),
+                Text(
+                  'ID: ${local.id}',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Cuota diaria: ${DateFormatter.formatCurrency(local.cuotaDiaria)}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              Text(
-                'Representante: ${local.representante ?? '-'}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Cuota diaria: ${DateFormatter.formatCurrency(local.cuotaDiaria)}',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                Text(
+                  'Representante: ${local.representante ?? '-'}',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final bytes = await QrPdfGenerator.generateLocalQrDocument(
-                nombreLocal: local.nombreSocial ?? 'Local Comercial',
-                qrData: local.id ?? '',
-              );
-              if (kIsWeb) {
-                await descargarPdfWeb(
-                  bytes,
-                  'QR_${local.nombreSocial ?? 'Local'}.pdf',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final bytes = await QrPdfGenerator.generateLocalQrDocument(
+                  nombreLocal: local.nombreSocial ?? 'Local Comercial',
+                  qrData: local.id ?? '',
                 );
-              } else {
-                await Printing.layoutPdf(
-                  onLayout: (_) async => bytes,
-                  name: 'QR_${local.nombreSocial ?? 'Local'}',
-                );
-              }
-            },
-            icon: const Icon(Icons.print_rounded, size: 18),
-            label: const Text('Imprimir QR'),
-          ),
-        ],
-      ),
+                if (kIsWeb) {
+                  await descargarPdfWeb(
+                    bytes,
+                    'QR_${local.nombreSocial ?? 'Local'}.pdf',
+                  );
+                } else {
+                  await Printing.layoutPdf(
+                    onLayout: (_) async => bytes,
+                    name: 'QR_${local.nombreSocial ?? 'Local'}',
+                  );
+                }
+              },
+              icon: const Icon(Icons.print_rounded, size: 18),
+              label: const Text('Imprimir QR'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1598,7 +1662,9 @@ class _LocalesListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pagadosHoy = ref.watch(localesPaginadosProvider).localesPagadosHoy;
+    final pagadosHoy = ref.watch(
+      localesPaginadosProvider.select((s) => s.localesPagadosHoy),
+    );
 
     return Container(
       color: Theme.of(context).colorScheme.surface,
