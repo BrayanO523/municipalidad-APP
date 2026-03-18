@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -30,25 +30,27 @@ typedef CobroConDetalle = ({
 });
 
 final cobrosPorCorteProvider =
-    FutureProvider.family<List<CobroConDetalle>, List<String>>((ref, ids) async {
-  final cobroDs = ref.read(cobroDatasourceProvider);
-  final localDs = ref.read(localDatasourceProvider);
+    FutureProvider.family<List<CobroConDetalle>, List<String>>((
+      ref,
+      ids,
+    ) async {
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final localDs = ref.read(localDatasourceProvider);
 
-  final cobros = await cobroDs.listarPorIds(ids);
-  if (cobros.isEmpty) return [];
+      final cobros = await cobroDs.listarPorIds(ids);
+      if (cobros.isEmpty) return [];
 
-  final uniqueLocalIds = cobros
-      .map((c) => c.localId)
-      .where((id) => id != null && id.isNotEmpty)
-      .cast<String>()
-      .toSet()
-      .toList();
+      final uniqueLocalIds = cobros
+          .map((c) => c.localId)
+          .where((id) => id != null && id.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList();
 
-  final locales = await localDs.listarPorIds(uniqueLocalIds);
-  final Map<String, Local> localMap = {for (var l in locales) l.id!: l};
+      final locales = await localDs.listarPorIds(uniqueLocalIds);
+      final Map<String, Local> localMap = {for (var l in locales) l.id!: l};
 
-  return cobros
-      .map((c) {
+      return cobros.map((c) {
         final loc = c.localId != null ? localMap[c.localId] : null;
         return (
           cobro: c,
@@ -63,9 +65,8 @@ final cobrosPorCorteProvider =
           representante: loc?.representante,
           telefono: loc?.telefonoRepresentante,
         );
-      })
-      .toList();
-});
+      }).toList();
+    });
 
 class CorteDetalleScreen extends ConsumerWidget {
   final Corte corte;
@@ -99,7 +100,10 @@ class CorteDetalleScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: context.semanticColors.danger,
+              foregroundColor: context.semanticColors.onDanger,
+            ),
             child: const Text('Eliminar'),
           ),
         ],
@@ -145,9 +149,12 @@ class CorteDetalleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cobrosAsync = ref.watch(cobrosPorCorteProvider(corte.cobrosIds));
-    final DateFormat formatter =
-        DateFormat('EEEE, d MMMM yyyy, hh:mm a', 'es_ES');
+    final DateFormat formatter = DateFormat(
+      'EEEE, d MMMM yyyy, hh:mm a',
+      'es_ES',
+    );
     final theme = Theme.of(context);
+    final semantic = context.semanticColors;
     final isWide = MediaQuery.sizeOf(context).width > 800;
 
     return Scaffold(
@@ -168,9 +175,10 @@ class CorteDetalleScreen extends ConsumerWidget {
                     if (item.cobro.localId != null)
                       item.cobro.localId!: {
                         'nombre': item.localNombre,
-                        if (item.localCodigo != null) 'codigo': item.localCodigo!,
+                        if (item.localCodigo != null)
+                          'codigo': item.localCodigo!,
                         if (item.localClave != null) 'clave': item.localClave!,
-                      }
+                      },
                 },
               ),
               tooltip: 'Exportar PDF',
@@ -180,7 +188,7 @@ class CorteDetalleScreen extends ConsumerWidget {
           ),
           if (kIsWeb && kDebugMode)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              icon: Icon(Icons.delete_outline, color: semantic.danger),
               tooltip: 'Eliminar Corte',
               onPressed: () => _confirmarEliminacion(context, ref, corte),
             ),
@@ -213,10 +221,13 @@ class CorteDetalleScreen extends ConsumerWidget {
                         child: Center(
                           child: Column(
                             children: [
-                              Icon(Icons.inbox_outlined,
-                                  size: 48,
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.2)),
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 48,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.2,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               const Text('No hay detalles de cobros.'),
                             ],
@@ -226,11 +237,14 @@ class CorteDetalleScreen extends ConsumerWidget {
                     );
                   }
 
-                  final cobrados =
-                      items.where((i) => _esMovimiento(i.cobro)).toList();
+                  final cobrados = items
+                      .where((i) => _esMovimiento(i.cobro))
+                      .toList();
 
                   final totalCobrados = cobrados.fold<double>(
-                      0, (s, i) => s + (i.cobro.monto ?? 0).toDouble());
+                    0,
+                    (s, i) => s + (i.cobro.monto ?? 0).toDouble(),
+                  );
 
                   return SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
@@ -246,15 +260,19 @@ class CorteDetalleScreen extends ConsumerWidget {
                                     .withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(Icons.receipt_long_rounded,
-                                  size: 18,
-                                  color: theme.colorScheme.primary),
+                              child: Icon(
+                                Icons.receipt_long_rounded,
+                                size: 18,
+                                color: theme.colorScheme.primary,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             const Text(
                               'Desglose de Boletas',
                               style: TextStyle(
-                                  fontSize: 17, fontWeight: FontWeight.bold),
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -277,7 +295,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                             corte.gestionesInfo!.isNotEmpty) ...[
                           _GestionesInfoSection(
                             gestionesInfo: corte.gestionesInfo!,
-                            color: const Color(0xFFE67E22),
+                            color: semantic.warning,
                             icon: Icons.assignment_late_rounded,
                             isWide: isWide,
                           ),
@@ -304,8 +322,9 @@ class CorteDetalleScreen extends ConsumerWidget {
                             gradient: LinearGradient(
                               colors: [
                                 theme.colorScheme.primaryContainer,
-                                theme.colorScheme.primaryContainer
-                                    .withValues(alpha: 0.6),
+                                theme.colorScheme.primaryContainer.withValues(
+                                  alpha: 0.6,
+                                ),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(14),
@@ -315,10 +334,11 @@ class CorteDetalleScreen extends ConsumerWidget {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.summarize_rounded,
-                                      color:
-                                          theme.colorScheme.onPrimaryContainer,
-                                      size: 20),
+                                  Icon(
+                                    Icons.summarize_rounded,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 10),
                                   Text(
                                     'TOTAL GENERAL',
@@ -370,7 +390,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                     'nombre': item.localNombre,
                     if (item.localCodigo != null) 'codigo': item.localCodigo!,
                     if (item.localClave != null) 'clave': item.localClave!,
-                  }
+                  },
             },
           ),
           label: const Text('Compartir Reporte'),
@@ -398,6 +418,8 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final onPrimary = theme.colorScheme.onPrimary;
+    final semantic = context.semanticColors;
 
     return Container(
       decoration: BoxDecoration(
@@ -428,14 +450,14 @@ class _HeaderCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: onPrimary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   corte.esCorteMercado
                       ? Icons.store_mall_directory_rounded
                       : Icons.person_rounded,
-                  color: Colors.white,
+                  color: onPrimary,
                   size: 26,
                 ),
               ),
@@ -448,8 +470,8 @@ class _HeaderCard extends StatelessWidget {
                       corte.esCorteMercado
                           ? (corte.mercadoNombre ?? 'Corte de Mercado')
                           : corte.cobradorNombre,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: onPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
                       ),
@@ -458,10 +480,10 @@ class _HeaderCard extends StatelessWidget {
                       corte.esCorteMercado
                           ? 'Consolidado por ${corte.cobradorNombre}'
                           : (corte.mercadoNombre != null
-                              ? 'Mercado: ${corte.mercadoNombre}'
-                              : 'Cobrador Responsable'),
+                                ? 'Mercado: ${corte.mercadoNombre}'
+                                : 'Cobrador Responsable'),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: onPrimary.withValues(alpha: 0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -476,7 +498,7 @@ class _HeaderCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: onPrimary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -484,14 +506,18 @@ class _HeaderCard extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    const Text('Total Recaudado',
-                        style: TextStyle(
-                            color: Colors.white70, fontSize: 11)),
+                    Text(
+                      'Total Recaudado',
+                      style: TextStyle(
+                        color: onPrimary.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       CurrencyFormatter.format(corte.totalCobrado),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: onPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 22,
                       ),
@@ -499,36 +525,39 @@ class _HeaderCard extends StatelessWidget {
                   ],
                 ),
                 Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.2)),
+                  width: 1,
+                  height: 40,
+                  color: onPrimary.withValues(alpha: 0.2),
+                ),
                 _MiniStat(
                   icon: Icons.check_circle,
                   value: '${corte.cantidadCobrados ?? '-'}',
                   label: 'Cobrados',
-                  color: Colors.greenAccent,
+                  color: semantic.success,
                 ),
                 Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.2)),
+                  width: 1,
+                  height: 40,
+                  color: onPrimary.withValues(alpha: 0.2),
+                ),
                 _MiniStat(
                   icon: Icons.schedule,
                   value: '${corte.cantidadPendientes ?? '-'}',
                   label: 'Pendientes',
-                  color: Colors.orangeAccent,
+                  color: semantic.warning,
                 ),
                 if (corte.gestionesInfo != null &&
                     corte.gestionesInfo!.isNotEmpty) ...[
                   Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.white.withValues(alpha: 0.2)),
+                    width: 1,
+                    height: 40,
+                    color: onPrimary.withValues(alpha: 0.2),
+                  ),
                   _MiniStat(
                     icon: Icons.assignment_late_rounded,
                     value: '${corte.gestionesInfo!.length}',
                     label: 'Incidencias',
-                    color: const Color(0xFFFFB74D),
+                    color: semantic.warning,
                   ),
                 ],
               ],
@@ -543,18 +572,22 @@ class _HeaderCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0DB36B).withValues(alpha: 0.18),
+                    color: semantic.success.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: onPrimary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.all(8),
-                        child: const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                        child: Icon(
+                          Icons.trending_up,
+                          color: onPrimary,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -563,15 +596,15 @@ class _HeaderCard extends StatelessWidget {
                           Text(
                             'Corriente',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.75),
+                              color: onPrimary.withValues(alpha: 0.75),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             CurrencyFormatter.format(corte.totalCorriente ?? 0),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: onPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -587,18 +620,22 @@ class _HeaderCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF28C38).withValues(alpha: 0.2),
+                    color: semantic.warning.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: onPrimary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.all(8),
-                        child: const Icon(Icons.warning_amber, color: Colors.white, size: 16),
+                        child: Icon(
+                          Icons.warning_amber,
+                          color: onPrimary,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -607,15 +644,15 @@ class _HeaderCard extends StatelessWidget {
                           Text(
                             'Mora',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.75),
+                              color: onPrimary.withValues(alpha: 0.75),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             CurrencyFormatter.format(corte.totalMora ?? 0),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: onPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -634,13 +671,18 @@ class _HeaderCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.calendar_today,
-                  size: 14, color: Colors.white.withValues(alpha: 0.6)),
+              Icon(
+                Icons.calendar_today,
+                size: 14,
+                color: onPrimary.withValues(alpha: 0.6),
+              ),
               const SizedBox(width: 8),
               Text(
                 formatter.format(corte.fechaCorte),
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+                  color: onPrimary.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -665,18 +707,26 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     return Column(
       children: [
         Icon(icon, size: 16, color: color),
         const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18)),
-        Text(label,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6), fontSize: 10)),
+        Text(
+          value,
+          style: TextStyle(
+            color: onPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: onPrimary.withValues(alpha: 0.6),
+            fontSize: 10,
+          ),
+        ),
       ],
     );
   }
@@ -718,7 +768,8 @@ class _BoletasSection extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -730,7 +781,8 @@ class _BoletasSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
               border: Border(
-                  bottom: BorderSide(color: color.withValues(alpha: 0.15))),
+                bottom: BorderSide(color: color.withValues(alpha: 0.15)),
+              ),
             ),
             child: Row(
               children: [
@@ -750,10 +802,7 @@ class _BoletasSection extends StatelessWidget {
           ),
 
           // Contenido adaptativo: tabla en desktop, cards en movil
-          if (isWide)
-            _buildDesktopTable(theme)
-          else
-            _buildMobileCards(theme),
+          if (isWide) _buildDesktopTable(theme) else _buildMobileCards(theme),
 
           // Subtotal
           Container(
@@ -763,7 +812,8 @@ class _BoletasSection extends StatelessWidget {
               color: theme.colorScheme.surfaceContainerLow,
               border: Border(
                 top: BorderSide(
-                    color: theme.dividerColor.withValues(alpha: 0.3)),
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
               ),
             ),
             child: Row(
@@ -774,8 +824,7 @@ class _BoletasSection extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
-                    color:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 Text(
@@ -826,58 +875,68 @@ class _BoletasSection extends StatelessWidget {
           final statusColor = esCobrado
               ? AppColors.success
               : esAbonoParcial
-              ? const Color(0xFFE67E22)
+              ? AppColors.warning
               : AppColors.warning;
           final monto = (cobro.monto ?? 0).toDouble();
 
-          return DataRow(cells: [
-            DataCell(Text('${i + 1}',
-                style: const TextStyle(fontSize: 12))),
-            DataCell(Text(
-              cobro.numeroBoletaFmt,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600),
-            )),
-            DataCell(
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  item.localNombre,
-                  style: const TextStyle(fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            DataCell(Text(
-              CurrencyFormatter.format(monto),
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary),
-            )),
-            DataCell(
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  esCobrado
-                      ? 'COBRADO'
-                      : esAbonoParcial
-                      ? 'ABONO'
-                      : (cobro.estado ?? 'PENDIENTE').toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+          return DataRow(
+            cells: [
+              DataCell(Text('${i + 1}', style: const TextStyle(fontSize: 12))),
+              DataCell(
+                Text(
+                  cobro.numeroBoletaFmt,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ),
-          ]);
+              DataCell(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    item.localNombre,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              DataCell(
+                Text(
+                  CurrencyFormatter.format(monto),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              DataCell(
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    esCobrado
+                        ? 'COBRADO'
+                        : esAbonoParcial
+                        ? 'ABONO'
+                        : (cobro.estado ?? 'PENDIENTE').toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
         }),
       ),
     );
@@ -905,7 +964,7 @@ class _BoletasSection extends StatelessWidget {
         final statusColor = esCobrado
             ? AppColors.success
             : esAbonoParcial
-            ? const Color(0xFFE67E22)
+            ? AppColors.warning
             : AppColors.warning;
         final monto = (cobro.monto ?? 0).toDouble();
 
@@ -940,7 +999,9 @@ class _BoletasSection extends StatelessWidget {
                     Text(
                       item.localNombre,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
@@ -948,8 +1009,9 @@ class _BoletasSection extends StatelessWidget {
                       'Boleta: ${cobro.numeroBoletaFmt}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ],
@@ -1009,8 +1071,9 @@ class _PendientesInfoSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
@@ -1041,10 +1104,8 @@ class _PendientesInfoSection extends StatelessWidget {
             final nombre = info['nombreSocial'] as String? ?? 'S/N';
             final clave = info['clave'] as String? ?? '';
             final codigo = info['codigo'] as String? ?? '';
-            final monto =
-                (info['montoPendiente'] as num?)?.toDouble() ?? 0;
-            final saldoAFavor =
-                (info['saldoAFavor'] as num?)?.toDouble() ?? 0;
+            final monto = (info['montoPendiente'] as num?)?.toDouble() ?? 0;
+            final saldoAFavor = (info['saldoAFavor'] as num?)?.toDouble() ?? 0;
             final tieneSaldoAFavor = info['tieneSaldoAFavor'] == true;
             final saldoCubreCuota = info['saldoCubreCuota'] == true;
             final localId = info['localId'] ?? info['local_id'];
@@ -1065,72 +1126,78 @@ class _PendientesInfoSection extends StatelessWidget {
                 incidenciasLocal,
               ),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.schedule, size: 14, color: color),
                     ),
-                    child: Icon(Icons.schedule, size: 14, color: color),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          nombre,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (codigo.isNotEmpty || clave.isNotEmpty)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            [
-                              if (codigo.isNotEmpty) 'Codigo: $codigo',
-                              if (clave.isNotEmpty) 'Clave: $clave',
-                            ].join(' | '),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            nombre,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                        if (tieneSaldoAFavor)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              saldoCubreCuota
-                                  ? 'Tiene saldo a favor suficiente; falta registrar el cobro con saldo.'
-                                  : 'Saldo a favor disponible: ${CurrencyFormatter.format(saldoAFavor)}',
+                          if (codigo.isNotEmpty || clave.isNotEmpty)
+                            Text(
+                              [
+                                if (codigo.isNotEmpty) 'Codigo: $codigo',
+                                if (clave.isNotEmpty) 'Clave: $clave',
+                              ].join(' | '),
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.teal,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                      ],
+                          if (tieneSaldoAFavor)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                saldoCubreCuota
+                                    ? 'Tiene saldo a favor suficiente; falta registrar el cobro con saldo.'
+                                    : 'Saldo a favor disponible: ${CurrencyFormatter.format(saldoAFavor)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.semanticColors.success,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    CurrencyFormatter.format(monto),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: color,
+                    Text(
+                      CurrencyFormatter.format(monto),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
+            );
           }),
           const SizedBox(height: 8),
         ],
@@ -1186,7 +1253,9 @@ class _PendientesInfoSection extends StatelessWidget {
                         Text(
                           nombre,
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         if (codigo.isNotEmpty || clave.isNotEmpty)
                           Text(
@@ -1195,7 +1264,9 @@ class _PendientesInfoSection extends StatelessWidget {
                               if (clave.isNotEmpty) 'Clave: $clave',
                             ].join(' | '),
                             style: TextStyle(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                       ],
@@ -1258,10 +1329,12 @@ class _PendientesInfoSection extends StatelessWidget {
                     ),
                     itemBuilder: (ctx, idx) {
                       final inc = incidencias[idx];
-                      final titulo = inc['titulo'] as String? ??
+                      final titulo =
+                          inc['titulo'] as String? ??
                           inc['motivo'] as String? ??
                           'Incidencia';
-                      final desc = inc['descripcion'] as String? ??
+                      final desc =
+                          inc['descripcion'] as String? ??
                           inc['detalle'] as String? ??
                           inc['comentario'] as String? ??
                           '';
@@ -1274,11 +1347,16 @@ class _PendientesInfoSection extends StatelessWidget {
                             width: 30,
                             height: 30,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.error.withValues(alpha: 0.12),
+                              color: theme.colorScheme.error.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(Icons.report_problem,
-                                color: theme.colorScheme.error, size: 16),
+                            child: Icon(
+                              Icons.report_problem,
+                              color: theme.colorScheme.error,
+                              size: 16,
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -1286,7 +1364,8 @@ class _PendientesInfoSection extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -1302,7 +1381,8 @@ class _PendientesInfoSection extends StatelessWidget {
                                       Text(
                                         '$hora',
                                         style: TextStyle(
-                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.5),
                                           fontSize: 11,
                                         ),
                                       ),
@@ -1313,7 +1393,8 @@ class _PendientesInfoSection extends StatelessWidget {
                                   Text(
                                     desc,
                                     style: TextStyle(
-                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.65),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -1384,7 +1465,9 @@ class _CobradosInfoSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               border: Border(
                 bottom: BorderSide(color: color.withValues(alpha: 0.15)),
               ),
@@ -1423,10 +1506,17 @@ class _CobradosInfoSection extends StatelessWidget {
               children: [
                 ListTile(
                   dense: true,
-                  leading: Icon(Icons.confirmation_number, color: color, size: 18),
+                  leading: Icon(
+                    Icons.confirmation_number,
+                    color: color,
+                    size: 18,
+                  ),
                   title: Text(
                     item.localNombre,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1434,7 +1524,9 @@ class _CobradosInfoSection extends StatelessWidget {
                       Text(
                         cobro.numeroBoletaFmt,
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                           fontSize: 12,
                         ),
                       ),
@@ -1452,9 +1544,11 @@ class _CobradosInfoSection extends StatelessWidget {
                           ].join(' | '),
                           style: TextStyle(
                             fontSize: 11,
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.55,
+                            ),
                           ),
-                      ),
+                        ),
                     ],
                   ),
                   trailing: Column(
@@ -1489,7 +1583,9 @@ class _CobradosInfoSection extends StatelessWidget {
                 Divider(
                   height: 0,
                   thickness: 0.6,
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.4,
+                  ),
                 ),
               ],
             );
@@ -1533,7 +1629,10 @@ class _CobradosInfoSection extends StatelessWidget {
                       color: theme.colorScheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.store_mall_directory, color: theme.colorScheme.primary),
+                    child: Icon(
+                      Icons.store_mall_directory,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1542,12 +1641,17 @@ class _CobradosInfoSection extends StatelessWidget {
                       children: [
                         Text(
                           item.localNombre,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         Text(
                           'Boleta: ${cobro.numeroBoletaFmt}',
                           style: TextStyle(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ],
@@ -1583,22 +1687,32 @@ class _CobradosInfoSection extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if ((item.localCodigo ?? '').isNotEmpty)
-                    _infoChip('Codigo: ${item.localCodigo}'),
+                    _infoChip(context, 'Codigo: ${item.localCodigo}'),
                   if ((item.localClave ?? '').isNotEmpty)
-                    _infoChip('Clave: ${item.localClave}'),
-                  if ((item.ruta ?? '').isNotEmpty) _infoChip('Ruta: ${item.ruta}'),
+                    _infoChip(context, 'Clave: ${item.localClave}'),
+                  if ((item.ruta ?? '').isNotEmpty)
+                    _infoChip(context, 'Ruta: ${item.ruta}'),
                   if ((item.frecuenciaCobro ?? '').isNotEmpty)
-                    _infoChip('Frecuencia: ${item.frecuenciaCobro}'),
+                    _infoChip(context, 'Frecuencia: ${item.frecuenciaCobro}'),
                   if (item.cuotaDiaria != null)
-                    _infoChip('Cuota: ${CurrencyFormatter.format(item.cuotaDiaria!.toDouble())}'),
+                    _infoChip(
+                      context,
+                      'Cuota: ${CurrencyFormatter.format(item.cuotaDiaria!.toDouble())}',
+                    ),
                   if (item.saldoAFavor != null)
-                    _infoChip('Saldo a favor: ${CurrencyFormatter.format(item.saldoAFavor!.toDouble())}'),
+                    _infoChip(
+                      context,
+                      'Saldo a favor: ${CurrencyFormatter.format(item.saldoAFavor!.toDouble())}',
+                    ),
                   if (item.deudaAcumulada != null)
-                    _infoChip('Deuda: ${CurrencyFormatter.format(item.deudaAcumulada!.toDouble())}'),
+                    _infoChip(
+                      context,
+                      'Deuda: ${CurrencyFormatter.format(item.deudaAcumulada!.toDouble())}',
+                    ),
                   if ((item.representante ?? '').isNotEmpty)
-                    _infoChip('Rep.: ${item.representante}'),
+                    _infoChip(context, 'Rep.: ${item.representante}'),
                   if ((item.telefono ?? '').isNotEmpty)
-                    _infoChip('Tel: ${item.telefono}'),
+                    _infoChip(context, 'Tel: ${item.telefono}'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1634,10 +1748,12 @@ class _CobradosInfoSection extends StatelessWidget {
                     ),
                     itemBuilder: (ctx, idx) {
                       final inc = incidenciasLocal[idx];
-                      final titulo = inc['titulo'] as String? ??
+                      final titulo =
+                          inc['titulo'] as String? ??
                           inc['motivo'] as String? ??
                           'Incidencia';
-                      final desc = inc['descripcion'] as String? ??
+                      final desc =
+                          inc['descripcion'] as String? ??
                           inc['detalle'] as String? ??
                           inc['comentario'] as String? ??
                           '';
@@ -1650,11 +1766,16 @@ class _CobradosInfoSection extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.error.withValues(alpha: 0.12),
+                              color: theme.colorScheme.error.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(Icons.report_problem,
-                                color: theme.colorScheme.error, size: 18),
+                            child: Icon(
+                              Icons.report_problem,
+                              color: theme.colorScheme.error,
+                              size: 18,
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -1662,7 +1783,8 @@ class _CobradosInfoSection extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -1678,7 +1800,8 @@ class _CobradosInfoSection extends StatelessWidget {
                                       Text(
                                         '$hora',
                                         style: TextStyle(
-                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.5),
                                           fontSize: 11,
                                         ),
                                       ),
@@ -1689,7 +1812,8 @@ class _CobradosInfoSection extends StatelessWidget {
                                   Text(
                                     desc,
                                     style: TextStyle(
-                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.65),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -1709,11 +1833,11 @@ class _CobradosInfoSection extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(String text) {
+  Widget _infoChip(BuildContext context, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.12),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -1771,8 +1895,9 @@ class _GestionesInfoSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
@@ -1817,8 +1942,11 @@ class _GestionesInfoSection extends StatelessWidget {
                       color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.assignment_late_rounded,
-                        size: 14, color: color),
+                    child: Icon(
+                      Icons.assignment_late_rounded,
+                      size: 14,
+                      color: color,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1828,19 +1956,24 @@ class _GestionesInfoSection extends StatelessWidget {
                         Text(
                           nombre,
                           style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           [
                             if (codigo.isNotEmpty) 'Codigo: $codigo',
                             if (clave.isNotEmpty) 'Clave: $clave',
-                            comentario.isNotEmpty ? '${_labelTipo(tipo)} - $comentario' : _labelTipo(tipo),
+                            comentario.isNotEmpty
+                                ? '${_labelTipo(tipo)} - $comentario'
+                                : _labelTipo(tipo),
                           ].join(' | '),
                           style: TextStyle(
                             fontSize: 11,
-                            color:
-                                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

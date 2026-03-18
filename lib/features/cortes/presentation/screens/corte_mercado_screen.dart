@@ -211,13 +211,13 @@ class CortesMercadoScreen extends ConsumerWidget {
                       horizontal: isWide ? 32 : 16,
                       vertical: 16,
                     ),
-                  sliver: SliverToBoxAdapter(
-                    child: _BotonesImpresion(
-                      state: state,
-                      onImprimirTodos: () => _imprimirTodos(context, state),
+                    sliver: SliverToBoxAdapter(
+                      child: _BotonesImpresion(
+                        state: state,
+                        onImprimirTodos: () => _imprimirTodos(context, state),
+                      ),
                     ),
                   ),
-                ),
                 ],
 
                 // ─── Botón confirmar ───
@@ -260,7 +260,6 @@ class CortesMercadoScreen extends ConsumerWidget {
       }
     }
   }
-
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -450,6 +449,7 @@ class _ResumenCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final onPrimary = theme.colorScheme.onPrimary;
 
     return Container(
       decoration: BoxDecoration(
@@ -475,8 +475,8 @@ class _ResumenCard extends StatelessWidget {
         children: [
           Text(
             state.mercadoSeleccionado?.nombre ?? '',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: onPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 18,
             ),
@@ -485,7 +485,7 @@ class _ResumenCard extends StatelessWidget {
           Text(
             DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(DateTime.now()),
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: onPrimary.withValues(alpha: 0.7),
               fontSize: 13,
             ),
           ),
@@ -503,7 +503,7 @@ class _ResumenCard extends StatelessWidget {
               Container(
                 width: 1,
                 height: 40,
-                color: Colors.white.withValues(alpha: 0.2),
+                color: onPrimary.withValues(alpha: 0.2),
               ),
               _StatItem(
                 icon: Icons.receipt_outlined,
@@ -513,7 +513,7 @@ class _ResumenCard extends StatelessWidget {
               Container(
                 width: 1,
                 height: 40,
-                color: Colors.white.withValues(alpha: 0.2),
+                color: onPrimary.withValues(alpha: 0.2),
               ),
               _StatItem(
                 icon: Icons.people_outline_rounded,
@@ -543,14 +543,15 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+        Icon(icon, color: onPrimary.withValues(alpha: 0.8), size: 20),
         const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
-            color: Colors.white,
+            color: onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: large ? 20 : 18,
           ),
@@ -559,7 +560,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
+            color: onPrimary.withValues(alpha: 0.6),
             fontSize: 11,
           ),
         ),
@@ -682,9 +683,13 @@ class _CorteCobradorTile extends StatelessWidget {
                 ),
                 if (incidencias.isNotEmpty) ...[
                   IconButton(
-                    icon: const Icon(Icons.report, color: Colors.orange),
+                    icon: Icon(
+                      Icons.report,
+                      color: context.semanticColors.warning,
+                    ),
                     tooltip: 'Ver incidencias',
-                    onPressed: () => _showIncidenciasSheet(context, theme, incidencias),
+                    onPressed: () =>
+                        _showIncidenciasSheet(context, theme, incidencias),
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -775,10 +780,16 @@ class _CorteCobradorTile extends StatelessWidget {
 
                     return ListTile(
                       dense: true,
-                      leading: const Icon(Icons.report_problem, color: Colors.orange),
+                      leading: Icon(
+                        Icons.report_problem,
+                        color: context.semanticColors.warning,
+                      ),
                       title: Text(
                         nombre,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,7 +797,9 @@ class _CorteCobradorTile extends StatelessWidget {
                           Text(
                             tipo,
                             style: TextStyle(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -795,7 +808,9 @@ class _CorteCobradorTile extends StatelessWidget {
                             Text(
                               comentario,
                               style: TextStyle(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                                 fontSize: 12,
                               ),
                             ),
@@ -803,7 +818,9 @@ class _CorteCobradorTile extends StatelessWidget {
                             Text(
                               detalles,
                               style: TextStyle(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.55,
+                                ),
                                 fontSize: 11,
                               ),
                             ),
@@ -814,7 +831,9 @@ class _CorteCobradorTile extends StatelessWidget {
                               horaStr,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                               ),
                             )
                           : null,
@@ -973,43 +992,43 @@ class _SelectorFecha extends StatelessWidget {
             _FechaButton(
               label: 'Ayer',
               fecha: now.subtract(const Duration(days: 1)),
-              seleccionada: _isSameDate(
-                fechaDesde,
-                now.subtract(const Duration(days: 1)),
-              ) &&
+              seleccionada:
+                  _isSameDate(
+                    fechaDesde,
+                    now.subtract(const Duration(days: 1)),
+                  ) &&
                   _isSameDate(
                     fechaHasta,
                     now.subtract(const Duration(days: 1)),
                   ),
-              onTap: () => seleccionarDiaRapido(now.subtract(const Duration(days: 1))),
+              onTap: () =>
+                  seleccionarDiaRapido(now.subtract(const Duration(days: 1))),
             ),
             const SizedBox(width: 8),
             _FechaButton(
               label: 'Hoy',
               fecha: now,
-              seleccionada: _isSameDate(fechaDesde, now) &&
-                  _isSameDate(fechaHasta, now),
+              seleccionada:
+                  _isSameDate(fechaDesde, now) && _isSameDate(fechaHasta, now),
               onTap: () => seleccionarDiaRapido(now),
             ),
             const SizedBox(width: 8),
             _FechaButton(
               label: 'Mañana',
               fecha: now.add(const Duration(days: 1)),
-              seleccionada: _isSameDate(
-                    fechaDesde,
-                    now.add(const Duration(days: 1)),
-                  ) &&
-                  _isSameDate(
-                    fechaHasta,
-                    now.add(const Duration(days: 1)),
-                  ),
-              onTap: () => seleccionarDiaRapido(now.add(const Duration(days: 1))),
+              seleccionada:
+                  _isSameDate(fechaDesde, now.add(const Duration(days: 1))) &&
+                  _isSameDate(fechaHasta, now.add(const Duration(days: 1))),
+              onTap: () =>
+                  seleccionarDiaRapido(now.add(const Duration(days: 1))),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.calendar_today, size: 18),
-                label: Text('Desde: ${DateFormat('dd/MM/yyyy').format(fechaDesde)}'),
+                label: Text(
+                  'Desde: ${DateFormat('dd/MM/yyyy').format(fechaDesde)}',
+                ),
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
@@ -1031,7 +1050,9 @@ class _SelectorFecha extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.date_range, size: 18),
-                label: Text('Hasta: ${DateFormat('dd/MM/yyyy').format(fechaHasta)}'),
+                label: Text(
+                  'Hasta: ${DateFormat('dd/MM/yyyy').format(fechaHasta)}',
+                ),
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
@@ -1097,10 +1118,7 @@ class _BotonesImpresion extends StatelessWidget {
   final cmn.CorteMercadoState state;
   final VoidCallback onImprimirTodos;
 
-  const _BotonesImpresion({
-    required this.state,
-    required this.onImprimirTodos,
-  });
+  const _BotonesImpresion({required this.state, required this.onImprimirTodos});
 
   @override
   Widget build(BuildContext context) {

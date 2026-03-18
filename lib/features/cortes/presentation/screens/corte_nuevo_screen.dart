@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
@@ -34,16 +34,16 @@ class CorteNuevoScreen extends ConsumerWidget {
                 children: [
                   const Text(
                     'Resumen de Hoy',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     DateFormat('dd/MM/yyyy - hh:mm a').format(state.fecha),
-                    style: TextStyle(fontSize: 16, color: cs.onSurface.withValues(alpha: 0.6)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -105,8 +105,9 @@ class CorteNuevoScreen extends ConsumerWidget {
                             const SizedBox(height: 12),
                             _StatusChip(
                               icon: Icons.assignment_late_rounded,
-                              label: '${state.gestionesInfo.length} Incidencias',
-                              color: const Color(0xFFE67E22),
+                              label:
+                                  '${state.gestionesInfo.length} Incidencias',
+                              color: AppColors.warning,
                             ),
                           ],
                         ],
@@ -118,10 +119,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                   // Titulo de desglose
                   const Text(
                     'Desglose de Cobros',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -151,7 +149,9 @@ class CorteNuevoScreen extends ConsumerWidget {
                   child: Text(
                     state.error!,
                     style: const TextStyle(
-                        color: AppColors.danger, fontWeight: FontWeight.bold),
+                      color: AppColors.danger,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -161,9 +161,10 @@ class CorteNuevoScreen extends ConsumerWidget {
                   child: Text(
                     'Ya se ha realizado un corte en el dia de hoy.',
                     style: TextStyle(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16),
+                      color: AppColors.success,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -171,7 +172,8 @@ class CorteNuevoScreen extends ConsumerWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: (state.isLoading ||
+                  onPressed:
+                      (state.isLoading ||
                           state.yaRealizadoHoy ||
                           state.cantidad == 0)
                       ? null
@@ -186,16 +188,19 @@ class CorteNuevoScreen extends ConsumerWidget {
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: cs.onPrimary),
+                            strokeWidth: 2,
+                            color: cs.onPrimary,
+                          ),
                         )
                       : Text(
                           state.yaRealizadoHoy
                               ? 'Corte completado'
                               : 'Confirmar Corte Diario',
                           style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: cs.onPrimary),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: cs.onPrimary,
+                          ),
                         ),
                 ),
               ),
@@ -233,7 +238,7 @@ class CorteNuevoScreen extends ConsumerWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                     content: const Text('Corte diario realizado con exito!'),
+                    content: const Text('Corte diario realizado con exito!'),
                     backgroundColor: AppColors.success,
                   ),
                 );
@@ -310,7 +315,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                       i.cobro.localId!: {
                         'nombre': i.localNombre,
                         // No tenemos codigo/clave aqui, se conserva el nombre
-                      }
+                      },
                 },
               );
             },
@@ -399,12 +404,14 @@ class _SliverDesglose extends ConsumerWidget {
                       child: Text('No hay cobros registrados.'),
                     );
                   }
-                  final Map<String, List<Map<String, dynamic>>> incidenciasPorLocal =
-                      {};
+                  final Map<String, List<Map<String, dynamic>>>
+                  incidenciasPorLocal = {};
                   for (final incidencia in gestionesInfo) {
                     final localId = (incidencia['localId'] as String?) ?? '';
                     if (localId.isEmpty) continue;
-                    incidenciasPorLocal.putIfAbsent(localId, () => []).add(incidencia);
+                    incidenciasPorLocal
+                        .putIfAbsent(localId, () => [])
+                        .add(incidencia);
                   }
                   return Column(
                     children: items
@@ -431,7 +438,7 @@ class _SliverDesglose extends ConsumerWidget {
             const SizedBox(height: 8),
             _SectionHeader(
               title: 'Incidencias (${gestionesInfo.length})',
-              color: const Color(0xFFE67E22),
+              color: AppColors.warning,
             ),
             ...gestionesInfo.map((info) => _GestionTile(info: info)),
           ],
@@ -445,17 +452,18 @@ class _SliverDesglose extends ConsumerWidget {
             ...pendientesInfo.map((info) => _PendienteTile(info: info)),
           ],
           // Estado vacio
-          if (cobrosIds.isEmpty && pendientesInfo.isEmpty && gestionesInfo.isEmpty)
+          if (cobrosIds.isEmpty &&
+              pendientesInfo.isEmpty &&
+              gestionesInfo.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
                 child: Text(
                   'No hay datos para realizar el corte.',
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -506,10 +514,7 @@ class _SectionHeader extends StatelessWidget {
 class _CobroTile extends StatelessWidget {
   final CobroConDetalle item;
   final List<Map<String, dynamic>> incidenciasLocal;
-  const _CobroTile({
-    required this.item,
-    this.incidenciasLocal = const [],
-  });
+  const _CobroTile({required this.item, this.incidenciasLocal = const []});
 
   @override
   Widget build(BuildContext context) {
@@ -521,7 +526,7 @@ class _CobroTile extends StatelessWidget {
     final statusColor = esCobrado
         ? AppColors.success
         : esAbonoParcial
-        ? const Color(0xFFE67E22)
+        ? AppColors.warning
         : AppColors.warning;
 
     return Card(
@@ -547,18 +552,15 @@ class _CobroTile extends StatelessWidget {
               esCobrado
                   ? Icons.check_circle
                   : esAbonoParcial
-                      ? Icons.paid_rounded
-                      : Icons.schedule,
+                  ? Icons.paid_rounded
+                  : Icons.schedule,
               size: 20,
               color: statusColor,
             ),
           ),
           title: Text(
             item.localNombre,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -581,10 +583,10 @@ class _CobroTile extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE67E22).withValues(alpha: 0.14),
+                    color: AppColors.warning.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: const Color(0xFFE67E22).withValues(alpha: 0.45),
+                      color: AppColors.warning.withValues(alpha: 0.45),
                     ),
                   ),
                   child: Text(
@@ -594,7 +596,7 @@ class _CobroTile extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFE67E22),
+                      color: AppColors.warning,
                     ),
                   ),
                 ),
@@ -629,11 +631,7 @@ class _CobroTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: statusColor,
-              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: statusColor),
             ],
           ),
         ),
@@ -673,7 +671,11 @@ class _PendienteTile extends StatelessWidget {
           leading: CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.warning.withValues(alpha: 0.12),
-            child: const Icon(Icons.schedule, size: 20, color: AppColors.warning),
+            child: const Icon(
+              Icons.schedule,
+              size: 20,
+              color: AppColors.warning,
+            ),
           ),
           title: Text(
             nombre,
@@ -763,7 +765,7 @@ class _GestionTile extends StatelessWidget {
     final tipo = info['tipoIncidencia'] as String? ?? 'OTRO';
     final comentario = info['comentario'] as String? ?? '';
     final theme = Theme.of(context);
-    const color = Color(0xFFE67E22);
+    const color = AppColors.warning;
 
     return Card(
       elevation: 0,
@@ -823,11 +825,7 @@ class _GestionTile extends StatelessWidget {
                 ],
               ),
               SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: color,
-              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: color),
             ],
           ),
         ),
@@ -835,7 +833,6 @@ class _GestionTile extends StatelessWidget {
     );
   }
 }
-
 
 void _showPendienteBottomSheet(
   BuildContext context,
@@ -876,10 +873,7 @@ void _showPendienteBottomSheet(
                     color: AppColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.schedule,
-                    color: AppColors.warning,
-                  ),
+                  child: const Icon(Icons.schedule, color: AppColors.warning),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -912,7 +906,8 @@ void _showPendienteBottomSheet(
             ),
             const SizedBox(height: 16),
             _BottomInfoChip(
-              label: 'Monto pendiente: ${CurrencyFormatter.format(montoPendiente)}',
+              label:
+                  'Monto pendiente: ${CurrencyFormatter.format(montoPendiente)}',
               color: AppColors.warning,
             ),
             if (tieneSaldoAFavor) ...[
@@ -940,9 +935,9 @@ void _showPendienteBottomSheet(
 
 void _showCobroBottomSheet(
   BuildContext context,
-  CobroConDetalle item,
-  {List<Map<String, dynamic>> incidenciasLocal = const []}
-) {
+  CobroConDetalle item, {
+  List<Map<String, dynamic>> incidenciasLocal = const [],
+}) {
   final theme = Theme.of(context);
   final cobro = item.cobro;
   final fecha = cobro.fecha ?? cobro.creadoEn ?? cobro.actualizadoEn;
@@ -956,8 +951,8 @@ void _showCobroBottomSheet(
   final color = esCobrado
       ? AppColors.success
       : esAbonoParcial
-          ? const Color(0xFFE67E22)
-          : AppColors.warning;
+      ? AppColors.warning
+      : AppColors.warning;
 
   showModalBottomSheet(
     context: context,
@@ -989,8 +984,8 @@ void _showCobroBottomSheet(
                     esCobrado
                         ? Icons.check_circle
                         : esAbonoParcial
-                            ? Icons.paid_rounded
-                            : Icons.schedule,
+                        ? Icons.paid_rounded
+                        : Icons.schedule,
                     color: color,
                   ),
                 ),
@@ -1015,7 +1010,9 @@ void _showCobroBottomSheet(
                             'Clave: ${item.localClave}',
                         ].join(' | '),
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -1025,10 +1022,7 @@ void _showCobroBottomSheet(
             ),
             const SizedBox(height: 16),
             const SizedBox(height: 16),
-            _DetailRow(
-              label: 'Recibo',
-              value: cobro.numeroBoletaFmt,
-            ),
+            _DetailRow(label: 'Recibo', value: cobro.numeroBoletaFmt),
             _DetailRow(
               label: 'Estado',
               value: (cobro.estado ?? 'N/D').toUpperCase(),
@@ -1066,7 +1060,7 @@ void _showCobroBottomSheet(
             if (incidenciasLocal.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Incidencias del día (${incidenciasLocal.length})',
+                'Incidencias del dÃ­a (${incidenciasLocal.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
@@ -1074,7 +1068,8 @@ void _showCobroBottomSheet(
               ),
               const SizedBox(height: 8),
               ...incidenciasLocal.map((incidencia) {
-                final tipo = (incidencia['tipoIncidencia'] as String?) ?? 'OTRO';
+                final tipo =
+                    (incidencia['tipoIncidencia'] as String?) ?? 'OTRO';
                 final comentario = (incidencia['comentario'] as String?) ?? '';
                 final ts = _parseDate(incidencia['timestamp']);
                 final detalle = comentario.trim().isEmpty
@@ -1085,8 +1080,8 @@ void _showCobroBottomSheet(
                   child: _BottomInfoChip(
                     label: ts == null
                         ? detalle
-                        : '${_formatDateTime(ts)} • $detalle',
-                    color: const Color(0xFFE67E22),
+                        : '${_formatDateTime(ts)} â€¢ $detalle',
+                    color: AppColors.warning,
                   ),
                 );
               }),
@@ -1098,10 +1093,7 @@ void _showCobroBottomSheet(
   );
 }
 
-void _showGestionBottomSheet(
-  BuildContext context,
-  Map<String, dynamic> info,
-) {
+void _showGestionBottomSheet(BuildContext context, Map<String, dynamic> info) {
   final theme = Theme.of(context);
   final nombre = info['nombreSocial'] as String? ?? 'S/N';
   final clave = info['clave'] as String? ?? '';
@@ -1150,12 +1142,12 @@ void _showGestionBottomSheet(
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE67E22).withValues(alpha: 0.12),
+                    color: AppColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.assignment_late_rounded,
-                    color: Color(0xFFE67E22),
+                    color: AppColors.warning,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1190,7 +1182,7 @@ void _showGestionBottomSheet(
             const SizedBox(height: 16),
             _BottomInfoChip(
               label: 'Incidencia: ${labelTipo()}',
-              color: const Color(0xFFE67E22),
+              color: AppColors.warning,
             ),
             if (timestamp != null) ...[
               const SizedBox(height: 8),
@@ -1243,7 +1235,7 @@ String _labelTipoIncidencia(String tipo) {
     case 'NEGADO':
       return 'Se niega a pagar';
     case 'VOLVER_TARDE':
-      return 'Volver más tarde';
+      return 'Volver mÃ¡s tarde';
     default:
       return 'Otro motivo';
   }
@@ -1266,10 +1258,7 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailRow({
-    required this.label,
-    required this.value,
-  });
+  const _DetailRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1304,10 +1293,7 @@ class _BottomInfoChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _BottomInfoChip({
-    required this.label,
-    required this.color,
-  });
+  const _BottomInfoChip({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1319,10 +1305,7 @@ class _BottomInfoChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }
