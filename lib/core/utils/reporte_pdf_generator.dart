@@ -164,7 +164,6 @@ class ReportePdfGenerator {
     required String periodoLabel,
     required List<Mercado> mercados,
     required List<Cobro> cobros,
-    required List<Local> locales,
   }) async {
     final fonts = await _fonts();
     final pdf = pw.Document();
@@ -179,16 +178,15 @@ class ReportePdfGenerator {
         build: (ctx) => [
           _resumenCard(fonts, items: [('Total Cobrado', 'L ${_fMoneda.format(totalCobrado)}'), ('Monto Pendiente', 'L ${_fMoneda.format(totalPendiente)}'), ('Período', periodoLabel)]),
           pw.SizedBox(height: 12),
-          _resumenCard(fonts, items: [('Total Mora', 'L ${_fMoneda.format(totalMora)}'), ('Saldos a Favor', 'L ${_fMoneda.format(totalFavor)}'), ('Eficiencia', '${((totalCobrado / (totalCobrado + totalPendiente + 0.0001)) * 100).toStringAsFixed(1)}%')]),
+          _resumenCard(fonts, items: [('Mora Recuperada', 'L ${_fMoneda.format(totalMora)}'), ('Saldo Favor Actual', 'L ${_fMoneda.format(totalFavor)}'), ('Eficiencia', '${((totalCobrado / (totalCobrado + totalPendiente + 0.0001)) * 100).toStringAsFixed(1)}%')]),
           pw.SizedBox(height: 24),
           pw.Text('DESGLOSE POR MERCADO', style: pw.TextStyle(font: fonts['bold'], fontSize: 12, color: _colorFondoCabecera)),
           pw.SizedBox(height: 8),
           ...mercados.map((m) {
             final cobrosM = cobros.where((c) => c.mercadoId == m.id);
-            final localesM = locales.where((l) => l.mercadoId == m.id);
             final rM = cobrosM.fold<num>(0, (s, c) => s + (c.monto ?? 0));
             final pM = cobrosM.where((c) => c.estado == 'pendiente' || c.estado == 'abono_parcial').fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
-            final mM = localesM.fold<num>(0, (s, l) => s + (l.deudaAcumulada ?? 0));
+            final mM = cobrosM.fold<num>(0, (s, c) => s + (c.montoMora ?? 0));
             return pw.Container(
               margin: const pw.EdgeInsets.only(bottom: 10),
               padding: const pw.EdgeInsets.all(10),
@@ -199,7 +197,7 @@ class ReportePdfGenerator {
                 pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
                   _miniKpi(fonts, 'Cobrado', 'L ${_fMoneda.format(rM)}', _colorAcento),
                   _miniKpi(fonts, 'Pendiente', 'L ${_fMoneda.format(pM)}', _colorPrimario),
-                  _miniKpi(fonts, 'Mora', 'L ${_fMoneda.format(mM)}', _colorRojo),
+                  _miniKpi(fonts, 'Mora Rec.', 'L ${_fMoneda.format(mM)}', _colorRojo),
                 ]),
               ]),
             );

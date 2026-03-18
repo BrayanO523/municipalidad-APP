@@ -93,6 +93,7 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
     final List<String> ids = [];
     final Map<String, num> pagosCuotaPorLocal = {};
     final Set<String> idsLocalesConMovimiento = {};
+    final Map<String, String> boletaPorLocal = {};
 
     for (final cobro in cobros) {
       final monto = (cobro.monto ?? 0).toDouble();
@@ -123,6 +124,10 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
             (pagosCuotaPorLocal[lid] ?? 0) + (cobro.pagoACuota ?? 0);
         if (huboMovimientoHoy) {
           idsLocalesConMovimiento.add(lid);
+          final boletaFmt = cobro.numeroBoletaFmt;
+          if (boletaFmt.isNotEmpty && boletaFmt != '0') {
+            boletaPorLocal[lid] = boletaFmt;
+          }
         }
       }
     }
@@ -168,19 +173,18 @@ class CorteActivoNotifier extends Notifier<CorteActivoState> {
       }
     }
 
-    // Construir snapshot de gestiones (excluir locales que ya pagaron)
+    // Construir snapshot de gestiones (incluye locales cobrados y pendientes)
     final listaGestiones = gestionesHoy
-        .where(
-          (g) =>
-              g.localId != null && !idsLocalesConMovimiento.contains(g.localId),
-        )
+        .where((g) => g.localId != null)
         .map((g) {
           final infoLocal = localInfoMap[g.localId] ?? {};
+          final boleta = boletaPorLocal[g.localId] ?? '';
           return <String, dynamic>{
             'localId': g.localId ?? '',
             'nombreSocial': infoLocal['nombre'] ?? 'S/N',
             'clave': infoLocal['clave'] ?? '',
             'codigo': infoLocal['codigo'] ?? '',
+            'boleta': boleta,
             'tipoIncidencia': g.tipoIncidencia ?? 'OTRO',
             'comentario': g.comentario ?? '',
             'timestamp': g.timestamp?.toIso8601String() ?? '',

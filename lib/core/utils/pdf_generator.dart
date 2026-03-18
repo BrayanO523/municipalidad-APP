@@ -211,20 +211,6 @@ class PdfGenerator {
               pw.SizedBox(height: 24),
             ],
 
-            // â”€â”€ Tabla Gestiones/Incidencias â”€â”€
-            if (gestionesInfo.isNotEmpty) ...[
-              pw.Text(
-                'Detalle de Incidencias Registradas',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.brown900,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              _buildGestionesTable(gestionesInfo, PdfColors.brown50),
-              pw.SizedBox(height: 24),
-            ],
             if (gestionesInfo.isNotEmpty) ...[
               _buildIncidenciasTabla(gestionesInfo, localInfo),
               pw.SizedBox(height: 24),

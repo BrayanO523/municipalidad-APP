@@ -1439,13 +1439,16 @@ class _CobradosInfoSection extends StatelessWidget {
                         ),
                       ),
                       if ((item.localCodigo ?? '').isNotEmpty ||
-                          (item.localClave ?? '').isNotEmpty)
+                          (item.localClave ?? '').isNotEmpty ||
+                          incidenciasLocal.isNotEmpty)
                         Text(
                           [
                             if ((item.localCodigo ?? '').isNotEmpty)
                               'Cod: ${item.localCodigo}',
                             if ((item.localClave ?? '').isNotEmpty)
                               'Clave: ${item.localClave}',
+                            if (incidenciasLocal.isNotEmpty)
+                              'Incidencias: ${incidenciasLocal.length}',
                           ].join(' | '),
                           style: TextStyle(
                             fontSize: 11,
@@ -1474,15 +1477,6 @@ class _CobradosInfoSection extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      if (incidenciasLocal.isNotEmpty)
-                        Text(
-                          'Incidencias: ${incidenciasLocal.length}',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                     ],
                   ),
                   onTap: () => _showLocalBottomSheet(

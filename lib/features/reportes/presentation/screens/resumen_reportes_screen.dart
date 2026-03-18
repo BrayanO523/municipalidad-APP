@@ -80,7 +80,6 @@ class ResumenReportesScreen extends ConsumerWidget {
               periodoLabel: filter.label,
               mercados: mercados,
               cobros: state.cobros,
-              locales: state.locales,
             );
 
             if (kIsWeb) {
@@ -175,21 +174,22 @@ class ResumenReportesScreen extends ConsumerWidget {
             SizedBox(
               width: itemWidth,
               child: MetricCard(
-                title: 'Total Mora',
+                title: 'Mora Recuperada',
                 value: DateFormatter.formatCurrency(state.totalMora),
                 icon: Icons.warning_amber_rounded,
                 color: const Color(0xFFEE5A6F),
-                subtitle: 'Deuda histórica acumulada',
+                subtitle: 'Recuperada en el periodo seleccionado',
               ),
             ),
             SizedBox(
               width: itemWidth,
               child: MetricCard(
-                title: 'Saldos a Favor',
+                title: 'Saldo a Favor Actual',
                 value: DateFormatter.formatCurrency(state.totalSaldosAFavor),
                 icon: Icons.savings_rounded,
                 color: const Color(0xFFFF9F43),
-                subtitle: 'Créditos por pagos adelantados',
+                subtitle:
+                    'Periodo -> Generado: ${DateFormatter.formatCurrency(state.saldoFavorGeneradoPeriodo)} | Consumido: ${DateFormatter.formatCurrency(state.totalSaldoFavorConsumido)}',
               ),
             ),
           ],

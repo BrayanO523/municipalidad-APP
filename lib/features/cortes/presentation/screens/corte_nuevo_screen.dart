@@ -399,8 +399,24 @@ class _SliverDesglose extends ConsumerWidget {
                       child: Text('No hay cobros registrados.'),
                     );
                   }
+                  final Map<String, List<Map<String, dynamic>>> incidenciasPorLocal =
+                      {};
+                  for (final incidencia in gestionesInfo) {
+                    final localId = (incidencia['localId'] as String?) ?? '';
+                    if (localId.isEmpty) continue;
+                    incidenciasPorLocal.putIfAbsent(localId, () => []).add(incidencia);
+                  }
                   return Column(
-                    children: items.map((item) => _CobroTile(item: item)).toList(),
+                    children: items
+                        .map(
+                          (item) => _CobroTile(
+                            item: item,
+                            incidenciasLocal:
+                                incidenciasPorLocal[item.cobro.localId] ??
+                                const [],
+                          ),
+                        )
+                        .toList(),
                   );
                 },
                 loading: () => const Padding(
@@ -489,7 +505,11 @@ class _SectionHeader extends StatelessWidget {
 // Tile individual de cada cobro
 class _CobroTile extends StatelessWidget {
   final CobroConDetalle item;
-  const _CobroTile({required this.item});
+  final List<Map<String, dynamic>> incidenciasLocal;
+  const _CobroTile({
+    required this.item,
+    this.incidenciasLocal = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +533,11 @@ class _CobroTile extends StatelessWidget {
         side: BorderSide(color: statusColor.withValues(alpha: 0.3)),
       ),
       child: InkWell(
-        onTap: () => _showCobroBottomSheet(context, item),
+        onTap: () => _showCobroBottomSheet(
+          context,
+          item,
+          incidenciasLocal: incidenciasLocal,
+        ),
         child: ListTile(
           dense: true,
           leading: CircleAvatar(
@@ -535,13 +559,47 @@ class _CobroTile extends StatelessWidget {
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text(
-            'Recibo: ${cobro.numeroBoletaFmt}',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              fontSize: 12,
-            ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Recibo: ${cobro.numeroBoletaFmt}',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
+              ),
+              if (incidenciasLocal.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE67E22).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFE67E22).withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Text(
+                    incidenciasLocal.length == 1
+                        ? '1 incidencia registrada'
+                        : '${incidenciasLocal.length} incidencias registradas',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFE67E22),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -883,6 +941,7 @@ void _showPendienteBottomSheet(
 void _showCobroBottomSheet(
   BuildContext context,
   CobroConDetalle item,
+  {List<Map<String, dynamic>> incidenciasLocal = const []}
 ) {
   final theme = Theme.of(context);
   final cobro = item.cobro;
@@ -1003,6 +1062,34 @@ void _showCobroBottomSheet(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
+            ],
+            if (incidenciasLocal.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Incidencias del día (${incidenciasLocal.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...incidenciasLocal.map((incidencia) {
+                final tipo = (incidencia['tipoIncidencia'] as String?) ?? 'OTRO';
+                final comentario = (incidencia['comentario'] as String?) ?? '';
+                final ts = _parseDate(incidencia['timestamp']);
+                final detalle = comentario.trim().isEmpty
+                    ? _labelTipoIncidencia(tipo)
+                    : '${_labelTipoIncidencia(tipo)} - ${comentario.trim()}';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _BottomInfoChip(
+                    label: ts == null
+                        ? detalle
+                        : '${_formatDateTime(ts)} • $detalle',
+                    color: const Color(0xFFE67E22),
+                  ),
+                );
+              }),
             ],
           ],
         ),
@@ -1143,6 +1230,23 @@ DateTime? _parseDate(dynamic raw) {
     return DateTime.tryParse(raw.trim());
   }
   return null;
+}
+
+String _labelTipoIncidencia(String tipo) {
+  switch (tipo) {
+    case 'CERRADO':
+      return 'Local cerrado';
+    case 'AUSENTE':
+      return 'Encargado ausente';
+    case 'SIN_EFECTIVO':
+      return 'Sin efectivo';
+    case 'NEGADO':
+      return 'Se niega a pagar';
+    case 'VOLVER_TARDE':
+      return 'Volver más tarde';
+    default:
+      return 'Otro motivo';
+  }
 }
 
 String _formatDateTime(DateTime date) {

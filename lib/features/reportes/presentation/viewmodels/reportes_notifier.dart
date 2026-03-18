@@ -16,14 +16,29 @@ class ReportesResumenState {
     this.isLoading = false,
   });
 
+  bool _esAnulado(Cobro cobro) {
+    return (cobro.estado ?? '').toLowerCase() == 'anulado';
+  }
+
   bool _esCobroConEfectivo(Cobro cobro) {
     final estado = (cobro.estado ?? '').toLowerCase();
-    return (cobro.monto ?? 0) > 0 && estado != 'cobrado_saldo';
+    return (cobro.monto ?? 0) > 0 &&
+        estado != 'cobrado_saldo' &&
+        estado != 'anulado';
   }
 
   bool _esPendienteActivo(Cobro cobro) {
     final estado = (cobro.estado ?? '').toLowerCase();
     return estado == 'pendiente' || estado == 'abono_parcial';
+  }
+
+  /// Delta de saldo a favor por cobro.
+  /// Positivo: genera credito. Negativo: consume credito.
+  num _deltaSaldoFavor(Cobro cobro) {
+    final monto = cobro.monto ?? 0;
+    final abonoDeuda = cobro.montoAbonadoDeuda ?? 0;
+    final pagoCuota = cobro.pagoACuota ?? 0;
+    return monto - abonoDeuda - pagoCuota;
   }
 
   num get totalCobrado => cobros
@@ -34,9 +49,37 @@ class ReportesResumenState {
       .where(_esPendienteActivo)
       .fold<num>(0, (s, c) => s + (c.saldoPendiente ?? 0));
 
-  num get totalMora => locales.fold<num>(0, (s, l) => s + (l.deudaAcumulada ?? 0));
+  /// Mora recuperada en el periodo seleccionado.
+  num get totalMora => cobros.fold<num>(0, (s, c) {
+        if (_esAnulado(c)) return s;
+        return s + (c.montoMora ?? 0);
+      });
 
-  num get totalSaldosAFavor => locales.fold<num>(0, (s, l) => s + (l.saldoAFavor ?? 0));
+  /// Credito generado en el periodo (solo deltas positivos).
+  num get saldoFavorGeneradoPeriodo => cobros.fold<num>(0, (s, c) {
+        if (_esAnulado(c)) return s;
+        final delta = _deltaSaldoFavor(c);
+        if (delta <= 0) return s;
+        return s + delta;
+      });
+
+  /// Credito consumido en el periodo (magnitud positiva).
+  num get saldoFavorConsumidoPeriodo => cobros.fold<num>(0, (s, c) {
+        if (_esAnulado(c)) return s;
+        final delta = _deltaSaldoFavor(c);
+        if (delta >= 0) return s;
+        return s + (-delta);
+      });
+
+  /// Saldo a favor vigente (foto actual) para los locales del cobrador.
+  num get totalSaldosAFavor => locales.fold<num>(0, (s, l) {
+        final saldo = l.saldoAFavor ?? 0;
+        if (saldo <= 0) return s;
+        return s + saldo;
+      });
+
+  // Alias para no romper la UI actual.
+  num get totalSaldoFavorConsumido => saldoFavorConsumidoPeriodo;
 
   ReportesResumenState copyWith({
     DashboardPeriod? period,
