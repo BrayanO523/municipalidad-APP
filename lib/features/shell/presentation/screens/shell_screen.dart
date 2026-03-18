@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
 
 class ShellLoading extends Notifier<bool> {
@@ -56,18 +57,18 @@ class ShellScreen extends ConsumerWidget {
             ),
             body: Stack(
               children: [
-                IgnorePointer(
-                  ignoring: isLoading,
-                  child: child,
-                ),
+                const Positioned.fill(child: _ShellBackground()),
+                IgnorePointer(ignoring: isLoading, child: child),
                 if (isLoading)
                   const Positioned(
-                    top: 0, left: 0, right: 0,
+                    top: 0,
+                    left: 0,
+                    right: 0,
                     child: LinearProgressIndicator(),
                   ),
                 if (isLoading)
                   Container(
-                    color: Colors.black12,
+                    color: mobileColorScheme.scrim.withValues(alpha: 0.08),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
@@ -78,6 +79,7 @@ class ShellScreen extends ConsumerWidget {
         return Scaffold(
           body: Stack(
             children: [
+              const Positioned.fill(child: _ShellBackground()),
               SafeArea(
                 child: IgnorePointer(
                   ignoring: isLoading,
@@ -98,7 +100,9 @@ class ShellScreen extends ConsumerWidget {
                 ),
               if (isLoading)
                 Container(
-                  color: Colors.black12,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.scrim.withValues(alpha: 0.08),
                   child: const Center(child: CircularProgressIndicator()),
                 ),
             ],
@@ -116,15 +120,30 @@ class _SidebarNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-
     final sidebarColorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
       width: isExpanded ? 260 : 72,
       decoration: BoxDecoration(
-        color: sidebarColorScheme.surface,
-        border: Border(right: BorderSide(color: sidebarColorScheme.outline, width: 1)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.alphaBlend(
+              semantic.info.withValues(alpha: 0.07),
+              sidebarColorScheme.surface,
+            ),
+            sidebarColorScheme.surface,
+          ],
+        ),
+        border: Border(
+          right: BorderSide(
+            color: sidebarColorScheme.outline.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
       ),
       child: _SidebarContent(isExpanded: isExpanded),
     );
@@ -135,10 +154,7 @@ class _SidebarContent extends ConsumerWidget {
   final bool isExpanded;
   final bool isDrawer;
 
-  const _SidebarContent({
-    required this.isExpanded,
-    this.isDrawer = false,
-  });
+  const _SidebarContent({required this.isExpanded, this.isDrawer = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -164,14 +180,16 @@ class _SidebarContent extends ConsumerWidget {
           isExpanded: isExpanded,
           municipalidad: nombreMunicipalidad,
           nombreCompleto: usuario?.nombre ?? 'Administrador',
-          onEditSlogan: isDrawer ? null : () {
-            final mun = municipalidades
-                .where((m) => m.id == usuario?.municipalidadId)
-                .firstOrNull;
-            if (mun != null && context.mounted) {
-              _mostrarSidebarDialogoSlogan(context, ref, mun);
-            }
-          },
+          onEditSlogan: isDrawer
+              ? null
+              : () {
+                  final mun = municipalidades
+                      .where((m) => m.id == usuario?.municipalidadId)
+                      .firstOrNull;
+                  if (mun != null && context.mounted) {
+                    _mostrarSidebarDialogoSlogan(context, ref, mun);
+                  }
+                },
         ),
         const SizedBox(height: 8),
         Expanded(
@@ -179,7 +197,7 @@ class _SidebarContent extends ConsumerWidget {
             builder: (context, ref, child) {
               final navConfig = ref.watch(navigationConfigProvider);
               final items = navConfig.getMenuItems();
-              
+
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 itemCount: items.length,
@@ -238,10 +256,9 @@ class _SidebarContent extends ConsumerWidget {
               Text(
                 'Este texto aparecerá en el pie de página de todos los recibos y tickets de los cobradores asignados a esta municipalidad.',
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 13,
                 ),
               ),
@@ -266,14 +283,19 @@ class _SidebarContent extends ConsumerWidget {
               if (ctx.mounted) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
                   SnackBar(
-                    content: Text('RAW DB: ${doc?.slogan ?? "NO EXISTE EL CAMPO SLOGAN EN DB"}'),
-                    backgroundColor: Colors.purple,
+                    content: Text(
+                      'RAW DB: ${doc?.slogan ?? "NO EXISTE EL CAMPO SLOGAN EN DB"}',
+                    ),
+                    backgroundColor: context.semanticColors.info,
                     duration: const Duration(seconds: 10),
-                  )
+                  ),
                 );
               }
             },
-            child: const Text('DEBUG DB', style: TextStyle(color: Colors.purple)),
+            child: const Text(
+              'DEBUG DB',
+              style: TextStyle(color: Colors.purple),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -289,9 +311,9 @@ class _SidebarContent extends ConsumerWidget {
               if (ctx.mounted) {
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text('Slogan actualizado correctamente'),
-                    backgroundColor: Color(0xFF00D9A6),
+                    backgroundColor: context.semanticColors.success,
                   ),
                 );
               }
@@ -356,7 +378,7 @@ class _UserFooter extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.1),
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 10,
                           letterSpacing: 0.8,
                         ),
@@ -440,6 +462,7 @@ class _SidebarHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final onPrimary = colorScheme.onPrimary;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -460,11 +483,7 @@ class _SidebarHeader extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.account_balance,
-              color: Colors.white,
-              size: 22,
-            ),
+            child: Icon(Icons.account_balance, color: onPrimary, size: 22),
           ),
           if (isExpanded) ...[
             const SizedBox(width: 12),
@@ -534,6 +553,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSelected = currentPath == path;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -553,12 +573,22 @@ class _NavItem extends StatelessWidget {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? colorScheme.primary.withValues(alpha: 0.12)
-                  : Colors.transparent,
+              gradient: isSelected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colorScheme.primary.withValues(alpha: 0.2),
+                        semantic.info.withValues(alpha: 0.14),
+                      ],
+                    )
+                  : null,
+              color: isSelected ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: colorScheme.primary.withValues(alpha: 0.2))
+                  ? Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.25),
+                    )
                   : null,
             ),
             child: Row(
@@ -596,3 +626,72 @@ class _NavItem extends StatelessWidget {
   }
 }
 
+class _ShellBackground extends StatelessWidget {
+  const _ShellBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(
+              semantic.info.withValues(alpha: 0.06),
+              colorScheme.surface,
+            ),
+            colorScheme.surface,
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -130,
+            right: -90,
+            child: _GlowOrb(
+              size: 280,
+              color: semantic.info.withValues(alpha: 0.2),
+            ),
+          ),
+          Positioned(
+            bottom: -150,
+            left: -100,
+            child: _GlowOrb(
+              size: 320,
+              color: semantic.success.withValues(alpha: 0.16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color, color.withValues(alpha: 0.05), Colors.transparent],
+            stops: const [0, 0.55, 1],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -16,9 +16,104 @@ class AppColors {
 
   /// Pendiente, warning, abono parcial
   static const warning = Color(0xFFFF9F43);
+
+  /// Informativo / acento principal UI
+  static const info = Color(0xFF6C63FF);
 }
 
+@immutable
+class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
+  final Color success;
+  final Color onSuccess;
+  final Color warning;
+  final Color onWarning;
+  final Color danger;
+  final Color onDanger;
+  final Color info;
+  final Color onInfo;
 
+  const AppSemanticColors({
+    required this.success,
+    required this.onSuccess,
+    required this.warning,
+    required this.onWarning,
+    required this.danger,
+    required this.onDanger,
+    required this.info,
+    required this.onInfo,
+  });
+
+  factory AppSemanticColors.fromColorScheme(ColorScheme scheme) {
+    Color onTone(Color base) =>
+        ThemeData.estimateBrightnessForColor(base) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+
+    // Mantener acentos vivos y consistentes con la identidad visual del
+    // flujo de cobrador (evita tonos apagados al cambiar de tema).
+    final success = AppColors.success;
+    final warning = AppColors.warning;
+    final danger = AppColors.danger;
+    final info = Color.lerp(AppColors.info, scheme.primary, 0.25)!;
+
+    return AppSemanticColors(
+      success: success,
+      onSuccess: onTone(success),
+      warning: warning,
+      onWarning: onTone(warning),
+      danger: danger,
+      onDanger: onTone(danger),
+      info: info,
+      onInfo: onTone(info),
+    );
+  }
+
+  @override
+  AppSemanticColors copyWith({
+    Color? success,
+    Color? onSuccess,
+    Color? warning,
+    Color? onWarning,
+    Color? danger,
+    Color? onDanger,
+    Color? info,
+    Color? onInfo,
+  }) {
+    return AppSemanticColors(
+      success: success ?? this.success,
+      onSuccess: onSuccess ?? this.onSuccess,
+      warning: warning ?? this.warning,
+      onWarning: onWarning ?? this.onWarning,
+      danger: danger ?? this.danger,
+      onDanger: onDanger ?? this.onDanger,
+      info: info ?? this.info,
+      onInfo: onInfo ?? this.onInfo,
+    );
+  }
+
+  @override
+  AppSemanticColors lerp(ThemeExtension<AppSemanticColors>? other, double t) {
+    if (other is! AppSemanticColors) return this;
+    return AppSemanticColors(
+      success: Color.lerp(success, other.success, t)!,
+      onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      onWarning: Color.lerp(onWarning, other.onWarning, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
+      onDanger: Color.lerp(onDanger, other.onDanger, t)!,
+      info: Color.lerp(info, other.info, t)!,
+      onInfo: Color.lerp(onInfo, other.onInfo, t)!,
+    );
+  }
+}
+
+extension AppThemeContextX on BuildContext {
+  AppSemanticColors get semanticColors {
+    final theme = Theme.of(this);
+    return theme.extension<AppSemanticColors>() ??
+        AppSemanticColors.fromColorScheme(theme.colorScheme);
+  }
+}
 
 /// Color primario por defecto (Blue-Ribbon 600)
 const Color kDefaultPrimaryColor = Color(0xFF2D59F3);
@@ -47,16 +142,25 @@ abstract class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      extensions: <ThemeExtension<dynamic>>[
+        AppSemanticColors.fromColorScheme(colorScheme),
+      ],
+      scaffoldBackgroundColor: Color.alphaBlend(
+        colorScheme.primary.withValues(alpha: 0.04),
+        colorScheme.surface,
+      ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       cardTheme: CardThemeData(
-        color: colorScheme.surfaceContainerHigh,
+        color: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.06),
+          colorScheme.surfaceContainerHigh,
+        ),
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.38),
           ),
         ),
       ),
@@ -135,7 +239,10 @@ abstract class AppTheme {
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStateProperty.all(
-          colorScheme.surfaceContainerHigh,
+          Color.alphaBlend(
+            colorScheme.primary.withValues(alpha: 0.07),
+            colorScheme.surfaceContainerHigh,
+          ),
         ),
         dataRowColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.hovered)) {
@@ -150,7 +257,10 @@ abstract class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surfaceContainerLow,
+        backgroundColor: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.04),
+          colorScheme.surfaceContainerLow,
+        ),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -159,7 +269,9 @@ abstract class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: GoogleFonts.inter(color: colorScheme.onInverseSurface),
+        contentTextStyle: GoogleFonts.inter(
+          color: colorScheme.onInverseSurface,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
@@ -174,12 +286,16 @@ abstract class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: colorScheme.surfaceContainerHigh,
-        selectedColor: colorScheme.primaryContainer,
-        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+        backgroundColor: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.05),
+          colorScheme.surfaceContainerHigh,
         ),
+        selectedColor: colorScheme.primaryContainer,
+        labelStyle: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         side: BorderSide.none,
       ),
       dividerTheme: DividerThemeData(
@@ -209,16 +325,25 @@ abstract class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      extensions: <ThemeExtension<dynamic>>[
+        AppSemanticColors.fromColorScheme(colorScheme),
+      ],
+      scaffoldBackgroundColor: Color.alphaBlend(
+        colorScheme.primary.withValues(alpha: 0.02),
+        colorScheme.surface,
+      ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
       cardTheme: CardThemeData(
-        color: colorScheme.surfaceContainerLowest,
+        color: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.04),
+          colorScheme.surfaceContainerLowest,
+        ),
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.36),
           ),
         ),
       ),
@@ -298,7 +423,10 @@ abstract class AppTheme {
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStateProperty.all(
-          colorScheme.surfaceContainerLow,
+          Color.alphaBlend(
+            colorScheme.primary.withValues(alpha: 0.05),
+            colorScheme.surfaceContainerLow,
+          ),
         ),
         dataRowColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.hovered)) {
@@ -313,7 +441,10 @@ abstract class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.025),
+          colorScheme.surface,
+        ),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -322,7 +453,9 @@ abstract class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: GoogleFonts.inter(color: colorScheme.onInverseSurface),
+        contentTextStyle: GoogleFonts.inter(
+          color: colorScheme.onInverseSurface,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
@@ -337,12 +470,16 @@ abstract class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        selectedColor: colorScheme.primaryContainer,
-        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+        backgroundColor: Color.alphaBlend(
+          colorScheme.primary.withValues(alpha: 0.04),
+          colorScheme.surfaceContainerLow,
         ),
+        selectedColor: colorScheme.primaryContainer,
+        labelStyle: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         side: BorderSide.none,
       ),
       dividerTheme: DividerThemeData(
