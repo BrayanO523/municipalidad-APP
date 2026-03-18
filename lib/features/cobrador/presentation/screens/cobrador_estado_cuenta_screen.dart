@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -171,11 +171,8 @@ class _CobradorEstadoCuentaScreenState
       (a, b) => (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
     );
 
-    final deudaVisual = VisualDebtUtils.calcularDeudaVisual(local, cobrosList);
-    final balanceVisual = VisualDebtUtils.calcularBalanceNetoVisual(
-      local,
-      cobrosList,
-    );
+    final deudaResumen = VisualDebtUtils.calcularDeudaVencidaReal(cobrosList);
+    final balanceResumen = (local.saldoAFavor ?? 0) - deudaResumen;
     final numAdelantados = adelantadosVirtuales.length;
 
     final cobrados = combinedList.where((c) => c.estado == 'cobrado').toList();
@@ -192,9 +189,9 @@ class _CobradorEstadoCuentaScreenState
             flexibleSpace: FlexibleSpaceBar(
               background: _Header(
                 local: local,
-                deuda: deudaVisual,
+                deuda: deudaResumen,
                 saldo: local.saldoAFavor ?? 0,
-                balance: balanceVisual,
+                balance: balanceResumen,
                 numAdelantados: numAdelantados,
                 onLlamar: () => _llamar(local.telefonoRepresentante),
               ),
@@ -562,13 +559,130 @@ class _MiniKpi extends StatelessWidget {
   }
 }
 
+class _FechaBoletaSnapshot {
+  final double monto;
+  final DateTime fechaRecibo;
+  final double saldoPendiente;
+  final double deudaAnterior;
+  final double montoAbonadoDeuda;
+  final double? pagoHoy;
+  final double? abonoCuotaHoy;
+  final double saldoAFavor;
+  final List<DateTime> fechasSaldadas;
+  final String? periodoAbonadoStr;
+  final String? periodoSaldoAFavorStr;
+
+  const _FechaBoletaSnapshot({
+    required this.monto,
+    required this.fechaRecibo,
+    required this.saldoPendiente,
+    required this.deudaAnterior,
+    required this.montoAbonadoDeuda,
+    required this.pagoHoy,
+    required this.abonoCuotaHoy,
+    required this.saldoAFavor,
+    required this.fechasSaldadas,
+    required this.periodoAbonadoStr,
+    required this.periodoSaldoAFavorStr,
+  });
+}
+
 // ── Lista de cobros ───────────────────────────────────────────────────────────
+
+DateTime _normalizarDia(DateTime fecha) {
+  return DateTime(fecha.year, fecha.month, fecha.day);
+}
 
 class _CobrosList extends ConsumerWidget {
   final List<Cobro> cobros;
   final Local local;
 
   const _CobrosList({required this.cobros, required this.local});
+
+  bool _esMismoDia(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  _FechaBoletaSnapshot _snapshotFechaBoleta(
+    Local local,
+    Cobro cobro,
+    DateTime fechaSeleccionada,
+  ) {
+    final cuota = (cobro.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
+    final deudaBase = (cobro.deudaAnterior ?? 0).toDouble();
+    final fechaNorm = _normalizarDia(fechaSeleccionada);
+    final fechaCobro = _normalizarDia(
+      cobro.fecha ?? cobro.creadoEn ?? DateTime.now(),
+    );
+
+    final fechasDeuda =
+        (cobro.fechasDeudasSaldadas ?? []).map(_normalizarDia).toSet().toList()
+          ..sort();
+
+    final indexDeuda = fechasDeuda.indexWhere((d) => _esMismoDia(d, fechaNorm));
+    if (indexDeuda >= 0) {
+      final deudaAntesFecha = (deudaBase - (indexDeuda * cuota)).clamp(
+        0.0,
+        double.infinity,
+      );
+      final abonoDeuda = cuota > 0
+          ? cuota
+          : (cobro.montoAbonadoDeuda ?? cobro.monto ?? 0).toDouble();
+      final deudaDespuesFecha = (deudaAntesFecha - abonoDeuda).clamp(
+        0.0,
+        double.infinity,
+      );
+      return _FechaBoletaSnapshot(
+        monto: abonoDeuda,
+        fechaRecibo: fechaSeleccionada,
+        deudaAnterior: deudaAntesFecha,
+        saldoPendiente: deudaDespuesFecha,
+        montoAbonadoDeuda: abonoDeuda,
+        pagoHoy: null,
+        abonoCuotaHoy: null,
+        saldoAFavor: 0,
+        fechasSaldadas: [fechaSeleccionada],
+        periodoAbonadoStr: DateFormatter.formatDate(fechaSeleccionada),
+        periodoSaldoAFavorStr: null,
+      );
+    }
+
+    final deudaTrasHistoricas = (deudaBase - (fechasDeuda.length * cuota))
+        .clamp(0.0, double.infinity);
+    final abonoCuotaHoy = (cobro.pagoACuota ?? 0).toDouble();
+    if (abonoCuotaHoy > 0 && _esMismoDia(fechaNorm, fechaCobro)) {
+      final pagoHoy = cuota > 0
+          ? (cuota - abonoCuotaHoy).clamp(0.0, cuota)
+          : 0.0;
+      return _FechaBoletaSnapshot(
+        monto: abonoCuotaHoy,
+        fechaRecibo: cobro.fecha ?? cobro.creadoEn ?? fechaSeleccionada,
+        deudaAnterior: deudaTrasHistoricas,
+        saldoPendiente: deudaTrasHistoricas,
+        montoAbonadoDeuda: 0,
+        pagoHoy: pagoHoy,
+        abonoCuotaHoy: abonoCuotaHoy,
+        saldoAFavor: 0,
+        fechasSaldadas: [fechaSeleccionada],
+        periodoAbonadoStr: DateFormatter.formatDate(fechaSeleccionada),
+        periodoSaldoAFavorStr: null,
+      );
+    }
+
+    return _FechaBoletaSnapshot(
+      monto: cuota > 0 ? cuota : (cobro.monto ?? 0).toDouble(),
+      fechaRecibo: fechaSeleccionada,
+      deudaAnterior: deudaTrasHistoricas,
+      saldoPendiente: deudaTrasHistoricas,
+      montoAbonadoDeuda: 0,
+      pagoHoy: null,
+      abonoCuotaHoy: null,
+      saldoAFavor: 0,
+      fechasSaldadas: [fechaSeleccionada],
+      periodoAbonadoStr: DateFormatter.formatDate(fechaSeleccionada),
+      periodoSaldoAFavorStr: null,
+    );
+  }
 
   /// Agrupa cobros basándose en el número de boleta o correlativo,
   /// eliminando registros "hijo" redundantes que ya están contenidos
@@ -762,7 +876,10 @@ class _CobrosList extends ConsumerWidget {
     // El saldoPendiente guardado incluye la cuota del día no pagada.
     // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real,
     // no la cuota de hoy que aún no es una deuda en sentido estricto.
-    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(0.0, double.infinity);
+    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(
+      0.0,
+      double.infinity,
+    );
 
     if (context.mounted) {
       await ReceiptDispatcher.presentReceiptOptions(
@@ -839,7 +956,10 @@ class _CobrosList extends ConsumerWidget {
 
     // El saldoPendiente guardado incluye la cuota del día no pagada.
     // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real.
-    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(0.0, double.infinity);
+    final saldoDeudaReal = ((c.saldoPendiente ?? 0).toDouble() - pagoHoy).clamp(
+      0.0,
+      double.infinity,
+    );
 
     if (context.mounted) {
       await ReceiptDispatcher.compartirPdf(
@@ -878,61 +998,32 @@ class _CobrosList extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
-
-    double cuota = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
-    double montoIndividual = cuota > 0 ? cuota : 0;
-    final DateTime fechaOriginal = c.fecha ?? c.creadoEn ?? DateTime.now();
-    
-    final bool esElMismoDia = fecha.year == fechaOriginal.year &&
-        fecha.month == fechaOriginal.month &&
-        fecha.day == fechaOriginal.day;
-
-    double deudaAnterior = (c.deudaAnterior ?? 0).toDouble();
-    
-    // El cobro maestro puede incluir la cuota del día no pagada en su saldoPendiente.
-    // Hay que deducir esto del saldoPendiente a mostrar en CUALQUIER recibo hijo que salga de aquí.
-    final abonoCuotaMaster = (c.pagoACuota ?? 0).toDouble();
-    final faltaPagarHoyMaster = (montoIndividual - abonoCuotaMaster).clamp(0.0, double.infinity);
-    final saldoPendienteReal = ((c.saldoPendiente ?? 0).toDouble() - faltaPagarHoyMaster).clamp(0.0, double.infinity);
-
-    double abonoDeuda = 0;
-    double pagoHoy = 0;
-    double abonoCuotaHoy = 0;
-
-    if (esElMismoDia) {
-      // Si la fecha elegida es el día que se hizo el cobro real, 
-      // mostramos la información general (o proporcional) de la deuda de ese día
-      abonoDeuda = (c.montoAbonadoDeuda ?? 0).toDouble();
-      abonoCuotaHoy = abonoCuotaMaster;
-      pagoHoy = faltaPagarHoyMaster;
-    } else {
-      // Si es un día pendiente que se cubrió con este pago (en el pasado o futuro)
-      // Todo ese dinero se fue como Abono de Deuda en concepto de cuota.
-      abonoDeuda = montoIndividual;
-    }
+    final snap = _snapshotFechaBoleta(local, c, fecha);
 
     if (context.mounted) {
       await ReceiptDispatcher.presentReceiptOptions(
         context: context,
         ref: ref,
         local: local,
-        monto: abonoDeuda + pagoHoy,
-        fecha: fechaOriginal,
-        saldoPendiente: saldoPendienteReal,
-        deudaAnterior: deudaAnterior,
-        montoAbonadoDeuda: abonoDeuda,
-        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
-        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
-        saldoAFavor: 0,
+        monto: snap.monto,
+        fecha: snap.fechaRecibo,
+        saldoPendiente: snap.saldoPendiente,
+        deudaAnterior: snap.deudaAnterior,
+        montoAbonadoDeuda: snap.montoAbonadoDeuda,
+        pagoHoy: snap.pagoHoy,
+        abonoCuotaHoy: snap.abonoCuotaHoy,
+        saldoAFavor: snap.saldoAFavor,
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         municipalidadNombre: muni?.nombre ?? 'MUNICIPALIDAD',
         mercadoNombre: merc?.nombre,
         cobradorNombre: user?.nombre,
-        fechasSaldadas: [fecha],
-        periodoAbonadoStr: DateFormatter.formatDate(fecha),
-        periodoSaldoAFavorStr: null,
+        fechasSaldadas: snap.fechasSaldadas,
+        periodoAbonadoStr: snap.periodoAbonadoStr,
+        periodoSaldoAFavorStr: snap.periodoSaldoAFavorStr,
         slogan: muni?.slogan,
       );
     }
@@ -949,59 +1040,31 @@ class _CobrosList extends ConsumerWidget {
     final municipalidadRepo = ref.read(municipalidadRepositoryProvider);
     final mercadoRepo = ref.read(mercadoRepositoryProvider);
 
-    final muni = await municipalidadRepo.obtenerPorId(local.municipalidadId ?? '');
+    final muni = await municipalidadRepo.obtenerPorId(
+      local.municipalidadId ?? '',
+    );
     final merc = await mercadoRepo.obtenerPorId(local.mercadoId ?? '');
-
-    double cuota = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
-    double montoIndividual = cuota > 0 ? cuota : 0;
-    final DateTime fechaOriginal = c.fecha ?? c.creadoEn ?? DateTime.now();
-    
-    final bool esElMismoDia = fecha.year == fechaOriginal.year &&
-        fecha.month == fechaOriginal.month &&
-        fecha.day == fechaOriginal.day;
-
-    double deudaAnterior = (c.deudaAnterior ?? 0).toDouble();
-    
-    // El cobro maestro puede incluir la cuota del día no pagada en su saldoPendiente.
-    // Hay que deducir esto del saldoPendiente a mostrar.
-    final abonoCuotaMaster = (c.pagoACuota ?? 0).toDouble();
-    final faltaPagarHoyMaster = (montoIndividual - abonoCuotaMaster).clamp(0.0, double.infinity);
-    final saldoPendienteReal = ((c.saldoPendiente ?? 0).toDouble() - faltaPagarHoyMaster).clamp(0.0, double.infinity);
-
-    double abonoDeuda = 0;
-    double pagoHoy = 0;
-    double abonoCuotaHoy = 0;
-
-    if (esElMismoDia) {
-      // Si la fecha elegida es el día que se hizo el cobro real, 
-      abonoDeuda = (c.montoAbonadoDeuda ?? 0).toDouble();
-      abonoCuotaHoy = abonoCuotaMaster;
-      pagoHoy = faltaPagarHoyMaster;
-    } else {
-      // Si es un día pendiente que se cubrió con este pago (pasado o futuro retrasado)
-      // Todo ese dinero se fue como Abono de Deuda para esta fecha específica.
-      abonoDeuda = montoIndividual;
-    }
+    final snap = _snapshotFechaBoleta(local, c, fecha);
 
     if (context.mounted) {
       await ReceiptDispatcher.compartirPdf(
         context: context,
         local: local,
-        monto: abonoDeuda + pagoHoy,
-        fecha: fechaOriginal,
-        saldoPendiente: saldoPendienteReal,
-        deudaAnterior: deudaAnterior,
-        montoAbonadoDeuda: abonoDeuda,
-        pagoHoy: pagoHoy > 0 ? pagoHoy : null,
-        abonoCuotaHoy: abonoCuotaHoy > 0 ? abonoCuotaHoy : null,
-        saldoAFavor: 0,
+        monto: snap.monto,
+        fecha: snap.fechaRecibo,
+        saldoPendiente: snap.saldoPendiente,
+        deudaAnterior: snap.deudaAnterior,
+        montoAbonadoDeuda: snap.montoAbonadoDeuda,
+        pagoHoy: snap.pagoHoy,
+        abonoCuotaHoy: snap.abonoCuotaHoy,
+        saldoAFavor: snap.saldoAFavor,
         numeroBoleta: '${c.numeroBoleta ?? c.correlativo ?? '0'}',
         muni: muni?.nombre ?? 'MUNICIPALIDAD',
         merc: merc?.nombre,
         cobrador: user?.nombre,
-        fechasSaldadas: [fecha],
-        periodoAbonadoStr: DateFormatter.formatDate(fecha),
-        periodoSaldoAFavorStr: null,
+        fechasSaldadas: snap.fechasSaldadas,
+        periodoAbonadoStr: snap.periodoAbonadoStr,
+        periodoSaldoAFavorStr: snap.periodoSaldoAFavorStr,
         slogan: muni?.slogan,
       );
     }
@@ -1013,8 +1076,10 @@ class _GrupoBoletaCard extends ConsumerWidget {
   final List<Cobro> cobros;
   final Local local;
   final Cobro? masterPayment;
-  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime) onImprimirCobro;
-  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime) onCompartirCobro;
+  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime)
+  onImprimirCobro;
+  final Future<void> Function(BuildContext, WidgetRef, Cobro, DateTime)
+  onCompartirCobro;
 
   const _GrupoBoletaCard({
     required this.cobros,
@@ -1041,7 +1106,8 @@ class _GrupoBoletaCard extends ConsumerWidget {
     }
 
     for (final c in cobros) {
-      if (c.fecha != null) {
+      final bool aplicoCuotaHoy = (c.pagoACuota ?? 0) > 0;
+      if (aplicoCuotaHoy && c.fecha != null) {
         registrarCobro(c.fecha!, c, 0);
       }
       if (c.fechasDeudasSaldadas != null) {
@@ -1049,7 +1115,6 @@ class _GrupoBoletaCard extends ConsumerWidget {
           registrarCobro(d, c, 1);
         }
       }
-      final bool aplicoCuotaHoy = (c.pagoACuota ?? 0) > 0;
       if (aplicoCuotaHoy && c.creadoEn != null) {
         registrarCobro(c.creadoEn!, c, 2);
       }
@@ -1320,17 +1385,16 @@ class _GrupoBoletaCard extends ConsumerWidget {
               top: 12,
               bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
             ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
                   width: 48,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.25),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
@@ -1349,10 +1413,9 @@ class _GrupoBoletaCard extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.58),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.58),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1364,10 +1427,9 @@ class _GrupoBoletaCard extends ConsumerWidget {
                     itemCount: fechas.length,
                     separatorBuilder: (_, __) => Divider(
                       height: 1,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant
-                          .withValues(alpha: 0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outlineVariant.withValues(alpha: 0.5),
                     ),
                     itemBuilder: (sheetContext, index) {
                       final fecha = fechas[index];
@@ -1386,20 +1448,18 @@ class _GrupoBoletaCard extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.7),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                         subtitle: Text(
                           'Abono: ${DateFormatter.formatCurrency(montoFecha)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.58),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.58),
                           ),
                         ),
                         trailing: Row(
@@ -1446,10 +1506,9 @@ class _GrupoBoletaCard extends ConsumerWidget {
                     'Cerrar',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.8),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
                 ),
@@ -1460,10 +1519,6 @@ class _GrupoBoletaCard extends ConsumerWidget {
         );
       },
     );
-  }
-
-  DateTime _normalizarDia(DateTime fecha) {
-    return DateTime(fecha.year, fecha.month, fecha.day);
   }
 
   Future<void> _imprimirFechaEspecifica(
@@ -1495,9 +1550,7 @@ class _GrupoBoletaCard extends ConsumerWidget {
   void _mostrarFechaSinRegistro(BuildContext context, DateTime fecha) {
     final fechaStr = DateFormatter.formatDate(fecha);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('No hay datos asociados al $fechaStr'),
-      ),
+      SnackBar(content: Text('No hay datos asociados al $fechaStr')),
     );
   }
 
@@ -1592,7 +1645,7 @@ class _GrupoBoletaCard extends ConsumerWidget {
 
     String? periodoFavorStr;
     final cuotaLocal = (local.cuotaDiaria ?? 0).toDouble();
-    
+
     double abonoCuotaHoy = 0;
     final hoy = DateTime.now();
     for (var c in cobros) {
@@ -1608,7 +1661,10 @@ class _GrupoBoletaCard extends ConsumerWidget {
     if (pagoHoy < 0) pagoHoy = 0;
 
     // Descontar la cuota de hoy del saldo pendiente, ya que no es deuda real vencida
-    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(0.0, double.infinity);
+    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(
+      0.0,
+      double.infinity,
+    );
 
     if (saldoAFavor > 0 && cuotaLocal > 0) {
       int dias = (saldoAFavor / cuotaLocal).floor();
@@ -1740,7 +1796,10 @@ class _GrupoBoletaCard extends ConsumerWidget {
     if (pagoHoy < 0) pagoHoy = 0;
 
     // Descontar la cuota de hoy del saldo pendiente, ya que no es deuda real vencida
-    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(0.0, double.infinity);
+    final saldoDeudaReal = (saldoPendiente - pagoHoy).clamp(
+      0.0,
+      double.infinity,
+    );
 
     if (saldoAFavor > 0 && cuotaLocal > 0) {
       int dias = (saldoAFavor / cuotaLocal).floor();
@@ -1794,6 +1853,16 @@ class _CobroTile extends ConsumerWidget {
     required this.onShare,
   });
 
+  DateTime? _fechaVisible(Cobro c) {
+    final deudaDates = c.fechasDeudasSaldadas;
+    final pagoHoy = (c.pagoACuota ?? 0) > 0;
+    if (!pagoHoy && deudaDates != null && deudaDates.isNotEmpty) {
+      final sorted = List<DateTime>.from(deudaDates)..sort();
+      return sorted.first;
+    }
+    return c.fecha ?? c.creadoEn;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final estado = cobro.estado ?? 'desconocido';
@@ -1842,6 +1911,8 @@ class _CobroTile extends ConsumerWidget {
       monto = cobro.pagoACuota ?? cobro.cuotaDiaria ?? 0;
     }
 
+    final fechaVisible = _fechaVisible(cobro);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1877,8 +1948,8 @@ class _CobroTile extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      cobro.fecha != null
-                          ? DateFormatter.formatDateTime(cobro.fecha!)
+                      fechaVisible != null
+                          ? DateFormatter.formatDateTime(fechaVisible)
                           : '—',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
@@ -1962,6 +2033,7 @@ class _CobroTile extends ConsumerWidget {
     Color colorEstado,
     bool esPagadoConSaldoAFavor,
   ) {
+    final fechaVisible = _fechaVisible(cobro);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2002,8 +2074,8 @@ class _CobroTile extends ConsumerWidget {
               const SizedBox(height: 16),
               _DetalleFila(
                 label: 'Fecha',
-                valor: cobro.fecha != null
-                    ? DateFormatter.formatDateTime(cobro.fecha!)
+                valor: fechaVisible != null
+                    ? DateFormatter.formatDateTime(fechaVisible)
                     : '-',
               ),
               if (esPagadoConSaldoAFavor) ...[
