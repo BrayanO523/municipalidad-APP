@@ -1749,136 +1749,138 @@ class _DashboardHeader extends ConsumerWidget {
                       ),
                     ),
                   ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: semantic.warning,
+                if (_kShowDevTools) ...[
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: semantic.warning,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Recalcular Estadísticas'),
+                            ],
+                          ),
+                          content: const Text(
+                            'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancelar'),
                             ),
-                            const SizedBox(width: 8),
-                            const Text('Recalcular Estadísticas'),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Recalcular'),
+                            ),
                           ],
                         ),
-                        content: const Text(
-                          'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancelar'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Recalcular'),
-                          ),
-                        ],
-                      ),
-                    );
+                      );
 
-                    if (confirm == true) {
-                      if (!context.mounted) return;
-                      try {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Recalculando estadísticas globales...',
-                            ),
-                          ),
-                        );
-
-                        final ds = ref.read(statsDatasourceProvider);
-                        final user = ref.read(currentUsuarioProvider).value;
-                        if (user?.municipalidadId == null) {
-                          throw Exception(
-                            'No se pudo identificar la municipalidad',
-                          );
-                        }
-
-                        await ds.recalcularTodo(user!.municipalidadId!);
-
-                        if (context.mounted) {
+                      if (confirm == true) {
+                        if (!context.mounted) return;
+                        try {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            const SnackBar(
                               content: Text(
-                                'Estadísticas sincronizadas con éxito.',
+                                'Recalculando estadísticas globales...',
                               ),
-                              backgroundColor: semantic.success,
                             ),
                           );
-                          // Refrescar el provider de stats
-                          ref.invalidate(statsProvider);
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error al recalcular: $e'),
-                              backgroundColor: semantic.danger,
-                            ),
-                          );
+
+                          final ds = ref.read(statsDatasourceProvider);
+                          final user = ref.read(currentUsuarioProvider).value;
+                          if (user?.municipalidadId == null) {
+                            throw Exception(
+                              'No se pudo identificar la municipalidad',
+                            );
+                          }
+
+                          await ds.recalcularTodo(user!.municipalidadId!);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Estadísticas sincronizadas con éxito.',
+                                ),
+                                backgroundColor: semantic.success,
+                              ),
+                            );
+                            // Refrescar el provider de stats
+                            ref.invalidate(statsProvider);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error al recalcular: $e'),
+                                backgroundColor: semantic.danger,
+                              ),
+                            );
+                          }
                         }
                       }
-                    }
-                  },
-                  icon: const Icon(Icons.sync_problem_rounded, size: 18),
-                  label: const Text('Recalcular Stats'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: semantic.warning.withValues(alpha: 0.1),
-                    foregroundColor: semantic.warning,
-                    side: BorderSide(color: semantic.warning, width: 0.5),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    },
+                    icon: const Icon(Icons.sync_problem_rounded, size: 18),
+                    label: const Text('Recalcular Stats'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: semantic.warning.withValues(alpha: 0.1),
+                      foregroundColor: semantic.warning,
+                      side: BorderSide(color: semantic.warning, width: 0.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final cobros = ref.read(cobrosHoyProvider).value ?? [];
-                    final locales = ref.read(localesProvider).value ?? [];
-                    final mercados = ref.read(mercadosProvider).value ?? [];
-                    final filter = ref.read(dashboardFilterProvider);
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final cobros = ref.read(cobrosHoyProvider).value ?? [];
+                      final locales = ref.read(localesProvider).value ?? [];
+                      final mercados = ref.read(mercadosProvider).value ?? [];
+                      final filter = ref.read(dashboardFilterProvider);
 
-                    final bytes =
-                        await ReportePdfGenerator.generarReporteDashboard(
-                          cobros: cobros,
-                          locales: locales,
-                          mercados: mercados,
-                          periodoLabel: filter.period == DashboardPeriod.hoy
-                              ? 'Hoy'
-                              : filter.label,
+                      final bytes =
+                          await ReportePdfGenerator.generarReporteDashboard(
+                            cobros: cobros,
+                            locales: locales,
+                            mercados: mercados,
+                            periodoLabel: filter.period == DashboardPeriod.hoy
+                                ? 'Hoy'
+                                : filter.label,
+                          );
+
+                      if (kIsWeb) {
+                        await descargarPdfWeb(
+                          bytes,
+                          'Dashboard_${filter.label.replaceAll(" ", "_")}.pdf',
                         );
-
-                    if (kIsWeb) {
-                      await descargarPdfWeb(
-                        bytes,
-                        'Dashboard_${filter.label.replaceAll(" ", "_")}.pdf',
-                      );
-                    } else {
-                      await Printing.layoutPdf(
-                        onLayout: (_) async => bytes,
-                        name: 'Dashboard_${filter.label}',
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                  label: const Text('Exportar PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      } else {
+                        await Printing.layoutPdf(
+                          onLayout: (_) async => bytes,
+                          name: 'Dashboard_${filter.label}',
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                    label: const Text('Exportar PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
