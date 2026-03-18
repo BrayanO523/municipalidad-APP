@@ -1198,6 +1198,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       pagadoHoyPreviamente: pagadoHoyPrev,
       saldoFavorInicial: saldoInicial,
       fechaReferencia: now,
+      saldoAExtraer: saldoAExtraer,
     );
 
     // Totales y estado
@@ -1340,7 +1341,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           context: context,
           ref: ref,
           local: local,
-          monto: monto.toDouble(),
+          monto: (monto + dist.saldoFavorConsumido).toDouble(),
           fecha: now,
           saldoPendiente: deudaVencidaRestante,
           deudaAnterior: deudaTotalInicial.toDouble(),

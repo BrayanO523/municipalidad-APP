@@ -37,6 +37,7 @@ class CobroViewModel extends AsyncNotifier<void> {
         cobro,
         localId,
         montoAbonadoDeuda: montoAbonadoDeuda,
+        incrementoSaldoFavor: incrementoSaldoFavor,
         fechaReferenciaMora: fechaReferenciaMora,
       );
 

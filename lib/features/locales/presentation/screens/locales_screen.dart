@@ -1100,6 +1100,13 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (_kShowDevTools)
+                      IconButton(
+                        icon: const Icon(Icons.tune_rounded),
+                        onPressed: () =>
+                            _showDebugDebtSaldoDialog(context, local),
+                        tooltip: 'Debug: editar deuda y saldo',
+                      ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () =>
@@ -1224,6 +1231,17 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const Divider(height: 24),
+        if (_kShowDevTools) ...[
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: () => _showDebugDebtSaldoDialog(context, local),
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Debug: editar deuda/saldo'),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _DetailRow(
           icon: Icons.person_rounded,
           label: 'Representante',
@@ -1399,6 +1417,127 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         ref.read(localesPaginadosProvider.notifier).recargar();
       },
     );
+  }
+
+  Future<void> _showDebugDebtSaldoDialog(
+    BuildContext context,
+    Local local,
+  ) async {
+    if (!_kShowDevTools || local.id == null) return;
+
+    final deudaActual = (local.deudaAcumulada ?? 0).toDouble();
+    final saldoActual = (local.saldoAFavor ?? 0).toDouble();
+    final deudaCtrl = TextEditingController(text: deudaActual.toStringAsFixed(2));
+    final saldoCtrl = TextEditingController(text: saldoActual.toStringAsFixed(2));
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Debug: editar deuda y saldo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: deudaCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Deuda acumulada',
+                prefixIcon: Icon(Icons.trending_down_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: saldoCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Saldo a favor',
+                prefixIcon: Icon(Icons.trending_up_rounded),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado != true) return;
+
+    final nuevaDeuda = _parseDecimalInput(deudaCtrl.text);
+    final nuevoSaldo = _parseDecimalInput(saldoCtrl.text);
+
+    if (nuevaDeuda == null || nuevoSaldo == null || nuevaDeuda < 0 || nuevoSaldo < 0) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Valores invalidos: usa numeros >= 0.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    final deltaDeuda = nuevaDeuda - deudaActual;
+    final deltaSaldo = nuevoSaldo - saldoActual;
+    final ds = ref.read(localDatasourceProvider);
+
+    try {
+      await ds.actualizarConStats(
+        localId: local.id!,
+        data: {
+          'deudaAcumulada': nuevaDeuda,
+          'saldoAFavor': nuevoSaldo,
+          if (local.municipalidadId != null)
+            'municipalidadId': local.municipalidadId,
+          if (local.mercadoId != null) 'mercadoId': local.mercadoId,
+          'ajusteDebugManual': true,
+        },
+        deltaDeuda: deltaDeuda,
+        deltaSaldo: deltaSaldo,
+      );
+
+      ref.read(localesPaginadosProvider.notifier).recargar();
+      if (_localSeleccionado?.id == local.id) {
+        setState(() {
+          _localSeleccionado = _localSeleccionado?.copyWith(
+            deudaAcumulada: nuevaDeuda,
+            saldoAFavor: nuevoSaldo,
+          );
+        });
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Deuda y saldo actualizados (debug).'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  double? _parseDecimalInput(String raw) {
+    final normalized = raw.trim().replaceAll(',', '.');
+    return double.tryParse(normalized);
   }
 }
 

@@ -74,6 +74,7 @@ class CobroRepositoryImpl implements CobroRepository {
     Cobro cobro,
     String localId, {
     num montoAbonadoDeuda = 0,
+    num? incrementoSaldoFavor,
     DateTime? fechaReferenciaMora,
   }) async {
     final cobroJson = CobroJson.fromEntity(cobro).toJson();
@@ -83,6 +84,7 @@ class CobroRepositoryImpl implements CobroRepository {
       cobroId: cobro.id!,
       cobroData: cobroJson,
       localId: localId,
+      incrementoSaldoFavor: incrementoSaldoFavor,
     );
 
     // 2. Adjuntamos el correlativo al cobro final

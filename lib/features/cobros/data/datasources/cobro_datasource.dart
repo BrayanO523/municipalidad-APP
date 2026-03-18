@@ -29,6 +29,7 @@ class CobroDatasource {
     required String cobroId,
     required Map<String, dynamic> cobroData,
     required String localId,
+    num? incrementoSaldoFavor,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final userId = cobroData['creadoPor'] as String?;
@@ -77,7 +78,9 @@ class CobroDatasource {
     if (municipalidadId != null) {
       final montoCobrado = (finalCobroData['monto'] as num?) ?? 0;
       final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
-      final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
+      final incrementoSaldo =
+          incrementoSaldoFavor ??
+          ((finalCobroData['nuevoSaldoFavor'] as num?) ?? 0);
       final montoMora = (finalCobroData['montoMora'] as num?) ?? 0;
 
       final mercadoId = cobroData['mercadoId'] as String?;
@@ -96,7 +99,9 @@ class CobroDatasource {
 
     // c. Actualizar el Local (Deuda y Saldo) en el mismo Batch
     final abonoDeuda = (finalCobroData['montoAbonadoDeuda'] as num?) ?? 0;
-    final incrementoSaldo = (finalCobroData['nuevoSaldoFavor'] as num?) ?? 0;
+    final incrementoSaldo =
+        incrementoSaldoFavor ??
+        ((finalCobroData['nuevoSaldoFavor'] as num?) ?? 0);
     
     await _localDs.actualizarDeudaAcumulada(localId, -abonoDeuda, batch: batch);
     await _localDs.actualizarSaldoAFavor(localId, incrementoSaldo, batch: batch);

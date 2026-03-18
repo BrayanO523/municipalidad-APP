@@ -620,7 +620,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           context: context,
           ref: ref,
           local: local,
-          monto: monto.toDouble(),
+          monto: (monto + dist.saldoFavorConsumido).toDouble(),
           fecha: now,
           saldoPendiente: deudaVencidaRestante,
           deudaAnterior: deudaTotalInicial,

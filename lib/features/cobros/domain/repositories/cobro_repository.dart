@@ -28,6 +28,7 @@ abstract class CobroRepository {
     Cobro cobro,
     String localId, {
     num montoAbonadoDeuda,
+    num? incrementoSaldoFavor,
     DateTime? fechaReferenciaMora,
   });
 
