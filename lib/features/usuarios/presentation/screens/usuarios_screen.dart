@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/usuario.dart';
 import '../viewmodels/usuarios_paginados_notifier.dart';
@@ -61,7 +62,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                       ? Center(
                           child: Text(
                             state.errorMsg!,
-                            style: const TextStyle(color: Colors.redAccent),
+                            style: TextStyle(
+                              color: context.semanticColors.danger,
+                            ),
                           ),
                         )
                       : state.usuarios.isEmpty
@@ -129,7 +132,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.semanticColors.danger,
+              foregroundColor: context.semanticColors.onDanger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
@@ -217,7 +223,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                           labelText: 'Código Cobrador',
                           hintText: 'C1',
                           filled: true,
-                          helperText: 'No repetir con otro cobrador de la misma municipalidad',
+                          helperText:
+                              'No repetir con otro cobrador de la misma municipalidad',
                         ),
                         onChanged: (val) {
                           final upper = val.toUpperCase();
@@ -295,7 +302,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                   ),
                                   isDense: true,
                                   filled: true,
-                                  fillColor: Colors.black12,
+                                  fillColor: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.6),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: BorderSide.none,
@@ -316,7 +326,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                         Container(
                           height: 250,
                           decoration: BoxDecoration(
-                            color: Colors.black26,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Consumer(
@@ -454,7 +466,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     horizontal: 6,
                                                     vertical: 4,
                                                   ),
-                                              color: Colors.black12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainerHighest
+                                                  .withValues(alpha: 0.6),
                                               child: Row(
                                                 children: [
                                                   SizedBox(
@@ -573,7 +588,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                           ),
                                                           Icons
                                                               .arrow_forward_ios_rounded,
-                                                          Colors.green.shade400,
+                                                          context
+                                                              .semanticColors
+                                                              .success,
                                                         );
                                                       },
                                                     ),
@@ -670,21 +687,19 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     ),
                                                 onPressed:
                                                     checkedAsignados.isEmpty
-                                                        ? null
-                                                        : () => setDialogState(
-                                                              () {
-                                                                selectedLocalesIds
-                                                                    .removeWhere(
-                                                                  (id) =>
-                                                                      checkedAsignados
-                                                                          .contains(
-                                                                    id,
-                                                                  ),
-                                                                );
-                                                                checkedAsignados
-                                                                    .clear();
-                                                              },
-                                                            ),
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        selectedLocalesIds
+                                                            .removeWhere(
+                                                              (id) =>
+                                                                  checkedAsignados
+                                                                      .contains(
+                                                                        id,
+                                                                      ),
+                                                            );
+                                                        checkedAsignados
+                                                            .clear();
+                                                      }),
                                               ),
                                             ),
                                             // Devolver todos <<
@@ -703,28 +718,25 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     ),
                                                 onPressed:
                                                     localesAsignados.isEmpty
-                                                        ? null
-                                                        : () => setDialogState(
-                                                              () {
-                                                                final asignadosIds =
-                                                                    localesAsignados
-                                                                        .map(
-                                                                          (l) =>
-                                                                              l.id!,
-                                                                        )
-                                                                        .toSet();
-                                                                selectedLocalesIds
-                                                                    .removeWhere(
-                                                                  (id) =>
-                                                                      asignadosIds
-                                                                          .contains(
-                                                                    id,
-                                                                  ),
-                                                                );
-                                                                checkedAsignados
-                                                                    .clear();
-                                                              },
-                                                            ),
+                                                    ? null
+                                                    : () => setDialogState(() {
+                                                        final asignadosIds =
+                                                            localesAsignados
+                                                                .map(
+                                                                  (l) => l.id!,
+                                                                )
+                                                                .toSet();
+                                                        selectedLocalesIds
+                                                            .removeWhere(
+                                                              (id) =>
+                                                                  asignadosIds
+                                                                      .contains(
+                                                                        id,
+                                                                      ),
+                                                            );
+                                                        checkedAsignados
+                                                            .clear();
+                                                      }),
                                               ),
                                             ),
                                           ],
@@ -741,7 +753,10 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                     horizontal: 6,
                                                     vertical: 4,
                                                   ),
-                                              color: Colors.black12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainerHighest
+                                                  .withValues(alpha: 0.6),
                                               child: Row(
                                                 children: [
                                                   SizedBox(
@@ -860,7 +875,9 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                                                     ),
                                                           ),
                                                           Icons.close_rounded,
-                                                          Colors.red.shade400,
+                                                          context
+                                                              .semanticColors
+                                                              .danger,
                                                         );
                                                       },
                                                     ),
@@ -1250,11 +1267,13 @@ class _UsuariosTable extends ConsumerWidget {
               vertical: 8,
             ),
             leading: CircleAvatar(
-              backgroundColor: const Color(0xFF6C63FF).withValues(alpha: 0.2),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
               child: Text(
                 u.nombre?.substring(0, 1).toUpperCase() ?? 'U',
-                style: const TextStyle(
-                  color: Color(0xFF6C63FF),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1356,16 +1375,17 @@ class _UsuariosTable extends ConsumerWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => CobradorHistorialScreen(cobrador: u),
+                        builder: (context) =>
+                            CobradorHistorialScreen(cobrador: u),
                       ),
                     );
                   },
                   tooltip: 'Ver Historial y Gráficos',
                 ),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_rounded,
-                    color: Colors.redAccent,
+                    color: context.semanticColors.danger,
                   ),
                   onPressed: () => onDelete(u),
                   tooltip: 'Eliminar',

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../locales/domain/entities/local.dart';
@@ -20,8 +21,11 @@ class CobradorHistorialScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(cobradorHistorialRangoProvider);
-    final cobrosAsync = ref.watch(cobradorCobrosStreamProvider(cobrador.id ?? ''));
+    final cobrosAsync = ref.watch(
+      cobradorCobrosStreamProvider(cobrador.id ?? ''),
+    );
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -49,20 +53,30 @@ class CobradorHistorialScreen extends ConsumerWidget {
         data: (cobros) {
           // Filtrar cobros reales para KPIs (evitar registros de regularización sin monto)
           final cobrosReales = cobros.where((c) => (c.monto ?? 0) > 0).toList();
-          final totalRecaudado = cobrosReales.fold<num>(0, (sum, c) => sum + (c.monto ?? 0));
-          final totalBoletas = cobros.where((c) => (c.correlativo ?? 0) > 0).length;
+          final totalRecaudado = cobrosReales.fold<num>(
+            0,
+            (sum, c) => sum + (c.monto ?? 0),
+          );
+          final totalBoletas = cobros
+              .where((c) => (c.correlativo ?? 0) > 0)
+              .length;
 
           // Preparar datos para el gráfico (últimos 7 días con actividad)
           final Map<DateTime, double> revenueByDate = {};
           for (var c in cobrosReales) {
             if (c.fecha == null) continue;
-            final dateOnly = DateTime(c.fecha!.year, c.fecha!.month, c.fecha!.day);
-            revenueByDate[dateOnly] = (revenueByDate[dateOnly] ?? 0) + (c.monto?.toDouble() ?? 0);
+            final dateOnly = DateTime(
+              c.fecha!.year,
+              c.fecha!.month,
+              c.fecha!.day,
+            );
+            revenueByDate[dateOnly] =
+                (revenueByDate[dateOnly] ?? 0) + (c.monto?.toDouble() ?? 0);
           }
 
           final sortedDates = revenueByDate.keys.toList()..sort();
-          final recentDates = sortedDates.length > 7 
-              ? sortedDates.sublist(sortedDates.length - 7) 
+          final recentDates = sortedDates.length > 7
+              ? sortedDates.sublist(sortedDates.length - 7)
               : sortedDates;
 
           return CustomScrollView(
@@ -76,6 +90,8 @@ class CobradorHistorialScreen extends ConsumerWidget {
                       _CollectorKpiRow(
                         totalRecaudado: totalRecaudado,
                         totalBoletas: totalBoletas,
+                        infoColor: semantic.info,
+                        successColor: semantic.success,
                       ),
                       const SizedBox(height: 24),
                       _DateRangeFilter(range: range),
@@ -89,20 +105,25 @@ class CobradorHistorialScreen extends ConsumerWidget {
                       ],
                       Row(
                         children: [
-                          Icon(Icons.history_rounded, size: 20, color: colorScheme.primary),
+                          Icon(
+                            Icons.history_rounded,
+                            size: 20,
+                            color: colorScheme.primary,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Historial Reciente',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const Spacer(),
                           Text(
                             '${cobros.length} registros',
                             style: TextStyle(
                               fontSize: 12,
-                              color: colorScheme.onSurface.withValues(alpha: 0.54),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.54,
+                              ),
                             ),
                           ),
                         ],
@@ -158,7 +179,11 @@ class _DateRangeFilter extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.calendar_today_rounded, size: 18, color: colorScheme.primary),
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 18,
+            color: colorScheme.primary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -186,7 +211,9 @@ class _DateRangeFilter extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.close_rounded, size: 18),
               onPressed: () {
-                ref.read(cobradorHistorialRangoProvider.notifier).setRango(null);
+                ref
+                    .read(cobradorHistorialRangoProvider.notifier)
+                    .setRango(null);
               },
               tooltip: 'Limpiar filtro',
             ),
@@ -195,7 +222,8 @@ class _DateRangeFilter extends ConsumerWidget {
               final newRange = await showDialog<DateTimeRange>(
                 context: context,
                 builder: (context) => CustomDateRangePicker(
-                  initialRange: range ??
+                  initialRange:
+                      range ??
                       DateTimeRange(
                         start: DateTime.now().subtract(const Duration(days: 7)),
                         end: DateTime.now(),
@@ -203,7 +231,9 @@ class _DateRangeFilter extends ConsumerWidget {
                 ),
               );
               if (newRange != null) {
-                ref.read(cobradorHistorialRangoProvider.notifier).setRango(newRange);
+                ref
+                    .read(cobradorHistorialRangoProvider.notifier)
+                    .setRango(newRange);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -226,10 +256,14 @@ class _DateRangeFilter extends ConsumerWidget {
 class _CollectorKpiRow extends StatelessWidget {
   final num totalRecaudado;
   final int totalBoletas;
+  final Color infoColor;
+  final Color successColor;
 
   const _CollectorKpiRow({
     required this.totalRecaudado,
     required this.totalBoletas,
+    required this.infoColor,
+    required this.successColor,
   });
 
   @override
@@ -241,7 +275,7 @@ class _CollectorKpiRow extends StatelessWidget {
             label: 'Total Recaudado',
             value: DateFormatter.formatCurrency(totalRecaudado),
             icon: Icons.account_balance_wallet_rounded,
-            color: const Color(0xFF6C63FF),
+            color: infoColor,
           ),
         ),
         const SizedBox(width: 12),
@@ -250,7 +284,7 @@ class _CollectorKpiRow extends StatelessWidget {
             label: 'Boletas Emitidas',
             value: '$totalBoletas',
             icon: Icons.confirmation_number_rounded,
-            color: const Color(0xFF00D9A6),
+            color: successColor,
           ),
         ),
       ],
@@ -297,7 +331,9 @@ class _KpiCard extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -318,6 +354,7 @@ class _CollectorRevenueChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     double maxRevenue = 0;
     for (var d in dates) {
       final rev = revenueByDate[d] ?? 0;
@@ -356,11 +393,17 @@ class _CollectorRevenueChart extends StatelessWidget {
                       final label = DateFormat('dd/MM').format(dates[group.x]);
                       return BarTooltipItem(
                         '$label\n',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        TextStyle(
+                          color: colorScheme.onInverseSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
                         children: [
                           TextSpan(
                             text: DateFormatter.formatCurrency(rod.toY),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+                            style: TextStyle(
+                              color: colorScheme.onInverseSurface,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ],
                       );
@@ -374,14 +417,18 @@ class _CollectorRevenueChart extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= dates.length) return const SizedBox.shrink();
+                        if (index < 0 || index >= dates.length) {
+                          return const SizedBox.shrink();
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             DateFormat('dd/MM').format(dates[index]),
                             style: TextStyle(
                               fontSize: 10,
-                              color: colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           ),
                         );
@@ -395,7 +442,9 @@ class _CollectorRevenueChart extends StatelessWidget {
                       getTitlesWidget: (value, meta) {
                         if (value == 0) return const SizedBox.shrink();
                         return Text(
-                          value >= 1000 ? '${(value/1000).toStringAsFixed(1)}k' : value.toInt().toString(),
+                          value >= 1000
+                              ? '${(value / 1000).toStringAsFixed(1)}k'
+                              : value.toInt().toString(),
                           style: TextStyle(
                             fontSize: 9,
                             color: colorScheme.onSurface.withValues(alpha: 0.4),
@@ -404,8 +453,12 @@ class _CollectorRevenueChart extends StatelessWidget {
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -422,9 +475,11 @@ class _CollectorRevenueChart extends StatelessWidget {
                     barRods: [
                       BarChartRodData(
                         toY: revenueByDate[dates[index]] ?? 0,
-                        color: const Color(0xFF6C63FF),
+                        color: semantic.info,
                         width: 16,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                     ],
                   );
@@ -446,7 +501,9 @@ class _CobroItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isNegative = (cobro.monto ?? 0) < 0; // Por si hay reversiones manuales o errores
+    final semantic = context.semanticColors;
+    final isNegative =
+        (cobro.monto ?? 0) < 0; // Por si hay reversiones manuales o errores
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -461,15 +518,19 @@ class _CobroItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (cobro.correlativo ?? 0) > 0 
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : Colors.orange.withValues(alpha: 0.1),
+              color: (cobro.correlativo ?? 0) > 0
+                  ? semantic.success.withValues(alpha: 0.1)
+                  : semantic.warning.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              (cobro.correlativo ?? 0) > 0 ? Icons.receipt_long_rounded : Icons.info_outline_rounded,
+              (cobro.correlativo ?? 0) > 0
+                  ? Icons.receipt_long_rounded
+                  : Icons.info_outline_rounded,
               size: 16,
-              color: (cobro.correlativo ?? 0) > 0 ? Colors.green : Colors.orange,
+              color: (cobro.correlativo ?? 0) > 0
+                  ? semantic.success
+                  : semantic.warning,
             ),
           ),
           const SizedBox(width: 12),
@@ -481,7 +542,7 @@ class _CobroItem extends StatelessWidget {
                   builder: (context, ref, child) {
                     final locales = ref.watch(localesProvider).value ?? [];
                     String? resolvedName;
-                    
+
                     if (cobro.localId != null) {
                       final local = locales.cast<Local?>().firstWhere(
                         (l) => l?.id == cobro.localId,
@@ -492,7 +553,10 @@ class _CobroItem extends StatelessWidget {
 
                     return Text(
                       resolvedName ?? cobro.localId ?? 'Local Desconocido',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     );
@@ -516,7 +580,7 @@ class _CobroItem extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: isNegative ? Colors.red : colorScheme.onSurface,
+                  color: isNegative ? semantic.danger : colorScheme.onSurface,
                 ),
               ),
               Text(
@@ -524,7 +588,7 @@ class _CobroItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
-                  color: _getEstadoColor(cobro.estado),
+                  color: _getEstadoColor(context, cobro.estado),
                 ),
               ),
             ],
@@ -534,13 +598,20 @@ class _CobroItem extends StatelessWidget {
     );
   }
 
-  Color _getEstadoColor(String? estado) {
+  Color _getEstadoColor(BuildContext context, String? estado) {
+    final semantic = context.semanticColors;
+    final colorScheme = Theme.of(context).colorScheme;
     switch (estado) {
-      case 'cobrado': return Colors.green;
-      case 'abono_parcial': return Colors.orange;
-      case 'adelantado': return Colors.blue;
-      case 'pendiente': return Colors.red;
-      default: return Colors.grey;
+      case 'cobrado':
+        return semantic.success;
+      case 'abono_parcial':
+        return semantic.warning;
+      case 'adelantado':
+        return semantic.info;
+      case 'pendiente':
+        return semantic.danger;
+      default:
+        return colorScheme.onSurface.withValues(alpha: 0.6);
     }
   }
 }

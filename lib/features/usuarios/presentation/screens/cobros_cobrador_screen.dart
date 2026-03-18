@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/usuario.dart';
 
@@ -12,7 +13,8 @@ class CobrosCobradorScreen extends ConsumerStatefulWidget {
   const CobrosCobradorScreen({super.key, required this.cobrador});
 
   @override
-  ConsumerState<CobrosCobradorScreen> createState() => _CobrosCobradorScreenState();
+  ConsumerState<CobrosCobradorScreen> createState() =>
+      _CobrosCobradorScreenState();
 }
 
 class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
@@ -29,12 +31,17 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
   Future<void> _cargarCobros() async {
     try {
       final ds = ref.read(cobroDatasourceProvider);
-      final rawCobros = await ds.listarPorCobrador(widget.cobrador.id!, limite: 150);
-      
+      final rawCobros = await ds.listarPorCobrador(
+        widget.cobrador.id!,
+        limite: 150,
+      );
+
       // Filtrar pendientes automáticos y registros virtuales sin boleta real
       final cobrosLimpios = rawCobros.where((c) {
-        if (c.monto == 0 && c.estado == 'pendiente') return false; 
-        if (c.estado == 'adelantado' || c.estado == 'cobrado_saldo') return false;
+        if (c.monto == 0 && c.estado == 'pendiente') return false;
+        if (c.estado == 'adelantado' || c.estado == 'cobrado_saldo') {
+          return false;
+        }
         if (c.id?.startsWith('VIRTUAL') == true) return false;
         return true;
       }).toList();
@@ -58,6 +65,7 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -100,15 +108,15 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
             padding: isMobile
                 ? const EdgeInsets.all(12)
                 : const EdgeInsets.all(24),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withAlpha(77),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colorScheme.outline.withAlpha(26)),
-          ),
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withAlpha(77),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colorScheme.outline.withAlpha(26)),
+              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
                   ? Center(
                       child: Text(
                         'Error: $_error',
@@ -116,71 +124,86 @@ class _CobrosCobradorScreenState extends ConsumerState<CobrosCobradorScreen> {
                       ),
                     )
                   : _cobros.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No hay cobros registrados para este usuario.',
-                            style: TextStyle(
-                              color: colorScheme.onSurface.withAlpha(128),
+                  ? Center(
+                      child: Text(
+                        'No hay cobros registrados para este usuario.',
+                        style: TextStyle(
+                          color: colorScheme.onSurface.withAlpha(128),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _cobros.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: colorScheme.outline.withAlpha(26),
+                      ),
+                      itemBuilder: (context, index) {
+                        final c = _cobros[index];
+                        final bool esSello =
+                            c.monto == 0 && c.estado == 'pendiente';
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: esSello
+                                ? semantic.warning.withAlpha(26)
+                                : semantic.success.withAlpha(26),
+                            child: Icon(
+                              esSello
+                                  ? Icons.cancel_presentation_rounded
+                                  : Icons.payments_rounded,
+                              color: esSello
+                                  ? semantic.warning
+                                  : semantic.success,
+                              size: 18,
                             ),
                           ),
-                        )
-                      : ListView.separated(
-                          itemCount: _cobros.length,
-                          separatorBuilder: (_, __) => Divider(
-                            height: 1,
-                            color: colorScheme.outline.withAlpha(26),
+                          title: Text(
+                            c.numeroBoleta ?? 'Boleta N/D',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
                           ),
-                          itemBuilder: (context, index) {
-                            final c = _cobros[index];
-                            final bool esSello = c.monto == 0 && c.estado == 'pendiente';
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                              leading: CircleAvatar(
-                                backgroundColor: esSello 
-                                    ? Colors.orange.withAlpha(26)
-                                    : Colors.green.withAlpha(26),
-                                child: Icon(
-                                  esSello ? Icons.cancel_presentation_rounded : Icons.payments_rounded,
-                                  color: esSello ? Colors.orange : Colors.green,
-                                  size: 18,
-                                ),
-                              ),
-                              title: Text(
-                                c.numeroBoleta ?? 'Boleta N/D',
-                                style: const TextStyle(
+                          subtitle: Text(
+                            'Fecha: ${c.fecha != null ? DateFormatter.formatDate(c.fecha) : "-"}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurface.withAlpha(150),
+                            ),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                DateFormatter.formatCurrency(c.monto ?? 0),
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontFamily: 'monospace',
+                                  color: esSello
+                                      ? colorScheme.onSurface.withAlpha(150)
+                                      : colorScheme.onSurface,
                                 ),
                               ),
-                              subtitle: Text(
-                                'Fecha: ${c.fecha != null ? DateFormatter.formatDate(c.fecha) : "-"}',
-                                style: TextStyle(fontSize: 12, color: colorScheme.onSurface.withAlpha(150)),
+                              Text(
+                                esSello ? 'Sello/Sin Cobro' : 'Cobrado',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: esSello
+                                      ? semantic.warning
+                                      : semantic.success,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    DateFormatter.formatCurrency(c.monto ?? 0),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: esSello ? colorScheme.onSurface.withAlpha(150) : colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  Text(
-                                    esSello ? 'Sello/Sin Cobro' : 'Cobrado',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: esSello ? Colors.orange : Colors.green,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-        ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
           );
         },
       ),

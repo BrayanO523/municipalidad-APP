@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 
 class CrearAdminScreen extends ConsumerStatefulWidget {
   const CrearAdminScreen({super.key});
@@ -69,12 +70,13 @@ class _CrearAdminScreenState extends ConsumerState<CrearAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Admin [DEV]'),
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
+        backgroundColor: semantic.warning,
+        foregroundColor: semantic.onWarning,
       ),
       body: Center(
         child: ConstrainedBox(
@@ -96,19 +98,23 @@ class _CrearAdminScreenState extends ConsumerState<CrearAdminScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.deepOrange.withValues(alpha: 0.1),
+                        color: semantic.warning.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.deepOrange, width: 1),
+                        border: Border.all(color: semantic.warning, width: 1),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.construction, color: Colors.deepOrange, size: 18),
+                          Icon(
+                            Icons.construction,
+                            color: semantic.warning,
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Solo visible en entorno de desarrollo',
                               style: TextStyle(
-                                color: Colors.deepOrange,
+                                color: semantic.warning,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -160,9 +166,7 @@ class _CrearAdminScreenState extends ConsumerState<CrearAdminScreen> {
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _showPass
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                            _showPass ? Icons.visibility_off : Icons.visibility,
                           ),
                           onPressed: () =>
                               setState(() => _showPass = !_showPass),
@@ -190,7 +194,7 @@ class _CrearAdminScreenState extends ConsumerState<CrearAdminScreen> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: Colors.red),
+                          style: TextStyle(color: semantic.danger),
                         ),
                       ),
 
@@ -199,19 +203,19 @@ class _CrearAdminScreenState extends ConsumerState<CrearAdminScreen> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           _success!,
-                          style: const TextStyle(color: Colors.green),
+                          style: TextStyle(color: semantic.success),
                         ),
                       ),
 
                     FilledButton.icon(
                       onPressed: _isLoading ? null : _crearAdmin,
                       icon: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: colorScheme.onPrimary,
                               ),
                             )
                           : const Icon(Icons.admin_panel_settings),
