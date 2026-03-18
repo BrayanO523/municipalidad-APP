@@ -124,6 +124,24 @@ class _ReceiptCobroSnapshot {
 }
 
 class ReceiptDispatcher {
+  static String? _resolverPeriodoAbonado({
+    List<DateTime>? fechasSaldadas,
+    String? periodoAbonadoStr,
+  }) {
+    if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+      final calculado = DateRangeFormatter.formatearRangos(fechasSaldadas);
+      if (calculado != null && calculado.isNotEmpty && calculado != '-') {
+        return calculado;
+      }
+    }
+    if (periodoAbonadoStr != null &&
+        periodoAbonadoStr.isNotEmpty &&
+        periodoAbonadoStr != '-') {
+      return periodoAbonadoStr;
+    }
+    return null;
+  }
+
   static Future<void> presentReceiptOptions({
     required BuildContext context,
     required WidgetRef ref,
@@ -147,6 +165,10 @@ class ReceiptDispatcher {
   }) async {
     if (!context.mounted) return;
     final colorScheme = Theme.of(context).colorScheme;
+    final periodoAbonadoFinal = _resolverPeriodoAbonado(
+      fechasSaldadas: fechasSaldadas,
+      periodoAbonadoStr: periodoAbonadoStr,
+    );
 
     return showModalBottomSheet(
       context: context,
@@ -264,26 +286,13 @@ class ReceiptDispatcher {
                     color: const Color(0xFF00D9A6),
                     textColor: cs.onSurface,
                   ),
-                if (periodoAbonadoStr != null &&
-                    periodoAbonadoStr.isNotEmpty &&
-                    periodoAbonadoStr != '-')
+                if (periodoAbonadoFinal != null)
                   _infoRow(
                     'Fechas cubiertas:',
-                    periodoAbonadoStr,
+                    periodoAbonadoFinal,
                     color: Colors.orangeAccent.withValues(alpha: 0.9),
                     textColor: cs.onSurface,
-                  )
-                else if (fechasSaldadas != null &&
-                    fechasSaldadas.length > 1) ...[
-                  if (DateRangeFormatter.formatearRangos(fechasSaldadas) !=
-                      null)
-                    _infoRow(
-                      'Fechas cubiertas:',
-                      DateRangeFormatter.formatearRangos(fechasSaldadas)!,
-                      color: Colors.orangeAccent.withValues(alpha: 0.9),
-                      textColor: cs.onSurface,
-                    ),
-                ],
+                  ),
                 if (saldoAFavor > 0)
                   _infoRow(
                     'Saldo a favor:',
@@ -329,7 +338,7 @@ class ReceiptDispatcher {
                         cobrador: cobradorNombre,
                         boleta: numeroBoleta,
                         fechasSaldadas: fechasSaldadas,
-                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoAbonadoStr: periodoAbonadoFinal,
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
@@ -353,7 +362,7 @@ class ReceiptDispatcher {
                           merc: mercadoNombre,
                           cobrador: cobradorNombre,
                           fechasSaldadas: fechasSaldadas,
-                          periodoAbonadoStr: periodoAbonadoStr,
+                          periodoAbonadoStr: periodoAbonadoFinal,
                           periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                           slogan: slogan,
                         );
@@ -387,7 +396,7 @@ class ReceiptDispatcher {
                         cobrador: cobradorNombre,
                         boleta: numeroBoleta,
                         fechasSaldadas: fechasSaldadas,
-                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoAbonadoStr: periodoAbonadoFinal,
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                         clave: local.clave,
@@ -424,7 +433,7 @@ class ReceiptDispatcher {
                         merc: mercadoNombre,
                         cobrador: cobradorNombre,
                         fechasSaldadas: fechasSaldadas,
-                        periodoAbonadoStr: periodoAbonadoStr,
+                        periodoAbonadoStr: periodoAbonadoFinal,
                         periodoSaldoAFavorStr: periodoSaldoAFavorStr,
                         slogan: slogan,
                       );
@@ -559,10 +568,10 @@ class ReceiptDispatcher {
     String? periodoSaldoAFavorStr,
     String? slogan,
   }) async {
-    String? diasCubiertosStr;
-    if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
-      diasCubiertosStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
-    }
+    final periodoAbonadoFinal = _resolverPeriodoAbonado(
+      fechasSaldadas: fechasSaldadas,
+      periodoAbonadoStr: periodoAbonadoStr,
+    );
 
     final fontDefault = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
@@ -691,12 +700,8 @@ class ReceiptDispatcher {
                 ),
               ],
 
-              if (periodoAbonadoStr != null &&
-                  periodoAbonadoStr.isNotEmpty &&
-                  periodoAbonadoStr != '-')
-                _pdfRow('FECHAS CUBIERTAS:', periodoAbonadoStr)
-              else if (diasCubiertosStr != null)
-                _pdfRow('FECHAS CUBIERTAS:', diasCubiertosStr),
+              if (periodoAbonadoFinal != null)
+                _pdfRow('FECHAS CUBIERTAS:', periodoAbonadoFinal),
 
               if (saldoAFavor > 0) ...[
                 _pdfRow(
