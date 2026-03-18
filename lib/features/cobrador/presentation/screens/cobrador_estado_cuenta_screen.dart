@@ -1702,14 +1702,6 @@ class _GrupoBoletaCard extends ConsumerWidget {
       montoImprimir = (local.cuotaDiaria ?? 0).toDouble() * cobros.length;
     }
 
-    // SAFEGUARD: Reconstruir matemáticamente para obligar al PDF a dibujar el bloque de deuda como espera el usuario
-    if (montoAbonadoDeuda <= 0) {
-      montoAbonadoDeuda = montoImprimir;
-    }
-    if (deudaAnterior < montoAbonadoDeuda) {
-      deudaAnterior = montoAbonadoDeuda + saldoPendiente;
-    }
-
     String boleta = masterPayment != null
         ? (masterPayment!.numeroBoleta ??
               masterPayment!.correlativo?.toString() ??
@@ -1835,14 +1827,6 @@ class _GrupoBoletaCard extends ConsumerWidget {
     // Último respaldo: usar cuota diaria del local × cantidad de días
     if (montoImprimir <= 0) {
       montoImprimir = (local.cuotaDiaria ?? 0).toDouble() * cobros.length;
-    }
-
-    // SAFEGUARD: Reconstruir matemáticamente para obligar al PDF a dibujar el bloque de deuda como espera el usuario
-    if (montoAbonadoDeuda <= 0) {
-      montoAbonadoDeuda = montoImprimir;
-    }
-    if (deudaAnterior < montoAbonadoDeuda) {
-      deudaAnterior = montoAbonadoDeuda + saldoPendiente;
     }
 
     String boleta = masterPayment != null
