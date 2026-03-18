@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../cobros/data/models/hive/cobro_hive.dart';
 import '../../../locales/data/models/hive/local_hive.dart';
@@ -369,7 +369,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📋 Sin pago registrado: ${local.nombreSocial}'),
+            content: Text('Sin pago registrado: ${local.nombreSocial}'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -412,7 +412,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📋 Incidencia registrada: ${result.tipo.label}'),
+            content: Text('Incidencia registrada: ${result.tipo.label}'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -1016,7 +1016,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '💰 Cobro aplicado con saldo a favor: ${local.nombreSocial}',
+              'Cobro aplicado con saldo a favor: ${local.nombreSocial}',
             ),
             backgroundColor: AppColors.success,
           ),
@@ -2042,12 +2042,12 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '📂 Locales Bajados: ${localesAgregados.length}',
+                      'Locales bajados: ${localesAgregados.length}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '💰 Cobros Bajados (Nube): ${cobrosNube.length}',
+                      'Cobros bajados (nube): ${cobrosNube.length}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
@@ -2488,7 +2488,7 @@ class _LocalCard extends StatelessWidget {
                 ),
               ),
 
-              // ── Divisor ──────────────────────────────────────────────â”€
+              // Divisor
               Divider(
                 height: 1,
                 thickness: 1,

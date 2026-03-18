@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -226,7 +226,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// â”€â”€ Header con botón Exportar PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Header con boton Exportar PDF
 class _Header extends ConsumerWidget {
   final List<Local> todos;
   const _Header({required this.todos});
@@ -286,7 +286,7 @@ class _Header extends ConsumerWidget {
   }
 }
 
-// â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tabla
 class _SaldosTable extends StatefulWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
@@ -431,7 +431,7 @@ class _SaldosTableState extends State<_SaldosTable> {
   }
 }
 
-// â”€â”€ Paginación â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Paginacion
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;

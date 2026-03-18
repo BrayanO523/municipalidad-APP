@@ -14,7 +14,7 @@ import '../../../locales/domain/entities/local.dart';
 import 'package:go_router/go_router.dart';
 import '../viewmodels/cortes_paginados_notifier.dart';
 
-// DefiniciÃ³n de tipo para mayor claridad
+// Definicion de tipo para mayor claridad
 typedef CobroConDetalle = ({
   Cobro cobro,
   String localNombre,
@@ -90,7 +90,7 @@ class CorteDetalleScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Corte'),
         content: const Text(
-          'Â¿EstÃ¡s seguro de que deseas eliminar este registro de corte? Esta acciÃ³n no afectarÃ¡ los cobros individuales registrados.',
+          'Estas seguro de que deseas eliminar este registro de corte? Esta accion no afectara los cobros individuales registrados.',
         ),
         actions: [
           TextButton(
@@ -191,7 +191,7 @@ class CorteDetalleScreen extends ConsumerWidget {
           constraints: BoxConstraints(maxWidth: isWide ? 950 : double.infinity),
           child: CustomScrollView(
             slivers: [
-              // â”€â”€ Header Card â”€â”€
+              // Header Card
               SliverPadding(
                 padding: EdgeInsets.all(isWide ? 24 : 16),
                 sliver: SliverToBoxAdapter(
@@ -203,7 +203,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                 ),
               ),
 
-              // â”€â”€ Contenido de Boletas â”€â”€
+              // Contenido de boletas
               cobrosAsync.when(
                 data: (items) {
                   if (items.isEmpty) {
@@ -236,7 +236,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
-                        // TÃ­tulo secciÃ³n
+                        // Titulo seccion
                         Row(
                           children: [
                             Container(
@@ -260,7 +260,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
 
-                        // â”€â”€ Cobrados (estilo similar a pendientes) â”€â”€
+                        // Cobrados (estilo similar a pendientes)
                         if (cobrados.isNotEmpty) ...[
                           _CobradosInfoSection(
                             cobrados: cobrados,
@@ -272,7 +272,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // â”€â”€ Gestiones/Incidencias (desde gestionesInfo del corte) â”€â”€
+                        // Gestiones/Incidencias (desde gestionesInfo del corte)
                         if (corte.gestionesInfo != null &&
                             corte.gestionesInfo!.isNotEmpty) ...[
                           _GestionesInfoSection(
@@ -284,7 +284,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // â”€â”€ Pendientes (desde pendientesInfo del corte) â”€â”€
+                        // Pendientes (desde pendientesInfo del corte)
                         if (corte.pendientesInfo != null &&
                             corte.pendientesInfo!.isNotEmpty) ...[
                           _PendientesInfoSection(
@@ -297,7 +297,7 @@ class CorteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // â”€â”€ Total general â”€â”€
+                        // Total general
                         Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -383,7 +383,7 @@ class CorteDetalleScreen extends ConsumerWidget {
   }
 }
 
-// â”€â”€ Header Card con gradiente â”€â”€
+// Header Card con gradiente
 class _HeaderCard extends StatelessWidget {
   final Corte corte;
   final DateFormat formatter;
@@ -472,7 +472,7 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // EstadÃ­sticas principales
+          // Estadisticas principales
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -504,7 +504,7 @@ class _HeaderCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.2)),
                 _MiniStat(
                   icon: Icons.check_circle,
-                  value: '${corte.cantidadCobrados ?? 'â€“'}',
+                  value: '${corte.cantidadCobrados ?? '-'}',
                   label: 'Cobrados',
                   color: Colors.greenAccent,
                 ),
@@ -514,7 +514,7 @@ class _HeaderCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.2)),
                 _MiniStat(
                   icon: Icons.schedule,
-                  value: '${corte.cantidadPendientes ?? 'â€“'}',
+                  value: '${corte.cantidadPendientes ?? '-'}',
                   label: 'Pendientes',
                   color: Colors.orangeAccent,
                 ),
@@ -536,7 +536,7 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // â”€â”€ Desglose Mora / Corriente â”€â”€
+          // Desglose Mora / Corriente
           Row(
             children: [
               Expanded(
@@ -682,10 +682,10 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// SecciÃ³n de boletas â€” elige automÃ¡ticamente entre tabla (desktop) y
-// cards compactos (mÃ³vil).
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// Seccion de boletas: elige automaticamente entre tabla (desktop)
+// y cards compactos (movil).
+//
+//
 // ignore: unused_element
 class _BoletasSection extends StatelessWidget {
   final String titulo;
@@ -723,7 +723,7 @@ class _BoletasSection extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Header de secciÃ³n
+          // Header de seccion
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -749,7 +749,7 @@ class _BoletasSection extends StatelessWidget {
             ),
           ),
 
-          // Contenido adaptativo: tabla en desktop, cards en mÃ³vil
+          // Contenido adaptativo: tabla en desktop, cards en movil
           if (isWide)
             _buildDesktopTable(theme)
           else
@@ -794,7 +794,7 @@ class _BoletasSection extends StatelessWidget {
     );
   }
 
-  // â”€â”€ Vista Desktop: DataTable completa â”€â”€
+  // Vista desktop: DataTable completa
   Widget _buildDesktopTable(ThemeData theme) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -883,7 +883,7 @@ class _BoletasSection extends StatelessWidget {
     );
   }
 
-  // â”€â”€ Vista MÃ³vil: Cards compactos tipo ListTile â”€â”€
+  // Vista movil: cards compactos tipo ListTile
   Widget _buildMobileCards(ThemeData theme) {
     return ListView.separated(
       shrinkWrap: true,
@@ -913,7 +913,7 @@ class _BoletasSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
-              // Ãcono de estado
+              // Icono de estado
               Container(
                 width: 34,
                 height: 34,
@@ -972,7 +972,7 @@ class _BoletasSection extends StatelessWidget {
   }
 }
 
-// â”€â”€ SecciÃ³n de pendientes leÃ­da de corte.pendientesInfo â”€â”€
+// Seccion de pendientes leida de corte.pendientesInfo
 class _PendientesInfoSection extends StatelessWidget {
   final List<Map<String, dynamic>> pendientesInfo;
   final List<Map<String, dynamic>> gestionesInfo;
@@ -1443,7 +1443,7 @@ class _CobradosInfoSection extends StatelessWidget {
                         Text(
                           [
                             if ((item.localCodigo ?? '').isNotEmpty)
-                              'CÃ³d: ${item.localCodigo}',
+                              'Cod: ${item.localCodigo}',
                             if ((item.localClave ?? '').isNotEmpty)
                               'Clave: ${item.localClave}',
                           ].join(' | '),
@@ -1583,13 +1583,13 @@ class _CobradosInfoSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              // InformaciÃ³n adicional del local
+              // Informacion adicional del local
               Wrap(
                 spacing: 12,
                 runSpacing: 8,
                 children: [
                   if ((item.localCodigo ?? '').isNotEmpty)
-                    _infoChip('CÃ³digo: ${item.localCodigo}'),
+                    _infoChip('Codigo: ${item.localCodigo}'),
                   if ((item.localClave ?? '').isNotEmpty)
                     _infoChip('Clave: ${item.localClave}'),
                   if ((item.ruta ?? '').isNotEmpty) _infoChip('Ruta: ${item.ruta}'),
@@ -1609,7 +1609,7 @@ class _CobradosInfoSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Incidencias del dÃ­a (${incidenciasLocal.length})',
+                'Incidencias del dia (${incidenciasLocal.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -1730,7 +1730,7 @@ class _CobradosInfoSection extends StatelessWidget {
   }
 }
 
-// â”€â”€ SecciÃ³n de gestiones/incidencias leÃ­da de corte.gestionesInfo â”€â”€
+// Seccion de gestiones/incidencias leida de corte.gestionesInfo
 class _GestionesInfoSection extends StatelessWidget {
   final List<Map<String, dynamic>> gestionesInfo;
   final Color color;
@@ -1755,7 +1755,7 @@ class _GestionesInfoSection extends StatelessWidget {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver mÃ¡s tarde';
+        return 'Volver mas tarde';
       default:
         return 'Otro motivo';
     }
