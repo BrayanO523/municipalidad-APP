@@ -6,6 +6,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
+import '../../../../core/utils/monthly_visual_utils.dart';
 import '../../../locales/domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
 import '../../../tipos_negocio/domain/entities/tipo_negocio.dart';
@@ -67,7 +68,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   double _deudaVencidaReal(Local local) {
     final deudasMap = ref.read(deudasVencidasCobradorProvider).value;
-    final cobrosHoy = ref.read(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
+    final cobrosHoy =
+        ref.read(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
     return _deudaHastaAyer(
       local: local,
       deudasMap: deudasMap,
@@ -164,6 +166,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   Future<void> _registrarCobro(Local local) async {
     final cobrosHoy = ref.read(cobrosHoyCobradorProvider).value ?? [];
+    final mensualVisual = MonthlyVisualUtils.calcular(
+      local,
+      referencia: DateTime.now(),
+    );
     final pagadoHoy = cobrosHoy
         .where((c) => c.localId == local.id)
         .fold<num>(0, (sum, c) => sum + (c.pagoACuota ?? 0));
@@ -207,6 +213,25 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                       label: 'Cuota Diaria:',
                       value: DateFormatter.formatCurrency(local.cuotaDiaria),
                     ),
+                    if (mensualVisual != null) ...[
+                      _InfoRow(
+                        label: 'Día cobro mensual:',
+                        value:
+                            '${mensualVisual.diaCobroConfigurado} de cada mes',
+                      ),
+                      _InfoRow(
+                        label: 'Cuota ciclo mensual:',
+                        value: DateFormatter.formatCurrency(
+                          mensualVisual.cuotaCicloMensual,
+                        ),
+                      ),
+                      _InfoRow(
+                        label: 'Acumulado mes a hoy:',
+                        value: DateFormatter.formatCurrency(
+                          mensualVisual.acumuladoHastaHoy,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     // --- PANEL SUPERIOR REACTIVO ---
                     Builder(
@@ -501,18 +526,17 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                 ),
                                 onChanged: (val) {
                                   final parsed = double.tryParse(val) ?? 0;
-                                  final maxSaldo =
-                                      (local.saldoAFavor ?? 0).toDouble();
+                                  final maxSaldo = (local.saldoAFavor ?? 0)
+                                      .toDouble();
                                   if (parsed > maxSaldo) {
                                     montoSaldoFavorCtrl.text = maxSaldo
                                         .toStringAsFixed(2);
-                                    montoSaldoFavorCtrl.selection =
-                                        TextSelection.fromPosition(
-                                          TextPosition(
-                                            offset:
-                                                montoSaldoFavorCtrl.text.length,
-                                          ),
-                                        );
+                                    montoSaldoFavorCtrl
+                                        .selection = TextSelection.fromPosition(
+                                      TextPosition(
+                                        offset: montoSaldoFavorCtrl.text.length,
+                                      ),
+                                    );
                                   }
                                   setModalState(() {});
                                 },
@@ -547,10 +571,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                           child: FilledButton(
                             onPressed: () async {
                               final monto = num.tryParse(montoCtrl.text) ?? 0;
-                              final maxSaldo =
-                                  (local.saldoAFavor ?? 0).toDouble();
+                              final maxSaldo = (local.saldoAFavor ?? 0)
+                                  .toDouble();
                               final saldoAExtraerRaw = usarSaldoFavor
-                                  ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0)
+                                  ? (double.tryParse(
+                                          montoSaldoFavorCtrl.text,
+                                        ) ??
+                                        0)
                                   : 0;
                               final saldoAExtraer = saldoAExtraerRaw.clamp(
                                 0.0,
@@ -1001,8 +1028,13 @@ class _LocalDetailPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final mensualVisual = MonthlyVisualUtils.calcular(
+      local,
+      referencia: DateTime.now(),
+    );
     final deudasMap = ref.watch(deudasVencidasCobradorProvider).value;
-    final cobrosHoy = ref.watch(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
+    final cobrosHoy =
+        ref.watch(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
     final deuda = _deudaHastaAyer(
       local: local,
       deudasMap: deudasMap,
@@ -1095,6 +1127,27 @@ class _LocalDetailPanel extends ConsumerWidget {
                       color: colorScheme.primary,
                     ),
                   ),
+                  if (mensualVisual != null) ...[
+                    _DetailRow(
+                      icon: Icons.calendar_month_rounded,
+                      label: 'Día de Cobro Mensual',
+                      value: mensualVisual.diaCobroConfigurado.toString(),
+                    ),
+                    _DetailRow(
+                      icon: Icons.event_repeat_rounded,
+                      label: 'Cuota Ciclo Mensual',
+                      value: DateFormatter.formatCurrency(
+                        mensualVisual.cuotaCicloMensual,
+                      ),
+                    ),
+                    _DetailRow(
+                      icon: Icons.trending_up_rounded,
+                      label: 'Acumulado Mes a Hoy',
+                      value: DateFormatter.formatCurrency(
+                        mensualVisual.acumuladoHastaHoy,
+                      ),
+                    ),
+                  ],
                   // --- ESTADO FINANCIERO ---
                   Builder(
                     builder: (context) {

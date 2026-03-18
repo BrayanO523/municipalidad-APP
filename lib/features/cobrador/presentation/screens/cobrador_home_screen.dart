@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
+import '../../../../core/utils/monthly_visual_utils.dart';
 import '../../../cobros/domain/entities/cobro.dart';
 import '../../../cobros/domain/utils/calculadora_distribucion.dart';
 import '../../../locales/domain/entities/local.dart';
@@ -456,7 +457,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           return Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               onTap: () {
                 setState(() {
                   _ordenActual = value;
@@ -469,7 +470,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   color: colorScheme.surfaceContainerHighest.withValues(
                     alpha: 0.45,
                   ),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isCurrent
                         ? colorScheme.primary.withValues(alpha: 0.6)
@@ -478,44 +479,48 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 34,
-                        height: 34,
+                        width: 30,
+                        height: 30,
                         decoration: BoxDecoration(
-                          color: (isCurrent
-                                  ? colorScheme.primary
-                                  : colorScheme.surfaceContainer)
-                              .withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
+                          color:
+                              (isCurrent
+                                      ? colorScheme.primary
+                                      : colorScheme.surfaceContainer)
+                                  .withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(9),
                         ),
                         child: Icon(
                           icon,
-                          size: 18,
+                          size: 16,
                           color: isCurrent
                               ? colorScheme.primary
                               : colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Text(
                         title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(
-                          ctx,
-                        ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.68),
+                          height: 1.1,
                         ),
                       ),
                     ],
@@ -539,7 +544,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withValues(alpha: 0.8),
+                        color: colorScheme.primaryContainer.withValues(
+                          alpha: 0.8,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -555,14 +562,15 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                         children: [
                           Text(
                             'Ordenar listado',
-                            style: Theme.of(
-                              ctx,
-                            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            style: Theme.of(ctx).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           Text(
                             'Toca una opción para aplicar de inmediato',
                             style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                           ),
                         ],
@@ -576,9 +584,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.28,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.42,
                   ),
                   children: [
                     sortCard(
@@ -638,7 +646,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                           });
                           Navigator.pop(ctx);
                         },
-                        child: const Text('Restablecer A-Z'),
+                        child: const Text('Restablecer'),
                       ),
                     ),
                   ],
@@ -653,6 +661,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
 
   Future<void> _registrarCobro(Local local, List<Cobro> cobrosHoy) async {
     final cuota = local.cuotaDiaria ?? 0;
+    final mensualVisual = MonthlyVisualUtils.calcular(
+      local,
+      referencia: DateTime.now(),
+    );
     final saldoActual = local.saldoAFavor ?? 0;
     final pagadoHoy = _montoPagadoHoy(local.id ?? '', cobrosHoy);
     final cuotaCubierta = pagadoHoy >= cuota;
@@ -778,6 +790,24 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       label: 'Cuota diaria',
                       value: DateFormatter.formatCurrency(cuota),
                     ),
+                  if (mensualVisual != null) ...[
+                    _InfoRow(
+                      label: 'Día cobro mensual',
+                      value: '${mensualVisual.diaCobroConfigurado} de cada mes',
+                    ),
+                    _InfoRow(
+                      label: 'Cuota ciclo mensual',
+                      value: DateFormatter.formatCurrency(
+                        mensualVisual.cuotaCicloMensual,
+                      ),
+                    ),
+                    _InfoRow(
+                      label: 'Acumulado mes a hoy',
+                      value: DateFormatter.formatCurrency(
+                        mensualVisual.acumuladoHastaHoy,
+                      ),
+                    ),
+                  ],
                   _InfoRow(
                     label: 'Representante',
                     value: local.representante ?? '-',
@@ -2489,6 +2519,10 @@ class _LocalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final mensualVisual = MonthlyVisualUtils.calcular(
+      local,
+      referencia: DateTime.now(),
+    );
 
     // -- LÓGICA VISUAL DINÁMICA: deuda previa vs deuda del día --
     // Solo se mostrará badge de deuda cuando exista deuda acumulada de días anteriores.
@@ -2658,32 +2692,89 @@ class _LocalCard extends StatelessWidget {
                                   label: 'VISITADO',
                                   color: const Color(0xFFE67E22),
                                 ),
+                              if (mensualVisual != null)
+                                _SmallBadge(
+                                  icon: Icons.calendar_month_rounded,
+                                  label:
+                                      'Día ${mensualVisual.diaCobroConfigurado}',
+                                  color: colorScheme.secondary.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                ),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    // Cuota diaria en la esquina superior derecha
+                    // Resumen de cuota en la esquina superior derecha
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          DateFormatter.formatCurrency(local.cuotaDiaria),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: cuotaCubierta
-                                ? colorScheme.primary
-                                : colorScheme.onSurface,
+                        if (mensualVisual != null) ...[
+                          Text(
+                            DateFormatter.formatCurrency(
+                              mensualVisual.cuotaCicloMensual,
+                            ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: cuotaCubierta
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'por día',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: colorScheme.onSurface.withValues(alpha: 0.4),
+                          Text(
+                            'cuota ciclo',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormatter.formatCurrency(
+                              mensualVisual.acumuladoHastaHoy,
+                            ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              color: (cuotaCubierta || cobrado)
+                                  ? colorScheme.primary
+                                  : AppColors.warning,
+                            ),
+                          ),
+                          Text(
+                            'acum. mes',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          Text(
+                            DateFormatter.formatCurrency(local.cuotaDiaria),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: cuotaCubierta
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            'por día',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

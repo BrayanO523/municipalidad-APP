@@ -87,6 +87,9 @@ class LocalHive extends HiveObject {
   @HiveField(26)
   String? codigoLower;
 
+  @HiveField(27)
+  int? diaCobroMensual;
+
   LocalHive({
     this.id,
     this.syncStatus = 1,
@@ -113,6 +116,7 @@ class LocalHive extends HiveObject {
     this.clave,
     this.codigo,
     this.codigoLower,
+    this.diaCobroMensual,
     this.codigoCatastral,
     this.codigoCatastralLower,
   });
@@ -157,6 +161,7 @@ class LocalHive extends HiveObject {
       saldoAFavor: saldoAFavor,
       deudaAcumulada: deudaAcumulada,
       frecuenciaCobro: frecuenciaCobro,
+      diaCobroMensual: diaCobroMensual,
       perimetro: perimetroDecoded,
       clave: clave,
       codigo: codigo,
@@ -194,6 +199,7 @@ class LocalHive extends HiveObject {
       saldoAFavor: local.saldoAFavor?.toDouble(),
       deudaAcumulada: local.deudaAcumulada?.toDouble(),
       frecuenciaCobro: local.frecuenciaCobro,
+      diaCobroMensual: local.diaCobroMensual,
       perimetroJson: perimetroEncoded,
       clave: local.clave,
       codigo: local.codigo,

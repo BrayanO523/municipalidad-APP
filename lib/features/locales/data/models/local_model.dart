@@ -26,6 +26,7 @@ class LocalJson extends Local {
     super.saldoAFavor,
     super.deudaAcumulada,
     super.frecuenciaCobro,
+    super.diaCobroMensual,
     super.clave,
     super.codigo,
     super.codigoLower,
@@ -40,6 +41,14 @@ class LocalJson extends Local {
       if (value == null) return null;
       if (value is num) return value;
       if (value is String) return num.tryParse(value);
+      return null;
+    }
+
+    int? parseInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value);
       return null;
     }
 
@@ -87,6 +96,7 @@ class LocalJson extends Local {
       saldoAFavor: parseNum(json['saldoAFavor']),
       deudaAcumulada: parseNum(json['deudaAcumulada']),
       frecuenciaCobro: json['frecuenciaCobro'],
+      diaCobroMensual: parseInt(json['diaCobroMensual']),
       clave: clave,
       codigo: json['codigo'],
       codigoLower: json['codigoLower'],
@@ -119,6 +129,7 @@ class LocalJson extends Local {
       saldoAFavor: entity.saldoAFavor,
       deudaAcumulada: entity.deudaAcumulada,
       frecuenciaCobro: entity.frecuenciaCobro,
+      diaCobroMensual: entity.diaCobroMensual,
       clave: entity.clave,
       codigo: entity.codigo,
       codigoLower: entity.codigoLower,
@@ -154,11 +165,13 @@ class LocalJson extends Local {
       if (saldoAFavor != null) 'saldoAFavor': saldoAFavor,
       if (deudaAcumulada != null) 'deudaAcumulada': deudaAcumulada,
       if (frecuenciaCobro != null) 'frecuenciaCobro': frecuenciaCobro,
+      if (diaCobroMensual != null) 'diaCobroMensual': diaCobroMensual,
       if (clave != null) 'clave': clave,
       if (codigo != null) 'codigo': codigo,
       if (codigoLower != null) 'codigoLower': codigoLower,
       if (codigoCatastral != null) 'codigoCatastral': codigoCatastral,
-      if (codigoCatastralLower != null) 'codigoCatastralLower': codigoCatastralLower,
+      if (codigoCatastralLower != null)
+        'codigoCatastralLower': codigoCatastralLower,
     };
   }
 }

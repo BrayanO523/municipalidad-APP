@@ -39,10 +39,18 @@ Future<void> showLocalFormDialog(
   final codigoCatastralCtrl = TextEditingController(
     text: local?.codigoCatastral ?? '',
   );
+  final diaCobroMensualCtrl = TextEditingController(
+    text: local?.diaCobroMensual?.toString() ?? '',
+  );
 
   String? selectedMercadoId = local?.mercadoId ?? initialMercadoId;
   String? selectedTipoNegocioId = local?.tipoNegocioId;
-  String selectedFrecuenciaCobro = local?.frecuenciaCobro ?? 'diaria';
+  final frecuenciaInicialRaw = (local?.frecuenciaCobro ?? 'diaria')
+      .toLowerCase()
+      .trim();
+  String selectedFrecuenciaCobro = frecuenciaInicialRaw == 'mensual'
+      ? 'mensual'
+      : 'diaria';
 
   await showModalBottomSheet(
     context: context,
@@ -257,20 +265,6 @@ Future<void> showLocalFormDialog(
                                     ),
                                   ),
                                   DropdownMenuItem(
-                                    value: 'semanal',
-                                    child: Text(
-                                      'Semanal',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'quincenal',
-                                    child: Text(
-                                      'Quincenal',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  DropdownMenuItem(
                                     value: 'mensual',
                                     child: Text(
                                       'Mensual',
@@ -286,6 +280,18 @@ Future<void> showLocalFormDialog(
                                   }
                                 },
                               ),
+                              if (selectedFrecuenciaCobro == 'mensual') ...[
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: diaCobroMensualCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Día de cobro mensual (1-31)',
+                                    helperText:
+                                        'Se usa solo para referencia visual en la app del cobrador',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               Row(
                                 children: [
@@ -588,6 +594,13 @@ Future<void> showLocalFormDialog(
                                               : null,
                                           frecuenciaCobro:
                                               selectedFrecuenciaCobro,
+                                          diaCobroMensual:
+                                              selectedFrecuenciaCobro ==
+                                                  'mensual'
+                                              ? int.tryParse(
+                                                  diaCobroMensualCtrl.text,
+                                                )
+                                              : null,
                                           deudaAcumulada: isEditing
                                               ? local.deudaAcumulada
                                               : 0,
@@ -597,6 +610,33 @@ Future<void> showLocalFormDialog(
                                         );
 
                                         final jsonData = model.toJson();
+                                        final diaMensual = int.tryParse(
+                                          diaCobroMensualCtrl.text.trim(),
+                                        );
+                                        if (selectedFrecuenciaCobro ==
+                                            'mensual') {
+                                          if (diaMensual == null ||
+                                              diaMensual < 1 ||
+                                              diaMensual > 31) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Ingrese un día de cobro mensual válido (1-31).',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                            return;
+                                          }
+                                          jsonData['diaCobroMensual'] =
+                                              diaMensual;
+                                        } else {
+                                          // Si cambia a frecuencia no mensual, limpiar dato anterior.
+                                          jsonData['diaCobroMensual'] = null;
+                                        }
                                         jsonData['nombreSocialLower'] =
                                             (nombreCtrl.text).toLowerCase();
 

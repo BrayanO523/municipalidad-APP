@@ -153,16 +153,19 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 650 && constraints.maxWidth < 1100;
+            final isTablet =
+                constraints.maxWidth >= 650 && constraints.maxWidth < 1100;
             final isDesktop = constraints.maxWidth >= 1100;
-            
+
             final bool showUsuario = !(user?.esCobrador ?? true);
 
             Widget infoPill(String text, {Color? color}) {
@@ -192,10 +195,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withValues(alpha: 0.8),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -211,7 +213,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     children: [
                       Text(
                         'Locales comerciales',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
                             ),
@@ -221,12 +224,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             ? 'Página ${state.paginaActual} · ${state.locales.length} locales'
                             : 'Selecciona un mercado para iniciar',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontSize: 11,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
+                          fontSize: 11,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -290,7 +292,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           ? null
                           : () => _migrarCodigoLower(context),
                       icon: const Icon(Icons.tune_rounded, size: 18),
-                      label: Text(_isMigratingCodigo ? 'Migrando...' : 'Migrar'),
+                      label: Text(
+                        _isMigratingCodigo ? 'Migrando...' : 'Migrar',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -315,23 +319,29 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Expanded(flex: 3, child: _buildMercadoDropdown(context, municipalidadId)),
+                      Expanded(
+                        flex: 3,
+                        child: _buildMercadoDropdown(context, municipalidadId),
+                      ),
                       const SizedBox(width: 8),
                       if (showUsuario) ...[
-                        Expanded(flex: 2, child: _buildUsuarioFilter(context, state)),
+                        Expanded(
+                          flex: 2,
+                          child: _buildUsuarioFilter(context, state),
+                        ),
                         const SizedBox(width: 8),
                       ],
-                      Expanded(flex: 3, child: _buildLocalSearch(context, municipalidadId)),
+                      Expanded(
+                        flex: 3,
+                        child: _buildLocalSearch(context, municipalidadId),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildFiltroEstado(context, state),
-                      buttonsRow,
-                    ],
+                    children: [_buildFiltroEstado(context, state), buttonsRow],
                   ),
                 ],
               );
@@ -342,13 +352,22 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Expanded(flex: 2, child: _buildMercadoDropdown(context, municipalidadId)),
+                      Expanded(
+                        flex: 2,
+                        child: _buildMercadoDropdown(context, municipalidadId),
+                      ),
                       if (showUsuario) ...[
                         const SizedBox(width: 8),
-                        Expanded(flex: 2, child: _buildUsuarioFilter(context, state)),
+                        Expanded(
+                          flex: 2,
+                          child: _buildUsuarioFilter(context, state),
+                        ),
                       ],
                       const SizedBox(width: 8),
-                      Expanded(flex: 2, child: _buildLocalSearch(context, municipalidadId)),
+                      Expanded(
+                        flex: 2,
+                        child: _buildLocalSearch(context, municipalidadId),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -357,10 +376,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     runSpacing: 10,
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.end,
-                    children: [
-                      _buildFiltroEstado(context, state),
-                      buttonsRow,
-                    ],
+                    children: [_buildFiltroEstado(context, state), buttonsRow],
                   ),
                 ],
               );
@@ -390,11 +406,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: [
-                header,
-                const SizedBox(height: 12),
-                filterContent,
-              ],
+              children: [header, const SizedBox(height: 12), filterContent],
             );
           },
         ),
@@ -581,9 +593,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       selectedUsuarioId: state.usuarioFiltradoId,
       label: 'Cobrador',
       onUsuarioChanged: (u) {
-        ref
-            .read(localesPaginadosProvider.notifier)
-            .seleccionarUsuario(u?.id);
+        ref.read(localesPaginadosProvider.notifier).seleccionarUsuario(u?.id);
       },
     );
   }
@@ -645,9 +655,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       selectedItem: _mercadoSeleccionado,
       onChanged: (mercado) {
         setState(() => _mercadoSeleccionado = mercado);
-        ref
-            .read(localesPaginadosProvider.notifier)
-            .seleccionarMercado(mercado);
+        ref.read(localesPaginadosProvider.notifier).seleccionarMercado(mercado);
       },
       popupProps: PopupProps.menu(
         showSearchBox: true,
@@ -656,10 +664,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             hintText: 'Buscar...',
             prefixIcon: Icon(Icons.search_rounded, size: 14),
             isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 6,
-            ),
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           ),
         ),
         menuProps: MenuProps(
@@ -670,10 +675,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         fit: FlexFit.loose,
         emptyBuilder: (ctx, text) => Padding(
           padding: const EdgeInsets.all(8),
-          child: const Text(
-            'No encontrado',
-            style: TextStyle(fontSize: 11),
-          ),
+          child: const Text('No encontrado', style: TextStyle(fontSize: 11)),
         ),
       ),
       dropdownDecoratorProps: DropDownDecoratorProps(
@@ -683,9 +685,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           prefixIcon: const Icon(Icons.store_rounded, size: 16),
           isDense: true,
           contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(
@@ -1151,6 +1151,15 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                           label: 'Frecuencia de Cobro',
                           value: local.frecuenciaCobro ?? 'Diaria',
                         ),
+                        if ((local.frecuenciaCobro ?? '').toLowerCase() ==
+                            'mensual')
+                          _DetailRow(
+                            icon: Icons.calendar_month_rounded,
+                            label: 'Día de Cobro Mensual',
+                            value:
+                                local.diaCobroMensual?.toString() ??
+                                'No definido',
+                          ),
                         _DetailRow(
                           icon: Icons.vpn_key_rounded,
                           label: 'Clave',
@@ -1272,6 +1281,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           label: 'Frecuencia de Cobro',
           value: local.frecuenciaCobro ?? 'Diaria',
         ),
+        if ((local.frecuenciaCobro ?? '').toLowerCase() == 'mensual')
+          _DetailRow(
+            icon: Icons.calendar_month_rounded,
+            label: 'Día de Cobro Mensual',
+            value: local.diaCobroMensual?.toString() ?? 'No definido',
+          ),
         _DetailRow(
           icon: Icons.vpn_key_rounded,
           label: 'Clave',
@@ -1427,8 +1442,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
 
     final deudaActual = (local.deudaAcumulada ?? 0).toDouble();
     final saldoActual = (local.saldoAFavor ?? 0).toDouble();
-    final deudaCtrl = TextEditingController(text: deudaActual.toStringAsFixed(2));
-    final saldoCtrl = TextEditingController(text: saldoActual.toStringAsFixed(2));
+    final deudaCtrl = TextEditingController(
+      text: deudaActual.toStringAsFixed(2),
+    );
+    final saldoCtrl = TextEditingController(
+      text: saldoActual.toStringAsFixed(2),
+    );
 
     final confirmado = await showDialog<bool>(
       context: context,
@@ -1439,7 +1458,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           children: [
             TextField(
               controller: deudaCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Deuda acumulada',
                 prefixIcon: Icon(Icons.trending_down_rounded),
@@ -1448,7 +1469,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: saldoCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Saldo a favor',
                 prefixIcon: Icon(Icons.trending_up_rounded),
@@ -1474,7 +1497,10 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final nuevaDeuda = _parseDecimalInput(deudaCtrl.text);
     final nuevoSaldo = _parseDecimalInput(saldoCtrl.text);
 
-    if (nuevaDeuda == null || nuevoSaldo == null || nuevaDeuda < 0 || nuevoSaldo < 0) {
+    if (nuevaDeuda == null ||
+        nuevoSaldo == null ||
+        nuevaDeuda < 0 ||
+        nuevoSaldo < 0) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

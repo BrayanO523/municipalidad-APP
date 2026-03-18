@@ -24,6 +24,8 @@ class Local {
   final num? deudaAcumulada; // Suma de cuotas no pagadas histórica
 
   final String? frecuenciaCobro; // 'diaria', 'semanal', 'quincenal', 'mensual'
+  // 1..31 (solo referencia visual para frecuencia mensual)
+  final int? diaCobroMensual;
 
   final String? clave;
   final String? codigo;
@@ -54,6 +56,7 @@ class Local {
     this.saldoAFavor,
     this.deudaAcumulada,
     this.frecuenciaCobro,
+    this.diaCobroMensual,
     this.clave,
     this.codigo,
     this.codigoLower,
@@ -88,6 +91,7 @@ class Local {
     num? saldoAFavor,
     num? deudaAcumulada,
     String? frecuenciaCobro,
+    int? diaCobroMensual,
     String? clave,
     String? codigo,
     String? codigoLower,
@@ -118,6 +122,7 @@ class Local {
       saldoAFavor: saldoAFavor ?? this.saldoAFavor,
       deudaAcumulada: deudaAcumulada ?? this.deudaAcumulada,
       frecuenciaCobro: frecuenciaCobro ?? this.frecuenciaCobro,
+      diaCobroMensual: diaCobroMensual ?? this.diaCobroMensual,
       clave: clave ?? this.clave,
       codigo: codigo ?? this.codigo,
       codigoLower: codigoLower ?? this.codigoLower,
