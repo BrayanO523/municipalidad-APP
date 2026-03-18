@@ -37,12 +37,7 @@ class MoraCorrienteChart extends ConsumerWidget {
         final totalRecaudado = totalRecaudadoRaw > 0
             ? totalRecaudadoRaw
             : (rt.recaudadoPeriodo.toDouble());
-        final moraPeriodo = _totalPeriodo(
-          stats,
-          period,
-          range,
-          field: 'mora',
-        );
+        final moraPeriodo = _totalPeriodo(stats, period, range, field: 'mora');
         final moraAcumulada = stats.totalMoraRecuperada.toDouble();
         final moraRt = rt.totalMoraRecuperada.toDouble();
         final totalMora = moraPeriodo > 0 ? moraPeriodo : moraAcumulada;
@@ -174,9 +169,7 @@ class MoraCorrienteChart extends ConsumerWidget {
                               return Text(
                                 DateFormatter.formatCurrency(value),
                                 style: TextStyle(
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.6,
-                                  ),
+                                  color: colorScheme.onSurfaceVariant,
                                   fontSize: 9,
                                 ),
                               );
@@ -318,9 +311,7 @@ class _LegendChip extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],

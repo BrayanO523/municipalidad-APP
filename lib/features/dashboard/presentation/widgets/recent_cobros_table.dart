@@ -23,7 +23,6 @@ class RecentCobrosTable extends ConsumerWidget {
     final locales = localesState.value ?? [];
     final mercados = mercadosState.value ?? [];
 
-
     return Card(
       child: cobrosRecientes.when(
         data: (cobros) {
@@ -35,9 +34,7 @@ class RecentCobrosTable extends ConsumerWidget {
                   builder: (context) => Text(
                     'No hay cobros registrados aún',
                     style: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -240,4 +237,3 @@ class _EstadoChip extends StatelessWidget {
     );
   }
 }
-

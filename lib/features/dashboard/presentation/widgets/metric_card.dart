@@ -56,7 +56,7 @@ class MetricCard extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withAlpha(138),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             if (subtitle != null) ...[

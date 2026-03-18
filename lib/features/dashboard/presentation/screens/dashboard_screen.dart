@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -72,7 +73,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       // Guardar que ya se revisó hoy en este navegador
       await prefs.setString(hoyKey, hoyString);
-      
+
       // Invalidar stats y agregaciones para reflejar cambios si los hubo
       ref.invalidate(statsProvider);
       // ref.invalidate(statsAggregationsProvider); // Removido por refactor a localesProvider
@@ -83,6 +84,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
     final cobrosHoy = ref.watch(cobrosHoyProvider);
     final rt = ref.watch(dashboardRealTimeStatsProvider);
     final filter = ref.watch(dashboardFilterProvider);
@@ -159,7 +161,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               corrientePeriodo,
                             ),
                             icon: Icons.payments_rounded,
-                            color: const Color(0xFF00D9A6),
+                            color: semantic.success,
                             subtitle: 'Total del periodo menos mora recuperada',
                           ),
                         ),
@@ -169,7 +171,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Mora Recuperada ${filter.label}',
                             value: DateFormatter.formatCurrency(moraPeriodo),
                             icon: Icons.currency_exchange_rounded,
-                            color: const Color(0xFFFF9F43),
+                            color: semantic.warning,
                             subtitle: 'Pagos aplicados a deuda vencida',
                           ),
                         ),
@@ -179,7 +181,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Total Recaudado ${filter.label}',
                             value: DateFormatter.formatCurrency(totalPeriodo),
                             icon: Icons.account_balance_wallet_rounded,
-                            color: const Color(0xFF6C63FF),
+                            color: semantic.info,
                             subtitle: 'Corriente + mora del periodo',
                           ),
                         ),
@@ -189,7 +191,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Cobros ${filter.label}',
                             value: '${rt.cobrosPeriodo}',
                             icon: Icons.receipt_long_rounded,
-                            color: const Color(0xFFEE5A6F),
+                            color: semantic.danger,
                             subtitle: 'Recibos válidos emitidos en el periodo',
                           ),
                         ),
@@ -207,7 +209,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         : constraints.maxWidth > 500
                         ? 2
                         : 1;
-                    final cardW = (constraints.maxWidth - (16 * (crossAxisCount - 1))) / crossAxisCount;
+                    final cardW =
+                        (constraints.maxWidth - (16 * (crossAxisCount - 1))) /
+                        crossAxisCount;
                     return Wrap(
                       spacing: 16,
                       runSpacing: 16,
@@ -221,8 +225,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 rt.pendienteHoy,
                               ),
                               icon: Icons.schedule_rounded,
-                              color: const Color(0xFFFF6B35),
-                              subtitle: 'Cuota esperada: ${DateFormatter.formatCurrency(rt.cuotaEsperadaHoy)}',
+                              color: semantic.warning,
+                              subtitle:
+                                  'Cuota esperada: ${DateFormatter.formatCurrency(rt.cuotaEsperadaHoy)}',
                             ),
                           ),
                         SizedBox(
@@ -231,7 +236,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Deuda Acumulada',
                             value: DateFormatter.formatCurrency(rt.deudaTotal),
                             icon: Icons.warning_amber_rounded,
-                            color: const Color(0xFFEE5A6F),
+                            color: semantic.danger,
                             subtitle: 'Total global de deudas',
                           ),
                         ),
@@ -239,9 +244,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           width: cardW,
                           child: MetricCard(
                             title: 'Saldo a Favor',
-                            value: DateFormatter.formatCurrency(rt.saldoAFavorTotal),
+                            value: DateFormatter.formatCurrency(
+                              rt.saldoAFavorTotal,
+                            ),
                             icon: Icons.savings_rounded,
-                            color: const Color(0xFF00D9A6),
+                            color: semantic.success,
                             subtitle: 'Total global de créditos',
                           ),
                         ),
@@ -252,9 +259,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 24),
 
                 // Gráficos principales
-                DashboardChartsWidget(
-                  cobrosHoy: cobrosHoy.value ?? [],
-                ),
+                DashboardChartsWidget(cobrosHoy: cobrosHoy.value ?? []),
 
                 const SizedBox(height: 24),
                 LayoutBuilder(
@@ -277,7 +282,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Ticket Promedio ${filter.label}',
                             value: DateFormatter.formatCurrency(ticketPromedio),
                             icon: Icons.point_of_sale_rounded,
-                            color: const Color(0xFF4DA3FF),
+                            color: semantic.info,
                             subtitle: 'Promedio por recibo emitido',
                           ),
                         ),
@@ -287,7 +292,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Locales que Pagaron ${filter.label}',
                             value: '$localesQuePagaron',
                             icon: Icons.how_to_reg_rounded,
-                            color: const Color(0xFF00C48C),
+                            color: semantic.success,
                             subtitle: 'Locales únicos con cobro válido',
                           ),
                         ),
@@ -298,7 +303,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             value:
                                 '${coberturaCobro.toStringAsFixed(coberturaCobro >= 10 ? 0 : 1)}%',
                             icon: Icons.radar_rounded,
-                            color: const Color(0xFFFFB84D),
+                            color: semantic.warning,
                             subtitle:
                                 '$localesQuePagaron de ${rt.cantidadLocales} locales activos',
                           ),
@@ -307,7 +312,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     );
                   },
                 ),
-
               ],
             ),
           );
@@ -338,10 +342,7 @@ class _HeaderStatPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color.withAlpha(30),
-            color.withAlpha(12),
-          ],
+          colors: [color.withAlpha(30), color.withAlpha(12)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -369,15 +370,15 @@ class _HeaderStatPill extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurface.withAlpha(140),
+                  color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -400,6 +401,7 @@ class _DashboardHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(dashboardFilterProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -416,7 +418,7 @@ class _DashboardHeader extends ConsumerWidget {
         border: Border.all(color: colorScheme.outlineVariant.withAlpha(90)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(18),
+            color: colorScheme.shadow.withValues(alpha: 0.12),
             blurRadius: 22,
             offset: const Offset(0, 10),
           ),
@@ -446,7 +448,7 @@ class _DashboardHeader extends ConsumerWidget {
                   Text(
                     'Monitorea recaudación, mora y cartera desde un solo panel.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withAlpha(150),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -477,7 +479,9 @@ class _DashboardHeader extends ConsumerWidget {
             decoration: BoxDecoration(
               color: colorScheme.surface.withAlpha(120),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colorScheme.outlineVariant.withAlpha(70)),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withAlpha(70),
+              ),
             ),
             child: Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -523,7 +527,9 @@ class _DashboardHeader extends ConsumerWidget {
                             Text(
                               filter.range.start != filter.range.end
                                   ? '${DateFormatter.formatDate(filter.range.start)} - ${DateFormatter.formatDate(filter.range.end)}'
-                                  : DateFormatter.formatDate(filter.range.start),
+                                  : DateFormatter.formatDate(
+                                      filter.range.start,
+                                    ),
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: colorScheme.onSurface,
@@ -538,7 +544,7 @@ class _DashboardHeader extends ConsumerWidget {
                     Text(
                       filter.description,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withAlpha(138),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -549,13 +555,13 @@ class _DashboardHeader extends ConsumerWidget {
                   icon: Icons.store_rounded,
                   label: 'Mercados',
                   value: '$cantidadMercados',
-                  color: const Color(0xFFFF9F43),
+                  color: context.semanticColors.warning,
                 ),
                 _HeaderStatPill(
                   icon: Icons.storefront_rounded,
                   label: 'Locales',
                   value: '$cantidadLocales',
-                  color: const Color(0xFFEE5A6F),
+                  color: context.semanticColors.danger,
                 ),
               ],
             ),
@@ -568,552 +574,637 @@ class _DashboardHeader extends ConsumerWidget {
             children: [
               if (_kShowDevTools)
                 ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Parchar y Limpiar Sistema'),
-                      content: const Text(
-                        '¿Desea ejecutar el parchado integral de datos? Esto inicializará los nuevos correlativos en Mercados, limpiará campos obsoletos en Usuarios y Locales, y parchará el historial de cobros para el modo offline.',
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Parchar y Limpiar Sistema'),
+                        content: const Text(
+                          '¿Desea ejecutar el parchado integral de datos? Esto inicializará los nuevos correlativos en Mercados, limpiará campos obsoletos en Usuarios y Locales, y parchará el historial de cobros para el modo offline.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Inicializar'),
+                          ),
+                        ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Inicializar'),
-                        ),
-                      ],
-                    ),
-                  );
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Inicializando correlativos...'),
-                        ),
-                      );
-                      final ds = ref.read(cobroDatasourceProvider);
-                      final procesados = await ds
-                          .inicializarCorrelativosSistema();
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Operación exitosa: $procesados registros parchados.',
+                          const SnackBar(
+                            content: Text('Inicializando correlativos...'),
+                          ),
+                        );
+                        final ds = ref.read(cobroDatasourceProvider);
+                        final procesados = await ds
+                            .inicializarCorrelativosSistema();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Operación exitosa: $procesados registros parchados.',
+                              ),
+                              backgroundColor: semantic.success,
                             ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error al inicializar: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
-                      }
-                    }
-                  }
-                },
-                icon: const Icon(Icons.build_circle_outlined, size: 18),
-                label: const Text('Parchar Correlativos'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Importación de Eventuales'),
-                      content: const Text(
-                        'Se importarán los eventuales desde el CSV eventuales_completo_con_ruta.csv. Esta acción creará o actualizará documentos en Firestore automáticamente. ¿Desea proceder?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Importar'),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Importando eventuales...'),
-                        ),
-                      );
-                      final res = await MassImportEventuales.ejecutar();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al inicializar: $e'),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.storefront_outlined, size: 18),
-                label: const Text('Importar Eventuales'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.build_circle_outlined, size: 18),
+                  label: const Text('Parchar Correlativos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                    foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
 
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text(
-                        'Recrear Locales desde CSV',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      content: const Text(
-                        'Se eliminarán todos los locales actuales del Mercado Inmaculada Concepción y luego se volverán a importar desde el CSV. Esta acción sobrescribe el catálogo de locales de ese mercado. ¿Desea proceder?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Importación de Eventuales'),
+                        content: const Text(
+                          'Se importarán los eventuales desde el CSV eventuales_completo_con_ruta.csv. Esta acción creará o actualizará documentos en Firestore automáticamente. ¿Desea proceder?',
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
                           ),
-                          child: const Text('Recrear'),
-                        ),
-                      ],
-                    ),
-                  );
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Importar'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Recreando locales desde CSV...'),
-                        ),
-                      );
-                      final res = await MassImportLocales.recrearDesdeCsv();
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
+                          const SnackBar(
+                            content: Text('Importando eventuales...'),
                           ),
                         );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        final res = await MassImportEventuales.ejecutar();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res),
+                              backgroundColor: semantic.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-                label: const Text('Recrear Locales'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.storefront_outlined, size: 18),
+                  label: const Text('Importar Eventuales'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.warning,
+                    foregroundColor: semantic.onWarning,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
 
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Importación Masiva de Locales'),
-                      content: const Text(
-                        'Se importarán 590 locales únicos al Mercado Inmaculada Concepción. ¿Desea proceder? Esta acción creará documentos en Firestore automáticamente.',
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(
+                          'Recrear Locales desde CSV',
+                          style: TextStyle(color: semantic.danger),
+                        ),
+                        content: const Text(
+                          'Se eliminarán todos los locales actuales del Mercado Inmaculada Concepción y luego se volverán a importar desde el CSV. Esta acción sobrescribe el catálogo de locales de ese mercado. ¿Desea proceder?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: semantic.danger,
+                              foregroundColor: semantic.onDanger,
+                            ),
+                            child: const Text('Recrear'),
+                          ),
+                        ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Importar'),
-                        ),
-                      ],
-                    ),
-                  );
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Importando locales...'),
-                        ),
-                      );
-                      final res = await MassImportLocales.ejecutar();
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
+                          const SnackBar(
+                            content: Text('Recreando locales desde CSV...'),
                           ),
                         );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        final res = await MassImportLocales.recrearDesdeCsv();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res),
+                              backgroundColor: semantic.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.upload_file_rounded, size: 18),
-                label: const Text('Importar Locales'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigoAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                  label: const Text('Recrear Locales'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.danger,
+                    foregroundColor: semantic.onDanger,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
 
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Importación de Faltantes (Locales)'),
-                      content: const Text(
-                        'Se importarán 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada Concepción usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). ¿Desea proceder?',
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Importación Masiva de Locales'),
+                        content: const Text(
+                          'Se importarán 590 locales únicos al Mercado Inmaculada Concepción. ¿Desea proceder? Esta acción creará documentos en Firestore automáticamente.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Importar'),
+                          ),
+                        ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Importar'),
-                        ),
-                      ],
-                    ),
-                  );
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Importando locales faltantes...'),
-                        ),
-                      );
-                      final res =
-                          await MassImportFaltantesLocalesInmaculada.ejecutar();
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
+                          const SnackBar(
+                            content: Text('Importando locales...'),
                           ),
                         );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        final res = await MassImportLocales.ejecutar();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res),
+                              backgroundColor: semantic.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                label: const Text('Importar Faltantes'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.upload_file_rounded, size: 18),
+                  label: const Text('Importar Locales'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.info,
+                    foregroundColor: semantic.onInfo,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
 
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text(
-                        'Revertir Importar Faltantes',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      content: const Text(
-                        'Se eliminarán los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algún local ya fue modificado o tiene movimientos, NO se borrará. ¿Desea proceder?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Importación de Faltantes (Locales)'),
+                        content: const Text(
+                          'Se importarán 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada Concepción usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). ¿Desea proceder?',
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
                           ),
-                          child: const Text('Revertir'),
-                        ),
-                      ],
-                    ),
-                  );
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Importar'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Revirtiendo importación de faltantes...'),
-                        ),
-                      );
-                      final res =
-                          await MassImportFaltantesLocalesInmaculada.revertir();
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res),
-                            backgroundColor: Colors.green,
+                          const SnackBar(
+                            content: Text('Importando locales faltantes...'),
                           ),
                         );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        final res =
+                            await MassImportFaltantesLocalesInmaculada.ejecutar();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res),
+                              backgroundColor: semantic.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.undo_rounded, size: 18),
-                label: const Text('Revertir Faltantes'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                  label: const Text('Importar Faltantes'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.info,
+                    foregroundColor: semantic.onInfo,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
 
-
-
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text(
-                        '¿RESETEAR SISTEMA COMPLETO?',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      content: const Text(
-                        'Esta acción eliminará TODOS los cobros y reiniciará los correlativos a 1. Es irreversible. ¿Está seguro?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(
+                          'Revertir Importar Faltantes',
+                          style: TextStyle(color: semantic.danger),
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red,
+                        content: const Text(
+                          'Se eliminarán los locales creados por el script de faltantes (creadoPor=import_faltantes_script) que NO tengan movimientos (deuda/saldo en 0). Si algún local ya fue modificado o tiene movimientos, NO se borrará. ¿Desea proceder?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
                           ),
-                          child: const Text('BORRAR TODO'),
-                        ),
-                      ],
-                    ),
-                  );
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: semantic.danger,
+                              foregroundColor: semantic.onDanger,
+                            ),
+                            child: const Text('Revertir'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Reseteando sistema...')),
-                      );
-                      final ds = ref.read(cobroDatasourceProvider);
-                      final user = ref.read(currentUsuarioProvider).value;
-                      if (user?.municipalidadId == null) {
-                        throw Exception('No se pudo obtener la municipalidad del usuario');
-                      }
-                      await ds.softResetSistema(user!.municipalidadId!);
-
-                      if (context.mounted) {
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Sistema reseteado. Las operaciones inician a partir de hoy.',
+                              'Revirtiendo importación de faltantes...',
                             ),
-                            backgroundColor: Colors.orange,
                           ),
                         );
-                        ref.invalidate(cobrosHoyProvider);
-                        ref.invalidate(mercadosProvider);
-                        ref.invalidate(localesProvider);
-                        ref.invalidate(statsProvider);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error al resetear: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
+                        final res =
+                            await MassImportFaltantesLocalesInmaculada.revertir();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res),
+                              backgroundColor: semantic.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.delete_forever_rounded, size: 18),
-                label: const Text('Resetear Sistema'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withValues(alpha: 0.1),
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red, width: 0.5),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.undo_rounded, size: 18),
+                  label: const Text('Revertir Faltantes'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.danger,
+                    foregroundColor: semantic.onDanger,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Vincular Todo a Choluteca'),
-                      content: const Text(
-                        'Esta acción forzará que todos los locales, usuarios y cobros estén vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada Concepción. ¿Desea proceder?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Vincular'),
-                        ),
-                      ],
-                    ),
-                  );
 
-                  if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    if (!context.mounted) return;
-                    try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vinculando datos...')),
-                      );
-                      final res = await CobrosMigration.vincularTodoACholuteca();
-                      if (context.mounted) {
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(
+                          '¿RESETEAR SISTEMA COMPLETO?',
+                          style: TextStyle(color: semantic.danger),
+                        ),
+                        content: const Text(
+                          'Esta acción eliminará TODOS los cobros y reiniciará los correlativos a 1. Es irreversible. ¿Está seguro?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: semantic.danger,
+                            ),
+                            child: const Text('BORRAR TODO'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Reseteando sistema...'),
+                          ),
+                        );
+                        final ds = ref.read(cobroDatasourceProvider);
+                        final user = ref.read(currentUsuarioProvider).value;
+                        if (user?.municipalidadId == null) {
+                          throw Exception(
+                            'No se pudo obtener la municipalidad del usuario',
+                          );
+                        }
+                        await ds.softResetSistema(user!.municipalidadId!);
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Sistema reseteado. Las operaciones inician a partir de hoy.',
+                              ),
+                              backgroundColor: semantic.warning,
+                            ),
+                          );
+                          ref.invalidate(cobrosHoyProvider);
+                          ref.invalidate(mercadosProvider);
+                          ref.invalidate(localesProvider);
+                          ref.invalidate(statsProvider);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al resetear: $e'),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                  label: const Text('Resetear Sistema'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.danger.withValues(alpha: 0.1),
+                    foregroundColor: semantic.danger,
+                    side: BorderSide(color: semantic.danger, width: 0.5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Vincular Todo a Choluteca'),
+                        content: const Text(
+                          'Esta acción forzará que todos los locales, usuarios y cobros estén vinculados a la Municipalidad de Choluteca y al Mercado Inmaculada Concepción. ¿Desea proceder?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Vincular'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Vinculando datos...')),
+                        );
+                        final res =
+                            await CobrosMigration.vincularTodoACholuteca();
+                        if (context.mounted) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Resultado de Vinculación'),
+                              content: SingleChildScrollView(child: Text(res)),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cerrar'),
+                                ),
+                              ],
+                            ),
+                          );
+                          ref.invalidate(cobrosHoyProvider);
+                          ref.invalidate(mercadosProvider);
+                          ref.invalidate(localesProvider);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.link_rounded, size: 18),
+                  label: const Text('Vincular a Choluteca'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.info,
+                    foregroundColor: semantic.onInfo,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              if (_kShowDevTools)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Migrar Mora Histórica'),
+                        content: const Text(
+                          'Esta acción recalculará la mora para todos los cobros históricos anteriores a hoy. ¿Desea proceder?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Migrar Mora'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!context.mounted) return;
+                      try {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Migrando Mora (puede tardar unos segundos)...',
+                            ),
+                          ),
+                        );
+
+                        final res = await CobrosMigration.migrarMoraHistorica();
+
+                        if (!context.mounted) return;
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Resultado de Vinculación'),
+                            title: const Text('Resultado de Migración'),
                             content: SingleChildScrollView(child: Text(res)),
                             actions: [
                               TextButton(
@@ -1123,43 +1214,49 @@ class _DashboardHeader extends ConsumerWidget {
                             ],
                           ),
                         );
-                        ref.invalidate(cobrosHoyProvider);
-                        ref.invalidate(mercadosProvider);
-                        ref.invalidate(localesProvider);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        ref.invalidate(dashboardRealTimeStatsProvider);
+                        ref.invalidate(statsProvider);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: semantic.danger,
+                            ),
+                          );
+                        }
                       }
                     }
-                  }
-                },
-                icon: const Icon(Icons.link_rounded, size: 18),
-                label: const Text('Vincular a Choluteca'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  },
+                  icon: const Icon(Icons.history_rounded, size: 18),
+                  label: const Text('Migrar Mora Histórica'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: semantic.info,
+                    foregroundColor: semantic.onInfo,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
-              ),
-            const SizedBox(width: 8),
-            if (_kShowDevTools)
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('Migrar Mora Histórica'),
+                      title: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: semantic.warning,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Recalcular Estadísticas'),
+                        ],
+                      ),
                       content: const Text(
-                        'Esta acción recalculará la mora para todos los cobros históricos anteriores a hoy. ¿Desea proceder?',
+                        'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
                       ),
                       actions: [
                         TextButton(
@@ -1168,184 +1265,114 @@ class _DashboardHeader extends ConsumerWidget {
                         ),
                         FilledButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Migrar Mora'),
+                          child: const Text('Recalcular'),
                         ),
                       ],
                     ),
                   );
 
                   if (confirm == true) {
-                    await Future.delayed(const Duration(milliseconds: 300));
                     if (!context.mounted) return;
                     try {
-                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Migrando Mora (puede tardar unos segundos)...')),
-                      );
-                      
-                      final res = await CobrosMigration.migrarMoraHistorica();
-                      
-                      if (!context.mounted) return;
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Resultado de Migración'),
-                          content: SingleChildScrollView(child: Text(res)),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
+                        const SnackBar(
+                          content: Text(
+                            'Recalculando estadísticas globales...',
+                          ),
                         ),
                       );
-                      ref.invalidate(dashboardRealTimeStatsProvider);
-                      ref.invalidate(statsProvider);
+
+                      final ds = ref.read(statsDatasourceProvider);
+                      final user = ref.read(currentUsuarioProvider).value;
+                      if (user?.municipalidadId == null) {
+                        throw Exception(
+                          'No se pudo identificar la municipalidad',
+                        );
+                      }
+
+                      await ds.recalcularTodo(user!.municipalidadId!);
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Estadísticas sincronizadas con éxito.',
+                            ),
+                            backgroundColor: semantic.success,
+                          ),
+                        );
+                        // Refrescar el provider de stats
+                        ref.invalidate(statsProvider);
+                      }
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
+                            content: Text('Error al recalcular: $e'),
+                            backgroundColor: semantic.danger,
                           ),
                         );
                       }
                     }
                   }
                 },
-                icon: const Icon(Icons.history_rounded, size: 18),
-                label: const Text('Migrar Mora Histórica'),
+                icon: const Icon(Icons.sync_problem_rounded, size: 18),
+                label: const Text('Recalcular Stats'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
+                  backgroundColor: semantic.warning.withValues(alpha: 0.1),
+                  foregroundColor: semantic.warning,
+                  side: BorderSide(color: semantic.warning, width: 0.5),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
                   ),
                 ),
               ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text('Recalcular Estadísticas'),
-                      ],
-                    ),
-                    content: const Text(
-                      'Esta acción escaneará todos los cobros y locales para reconstruir los contadores globales desde cero. Útil si hay desajustes por ediciones manuales. ¿Desea continuar?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancelar'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Recalcular'),
-                      ),
-                    ],
-                  ),
-                );
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final cobros = ref.read(cobrosHoyProvider).value ?? [];
+                  final locales = ref.read(localesProvider).value ?? [];
+                  final mercados = ref.read(mercadosProvider).value ?? [];
+                  final filter = ref.read(dashboardFilterProvider);
 
-                if (confirm == true) {
-                  if (!context.mounted) return;
-                  try {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Recalculando estadísticas globales...')),
+                  final bytes =
+                      await ReportePdfGenerator.generarReporteDashboard(
+                        cobros: cobros,
+                        locales: locales,
+                        mercados: mercados,
+                        periodoLabel: filter.period == DashboardPeriod.hoy
+                            ? 'Hoy'
+                            : filter.label,
+                      );
+
+                  if (kIsWeb) {
+                    await descargarPdfWeb(
+                      bytes,
+                      'Dashboard_${filter.label.replaceAll(" ", "_")}.pdf',
                     );
-                    
-                    final ds = ref.read(statsDatasourceProvider);
-                    final user = ref.read(currentUsuarioProvider).value;
-                    if (user?.municipalidadId == null) {
-                      throw Exception('No se pudo identificar la municipalidad');
-                    }
-
-                    await ds.recalcularTodo(user!.municipalidadId!);
-
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Estadísticas sincronizadas con éxito.'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      // Refrescar el provider de stats
-                      ref.invalidate(statsProvider);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error al recalcular: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                  } else {
+                    await Printing.layoutPdf(
+                      onLayout: (_) async => bytes,
+                      name: 'Dashboard_${filter.label}',
+                    );
                   }
-                }
-              },
-              icon: const Icon(Icons.sync_problem_rounded, size: 18),
-              label: const Text('Recalcular Stats'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.withValues(alpha: 0.1),
-                foregroundColor: Colors.orange,
-                side: const BorderSide(color: Colors.orange, width: 0.5),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: const Text('Exportar PDF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final cobros = ref.read(cobrosHoyProvider).value ?? [];
-                final locales = ref.read(localesProvider).value ?? [];
-                final mercados = ref.read(mercadosProvider).value ?? [];
-                final filter = ref.read(dashboardFilterProvider);
-
-                final bytes = await ReportePdfGenerator.generarReporteDashboard(
-                  cobros: cobros,
-                  locales: locales,
-                  mercados: mercados,
-                  periodoLabel: filter.period == DashboardPeriod.hoy
-                      ? 'Hoy'
-                      : filter.label,
-                );
-
-                if (kIsWeb) {
-                  await descargarPdfWeb(
-                    bytes,
-                    'Dashboard_${filter.label.replaceAll(" ", "_")}.pdf',
-                  );
-                } else {
-                  await Printing.layoutPdf(
-                    onLayout: (_) async => bytes,
-                    name: 'Dashboard_${filter.label}',
-                  );
-                }
-              },
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: const Text('Exportar PDF'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1361,8 +1388,8 @@ class _MarketSelector extends ConsumerWidget {
         if (mercados.isEmpty) return const SizedBox.shrink();
 
         // Si el mercado seleccionado ya no existe, volver a "Todos".
-        final idValido = selectedId == null ||
-                mercados.any((m) => m.id == selectedId)
+        final idValido =
+            selectedId == null || mercados.any((m) => m.id == selectedId)
             ? selectedId
             : null;
         if (selectedId != null && idValido == null) {
@@ -1377,7 +1404,9 @@ class _MarketSelector extends ConsumerWidget {
             color: Theme.of(context).colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
           child: Row(
@@ -1394,9 +1423,9 @@ class _MarketSelector extends ConsumerWidget {
                 underline: const SizedBox(),
                 hint: const Text('Todos', style: TextStyle(fontSize: 13)),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
@@ -1417,10 +1446,8 @@ class _MarketSelector extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const SizedBox(
-        width: 100,
-        child: LinearProgressIndicator(),
-      ),
+      loading: () =>
+          const SizedBox(width: 100, child: LinearProgressIndicator()),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -1494,12 +1521,10 @@ class _PeriodChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: selected
-            ? colorScheme.onSurface
-            : colorScheme.onSurface.withValues(alpha: 0.54),
+        color: selected ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
         fontSize: 12,
       ),
-      selectedColor: const Color(0xFF00D9A6).withValues(alpha: 0.3),
+      selectedColor: context.semanticColors.success.withValues(alpha: 0.3),
       backgroundColor: colorScheme.onSurface.withValues(alpha: 0.05),
       showCheckmark: false,
       padding: EdgeInsets.zero,

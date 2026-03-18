@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
 
 import '../../../../core/utils/date_formatter.dart';
 import '../../../cobros/domain/entities/cobro.dart';
@@ -18,6 +19,7 @@ class RecaudacionBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     final mapMonto = <String, double>{};
     for (final c in cobrosHoy) {
@@ -47,7 +49,7 @@ class RecaudacionBarChart extends StatelessWidget {
           barRods: [
             BarChartRodData(
               toY: monto,
-              color: const Color(0xFF6C63FF),
+              color: semantic.info,
               width: 24,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(6),
@@ -91,14 +93,14 @@ class RecaudacionBarChart extends StatelessWidget {
                       Icon(
                         Icons.bar_chart_rounded,
                         size: 40,
-                        color: colorScheme.onSurface.withValues(alpha: 0.24),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Sin recaudación hoy',
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -107,87 +109,85 @@ class RecaudacionBarChart extends StatelessWidget {
             else
               Expanded(
                 child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: maxY,
-                      barGroups: barGroups,
-                      barTouchData: BarTouchData(
-                        enabled: true,
-                        touchTooltipData: BarTouchTooltipData(
-                          getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                              BarTooltipItem(
-                                '${xAxisTitles[group.x]}\n${DateFormatter.formatCurrency(rod.toY)}',
-                                const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxY,
+                    barGroups: barGroups,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                            BarTooltipItem(
+                              '${xAxisTitles[group.x]}\n${DateFormatter.formatCurrency(rod.toY)}',
+                              TextStyle(
+                                color: colorScheme.onInverseSurface,
+                                fontWeight: FontWeight.bold,
                               ),
-                        ),
+                            ),
                       ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 36,
-                            getTitlesWidget: (value, meta) {
-                              final idx = value.toInt();
-                              if (idx < 0 || idx >= xAxisTitles.length) {
-                                return const SizedBox.shrink();
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Text(
-                                  xAxisTitles[idx],
-                                  style: TextStyle(
-                                    color: colorScheme.onSurface.withValues(alpha: 
-                                      0.54,
-                                    ),
-                                    fontSize: 11,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 52,
-                            getTitlesWidget: (value, meta) {
-                              if (value == 0 || value == maxY) {
-                                return const SizedBox.shrink();
-                              }
-                              return Text(
-                                DateFormatter.formatCurrency(value),
-                                style: TextStyle(
-                                  color: colorScheme.onSurface.withValues(alpha: 0.7),
-                                  fontSize: 9,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                      ),
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: maxY > 0 ? (maxY / 4) : 25,
-                        getDrawingHorizontalLine: (_) => FlLine(
-                          color: colorScheme.onSurface.withValues(alpha: 0.1),
-                          strokeWidth: 1,
-                          dashArray: [4, 4],
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
                     ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 36,
+                          getTitlesWidget: (value, meta) {
+                            final idx = value.toInt();
+                            if (idx < 0 || idx >= xAxisTitles.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                xAxisTitles[idx],
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 52,
+                          getTitlesWidget: (value, meta) {
+                            if (value == 0 || value == maxY) {
+                              return const SizedBox.shrink();
+                            }
+                            return Text(
+                              DateFormatter.formatCurrency(value),
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 9,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: maxY > 0 ? (maxY / 4) : 25,
+                      getDrawingHorizontalLine: (_) => FlLine(
+                        color: colorScheme.onSurface.withValues(alpha: 0.1),
+                        strokeWidth: 1,
+                        dashArray: [4, 4],
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                  ),
                 ),
               ),
           ],

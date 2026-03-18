@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import 'package:intl/intl.dart';
 
@@ -72,6 +73,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final semantic = context.semanticColors;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -84,7 +86,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
           border: Border.all(color: colorScheme.outline),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: colorScheme.shadow.withValues(alpha: 0.25),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -108,7 +110,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                   Text(
                     'Seleccionar Rango',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: colorScheme.onSurfaceVariant,
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.bold,
                     ),
@@ -128,7 +130,9 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                         child: Icon(
                           Icons.arrow_forward,
                           size: 16,
-                          color: colorScheme.onSurface.withValues(alpha: 0.1),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.65,
+                          ),
                         ),
                       ),
                       Expanded(
@@ -178,9 +182,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        foregroundColor: colorScheme.onSurface.withValues(
-                          alpha: 0.54,
-                        ),
+                        foregroundColor: colorScheme.onSurfaceVariant,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Text('Cancelar'),
@@ -197,8 +199,8 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                       },
                       style:
                           ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF00D9A6),
-                            foregroundColor: Colors.black,
+                            backgroundColor: semantic.success,
+                            foregroundColor: semantic.onSuccess,
                             padding: EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -206,7 +208,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                             elevation: 0,
                           ).copyWith(
                             overlayColor: WidgetStateProperty.all(
-                              Colors.black.withValues(alpha: 0.1),
+                              semantic.onSuccess.withValues(alpha: 0.1),
                             ),
                           ),
                       child: const Text(
@@ -239,6 +241,7 @@ class _DateInputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +250,7 @@ class _DateInputField extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 10,
-            color: colorScheme.onSurface.withValues(alpha: 0.3),
+            color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -260,10 +263,10 @@ class _DateInputField extends StatelessWidget {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
             _DateInputFormatter(),
           ],
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF00D9A6),
+            color: semantic.success,
           ),
           decoration: InputDecoration(
             isDense: true,
@@ -271,7 +274,7 @@ class _DateInputField extends StatelessWidget {
             border: InputBorder.none,
             hintText: 'dd/mm/yyyy',
             hintStyle: TextStyle(
-              color: colorScheme.onSurface.withValues(alpha: 0.1),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               fontSize: 13,
             ),
           ),
@@ -329,10 +332,7 @@ class _CalendarHeader extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onPrevious,
-          icon: Icon(
-            Icons.chevron_left,
-            color: colorScheme.onSurface.withValues(alpha: 0.54),
-          ),
+          icon: Icon(Icons.chevron_left, color: colorScheme.onSurfaceVariant),
           iconSize: 20,
         ),
         Text(
@@ -346,10 +346,7 @@ class _CalendarHeader extends StatelessWidget {
         ),
         IconButton(
           onPressed: onNext,
-          icon: Icon(
-            Icons.chevron_right,
-            color: colorScheme.onSurface.withValues(alpha: 0.54),
-          ),
+          icon: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
           iconSize: 20,
         ),
       ],
@@ -373,6 +370,7 @@ class _CalendarGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     final daysInMonth = DateTime(viewDate.year, viewDate.month + 1, 0).day;
     final firstDayOffset =
         DateTime(viewDate.year, viewDate.month, 1).weekday % 7;
@@ -388,7 +386,7 @@ class _CalendarGrid extends StatelessWidget {
                 (l) => Text(
                   l,
                   style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.24),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -423,9 +421,9 @@ class _CalendarGrid extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Color(0xFF00D9A6)
+                      ? semantic.success
                       : isInRange
-                      ? Color(0xFF00D9A6).withValues(alpha: 0.1)
+                      ? semantic.success.withValues(alpha: 0.1)
                       : null,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -433,8 +431,8 @@ class _CalendarGrid extends StatelessWidget {
                   day.toString(),
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.black
-                        : colorScheme.onSurface.withValues(alpha: 0.7),
+                        ? semantic.onSuccess
+                        : colorScheme.onSurfaceVariant,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
