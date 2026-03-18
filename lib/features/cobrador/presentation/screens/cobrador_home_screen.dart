@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../cobros/data/models/hive/cobro_hive.dart';
 import '../../../locales/data/models/hive/local_hive.dart';
@@ -34,7 +34,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   bool _soloMensuales = false;
   bool _soloEventuales = false;
   String _searchQuery = '';
-  String _ordenActual = 'nombre'; // 'nombre', 'cuota', 'deuda'
+  String _ordenActual =
+      'nombre'; // nombre, nombre_desc, cuota, cuota_desc, deuda, deuda_desc
   final TextEditingController _searchController = TextEditingController();
   int _limiteLocales = 20;
 
@@ -430,77 +431,223 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
   }
 
   Future<void> _mostrarBottomSheetFiltros(BuildContext context) async {
-    await showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.filter_list,
-              size: 40,
-              color: Theme.of(ctx).colorScheme.primary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Ordenar por',
-              style: Theme.of(
-                ctx,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Radio<String>(
-                // ignore: deprecated_member_use
-                value: 'nombre',
-                // ignore: deprecated_member_use
-                groupValue: _ordenActual,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _ordenActual = value);
-                    Navigator.pop(ctx);
-                  }
-                },
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+
+        bool isCurrentOrder(String value) {
+          if (value == 'nombre') {
+            return _ordenActual == 'nombre' || _ordenActual == 'nombre_asc';
+          }
+          return _ordenActual == value;
+        }
+
+        Widget sortCard({
+          required String value,
+          required String title,
+          required String subtitle,
+          required IconData icon,
+        }) {
+          final isCurrent = isCurrentOrder(value);
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () {
+                setState(() {
+                  _ordenActual = value;
+                  _limiteLocales = 20;
+                });
+                Navigator.pop(ctx);
+              },
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.45,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isCurrent
+                        ? colorScheme.primary.withValues(alpha: 0.6)
+                        : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    width: isCurrent ? 1.4 : 1,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: (isCurrent
+                                  ? colorScheme.primary
+                                  : colorScheme.surfaceContainer)
+                              .withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 18,
+                          color: isCurrent
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          ctx,
+                        ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.68),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              title: const Text('Nombre A-Z'),
             ),
-            ListTile(
-              leading: Radio<String>(
-                // ignore: deprecated_member_use
-                value: 'cuota',
-                // ignore: deprecated_member_use
-                groupValue: _ordenActual,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _ordenActual = value);
-                    Navigator.pop(ctx);
-                  }
-                },
-              ),
-              title: const Text('Cantidad que se le cobra (menor a mayor)'),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.sort_rounded,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ordenar listado',
+                            style: Theme.of(
+                              ctx,
+                            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            'Toca una opción para aplicar de inmediato',
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                GridView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.28,
+                  ),
+                  children: [
+                    sortCard(
+                      value: 'nombre',
+                      title: 'Nombre A-Z',
+                      subtitle: 'Orden alfabético ascendente',
+                      icon: Icons.sort_by_alpha_rounded,
+                    ),
+                    sortCard(
+                      value: 'nombre_desc',
+                      title: 'Nombre Z-A',
+                      subtitle: 'Orden alfabético descendente',
+                      icon: Icons.sort_by_alpha_rounded,
+                    ),
+                    sortCard(
+                      value: 'cuota',
+                      title: 'Cuota: menor a mayor',
+                      subtitle: 'Mínimo primero',
+                      icon: Icons.payments_rounded,
+                    ),
+                    sortCard(
+                      value: 'cuota_desc',
+                      title: 'Cuota: mayor a menor',
+                      subtitle: 'Máximo primero',
+                      icon: Icons.payments_rounded,
+                    ),
+                    sortCard(
+                      value: 'deuda',
+                      title: 'Deuda: menor a mayor',
+                      subtitle: 'Menos deuda primero',
+                      icon: Icons.account_balance_wallet_rounded,
+                    ),
+                    sortCard(
+                      value: 'deuda_desc',
+                      title: 'Deuda: mayor a menor',
+                      subtitle: 'Más deuda primero',
+                      icon: Icons.account_balance_wallet_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cerrar'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _ordenActual = 'nombre';
+                            _limiteLocales = 20;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Restablecer A-Z'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            ListTile(
-              leading: Radio<String>(
-                // ignore: deprecated_member_use
-                value: 'deuda',
-                // ignore: deprecated_member_use
-                groupValue: _ordenActual,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _ordenActual = value);
-                    Navigator.pop(ctx);
-                  }
-                },
-              ),
-              title: const Text('Deuda (menor a mayor)'),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1382,7 +1529,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final localesAsync = ref.watch(localesCobradorProvider);
     final cobrosAsync = ref.watch(cobrosHoyCobradorProvider);
     final deudasVencidasMap =
-        ref.watch(deudasVencidasCobradorProvider).value ?? const <String, double>{};
+        ref.watch(deudasVencidasCobradorProvider).value ??
+        const <String, double>{};
 
     return localesAsync.when(
       loading: () =>
@@ -1511,18 +1659,32 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         }).toList();
 
         // Ordenar según el filtro seleccionado
-        if (_ordenActual == 'nombre') {
+        if (_ordenActual == 'nombre' || _ordenActual == 'nombre_asc') {
           localesFiltrados.sort(
             (a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''),
           );
-        } else if (_ordenActual == 'cuota') {
+        } else if (_ordenActual == 'nombre_desc') {
+          localesFiltrados.sort(
+            (a, b) => (b.nombreSocial ?? '').compareTo(a.nombreSocial ?? ''),
+          );
+        } else if (_ordenActual == 'cuota' || _ordenActual == 'cuota_asc') {
           localesFiltrados.sort(
             (a, b) => (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0),
           );
-        } else if (_ordenActual == 'deuda') {
+        } else if (_ordenActual == 'cuota_desc') {
+          localesFiltrados.sort(
+            (a, b) => (b.cuotaDiaria ?? 0).compareTo(a.cuotaDiaria ?? 0),
+          );
+        } else if (_ordenActual == 'deuda' || _ordenActual == 'deuda_asc') {
           localesFiltrados.sort(
             (a, b) => (deudasVencidasMap[a.id ?? ''] ?? 0).compareTo(
               deudasVencidasMap[b.id ?? ''] ?? 0,
+            ),
+          );
+        } else if (_ordenActual == 'deuda_desc') {
+          localesFiltrados.sort(
+            (a, b) => (deudasVencidasMap[b.id ?? ''] ?? 0).compareTo(
+              deudasVencidasMap[a.id ?? ''] ?? 0,
             ),
           );
         }
@@ -1535,6 +1697,8 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             .length;
 
         final colorScheme = Theme.of(context).colorScheme;
+        final filtrosActivos =
+            (_ordenActual == 'nombre' || _ordenActual == 'nombre_asc') ? 0 : 1;
 
         final localesPaginados = localesFiltrados.take(_limiteLocales).toList();
         final bool hasMore = localesFiltrados.length > _limiteLocales;
@@ -1782,10 +1946,44 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                     },
                                   ),
                                 IconButton(
-                                  icon: Icon(
-                                    Icons.filter_list,
-                                    color: colorScheme.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
+                                  icon: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Icon(
+                                        Icons.filter_list,
+                                        color: filtrosActivos > 0
+                                            ? colorScheme.primary
+                                            : colorScheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.7),
+                                      ),
+                                      if (filtrosActivos > 0)
+                                        Positioned(
+                                          top: -2,
+                                          right: -2,
+                                          child: Container(
+                                            width: 16,
+                                            height: 16,
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: colorScheme.surface,
+                                                width: 1.2,
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              '$filtrosActivos',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                                color: colorScheme.onPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   onPressed: () =>
                                       _mostrarBottomSheetFiltros(context),
@@ -1849,7 +2047,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   context,
                                 ).colorScheme.primary,
                                 onTap: () => setState(() {
-                                  _soloMensuales = !_soloMensuales;
+                                  final enabling = !_soloMensuales;
+                                  _soloMensuales = enabling;
+                                  if (enabling) _soloEventuales = false;
                                   _limiteLocales = 20;
                                 }),
                               ),
@@ -1864,7 +2064,9 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   context,
                                 ).colorScheme.primary,
                                 onTap: () => setState(() {
-                                  _soloEventuales = !_soloEventuales;
+                                  final enabling = !_soloEventuales;
+                                  _soloEventuales = enabling;
+                                  if (enabling) _soloMensuales = false;
                                   _limiteLocales = 20;
                                 }),
                               ),
