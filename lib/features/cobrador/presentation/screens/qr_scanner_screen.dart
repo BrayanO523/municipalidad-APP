@@ -170,6 +170,8 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     final montoCtrl = TextEditingController(text: '');
     final obsCtrl = TextEditingController();
+    bool usarSaldoFavor = false;
+    final montoSaldoFavorCtrl = TextEditingController();
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -210,6 +212,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                     Builder(
                       builder: (context) {
                         final currMonto = double.tryParse(montoCtrl.text) ?? 0;
+                        final currExtraer = usarSaldoFavor
+                            ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0)
+                            : 0;
                         final deudaVencidaActual = _deudaVencidaReal(local);
 
                         final dist = CalculadoraDistribucionPago.calcular(
@@ -219,8 +224,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                           pagadoHoyPreviamente: pagadoHoy,
                           saldoFavorInicial: local.saldoAFavor ?? 0,
                           fechaReferencia: DateTime.now(),
-                          autoComplementarCuotaConSaldo:
-                              false, // Alineando con la pantalla de inicio
+                          saldoAExtraer: currExtraer,
                         );
 
                         Widget buildDynamicRow({
@@ -309,7 +313,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                               : 'Adelanta del $ini al $fin';
                         }
 
-                        final isTyping = currMonto > 0;
+                        final isTyping = currMonto > 0 || currExtraer > 0;
                         final realFaltanteHoy =
                             ((local.cuotaDiaria ?? 0) - pagadoHoy).clamp(
                               0,
@@ -400,7 +404,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                   bottom: 8.0,
                                 ),
                                 child: Text(
-                                  'Se auto-complementará L${dist.saldoFavorConsumido.toStringAsFixed(2)} del saldo previo.',
+                                  'Se usará L${dist.saldoFavorConsumido.toStringAsFixed(2)} del saldo a favor.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppColors.warning,
@@ -431,6 +435,94 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                       ),
                     ),
 
+                    if ((local.saldoAFavor ?? 0) > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    '¿Usar saldo a favor?',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                Switch(
+                                  value: usarSaldoFavor,
+                                  onChanged: (val) {
+                                    setModalState(() {
+                                      usarSaldoFavor = val;
+                                      if (val) {
+                                        montoSaldoFavorCtrl.text =
+                                            (local.saldoAFavor ?? 0)
+                                                .toDouble()
+                                                .toStringAsFixed(2);
+                                      } else {
+                                        montoSaldoFavorCtrl.clear();
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (usarSaldoFavor) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: montoSaldoFavorCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Monto a usar (L)',
+                                  prefixIcon: Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    size: 20,
+                                  ),
+                                  isDense: true,
+                                ),
+                                onChanged: (val) {
+                                  final parsed = double.tryParse(val) ?? 0;
+                                  final maxSaldo =
+                                      (local.saldoAFavor ?? 0).toDouble();
+                                  if (parsed > maxSaldo) {
+                                    montoSaldoFavorCtrl.text = maxSaldo
+                                        .toStringAsFixed(2);
+                                    montoSaldoFavorCtrl.selection =
+                                        TextSelection.fromPosition(
+                                          TextPosition(
+                                            offset:
+                                                montoSaldoFavorCtrl.text.length,
+                                          ),
+                                        );
+                                  }
+                                  setModalState(() {});
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 16),
 
                     TextField(
@@ -455,7 +547,18 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                           child: FilledButton(
                             onPressed: () async {
                               final monto = num.tryParse(montoCtrl.text) ?? 0;
-                              if (monto <= 0) return;
+                              final maxSaldo =
+                                  (local.saldoAFavor ?? 0).toDouble();
+                              final saldoAExtraerRaw = usarSaldoFavor
+                                  ? (double.tryParse(montoSaldoFavorCtrl.text) ?? 0)
+                                  : 0;
+                              final saldoAExtraer = saldoAExtraerRaw.clamp(
+                                0.0,
+                                maxSaldo,
+                              );
+                              final hayMovimiento =
+                                  monto > 0 || saldoAExtraer > 0;
+                              if (!hayMovimiento) return;
                               Navigator.pop(ctx);
                               final usuario = ref
                                   .read(currentUsuarioProvider)
@@ -463,6 +566,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                               await _guardarCobro(
                                 local: local,
                                 monto: monto,
+                                saldoAExtraer: saldoAExtraer,
                                 observaciones: obsCtrl.text,
                                 usuario: usuario,
                                 pagadoHoy: pagadoHoy.toDouble(),
@@ -486,6 +590,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   Future<void> _guardarCobro({
     required Local local,
     required num monto,
+    required num saldoAExtraer,
     required String observaciones,
     required dynamic usuario,
     required double pagadoHoy,
@@ -513,7 +618,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     final now = DateTime.now();
 
-    // Usamos la calculadora centralizada que aplica FIFO y auto-complemento de cuota
+    // Usamos la calculadora centralizada con extracción manual de saldo a favor.
     final dist = CalculadoraDistribucionPago.calcular(
       montoEfectivo: monto,
       deudaAcumuladaInicial: deudaTotalInicial,
@@ -521,7 +626,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       pagadoHoyPreviamente: pagadoHoy,
       saldoFavorInicial: saldoFavorExistente,
       fechaReferencia: now,
-      autoComplementarCuotaConSaldo: true,
+      saldoAExtraer: saldoAExtraer,
     );
 
     // Estado resultante de la jornada de hoy

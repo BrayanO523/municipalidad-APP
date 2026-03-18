@@ -12,8 +12,13 @@ class DateRangeFormatter {
   static String? formatearRangos(List<DateTime> fechas) {
     if (fechas.isEmpty) return null;
 
+    // Normalizar a inicio de día para evitar cortes falsos por horas/minutos.
+    final normalizadas = fechas
+        .map((d) => DateTime(d.year, d.month, d.day))
+        .toList();
+
     // Ordenar y eliminar duplicados (mismo día)
-    final sorted = fechas.toList()
+    final sorted = normalizadas
       ..sort((a, b) => a.compareTo(b));
 
     final uniqueDays = <DateTime>[sorted.first];

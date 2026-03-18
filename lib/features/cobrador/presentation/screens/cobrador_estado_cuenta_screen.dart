@@ -925,15 +925,23 @@ class _CobrosList extends ConsumerWidget {
       }
     }
 
-    String? periodoAbonadoStr;
-    if (fechasRes.isNotEmpty) {
-      periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
-    }
-
     final cuotaLocal = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
     double abonoCuotaHoy = (c.pagoACuota ?? 0).toDouble();
     double pagoHoy = cuotaLocal - abonoCuotaHoy;
     if (pagoHoy < 0) pagoHoy = 0;
+
+    final fechasAMostrar = <DateTime>[...fechasRes];
+    if (abonoCuotaHoy > 0) {
+      final f = c.fecha ?? c.creadoEn ?? DateTime.now();
+      final hoyCobrado = DateTime(f.year, f.month, f.day);
+      final yaIncluida = fechasAMostrar.any(
+        (d) => d.year == hoyCobrado.year && d.month == hoyCobrado.month && d.day == hoyCobrado.day,
+      );
+      if (!yaIncluida) fechasAMostrar.add(hoyCobrado);
+    }
+    final String? periodoAbonadoStr = fechasAMostrar.isNotEmpty
+        ? DateRangeFormatter.formatearRangos(fechasAMostrar)
+        : null;
 
     // El saldoPendiente guardado incluye la cuota del día no pagada.
     // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real,
@@ -962,7 +970,7 @@ class _CobrosList extends ConsumerWidget {
         municipalidadNombre: muni?.nombre ?? 'MUNICIPALIDAD',
         mercadoNombre: merc?.nombre,
         cobradorNombre: user?.nombre,
-        fechasSaldadas: c.fechasDeudasSaldadas,
+        fechasSaldadas: fechasAMostrar,
         periodoAbonadoStr: periodoAbonadoStr,
         periodoSaldoAFavorStr: periodoFavorStr,
         slogan: muni?.slogan,
@@ -1006,15 +1014,23 @@ class _CobrosList extends ConsumerWidget {
       }
     }
 
-    String? periodoAbonadoStr;
-    if (fechasRes.isNotEmpty) {
-      periodoAbonadoStr = DateRangeFormatter.formatearRangos(fechasRes);
-    }
-
     final cuotaLocal = (c.cuotaDiaria ?? local.cuotaDiaria ?? 0).toDouble();
     double abonoCuotaHoy = (c.pagoACuota ?? 0).toDouble();
     double pagoHoy = cuotaLocal - abonoCuotaHoy;
     if (pagoHoy < 0) pagoHoy = 0;
+
+    final fechasAMostrar = <DateTime>[...fechasRes];
+    if (abonoCuotaHoy > 0) {
+      final f = c.fecha ?? c.creadoEn ?? DateTime.now();
+      final hoyCobrado = DateTime(f.year, f.month, f.day);
+      final yaIncluida = fechasAMostrar.any(
+        (d) => d.year == hoyCobrado.year && d.month == hoyCobrado.month && d.day == hoyCobrado.day,
+      );
+      if (!yaIncluida) fechasAMostrar.add(hoyCobrado);
+    }
+    final String? periodoAbonadoStr = fechasAMostrar.isNotEmpty
+        ? DateRangeFormatter.formatearRangos(fechasAMostrar)
+        : null;
 
     // El saldoPendiente guardado incluye la cuota del día no pagada.
     // Para el recibo, la "Deuda actual" solo debe reflejar deuda VENCIDA real.
@@ -1041,7 +1057,7 @@ class _CobrosList extends ConsumerWidget {
         muni: muni?.nombre ?? 'MUNICIPALIDAD',
         merc: merc?.nombre,
         cobrador: user?.nombre,
-        fechasSaldadas: c.fechasDeudasSaldadas,
+        fechasSaldadas: fechasAMostrar,
         periodoAbonadoStr: periodoAbonadoStr,
         periodoSaldoAFavorStr: periodoFavorStr,
         slogan: muni?.slogan,
