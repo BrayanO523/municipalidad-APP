@@ -142,4 +142,30 @@ class GestionDatasource {
           .toList();
     });
   }
+
+  /// Actualiza una gestión/incidencia existente.
+  Future<void> actualizarGestion({
+    required String id,
+    required String localId,
+    required String cobradorId,
+    required String tipoIncidencia,
+    String? comentario,
+    String? municipalidadId,
+    String? mercadoId,
+  }) async {
+    await _ref.doc(id).update({
+      'localId': localId,
+      'cobradorId': cobradorId,
+      'tipoIncidencia': tipoIncidencia,
+      'comentario': comentario ?? '',
+      'municipalidadId': municipalidadId,
+      'mercadoId': mercadoId,
+      'actualizadoEn': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Elimina una gestión/incidencia por id.
+  Future<void> eliminarGestion(String id) async {
+    await _ref.doc(id).delete();
+  }
 }

@@ -15,6 +15,41 @@ import '../../../cobros/presentation/viewmodels/cobro_viewmodel.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../widgets/incidencia_bottom_sheet.dart';
 
+bool _mismoDia(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+double _deudaHastaAyer({
+  required Local local,
+  required Map<String, double>? deudasMap,
+  required List<Cobro> cobrosHoy,
+}) {
+  final localId = local.id;
+  if (localId != null && deudasMap != null && deudasMap.containsKey(localId)) {
+    return (deudasMap[localId] ?? 0).toDouble();
+  }
+
+  final deudaBase = (local.deudaAcumulada ?? 0).toDouble();
+  if (deudaBase <= 0 || localId == null) return deudaBase;
+
+  final hoy = DateTime.now();
+  final deudaHoy = cobrosHoy
+      .where((c) {
+        if (c.localId != localId) return false;
+        final estado = (c.estado ?? '').toLowerCase();
+        if (estado != 'pendiente' && estado != 'abono_parcial') return false;
+        final fecha = c.fecha ?? c.creadoEn;
+        if (fecha == null) return false;
+        return _mismoDia(fecha, hoy);
+      })
+      .fold<double>(
+        0,
+        (sum, c) => sum + (c.saldoPendiente ?? c.cuotaDiaria ?? 0).toDouble(),
+      );
+
+  return (deudaBase - deudaHoy).clamp(0.0, double.infinity);
+}
+
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
 
@@ -31,10 +66,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   String? _error;
 
   double _deudaVencidaReal(Local local) {
-    final localId = local.id;
-    if (localId == null) return (local.deudaAcumulada ?? 0).toDouble();
     final deudasMap = ref.read(deudasVencidasCobradorProvider).value;
-    return deudasMap?[localId] ?? (local.deudaAcumulada ?? 0).toDouble();
+    final cobrosHoy = ref.read(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
+    return _deudaHastaAyer(
+      local: local,
+      deudasMap: deudasMap,
+      cobrosHoy: cobrosHoy,
+    );
   }
 
   @override
@@ -295,7 +333,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                 ),
                               if (deudaVencidaActual > 0)
                                 buildDynamicRow(
-                                  label: 'Deuda acumulada',
+                                  label: 'Deuda acumulada (hasta ayer)',
                                   value: DateFormatter.formatCurrency(
                                     deudaVencidaActual,
                                   ),
@@ -859,8 +897,12 @@ class _LocalDetailPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final deudasMap = ref.watch(deudasVencidasCobradorProvider).value;
-    final deuda =
-        deudasMap?[local.id] ?? (local.deudaAcumulada ?? 0).toDouble();
+    final cobrosHoy = ref.watch(cobrosHoyCobradorProvider).value ?? const <Cobro>[];
+    final deuda = _deudaHastaAyer(
+      local: local,
+      deudasMap: deudasMap,
+      cobrosHoy: cobrosHoy,
+    );
 
     final mercados = ref
         .watch(mercadosProvider)
@@ -960,17 +1002,22 @@ class _LocalDetailPanel extends ConsumerWidget {
                         final dias = (deuda / cuota).floor();
                         if (dias > 0) {
                           final hoy = DateTime.now();
-                          final inicio = DateTime(
+                          final fin = DateTime(
                             hoy.year,
                             hoy.month,
                             hoy.day,
-                          ).subtract(Duration(days: dias));
+                          ).subtract(const Duration(days: 1));
+                          final inicio = DateTime(
+                            fin.year,
+                            fin.month,
+                            fin.day,
+                          ).subtract(Duration(days: dias - 1));
                           final iniStr =
                               '${inicio.day.toString().padLeft(2, '0')}/${inicio.month.toString().padLeft(2, '0')}/${inicio.year}';
                           final finStr =
-                              '${hoy.day.toString().padLeft(2, '0')}/${hoy.month.toString().padLeft(2, '0')}/${hoy.year}';
+                              '${fin.day.toString().padLeft(2, '0')}/${fin.month.toString().padLeft(2, '0')}/${fin.year}';
                           rangoDeuda = dias == 1
-                              ? 'Desde el $iniStr'
+                              ? 'Fecha: $finStr'
                               : 'Del $iniStr al $finStr ($dias días)';
                         }
                       }
@@ -988,7 +1035,7 @@ class _LocalDetailPanel extends ConsumerWidget {
                             ),
                           if (deuda > 0)
                             _FinanceRow(
-                              label: 'Deuda acumulada',
+                              label: 'Deuda acumulada (hasta ayer)',
                               value: DateFormatter.formatCurrency(deuda),
                               subtitle: rangoDeuda,
                               valueColor: AppColors.danger,

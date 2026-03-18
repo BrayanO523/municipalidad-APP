@@ -54,8 +54,8 @@ class IncidenciasAdminNotifier extends AsyncNotifier<List<IncidenciaUI>> {
     for (var l in locales) {
       localCache[l.id] = {
         'nombre': l.nombreSocial ?? 'Sin nombre',
-        'clave': l.clave ?? '-',
-        'codigo': l.codigoCatastral ?? '-',
+        'clave': l.clave ?? l.codigoCatastral ?? '-',
+        'codigo': l.codigo ?? l.codigoCatastral ?? '-',
       };
     }
 
@@ -94,6 +94,54 @@ class IncidenciasAdminNotifier extends AsyncNotifier<List<IncidenciaUI>> {
   Future<void> cargarIncidencias() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetchData());
+  }
+
+  Future<void> crearIncidencia({
+    required String localId,
+    required String cobradorId,
+    required String tipoIncidencia,
+    required String comentario,
+    required String municipalidadId,
+    String? mercadoId,
+  }) async {
+    final ds = ref.read(gestionDatasourceProvider);
+    await ds.registrarGestion(
+      localId: localId,
+      cobradorId: cobradorId,
+      tipoIncidencia: tipoIncidencia,
+      comentario: comentario,
+      municipalidadId: municipalidadId,
+      mercadoId: mercadoId,
+    );
+    await cargarIncidencias();
+  }
+
+  Future<void> editarIncidencia({
+    required String id,
+    required String localId,
+    required String cobradorId,
+    required String tipoIncidencia,
+    required String comentario,
+    required String municipalidadId,
+    String? mercadoId,
+  }) async {
+    final ds = ref.read(gestionDatasourceProvider);
+    await ds.actualizarGestion(
+      id: id,
+      localId: localId,
+      cobradorId: cobradorId,
+      tipoIncidencia: tipoIncidencia,
+      comentario: comentario,
+      municipalidadId: municipalidadId,
+      mercadoId: mercadoId,
+    );
+    await cargarIncidencias();
+  }
+
+  Future<void> eliminarIncidencia(String id) async {
+    final ds = ref.read(gestionDatasourceProvider);
+    await ds.eliminarGestion(id);
+    await cargarIncidencias();
   }
 
   void filtrarPorFecha(DateTime fecha) {
