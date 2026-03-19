@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -20,19 +22,358 @@ class MercadosScreen extends ConsumerStatefulWidget {
 }
 
 class _MercadosScreenState extends ConsumerState<MercadosScreen> {
-  String _searchColumn = 'Nombre';
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  String _searchColumn = 'Todos';
+  String _estadoFilter = 'Todos';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(mercadosPaginadosProvider.notifier).cargarPagina();
     });
   }
 
   @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      ref
+          .read(mercadosPaginadosProvider.notifier)
+          .aplicarFiltros(
+            searchQuery: value,
+            searchColumn: _searchColumn,
+            estadoFilter: _estadoFilter,
+          );
+    });
+  }
+
+  Future<void> _limpiarFiltros() async {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    setState(() {
+      _searchColumn = 'Todos';
+      _estadoFilter = 'Todos';
+    });
+    await ref.read(mercadosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  Future<void> _abrirFiltrosBottomSheet({
+    required BuildContext context,
+    required MercadosPaginadosNotifier notifier,
+    required MercadosPaginadosState state,
+  }) async {
+    var ordenarAsc = state.ordenarNombreAsc;
+    var estadoFilter = state.estadoFilter;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final colorScheme = Theme.of(sheetCtx).colorScheme;
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            Future<void> applyAndClose() async {
+              await notifier.aplicarFiltros(
+                searchQuery: _searchCtrl.text,
+                searchColumn: _searchColumn,
+                ordenarNombreAsc: ordenarAsc,
+                estadoFilter: estadoFilter,
+              );
+              if (mounted) {
+                setState(() => _estadoFilter = estadoFilter);
+              }
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            Future<void> resetAndClose() async {
+              _debounce?.cancel();
+              _searchCtrl.clear();
+              if (mounted) {
+                setState(() {
+                  _searchColumn = 'Todos';
+                  _estadoFilter = 'Todos';
+                });
+              }
+              await notifier.restablecerFiltros();
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                                colorScheme.secondaryContainer.withValues(
+                                  alpha: 0.62,
+                                ),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.24,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filtros de Mercados',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    Text(
+                                      'Ajusta el orden para revisar mas rapido.',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.toggle_on_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Estado',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _StatusModeChip(
+                                      label: 'Todos',
+                                      selected: estadoFilter == 'Todos',
+                                      onTap: () => setSheetState(
+                                        () => estadoFilter = 'Todos',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _StatusModeChip(
+                                      label: 'Activo',
+                                      selected: estadoFilter == 'Activo',
+                                      onTap: () => setSheetState(
+                                        () => estadoFilter = 'Activo',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _StatusModeChip(
+                                      label: 'Inactivo',
+                                      selected: estadoFilter == 'Inactivo',
+                                      onTap: () => setSheetState(
+                                        () => estadoFilter = 'Inactivo',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.sort_by_alpha_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Orden alfabetico',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'A - Z',
+                                      selected: ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Z - A',
+                                      selected: !ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = false,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: resetAndClose,
+                                icon: const Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Restablecer'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: applyAndClose,
+                                icon: const Icon(Icons.check_rounded, size: 16),
+                                label: const Text('Aplicar'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(mercadosPaginadosProvider);
+    final notifier = ref.read(mercadosPaginadosProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -47,15 +388,29 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _MercadosHeader(
-                  onSearch: (q) =>
-                      ref.read(mercadosPaginadosProvider.notifier).buscar(q),
+                  paginaActual: state.paginaActual,
+                  totalRegistros: state.totalRegistros,
+                  searchController: _searchCtrl,
+                  onSearch: _onSearchChanged,
                   onAdd: () => _showFormDialog(context),
                   selectedColumn: _searchColumn,
                   onColumnChanged: (val) {
                     if (val != null) {
                       setState(() => _searchColumn = val);
+                      notifier.aplicarFiltros(
+                        searchQuery: _searchCtrl.text,
+                        searchColumn: val,
+                        estadoFilter: _estadoFilter,
+                      );
                     }
                   },
+                  onReload: notifier.recargar,
+                  onOpenFilters: () => _abrirFiltrosBottomSheet(
+                    context: context,
+                    notifier: notifier,
+                    state: state,
+                  ),
+                  onResetFilters: () => _limpiarFiltros(),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -93,7 +448,8 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                             ),
                             const SizedBox(height: 16),
                             _PaginationBar(
-                              currentPage: state.paginaActual - 1,
+                              currentPage: state.paginaActual,
+                              totalPages: state.totalPaginas,
                               onPrev: state.paginaActual > 1
                                   ? () => ref
                                         .read(
@@ -101,7 +457,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                                         )
                                         .irAPaginaAnterior()
                                   : null,
-                              onNext: state.hayMas
+                              onNext: state.paginaActual < state.totalPaginas
                                   ? () => ref
                                         .read(
                                           mercadosPaginadosProvider.notifier,
@@ -304,181 +660,389 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
 }
 
 class _MercadosHeader extends StatelessWidget {
+  final int paginaActual;
+  final int totalRegistros;
+  final TextEditingController searchController;
   final ValueChanged<String> onSearch;
   final VoidCallback onAdd;
   final String selectedColumn;
   final ValueChanged<String?> onColumnChanged;
+  final VoidCallback onReload;
+  final VoidCallback onOpenFilters;
+  final VoidCallback onResetFilters;
 
   const _MercadosHeader({
+    required this.paginaActual,
+    required this.totalRegistros,
+    required this.searchController,
     required this.onSearch,
     required this.onAdd,
     required this.selectedColumn,
     required this.onColumnChanged,
+    required this.onReload,
+    required this.onOpenFilters,
+    required this.onResetFilters,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: context.webHeaderDecoration(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final isDesktop = w >= 1100;
+            final isTablet = w >= 760 && w < 1100;
+            final isMobile = w < 760;
 
-        if (isMobile) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Mercados',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Gestión de mercados de QRecauda',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                onChanged: onSearch,
-                decoration: const InputDecoration(
-                  hintText: 'Buscar...',
-                  prefixIcon: Icon(Icons.search_rounded, size: 20),
-                  isDense: true,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
+            Widget actions({required bool compact}) {
+              final compactStyle = OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              );
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  Container(
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onReload,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('Recargar'),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedColumn,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onOpenFilters,
+                      icon: const Icon(Icons.tune_rounded, size: 15),
+                      label: const Text('Filtros'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onResetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
                         ),
-                        isDense: true,
-                        dropdownColor: Theme.of(context).colorScheme.surface,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 13,
-                        ),
-                        items: ['Nombre', 'Ubicación'].map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: onColumnChanged,
                       ),
+                      onPressed: onAdd,
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: const Text('Agregar'),
                     ),
                   ),
-                  const Spacer(),
-                  ElevatedButton.icon(
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add_rounded, size: 20),
-                    label: const Text('Agregar'),
-                  ),
                 ],
-              ),
-            ],
-          );
-        }
+              );
+            }
 
-        return Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            final headerLeft = Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.storefront_rounded,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mercados',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                      ),
+                      Text(
+                        'Pagina $paginaActual - $totalRegistros registros',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.62),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
+            final header = isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      headerLeft,
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: actions(compact: true),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: headerLeft),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: actions(compact: !isDesktop),
+                        ),
+                      ),
+                    ],
+                  );
+
+            Widget filtersDesktop() {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'Mercados',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  SizedBox(
+                    width: 220,
+                    child: _SearchColumnDropdown(
+                      value: selectedColumn,
+                      onChanged: onColumnChanged,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Gestión de mercados de QRecauda',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SearchInput(
+                      controller: searchController,
+                      onChanged: onSearch,
                     ),
                   ),
                 ],
-              ),
-            ),
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              );
+            }
+
+            Widget filtersTablet() {
+              return Column(
+                children: [
+                  _SearchColumnDropdown(
+                    value: selectedColumn,
+                    onChanged: onColumnChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  _SearchInput(
+                    controller: searchController,
+                    onChanged: onSearch,
+                  ),
+                ],
+              );
+            }
+
+            final filtersGroup = Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedColumn,
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                  ),
-                  isDense: true,
-                  dropdownColor: Theme.of(context).colorScheme.surface,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 13,
-                  ),
-                  items: ['Nombre', 'Ubicación'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: onColumnChanged,
+                borderRadius: BorderRadius.circular(12),
+                color: Color.alphaBlend(
+                  colorScheme.primary.withValues(alpha: 0.01),
+                  colorScheme.surfaceContainerLowest,
+                ),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.36),
                 ),
               ),
+              child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [header, const SizedBox(height: 8), filtersGroup],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchColumnDropdown extends StatelessWidget {
+  final String value;
+  final ValueChanged<String?> onChanged;
+
+  const _SearchColumnDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      decoration: InputDecoration(
+        labelText: 'Buscar por',
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+        DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
+        DropdownMenuItem(value: 'Ubicacion', child: Text('Ubicacion')),
+        DropdownMenuItem(value: 'Estado', child: Text('Estado')),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _SearchInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _SearchInput({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Buscar mercado',
+        hintText: 'Nombre, ubicacion o estado...',
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _OrderModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _OrderModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.16)
+              : colorScheme.surface,
+          border: Border.all(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.7)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
-            SizedBox(
-              width: 260,
-              child: TextField(
-                onChanged: onSearch,
-                decoration: const InputDecoration(
-                  hintText: 'Buscar...',
-                  prefixIcon: Icon(Icons.search_rounded, size: 20),
-                  isDense: true,
-                ),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
               ),
             ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: const Text('Agregar'),
-            ),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StatusModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.16)
+              : colorScheme.surface,
+          border: Border.all(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.7)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected ? colorScheme.primary : colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -580,12 +1144,14 @@ class _ActiveChip extends StatelessWidget {
 
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
+  final int totalPages;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final bool isCargando;
 
   const _PaginationBar({
     required this.currentPage,
+    required this.totalPages,
     required this.onPrev,
     required this.onNext,
     required this.isCargando,
@@ -615,7 +1181,7 @@ class _PaginationBar extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          'Página ${currentPage + 1}',
+          'Pagina $currentPage de $totalPages',
           style: TextStyle(
             color: Theme.of(
               context,

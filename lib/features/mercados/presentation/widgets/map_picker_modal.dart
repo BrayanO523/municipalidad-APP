@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../app/theme/app_theme.dart';
 
@@ -33,12 +35,59 @@ class MapPickerModal extends StatefulWidget {
 class _MapPickerModalState extends State<MapPickerModal> {
   final List<LatLng> _points = [];
   final MapController _mapController = MapController();
+  LatLng? _currentPosition;
+  bool _isMapReady = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.initialPoints != null) {
       _points.addAll(widget.initialPoints!);
+    }
+    _detectarUbicacionActual();
+  }
+
+  LatLng get _initialMapCenter {
+    return _currentPosition ??
+        widget.initialCenter ??
+        (widget.initialPoints?.isNotEmpty == true
+            ? widget.initialPoints!.first
+            : const LatLng(14.582, -90.589));
+  }
+
+  Future<void> _detectarUbicacionActual() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+
+      final point = LatLng(pos.latitude, pos.longitude);
+      setState(() => _currentPosition = point);
+
+      if (_isMapReady) {
+        _moverMapa(point, zoom: widget.initialZoom ?? 15.0);
+      }
+    } catch (_) {
+      // Mantener fallback actual si falla GPS/permisos.
+    }
+  }
+
+  void _moverMapa(LatLng point, {double zoom = 15.0}) {
+    try {
+      _mapController.move(point, zoom);
+    } catch (_) {
+      // Evita romper la UI si el mapa aun no esta listo.
     }
   }
 
@@ -107,22 +156,28 @@ class _MapPickerModalState extends State<MapPickerModal> {
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter:
-                          widget.initialCenter ??
-                          (widget.initialPoints?.isNotEmpty == true
-                              ? widget.initialPoints!.first
-                              : const LatLng(
-                                  14.582,
-                                  -90.589,
-                                )), // Villa Nueva aprox
+                      initialCenter: _initialMapCenter,
                       initialZoom: widget.initialZoom ?? 15.0,
                       onTap: _handleTap,
+                      onMapReady: () {
+                        _isMapReady = true;
+                        if (_currentPosition != null) {
+                          _moverMapa(
+                            _currentPosition!,
+                            zoom: widget.initialZoom ?? 15.0,
+                          );
+                        }
+                      },
                     ),
                     children: [
                       TileLayer(
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.municipalidad.app',
+                        tileProvider: NetworkTileProvider(
+                          abortObsoleteRequests: !kIsWeb,
+                          silenceExceptions: kIsWeb,
+                        ),
                       ),
 
                       // Perímetro del mercado (contexto)
