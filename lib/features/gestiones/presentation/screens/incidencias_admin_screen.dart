@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../domain/entities/gestion.dart';
 import '../viewmodels/incidencias_admin_notifier.dart';
 
@@ -16,7 +20,33 @@ class IncidenciasAdminScreen extends ConsumerStatefulWidget {
 
 class _IncidenciasAdminScreenState
     extends ConsumerState<IncidenciasAdminScreen> {
+  static const int _pageSize = 20;
+
   DateTime? _fechaFiltro;
+  int _paginaActual = 1;
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+  String? _sortColumn;
+  bool _sortAsc = true;
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () {
+      if (!mounted) return;
+      setState(() {
+        _searchQuery = value.trim().toLowerCase();
+        _paginaActual = 1;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _seleccionarFecha() async {
     final picked = await showDatePicker(
@@ -37,14 +67,121 @@ class _IncidenciasAdminScreenState
     );
 
     if (picked != null) {
-      setState(() => _fechaFiltro = picked);
+      setState(() {
+        _fechaFiltro = picked;
+        _paginaActual = 1;
+      });
       ref.read(incidenciasAdminProvider.notifier).filtrarPorFecha(picked);
     }
   }
 
-  void _limpiarFiltro() {
-    setState(() => _fechaFiltro = null);
+  void _limpiarFiltroFecha() {
+    setState(() {
+      _fechaFiltro = null;
+      _paginaActual = 1;
+    });
     ref.read(incidenciasAdminProvider.notifier).cargarIncidencias();
+  }
+
+  void _recargarIncidencias() {
+    setState(() => _paginaActual = 1);
+    if (_fechaFiltro != null) {
+      ref
+          .read(incidenciasAdminProvider.notifier)
+          .filtrarPorFecha(_fechaFiltro!);
+    } else {
+      ref.read(incidenciasAdminProvider.notifier).cargarIncidencias();
+    }
+  }
+
+  void _restablecerFiltrosVisuales() {
+    _searchCtrl.clear();
+    setState(() {
+      _searchQuery = '';
+      _paginaActual = 1;
+      _sortColumn = null;
+      _sortAsc = true;
+    });
+    if (_fechaFiltro != null) {
+      _limpiarFiltroFecha();
+      return;
+    }
+    ref.read(incidenciasAdminProvider.notifier).cargarIncidencias();
+  }
+
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        if (_sortAsc) {
+          _sortAsc = false;
+        } else {
+          _sortColumn = null;
+          _sortAsc = true;
+        }
+      } else {
+        _sortColumn = column;
+        _sortAsc = true;
+      }
+    });
+  }
+
+  List<IncidenciaUI> _applySort(List<IncidenciaUI> lista) {
+    if (_sortColumn == null) return lista;
+    final sorted = List<IncidenciaUI>.from(lista);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case 'Local':
+          cmp = a.localNombre.toLowerCase().compareTo(
+            b.localNombre.toLowerCase(),
+          );
+        case 'Clave':
+          cmp = a.localClave.toLowerCase().compareTo(
+            b.localClave.toLowerCase(),
+          );
+        case 'Tipo':
+          cmp = _tipoIncidenciaLabel(a.gestion.tipoIncidencia)
+              .toLowerCase()
+              .compareTo(
+                _tipoIncidenciaLabel(b.gestion.tipoIncidencia).toLowerCase(),
+              );
+        case 'Comentario':
+          cmp = (a.gestion.comentario ?? '').toLowerCase().compareTo(
+            (b.gestion.comentario ?? '').toLowerCase(),
+          );
+        case 'Cobrador':
+          cmp = a.cobradorNombre.toLowerCase().compareTo(
+            b.cobradorNombre.toLowerCase(),
+          );
+        case 'Fecha':
+          cmp = (a.gestion.timestamp ?? DateTime(2000)).compareTo(
+            b.gestion.timestamp ?? DateTime(2000),
+          );
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
+  List<IncidenciaUI> _filtrarPorBusqueda(
+    List<IncidenciaUI> incidencias,
+    String query,
+  ) {
+    if (query.isEmpty) return incidencias;
+    return incidencias.where((inc) {
+      final comentario = (inc.gestion.comentario ?? '').toLowerCase();
+      final tipo = _tipoIncidenciaLabel(
+        inc.gestion.tipoIncidencia,
+      ).toLowerCase();
+      return inc.localNombre.toLowerCase().contains(query) ||
+          inc.localClave.toLowerCase().contains(query) ||
+          inc.localCodigo.toLowerCase().contains(query) ||
+          inc.cobradorNombre.toLowerCase().contains(query) ||
+          comentario.contains(query) ||
+          tipo.contains(query);
+    }).toList();
   }
 
   String _tipoIncidenciaLabel(String? raw) {
@@ -180,7 +317,7 @@ class _IncidenciasAdminScreenState
                           (l) => DropdownMenuItem<String>(
                             value: l.id,
                             child: Text(
-                              '${l.nombreSocial ?? 'Sin nombre'} | Cód: ${l.codigo ?? '-'}',
+                              '${l.nombreSocial ?? 'Sin nombre'} | Cod: ${l.codigo ?? '-'}',
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -308,241 +445,776 @@ class _IncidenciasAdminScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(incidenciasAdminProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final incidenciasBase = state.maybeWhen(
+      data: (value) => value,
+      orElse: () => const <IncidenciaUI>[],
+    );
+    final incidenciasFiltradas = _filtrarPorBusqueda(
+      incidenciasBase,
+      _searchQuery,
+    );
+
+    final incidenciasSorted = _applySort(incidenciasFiltradas);
+
+    final totalPaginas =
+        incidenciasSorted.isEmpty
+            ? 1
+            : (incidenciasSorted.length / _pageSize).ceil();
+    final paginaActual = _paginaActual.clamp(1, totalPaginas);
+    final inicio = (paginaActual - 1) * _pageSize;
+    final fin =
+        (inicio + _pageSize > incidenciasSorted.length)
+            ? incidenciasSorted.length
+            : inicio + _pageSize;
+    final incidenciasPagina =
+        incidenciasSorted.isEmpty
+            ? const <IncidenciaUI>[]
+            : incidenciasSorted.sublist(inicio, fin);
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Incidencias Reportadas'),
-        elevation: 0,
-        actions: [
-          if (_fechaFiltro != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              child: ActionChip(
-                label: Text(DateFormatter.formatDate(_fechaFiltro!)),
-                onPressed: _limpiarFiltro,
-                avatar: const Icon(Icons.close, size: 16),
-                backgroundColor: colorScheme.primaryContainer,
-              ),
-            ),
-          IconButton(
-            icon: const Icon(Icons.filter_alt_rounded),
-            tooltip: 'Filtrar por fecha',
-            onPressed: _seleccionarFecha,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualizar',
-            onPressed: () {
-              if (_fechaFiltro != null) {
-                ref
-                    .read(incidenciasAdminProvider.notifier)
-                    .filtrarPorFecha(_fechaFiltro!);
-              } else {
-                ref.read(incidenciasAdminProvider.notifier).cargarIncidencias();
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'Crear incidencia',
-            onPressed: () => _abrirFormularioIncidencia(),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: state.when(
-        data: (incidencias) {
-          if (incidencias.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 64,
-                    color: colorScheme.onSurface.withValues(alpha: 0.3),
+      backgroundColor: Colors.transparent,
+      body: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final isMobile = outerConstraints.maxWidth <= 700;
+          return Padding(
+            padding: isMobile
+                ? const EdgeInsets.all(12)
+                : const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _IncidenciasHeader(
+                  paginaActual: paginaActual,
+                  totalRegistros: incidenciasFiltradas.length,
+                  searchController: _searchCtrl,
+                  onSearch: _onSearchChanged,
+                  fechaFiltro: _fechaFiltro,
+                  onSelectFecha: _seleccionarFecha,
+                  onClearFecha: _limpiarFiltroFecha,
+                  onReload: _recargarIncidencias,
+                  onResetFilters: _restablecerFiltrosVisuales,
+                  onCreateIncidencia: () => _abrirFormularioIncidencia(),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              if (state.isLoading && incidenciasBase.isEmpty) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+
+                              if (state.hasError && incidenciasBase.isEmpty) {
+                                final err = state.asError?.error;
+                                return Center(
+                                  child: Text(
+                                    'Error: $err',
+                                    style: TextStyle(
+                                      color: context.semanticColors.danger,
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              if (incidenciasFiltradas.isEmpty) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_outline_rounded,
+                                        size: 48,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.24),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _searchQuery.isEmpty &&
+                                                _fechaFiltro == null
+                                            ? 'No hay incidencias reportadas'
+                                            : 'No hay resultados con los filtros actuales',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.54),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              return _IncidenciasTable(
+                                incidencias: incidenciasPagina,
+                                tipoIncidenciaLabel: _tipoIncidenciaLabel,
+                                sortColumn: _sortColumn,
+                                sortAsc: _sortAsc,
+                                onSort: _toggleSort,
+                                onEdit: (inc) =>
+                                    _abrirFormularioIncidencia(incidencia: inc),
+                                onDelete: _confirmarEliminar,
+                              );
+                            },
+                          ),
+                        ),
+                        if (incidenciasFiltradas.isNotEmpty)
+                          _PaginationBar(
+                            currentPage: paginaActual,
+                            totalPages: totalPaginas,
+                            onPrev: paginaActual > 1
+                                ? () => setState(
+                                    () => _paginaActual = paginaActual - 1,
+                                  )
+                                : null,
+                            onNext: paginaActual < totalPaginas
+                                ? () => setState(
+                                    () => _paginaActual = paginaActual + 1,
+                                  )
+                                : null,
+                            isCargando: state.isLoading,
+                          ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay incidencias reportadas.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _IncidenciasHeader extends StatelessWidget {
+  final int paginaActual;
+  final int totalRegistros;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearch;
+  final DateTime? fechaFiltro;
+  final VoidCallback onSelectFecha;
+  final VoidCallback onClearFecha;
+  final VoidCallback onReload;
+  final VoidCallback onResetFilters;
+  final VoidCallback onCreateIncidencia;
+
+  const _IncidenciasHeader({
+    required this.paginaActual,
+    required this.totalRegistros,
+    required this.searchController,
+    required this.onSearch,
+    required this.fechaFiltro,
+    required this.onSelectFecha,
+    required this.onClearFecha,
+    required this.onReload,
+    required this.onResetFilters,
+    required this.onCreateIncidencia,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: context.webHeaderDecoration(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final isDesktop = w >= 1100;
+            final isTablet = w >= 760 && w < 1100;
+            final isMobile = w < 760;
+
+            Widget actions({required bool compact}) {
+              final compactStyle = OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              );
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onSelectFecha,
+                      icon: const Icon(Icons.calendar_month_rounded, size: 15),
+                      label: const Text('Fecha'),
+                    ),
+                  ),
+                  if (fechaFiltro != null)
+                    SizedBox(
+                      height: 34,
+                      child: OutlinedButton.icon(
+                        style: compactStyle,
+                        onPressed: onClearFecha,
+                        icon: const Icon(
+                          Icons.filter_alt_off_rounded,
+                          size: 15,
+                        ),
+                        label: const Text('Limpiar fecha'),
+                      ),
+                    ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onReload,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('Recargar'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onResetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
+                        ),
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                      ),
+                      onPressed: onCreateIncidencia,
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: const Text('Nueva incidencia'),
                     ),
                   ),
                 ],
-              ),
-            );
-          }
+              );
+            }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: incidencias.length,
-            itemBuilder: (context, index) {
-              final inc = incidencias[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            final headerLeft = Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.assignment_late_rounded,
+                    size: 18,
+                    color: colorScheme.error,
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+                const SizedBox(width: 10),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              inc.localNombre,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                      Text(
+                        'Incidencias reportadas',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
                             ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'INCIDENCIA',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onErrorContainer,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            tooltip: 'Editar',
-                            icon: const Icon(Icons.edit_outlined, size: 20),
-                            onPressed: () =>
-                                _abrirFormularioIncidencia(incidencia: inc),
-                          ),
-                          IconButton(
-                            tooltip: 'Eliminar',
-                            icon: Icon(
-                              Icons.delete_outline_rounded,
-                              size: 20,
-                              color: colorScheme.error,
-                            ),
-                            onPressed: () => _confirmarEliminar(inc),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.storefront_rounded,
-                            size: 14,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Clave: ${inc.localClave} | Cód: ${inc.localCodigo}',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.3,
-                            ),
-                          ),
+                      Text(
+                        'Pagina $paginaActual - $totalRegistros registros',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.62),
                         ),
-                        width: double.infinity,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Motivo / Observación: ${_tipoIncidenciaLabel(inc.gestion.tipoIncidencia)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              (inc.gestion.comentario ?? '').isEmpty
-                                  ? '-'
-                                  : inc.gestion.comentario!,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 14,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                inc.cobradorNombre,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            DateFormatter.formatDateTime(inc.gestion.timestamp),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+              ],
+            );
+
+            final header = isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      headerLeft,
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: actions(compact: true),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: headerLeft),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: actions(compact: !isDesktop),
+                        ),
+                      ),
+                    ],
+                  );
+
+            Widget filtersDesktop() {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: _IncidenciasSearchInput(
+                      controller: searchController,
+                      onChanged: onSearch,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _FechaFilterBadge(fechaFiltro: fechaFiltro),
+                ],
               );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text(
-            'Error: $err',
-            style: TextStyle(color: colorScheme.error),
+            }
+
+            Widget filtersTablet() {
+              return Column(
+                children: [
+                  _IncidenciasSearchInput(
+                    controller: searchController,
+                    onChanged: onSearch,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _FechaFilterBadge(fechaFiltro: fechaFiltro),
+                  ),
+                ],
+              );
+            }
+
+            final filtersGroup = Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Color.alphaBlend(
+                  colorScheme.primary.withValues(alpha: 0.01),
+                  colorScheme.surfaceContainerLowest,
+                ),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.36),
+                ),
+              ),
+              child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [header, const SizedBox(height: 8), filtersGroup],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _IncidenciasSearchInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _IncidenciasSearchInput({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Buscar incidencia',
+        hintText: 'Local, clave, codigo, tipo, comentario, cobrador...',
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _FechaFilterBadge extends StatelessWidget {
+  final DateTime? fechaFiltro;
+
+  const _FechaFilterBadge({required this.fechaFiltro});
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
+    final activo = fechaFiltro != null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: (activo ? semantic.info : semantic.warning).withValues(
+          alpha: 0.14,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: (activo ? semantic.info : semantic.warning).withValues(
+            alpha: 0.35,
           ),
         ),
+      ),
+      child: Text(
+        activo
+            ? 'Fecha: ${DateFormatter.formatDate(fechaFiltro)}'
+            : 'Sin filtro de fecha',
+        style: TextStyle(
+          color: activo ? semantic.info : semantic.warning,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _IncidenciasTable extends StatelessWidget {
+  final List<IncidenciaUI> incidencias;
+  final String Function(String?) tipoIncidenciaLabel;
+  final String? sortColumn;
+  final bool sortAsc;
+  final ValueChanged<String> onSort;
+  final ValueChanged<IncidenciaUI> onEdit;
+  final ValueChanged<IncidenciaUI> onDelete;
+
+  const _IncidenciasTable({
+    required this.incidencias,
+    required this.tipoIncidenciaLabel,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const sidePadding = 16.0;
+        final availableWidth = constraints.maxWidth;
+        final minTableWidth = availableWidth < 1500 ? 1500.0 : availableWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minTableWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                sidePadding,
+                8,
+                sidePadding,
+                8,
+              ),
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    colorScheme.primary.withAlpha(13),
+                  ),
+                  horizontalMargin: 16,
+                  columnSpacing: 24,
+                  columns: [
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Local',
+                        isActive: sortColumn == 'Local',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Local'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Clave / Codigo',
+                        isActive: sortColumn == 'Clave',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Clave'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Tipo',
+                        isActive: sortColumn == 'Tipo',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Tipo'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Comentario',
+                        isActive: sortColumn == 'Comentario',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Comentario'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Cobrador',
+                        isActive: sortColumn == 'Cobrador',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Cobrador'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Fecha',
+                        isActive: sortColumn == 'Fecha',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Fecha'),
+                      ),
+                    ),
+                    const DataColumn(label: Text('Acciones')),
+                  ],
+                  rows: incidencias.map((inc) {
+                    final nombre = inc.localNombre.trim().isEmpty
+                        ? '-'
+                        : inc.localNombre.trim();
+                    final initial = nombre == '-'
+                        ? 'L'
+                        : nombre.substring(0, 1).toUpperCase();
+                    final comentario = (inc.gestion.comentario ?? '').trim();
+
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: colorScheme.primary.withAlpha(
+                                  26,
+                                ),
+                                child: Text(
+                                  initial,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 220,
+                                child: Text(
+                                  nombre,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 170,
+                            child: Text(
+                              'Clave: ${inc.localClave} | Cod: ${inc.localCodigo}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          _TypeChip(
+                            text: tipoIncidenciaLabel(
+                              inc.gestion.tipoIncidencia,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 360,
+                            child: Tooltip(
+                              message: comentario.isEmpty ? '-' : comentario,
+                              child: Text(
+                                comentario.isEmpty ? '-' : comentario,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 170,
+                            child: Text(
+                              inc.cobradorNombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            DateFormatter.formatDateTime(inc.gestion.timestamp),
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            children: [
+                              IconButton(
+                                tooltip: 'Editar',
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                onPressed: () => onEdit(inc),
+                              ),
+                              IconButton(
+                                tooltip: 'Eliminar',
+                                icon: Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                  color: context.semanticColors.danger,
+                                ),
+                                onPressed: () => onDelete(inc),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  final String text;
+
+  const _TypeChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: semantic.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: semantic.warning.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: semantic.warning,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Pagina $currentPage de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina siguiente',
+          ),
+        ],
       ),
     );
   }
