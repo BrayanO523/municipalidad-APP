@@ -666,7 +666,6 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     final docId = 'COB-${local.id}-${now.millisecondsSinceEpoch}';
 
-    final double saldoResultante = dist.deudaFinalResultante.toDouble();
     final double favorResultante = dist.saldoFavorFinalResultante.toDouble();
 
     try {

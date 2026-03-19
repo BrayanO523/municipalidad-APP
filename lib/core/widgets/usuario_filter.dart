@@ -32,7 +32,7 @@ class UsuarioFilter extends ConsumerWidget {
         ];
 
         return DropdownButtonFormField<String?>(
-          value: selectedUsuarioId,
+          initialValue: selectedUsuarioId,
           isExpanded: true,
           icon: Icon(
             Icons.person_search_rounded,

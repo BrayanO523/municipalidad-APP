@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
@@ -64,6 +65,27 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
       _estadoFilter = 'Todos';
     });
     await ref.read(mercadosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  Future<LatLng?> _obtenerUbicacionActual() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+      return LatLng(pos.latitude, pos.longitude);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _abrirFiltrosBottomSheet({
@@ -577,10 +599,14 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                     ).colorScheme.onSurface.withValues(alpha: 0.24),
                   ),
                   onTap: () async {
+                    final currentLocation = await _obtenerUbicacionActual();
+                    if (!context.mounted) return;
+
                     final List<LatLng>? result = await showDialog<List<LatLng>>(
                       context: context,
                       builder: (ctx) => MapPickerModal(
                         mode: MapPickerMode.polygon,
+                        initialCenter: currentLocation,
                         initialPoints: mercado?.perimetro
                             ?.map((p) => LatLng(p['lat']!, p['lng']!))
                             .toList(),
@@ -894,7 +920,7 @@ class _SearchColumnDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       icon: const Icon(Icons.arrow_drop_down_rounded),
       decoration: InputDecoration(
         labelText: 'Buscar por',

@@ -114,6 +114,7 @@ class _IncidenciasAdminScreenState
     final usuariosRaw = await authDs.listarTodos(
       municipalidadId: municipalidadId,
     );
+    if (!mounted) return;
 
     final locales =
         localesRaw
@@ -168,7 +169,7 @@ class _IncidenciasAdminScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: localId,
+                    initialValue: localId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Local',
@@ -189,7 +190,7 @@ class _IncidenciasAdminScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: cobradorId,
+                    initialValue: cobradorId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Cobrador',
@@ -208,7 +209,7 @@ class _IncidenciasAdminScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: tipoIncidencia,
+                    initialValue: tipoIncidencia,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de incidencia',

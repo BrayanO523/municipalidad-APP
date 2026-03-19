@@ -26,14 +26,11 @@ class LocalDatasource {
 
     if (url != null) {
       debugPrint('[INDEX_LINK][$context] $url');
-      print('[INDEX_LINK][$context] $url');
       return;
     }
 
     debugPrint('[INDEX_LINK][$context] code=$code (sin URL automática)');
     debugPrint('[INDEX_LINK][$context] $message');
-    print('[INDEX_LINK][$context] code=$code (sin URL automática)');
-    print('[INDEX_LINK][$context] $message');
   }
 
   // CREATE
@@ -811,8 +808,9 @@ class LocalDatasource {
       bool cumpleFiltros(Map<String, dynamic> data) {
         if (mercadoId != null && data['mercadoId'] != mercadoId) return false;
         if (municipalidadId != null &&
-            data['municipalidadId'] != municipalidadId)
+            data['municipalidadId'] != municipalidadId) {
           return false;
+        }
         return true;
       }
 

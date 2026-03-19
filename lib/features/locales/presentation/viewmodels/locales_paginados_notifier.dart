@@ -226,10 +226,12 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
 
       // Mapear el nombre del enum al string esperado por el datasource
       String filtroDs = 'todos';
-      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores)
+      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) {
         filtroDs = 'deudores';
-      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor)
+      }
+      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) {
         filtroDs = 'saldos';
+      }
 
       List<String>? filterLocalIds;
       if (state.usuarioFiltradoId != null) {
@@ -418,10 +420,12 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
 
     // Mapear el nombre del enum al string esperado por el datasource
     String filtroDs = 'todos';
-    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores)
+    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) {
       filtroDs = 'deudores';
-    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor)
+    }
+    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) {
       filtroDs = 'saldos';
+    }
 
     List<String>? filterLocalIds;
     if (state.usuarioFiltradoId != null) {

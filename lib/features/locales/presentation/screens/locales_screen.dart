@@ -16,11 +16,11 @@ import '../../../../core/utils/date_formatter.dart';
 
 import '../../../../core/utils/qr_pdf_generator.dart';
 import '../../../../core/widgets/scrollable_table.dart';
-import '../../../../core/widgets/usuario_filter.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 
 import '../../domain/entities/local.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../usuarios/domain/entities/usuario.dart';
 
 import '../viewmodels/locales_paginados_notifier.dart';
 import '../widgets/local_form_dialog.dart';
@@ -335,7 +335,11 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       flex: 22,
-                      child: _buildUsuarioFilter(context, state),
+                      child: _buildUsuarioFilter(
+                        context,
+                        state,
+                        municipalidadId,
+                      ),
                     ),
                   ],
                   const SizedBox(width: 8),
@@ -371,7 +375,13 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (showUsuario) ...[
-                        Expanded(child: _buildUsuarioFilter(context, state)),
+                        Expanded(
+                          child: _buildUsuarioFilter(
+                            context,
+                            state,
+                            municipalidadId,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                       ],
                       Expanded(
@@ -409,7 +419,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                         _buildLocalSearch(context, municipalidadId),
                         if (showUsuario) ...[
                           const SizedBox(height: 8),
-                          _buildUsuarioFilter(context, state),
+                          _buildUsuarioFilter(context, state, municipalidadId),
                         ],
                         const SizedBox(height: 8),
                         _buildFiltroEstado(context, state),
@@ -604,12 +614,98 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Widget _buildUsuarioFilter(
     BuildContext context,
     LocalesPaginadosState state,
+    String? municipalidadId,
   ) {
-    return UsuarioFilter(
-      selectedUsuarioId: state.usuarioFiltradoId,
-      label: 'Cobrador',
-      onUsuarioChanged: (u) {
+    final usuariosState = ref.watch(usuariosProvider).value ?? <Usuario>[];
+    final cobradores = usuariosState
+        .where(
+          (u) =>
+              u.rol == 'cobrador' &&
+              (municipalidadId == null || u.municipalidadId == municipalidadId),
+        )
+        .toList();
+
+    Usuario? selected;
+    if (state.usuarioFiltradoId != null) {
+      for (final u in cobradores) {
+        if (u.id == state.usuarioFiltradoId) {
+          selected = u;
+          break;
+        }
+      }
+    }
+
+    return DropdownSearch<Usuario>(
+      asyncItems: (filter) async {
+        final all = await ref.read(usuariosProvider.future);
+        final lista = all
+            .where(
+              (u) =>
+                  u.rol == 'cobrador' &&
+                  (municipalidadId == null ||
+                      u.municipalidadId == municipalidadId),
+            )
+            .toList();
+        if (filter.trim().isEmpty) return lista;
+        final q = filter.trim().toLowerCase();
+        return lista
+            .where((u) => (u.nombre ?? '').toLowerCase().contains(q))
+            .toList();
+      },
+      itemAsString: (u) => u.nombre ?? u.email ?? '-',
+      compareFn: (a, b) => a.id == b.id,
+      selectedItem: selected,
+      onChanged: (u) {
         ref.read(localesPaginadosProvider.notifier).seleccionarUsuario(u?.id);
+      },
+      popupProps: PopupProps.menu(
+        showSearchBox: true,
+        searchFieldProps: const TextFieldProps(
+          decoration: InputDecoration(
+            hintText: 'Buscar cobrador...',
+            prefixIcon: Icon(Icons.search_rounded, size: 14),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          ),
+        ),
+        menuProps: MenuProps(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(6),
+          elevation: 4,
+        ),
+        fit: FlexFit.loose,
+        emptyBuilder: (ctx, text) => const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('No encontrado', style: TextStyle(fontSize: 11)),
+        ),
+      ),
+      dropdownDecoratorProps: DropDownDecoratorProps(
+        dropdownSearchDecoration: InputDecoration(
+          labelText: 'Cobrador',
+          hintText: 'Todos',
+          prefixIcon: const Icon(Icons.person_search_rounded, size: 16),
+          isDense: true,
+          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        baseStyle: const TextStyle(fontSize: 13),
+      ),
+      clearButtonProps: const ClearButtonProps(isVisible: true),
+      dropdownBuilder: (context, selectedItem) {
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            selectedItem?.nombre ?? 'Todos los cobradores',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        );
       },
     );
   }

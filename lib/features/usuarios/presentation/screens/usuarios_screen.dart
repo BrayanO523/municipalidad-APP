@@ -1381,11 +1381,7 @@ class _UsuariosHeader extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        'Pagina ' +
-                            paginaActual.toString() +
-                            ' - ' +
-                            totalRegistros.toString() +
-                            ' registros',
+                        'Pagina $paginaActual - $totalRegistros registros',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: colorScheme.onSurface.withValues(alpha: 0.62),
@@ -1540,7 +1536,7 @@ class _MercadoFilterDropdown extends StatelessWidget {
     ];
 
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       icon: const Icon(Icons.store_mall_directory_rounded),
       decoration: InputDecoration(
@@ -1698,10 +1694,7 @@ class _UsuariosTable extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'Código: ' +
-                          (u.codigoCobrador ?? 'S/C') +
-                          ' - ' +
-                          strMercado,
+                      'Codigo: ${u.codigoCobrador ?? 'S/C'} - $strMercado',
                       style: TextStyle(
                         color: Theme.of(
                           context,
@@ -1713,7 +1706,7 @@ class _UsuariosTable extends ConsumerWidget {
                     ),
                     if (u.creadoEn != null)
                       Text(
-                        'Creado: ' + DateFormatter.formatDate(u.creadoEn!),
+                        'Creado: ${DateFormatter.formatDate(u.creadoEn!)}',
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -1728,11 +1721,7 @@ class _UsuariosTable extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    (u.email ?? '') +
-                        ' - Código: ' +
-                        (u.codigoCobrador ?? 'S/C') +
-                        ' - Mercado: ' +
-                        strMercado,
+                    '${u.email ?? ''} - Codigo: ${u.codigoCobrador ?? 'S/C'} - Mercado: $strMercado',
                     style: TextStyle(
                       color: Theme.of(
                         context,
@@ -1742,7 +1731,7 @@ class _UsuariosTable extends ConsumerWidget {
                   ),
                   Text(
                     u.creadoEn != null
-                        ? 'Creado: ' + DateFormatter.formatDate(u.creadoEn!)
+                        ? 'Creado: ${DateFormatter.formatDate(u.creadoEn!)}'
                         : 'Creado: -',
                     style: TextStyle(
                       color: Theme.of(
@@ -1840,7 +1829,7 @@ class _PaginationBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'Pagina ' + currentPage.toString() + ' de ' + totalPages.toString(),
+            'Pagina $currentPage de $totalPages',
             style: TextStyle(
               color: Theme.of(
                 context,

@@ -556,7 +556,7 @@ class _SearchColumnDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       icon: const Icon(Icons.arrow_drop_down_rounded),
       decoration: InputDecoration(
         labelText: 'Buscar por',
