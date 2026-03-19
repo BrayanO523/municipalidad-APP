@@ -5,6 +5,8 @@ import '../../../../app/di/providers.dart';
 import '../../../usuarios/domain/entities/usuario.dart';
 
 class UsuariosPaginadosState {
+  static const Object _noChange = Object();
+
   final List<Usuario> usuarios;
   final bool cargando;
   final String? errorMsg;
@@ -14,6 +16,8 @@ class UsuariosPaginadosState {
   final int totalRegistros;
   final String searchQuery;
   final String searchColumn;
+  final bool ordenarNombreAsc;
+  final String? mercadoIdFilter;
 
   const UsuariosPaginadosState({
     this.usuarios = const [],
@@ -24,7 +28,9 @@ class UsuariosPaginadosState {
     this.totalPaginas = 1,
     this.totalRegistros = 0,
     this.searchQuery = '',
-    this.searchColumn = 'Nombre',
+    this.searchColumn = 'Todos',
+    this.ordenarNombreAsc = true,
+    this.mercadoIdFilter,
   });
 
   UsuariosPaginadosState copyWith({
@@ -37,6 +43,8 @@ class UsuariosPaginadosState {
     int? totalRegistros,
     String? searchQuery,
     String? searchColumn,
+    bool? ordenarNombreAsc,
+    Object? mercadoIdFilter = _noChange,
     bool clearError = false,
   }) {
     return UsuariosPaginadosState(
@@ -49,6 +57,10 @@ class UsuariosPaginadosState {
       totalRegistros: totalRegistros ?? this.totalRegistros,
       searchQuery: searchQuery ?? this.searchQuery,
       searchColumn: searchColumn ?? this.searchColumn,
+      ordenarNombreAsc: ordenarNombreAsc ?? this.ordenarNombreAsc,
+      mercadoIdFilter: identical(mercadoIdFilter, _noChange)
+          ? this.mercadoIdFilter
+          : mercadoIdFilter as String?,
     );
   }
 }
@@ -79,14 +91,28 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
       }
 
       final result = await query.get();
-      final todos = result.docs.map(_mapDocToUsuario).toList()
-        ..sort((a, b) => (a.nombre ?? '').compareTo(b.nombre ?? ''));
+      final todos = result.docs.map(_mapDocToUsuario).toList();
+
+      final filtradosPorMercado =
+          state.mercadoIdFilter == null || state.mercadoIdFilter!.isEmpty
+          ? todos
+          : todos
+                .where((u) => (u.mercadoId ?? '') == state.mercadoIdFilter)
+                .toList(growable: false);
 
       final filtrados = _aplicarBusqueda(
-        todos,
+        filtradosPorMercado,
         query: state.searchQuery,
         column: state.searchColumn,
       );
+
+      final ordenados = [...filtrados]
+        ..sort((a, b) {
+          final cmp = (a.nombre ?? '').toLowerCase().compareTo(
+            (b.nombre ?? '').toLowerCase(),
+          );
+          return state.ordenarNombreAsc ? cmp : -cmp;
+        });
 
       final totalRegistros = filtrados.length;
       final totalPaginas = totalRegistros == 0
@@ -101,7 +127,7 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
 
       final usuariosPagina = start >= totalRegistros
           ? <Usuario>[]
-          : filtrados.sublist(start, endExclusive);
+          : ordenados.sublist(start, endExclusive);
 
       state = state.copyWith(
         usuarios: usuariosPagina,
@@ -128,28 +154,28 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
     if (q.isEmpty) return usuarios;
 
     bool matches(Usuario u) {
-      switch (column) {
-        case 'Correo electronico':
-          return (u.email ?? '').toLowerCase().contains(q);
-        case 'Codigo':
-          return (u.codigoCobrador ?? '').toLowerCase().contains(q);
-        case 'Anio':
-          return (u.anioCorrelativo ?? DateTime.now().year).toString().contains(
-            q,
-          );
-        case 'Ultimo correlativo':
-          return (u.ultimoCorrelativo ?? 0).toString().contains(q);
-        case 'Estado':
-          final estado = (u.ultimoCorrelativo ?? 0) > 0
-              ? 'activo'
-              : 'sin cobros';
-          return estado.contains(q);
-        case 'Mercado':
-          return (u.mercadoId ?? '').toLowerCase().contains(q);
-        case 'Nombre':
-        default:
-          return (u.nombre ?? '').toLowerCase().contains(q);
-      }
+      final estado = (u.ultimoCorrelativo ?? 0) > 0 ? 'activo' : 'sin cobros';
+      final campos = switch (column) {
+        'Nombre' => <String>[u.nombre ?? ''],
+        'Correo electronico' => <String>[u.email ?? ''],
+        'Codigo' => <String>[u.codigoCobrador ?? ''],
+        'Anio' => <String>[
+          (u.anioCorrelativo ?? DateTime.now().year).toString(),
+        ],
+        'Ultimo correlativo' => <String>[(u.ultimoCorrelativo ?? 0).toString()],
+        'Estado' => <String>[estado],
+        'Mercado' => <String>[u.mercadoId ?? ''],
+        _ => <String>[
+          u.nombre ?? '',
+          u.email ?? '',
+          u.codigoCobrador ?? '',
+          u.mercadoId ?? '',
+          (u.anioCorrelativo ?? DateTime.now().year).toString(),
+          (u.ultimoCorrelativo ?? 0).toString(),
+          estado,
+        ],
+      };
+      return campos.any((c) => c.toLowerCase().contains(q));
     }
 
     return usuarios.where(matches).toList(growable: false);
@@ -200,10 +226,43 @@ class UsuariosPaginadosNotifier extends Notifier<UsuariosPaginadosState> {
     cargarPagina(reiniciar: true);
   }
 
+  void cambiarOrdenNombre(bool ascendente) {
+    if (state.ordenarNombreAsc == ascendente) return;
+    state = state.copyWith(ordenarNombreAsc: ascendente, paginaActual: 1);
+    cargarPagina(reiniciar: true);
+  }
+
+  Future<void> aplicarFiltros({
+    String? searchQuery,
+    String? searchColumn,
+    bool? ordenarNombreAsc,
+    String? mercadoIdFilter,
+  }) async {
+    state = state.copyWith(
+      searchQuery: searchQuery,
+      searchColumn: searchColumn,
+      ordenarNombreAsc: ordenarNombreAsc,
+      mercadoIdFilter: mercadoIdFilter,
+      paginaActual: 1,
+    );
+    await cargarPagina(reiniciar: true);
+  }
+
+  void cambiarFiltroMercado(String? mercadoId) {
+    final normalized = (mercadoId == null || mercadoId.isEmpty)
+        ? null
+        : mercadoId;
+    if (state.mercadoIdFilter == normalized) return;
+    state = state.copyWith(mercadoIdFilter: normalized, paginaActual: 1);
+    cargarPagina(reiniciar: true);
+  }
+
   Future<void> restablecerFiltros() async {
     state = state.copyWith(
       searchQuery: '',
-      searchColumn: 'Nombre',
+      searchColumn: 'Todos',
+      ordenarNombreAsc: true,
+      mercadoIdFilter: null,
       paginaActual: 1,
     );
     await cargarPagina(reiniciar: true);

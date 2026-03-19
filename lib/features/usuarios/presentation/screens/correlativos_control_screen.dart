@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/app_theme.dart';
 import '../../domain/entities/usuario.dart';
 import '../viewmodels/usuarios_paginados_notifier.dart';
 
@@ -19,7 +20,7 @@ class _CorrelativosControlScreenState
     extends ConsumerState<CorrelativosControlScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
-  String _searchColumn = 'Nombre';
+  String _searchColumn = 'Todos';
 
   @override
   void initState() {
@@ -43,17 +44,236 @@ class _CorrelativosControlScreenState
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
-      ref.read(usuariosPaginadosProvider.notifier).buscar(value);
+      ref
+          .read(usuariosPaginadosProvider.notifier)
+          .aplicarFiltros(searchQuery: value, searchColumn: _searchColumn);
     });
   }
 
   Future<void> _limpiarFiltros() async {
     _debounce?.cancel();
-    _searchCtrl.clear();
-    setState(() => _searchColumn = 'Nombre');
-    final notifier = ref.read(usuariosPaginadosProvider.notifier);
-    await notifier.restablecerFiltros();
-    notifier.cambiarColumnaBusqueda('Nombre');
+    setState(() {
+      _searchColumn = 'Todos';
+      _searchCtrl.clear();
+    });
+    await ref.read(usuariosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  Future<void> _abrirFiltrosBottomSheet({
+    required BuildContext context,
+    required UsuariosPaginadosNotifier notifier,
+    required UsuariosPaginadosState state,
+  }) async {
+    var ordenarAsc = state.ordenarNombreAsc;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final colorScheme = Theme.of(sheetCtx).colorScheme;
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            Future<void> applyAndClose() async {
+              await notifier.aplicarFiltros(ordenarNombreAsc: ordenarAsc);
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            Future<void> resetAndClose() async {
+              await notifier.aplicarFiltros(ordenarNombreAsc: true);
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                                colorScheme.tertiaryContainer.withValues(
+                                  alpha: 0.62,
+                                ),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.24,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.filter_alt_rounded,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filtros de Correlativos',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    Text(
+                                      'Ordena la lista para priorizar revisión.',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.sort_by_alpha_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Orden alfabetico',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'A - Z',
+                                      selected: ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Z - A',
+                                      selected: !ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = false,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: resetAndClose,
+                                icon: const Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Restablecer'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: applyAndClose,
+                                icon: const Icon(Icons.check_rounded, size: 16),
+                                label: const Text('Aplicar'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -78,13 +298,23 @@ class _CorrelativosControlScreenState
               searchController: _searchCtrl,
               selectedColumn: _searchColumn,
               onSearch: _onSearchChanged,
-              onColumnChanged: (val) {
-                if (val == null) return;
-                setState(() => _searchColumn = val);
-                notifier.cambiarColumnaBusqueda(val);
+              onColumnChanged: (value) {
+                if (value == null) return;
+                setState(() => _searchColumn = value);
+                ref
+                    .read(usuariosPaginadosProvider.notifier)
+                    .aplicarFiltros(
+                      searchQuery: _searchCtrl.text,
+                      searchColumn: value,
+                    );
               },
               onReload: notifier.recargar,
-              onClear: _limpiarFiltros,
+              onOpenFilters: () => _abrirFiltrosBottomSheet(
+                context: context,
+                notifier: notifier,
+                state: state,
+              ),
+              onResetFilters: () => _limpiarFiltros(),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -114,7 +344,8 @@ class _CorrelativosHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<String?> onColumnChanged;
   final VoidCallback onReload;
-  final Future<void> Function() onClear;
+  final VoidCallback onOpenFilters;
+  final VoidCallback onResetFilters;
 
   const _CorrelativosHeader({
     required this.paginaActual,
@@ -124,19 +355,15 @@ class _CorrelativosHeader extends StatelessWidget {
     required this.onSearch,
     required this.onColumnChanged,
     required this.onReload,
-    required this.onClear,
+    required this.onOpenFilters,
+    required this.onResetFilters,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 3,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.08)),
-      ),
+    return Container(
+      decoration: context.webHeaderDecoration(),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: LayoutBuilder(
@@ -169,9 +396,18 @@ class _CorrelativosHeader extends StatelessWidget {
                     height: 34,
                     child: OutlinedButton.icon(
                       style: compactStyle,
-                      onPressed: () => onClear(),
-                      icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
-                      label: const Text('Limpiar'),
+                      onPressed: onOpenFilters,
+                      icon: const Icon(Icons.tune_rounded, size: 15),
+                      label: const Text('Filtros'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onResetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
                     ),
                   ),
                 ],
@@ -289,11 +525,12 @@ class _CorrelativosHeader extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.22,
+                color: Color.alphaBlend(
+                  colorScheme.primary.withValues(alpha: 0.01),
+                  colorScheme.surfaceContainerLowest,
                 ),
                 border: Border.all(
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.36),
                 ),
               ),
               child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
@@ -325,15 +562,18 @@ class _SearchColumnDropdown extends StatelessWidget {
         labelText: 'Buscar por',
         isDense: true,
         contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       items: const [
+        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
         DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
-        DropdownMenuItem(value: 'Codigo', child: Text('Codigo')),
+        DropdownMenuItem(value: 'Codigo', child: Text('Código')),
         DropdownMenuItem(value: 'Anio', child: Text('Año')),
         DropdownMenuItem(
           value: 'Ultimo correlativo',
-          child: Text('Ultimo correlativo'),
+          child: Text('Último correlativo'),
         ),
         DropdownMenuItem(value: 'Estado', child: Text('Estado')),
       ],
@@ -355,7 +595,7 @@ class _SearchInput extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: 'Buscar cobrador',
-        hintText: 'Nombre, codigo, año, correlativo o estado...',
+        hintText: 'Nombre, código, año, correlativo o estado...',
         floatingLabelBehavior: FloatingLabelBehavior.always,
         prefixIcon: const Icon(Icons.search_rounded, size: 18),
         isDense: true,
@@ -363,7 +603,67 @@ class _SearchInput extends StatelessWidget {
           horizontal: 12,
           vertical: 10,
         ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _OrderModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _OrderModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.16)
+              : colorScheme.surface,
+          border: Border.all(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.7)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -472,9 +772,9 @@ class _CorrelativosTable extends StatelessWidget {
                   columnSpacing: 24,
                   columns: const [
                     DataColumn(label: Text('Cobrador')),
-                    DataColumn(label: Text('Codigo (Prefijo)')),
+                    DataColumn(label: Text('Código (Prefijo)')),
                     DataColumn(label: Text('Año')),
-                    DataColumn(label: Text('Ultimo Correlativo')),
+                    DataColumn(label: Text('Último Correlativo')),
                     DataColumn(label: Text('Estado')),
                     DataColumn(label: Text('Acciones')),
                   ],

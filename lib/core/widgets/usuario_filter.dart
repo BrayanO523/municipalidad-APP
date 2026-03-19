@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../app/di/providers.dart';
 import '../../features/usuarios/domain/entities/usuario.dart';
 
@@ -18,79 +19,110 @@ class UsuarioFilter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuariosAsync = ref.watch(usuariosProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return usuariosAsync.when(
       data: (usuarios) {
-        // Filtrar solo usuarios activos y con rol cobrador (aunque el provider ya debería hacerlo)
         final cobradores = usuarios.where((u) => u.rol == 'cobrador').toList();
-
-        return Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
+        final opciones = <MapEntry<String?, String>>[
+          const MapEntry<String?, String>(null, 'Todos los cobradores'),
+          ...cobradores.map(
+            (u) => MapEntry<String?, String>(u.id, u.nombre ?? 'Sin nombre'),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedUsuarioId,
-              hint: Text(
-                label,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-                  fontSize: 13,
-                ),
+        ];
+
+        return DropdownButtonFormField<String?>(
+          value: selectedUsuarioId,
+          isExpanded: true,
+          icon: Icon(
+            Icons.person_search_rounded,
+            size: 18,
+            color: colorScheme.onSurface.withValues(alpha: 0.54),
+          ),
+          decoration: InputDecoration(
+            labelText: label,
+            isDense: true,
+            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerLow,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          dropdownColor: colorScheme.surface,
+          style: TextStyle(color: colorScheme.onSurface, fontSize: 13),
+          items: opciones.map((o) {
+            return DropdownMenuItem<String?>(
+              value: o.key,
+              child: Text(
+                o.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              icon: Icon(
-                Icons.person_search_rounded,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-              ),
-              isDense: true,
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 13,
-              ),
-              items: [
-                DropdownMenuItem<String>(
-                  value: null,
+            );
+          }).toList(),
+          selectedItemBuilder: (context) => opciones
+              .map(
+                (o) => Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    'Todos los cobradores',
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    o.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                ...cobradores.map((u) {
-                  return DropdownMenuItem<String>(
-                    value: u.id,
-                    child: Text(u.nombre ?? 'Sin nombre'),
-                  );
-                }),
-              ],
-              onChanged: (val) {
-                if (val == null) {
-                  onUsuarioChanged(null);
-                } else {
-                  final user = cobradores.firstWhere((u) => u.id == val);
-                  onUsuarioChanged(user);
-                }
-              },
-            ),
-          ),
+              )
+              .toList(),
+          onChanged: (val) {
+            if (val == null) {
+              onUsuarioChanged(null);
+            } else {
+              final user = cobradores.firstWhere((u) => u.id == val);
+              onUsuarioChanged(user);
+            }
+          },
         );
       },
-      loading: () => const SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2),
+      loading: () => SizedBox(
+        height: 40,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: const Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
       ),
-      error: (_, __) => const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+      error: (_, __) => SizedBox(
+        height: 40,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colorScheme.error.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 18, color: colorScheme.error),
+              const SizedBox(width: 8),
+              Text(
+                'Error cargando cobradores',
+                style: TextStyle(color: colorScheme.error, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

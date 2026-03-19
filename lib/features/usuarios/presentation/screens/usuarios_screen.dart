@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 import '../../domain/entities/usuario.dart';
 import '../viewmodels/usuarios_paginados_notifier.dart';
 import 'cobrador_historial_screen.dart';
@@ -20,7 +21,6 @@ class UsuariosScreen extends ConsumerStatefulWidget {
 class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
-  String _searchColumn = 'Nombre';
 
   @override
   void initState() {
@@ -48,14 +48,231 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
   Future<void> _limpiarFiltros() async {
     _debounce?.cancel();
     _searchCtrl.clear();
-    setState(() => _searchColumn = 'Nombre');
     await ref.read(usuariosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  Future<void> _abrirFiltrosBottomSheet({
+    required BuildContext context,
+    required UsuariosPaginadosNotifier notifier,
+    required UsuariosPaginadosState state,
+  }) async {
+    var ordenarAsc = state.ordenarNombreAsc;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final colorScheme = Theme.of(sheetCtx).colorScheme;
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            Future<void> applyAndClose() async {
+              await notifier.aplicarFiltros(ordenarNombreAsc: ordenarAsc);
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            Future<void> resetAndClose() async {
+              await notifier.aplicarFiltros(ordenarNombreAsc: true);
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            }
+
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                                colorScheme.secondaryContainer.withValues(
+                                  alpha: 0.62,
+                                ),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.24,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filtros de Cobradores',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    Text(
+                                      'Ajusta el orden de visualización.',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.sort_by_alpha_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Orden alfabético',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'A - Z',
+                                      selected: ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Z - A',
+                                      selected: !ordenarAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenarAsc = false,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: resetAndClose,
+                                icon: const Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Restablecer'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: applyAndClose,
+                                icon: const Icon(Icons.check_rounded, size: 16),
+                                label: const Text('Aplicar'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(usuariosPaginadosProvider);
     final notifier = ref.read(usuariosPaginadosProvider.notifier);
+    final mercados = ref.watch(mercadosProvider).value ?? <Mercado>[];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -72,17 +289,20 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                 _UsuariosHeader(
                   paginaActual: state.paginaActual,
                   totalRegistros: state.totalRegistros,
+                  mercados: mercados,
+                  selectedMercadoId: state.mercadoIdFilter,
                   searchController: _searchCtrl,
                   onSearch: _onSearchChanged,
+                  onMercadoChanged: (value) =>
+                      notifier.cambiarFiltroMercado(value),
                   onReload: notifier.recargar,
-                  onClear: _limpiarFiltros,
+                  onOpenFilters: () => _abrirFiltrosBottomSheet(
+                    context: context,
+                    notifier: notifier,
+                    state: state,
+                  ),
+                  onResetFilters: () => _limpiarFiltros(),
                   onAdd: () => _showFormDialog(context),
-                  selectedColumn: _searchColumn,
-                  onColumnChanged: (val) {
-                    if (val == null) return;
-                    setState(() => _searchColumn = val);
-                    notifier.cambiarColumnaBusqueda(val);
-                  },
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -161,7 +381,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Cobrador'),
         content: Text(
-          '¿Estás seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acción NO se puede deshacer.',
+          'Estas seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta accion NO se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -212,13 +432,13 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       });
     }
 
-    // Estado mutable del diálogo — se declara aquí para ser accesible por el Consumer
+    // Estado mutable del dialogo, se declara aqui para ser accesible por el Consumer.
     String? selectedMercadoId = usuario?.mercadoId;
     final List<String> selectedLocalesIds = usuario?.rutaAsignada != null
         ? List<String>.from(usuario!.rutaAsignada!)
         : [];
     String localSearchQuery = '';
-    // Sets para multi-selección con checkboxes
+    // Sets para multi-seleccion con checkboxes.
     final Set<String> checkedDisponibles = {};
     final Set<String> checkedAsignados = {};
 
@@ -227,8 +447,8 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Consumer(
           builder: (ctx, ref, _) {
-            // ✅ FIX: Leemos mercados DENTRO del Consumer para garantizar datos frescos
-            // Antes se leía con ref.read() fuera del builder, lo que daba [] si aún no cargaba
+            // FIX: Leemos mercados dentro del Consumer para garantizar datos frescos.
+            // Antes se leia con ref.read() fuera del builder, lo que daba [] si aun no cargaba.
             final mercados = ref.watch(mercadosProvider).value ?? [];
             final mercadosFiltrados = mercados
                 .where(
@@ -293,7 +513,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                           obscureText: true,
                         ),
                       const SizedBox(height: 12),
-                      // Dropdown de Mercado — se refresh automático vía Consumer
+                      // Dropdown de Mercado: se refresca automaticamente via Consumer.
                       DropdownButtonFormField<String>(
                         initialValue:
                             mercadosFiltrados.any(
@@ -492,7 +712,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 
                                   return Row(
                                     children: [
-                                      // ── Columna izquierda: Disponibles ──
+                                      // Columna izquierda: Disponibles
                                       Expanded(
                                         child: Column(
                                           children: [
@@ -577,7 +797,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                               child: localesDisponibles.isEmpty
                                                   ? Center(
                                                       child: Text(
-                                                        'Nada aquí',
+                                                        'Nada aqui',
                                                         style: TextStyle(
                                                           color:
                                                               Theme.of(context)
@@ -635,7 +855,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           ],
                                         ),
                                       ),
-                                      // ── Columna central: Botones de acción ──
+                                      // Columna central: Botones de accion
                                       Container(
                                         width: 36,
                                         decoration: BoxDecoration(
@@ -779,7 +999,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
                                           ],
                                         ),
                                       ),
-                                      // ── Columna derecha: Asignados ──
+                                      // Columna derecha: Asignados
                                       Expanded(
                                         child: Column(
                                           children: [
@@ -1040,34 +1260,35 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
 class _UsuariosHeader extends StatelessWidget {
   final int paginaActual;
   final int totalRegistros;
+  final List<Mercado> mercados;
+  final String? selectedMercadoId;
   final TextEditingController searchController;
   final ValueChanged<String> onSearch;
+  final ValueChanged<String?> onMercadoChanged;
   final VoidCallback onReload;
-  final Future<void> Function() onClear;
+  final VoidCallback onOpenFilters;
+  final VoidCallback onResetFilters;
   final VoidCallback onAdd;
-  final String selectedColumn;
-  final ValueChanged<String?> onColumnChanged;
+
   const _UsuariosHeader({
     required this.paginaActual,
     required this.totalRegistros,
+    required this.mercados,
+    required this.selectedMercadoId,
     required this.searchController,
     required this.onSearch,
+    required this.onMercadoChanged,
     required this.onReload,
-    required this.onClear,
+    required this.onOpenFilters,
+    required this.onResetFilters,
     required this.onAdd,
-    required this.selectedColumn,
-    required this.onColumnChanged,
   });
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 3,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.08)),
-      ),
+    return Container(
+      decoration: context.webHeaderDecoration(),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: LayoutBuilder(
@@ -1076,6 +1297,7 @@ class _UsuariosHeader extends StatelessWidget {
             final isDesktop = w >= 1100;
             final isTablet = w >= 760 && w < 1100;
             final isMobile = w < 760;
+
             Widget actions({required bool compact}) {
               final compactStyle = OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
@@ -1098,9 +1320,18 @@ class _UsuariosHeader extends StatelessWidget {
                     height: 34,
                     child: OutlinedButton.icon(
                       style: compactStyle,
-                      onPressed: () => onClear(),
-                      icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
-                      label: const Text('Limpiar'),
+                      onPressed: onOpenFilters,
+                      icon: const Icon(Icons.tune_rounded, size: 15),
+                      label: const Text('Filtros'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onResetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
                     ),
                   ),
                   SizedBox(
@@ -1192,15 +1423,17 @@ class _UsuariosHeader extends StatelessWidget {
                       ),
                     ],
                   );
+
             Widget filtersDesktop() {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 220,
-                    child: _SearchColumnDropdown(
-                      value: selectedColumn,
-                      onChanged: onColumnChanged,
+                    width: 260,
+                    child: _MercadoFilterDropdown(
+                      mercados: mercados,
+                      value: selectedMercadoId,
+                      onChanged: onMercadoChanged,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1217,9 +1450,10 @@ class _UsuariosHeader extends StatelessWidget {
             Widget filtersTablet() {
               return Column(
                 children: [
-                  _SearchColumnDropdown(
-                    value: selectedColumn,
-                    onChanged: onColumnChanged,
+                  _MercadoFilterDropdown(
+                    mercados: mercados,
+                    value: selectedMercadoId,
+                    onChanged: onMercadoChanged,
                   ),
                   const SizedBox(height: 8),
                   _SearchInput(
@@ -1234,15 +1468,17 @@ class _UsuariosHeader extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.22,
+                color: Color.alphaBlend(
+                  colorScheme.primary.withValues(alpha: 0.01),
+                  colorScheme.surfaceContainerLowest,
                 ),
                 border: Border.all(
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.36),
                 ),
               ),
               child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
             );
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [header, const SizedBox(height: 8), filtersGroup],
@@ -1254,47 +1490,19 @@ class _UsuariosHeader extends StatelessWidget {
   }
 }
 
-class _SearchColumnDropdown extends StatelessWidget {
-  final String value;
-  final ValueChanged<String?> onChanged;
-  const _SearchColumnDropdown({required this.value, required this.onChanged});
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      icon: const Icon(Icons.arrow_drop_down_rounded),
-      decoration: InputDecoration(
-        labelText: 'Buscar por',
-        isDense: true,
-        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      items: const [
-        DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
-        DropdownMenuItem(
-          value: 'Correo electronico',
-          child: Text('Correo electronico'),
-        ),
-        DropdownMenuItem(value: 'Codigo', child: Text('Codigo')),
-        DropdownMenuItem(value: 'Mercado', child: Text('Mercado (ID)')),
-      ],
-      onChanged: onChanged,
-    );
-  }
-}
-
 class _SearchInput extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   const _SearchInput({required this.controller, required this.onChanged});
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: 'Buscar cobrador',
-        hintText: 'Nombre, correo, codigo o mercado...',
+        hintText: 'Nombre, correo, código, estado o correlativo...',
         floatingLabelBehavior: FloatingLabelBehavior.always,
         prefixIcon: const Icon(Icons.search_rounded, size: 18),
         isDense: true,
@@ -1302,7 +1510,123 @@ class _SearchInput extends StatelessWidget {
           horizontal: 12,
           vertical: 10,
         ),
+        filled: true,
+        fillColor: colorScheme.surfaceContainerLow,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _MercadoFilterDropdown extends StatelessWidget {
+  final List<Mercado> mercados;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _MercadoFilterDropdown({
+    required this.mercados,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final opciones = <MapEntry<String?, String>>[
+      const MapEntry<String?, String>(null, 'Todos los mercados'),
+      ...mercados.map(
+        (m) => MapEntry<String?, String>(m.id, m.nombre ?? 'Sin nombre'),
+      ),
+    ];
+
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      icon: const Icon(Icons.store_mall_directory_rounded),
+      decoration: InputDecoration(
+        labelText: 'Mercado',
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        filled: true,
+        fillColor: colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: opciones.map((o) {
+        return DropdownMenuItem<String>(
+          value: o.key,
+          child: Text(o.value, maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+      selectedItemBuilder: (context) => opciones
+          .map(
+            (o) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                o.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _OrderModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _OrderModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.16)
+              : colorScheme.surface,
+          border: Border.all(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.7)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1374,7 +1698,7 @@ class _UsuariosTable extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'Codigo: ' +
+                      'Código: ' +
                           (u.codigoCobrador ?? 'S/C') +
                           ' - ' +
                           strMercado,
@@ -1405,7 +1729,7 @@ class _UsuariosTable extends ConsumerWidget {
                 children: [
                   Text(
                     (u.email ?? '') +
-                        ' - Codigo: ' +
+                        ' - Código: ' +
                         (u.codigoCobrador ?? 'S/C') +
                         ' - Mercado: ' +
                         strMercado,
