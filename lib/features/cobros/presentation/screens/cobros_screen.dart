@@ -11,6 +11,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/scrollable_table.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../../../core/widgets/usuario_filter.dart';
 import '../../../../core/utils/receipt_dispatcher.dart';
 import '../../../cobros/domain/entities/cobro.dart';
@@ -29,10 +30,6 @@ class CobrosScreen extends ConsumerStatefulWidget {
 
 class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  String _searchColumn = 'Local';
-  _CobrosOrden _ordenFiltro = _CobrosOrden.ninguno;
-  String _estadoFiltro = 'Todos';
 
   @override
   void dispose() {
@@ -59,19 +56,16 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                 _CobrosHeader(
                   cobros: state.cobros,
                   searchController: _searchController,
-                  selectedColumn: _searchColumn,
-                  selectedOrder: _ordenFiltro,
-                  selectedEstado: _estadoFiltro,
-                  onSearch: (value) => setState(() => _searchQuery = value),
+                  selectedColumn: state.searchColumn,
+                  selectedEstado: state.estadoFiltro,
+                  onSearch: (value) => ref.read(cobrosPaginadosProvider.notifier).buscar(value),
                   onColumnChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _searchColumn = value);
-                  },
-                  onOrderChanged: (value) {
-                    setState(() => _ordenFiltro = value);
+                    if (value != null) {
+                      ref.read(cobrosPaginadosProvider.notifier).cambiarColumnaBusqueda(value);
+                    }
                   },
                   onEstadoChanged: (value) {
-                    setState(() => _estadoFiltro = value);
+                    ref.read(cobrosPaginadosProvider.notifier).cambiarFiltroEstado(value);
                   },
                 ),
                 const SizedBox(height: 20),
@@ -89,10 +83,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                         )
                       : _CobrosFullTable(
                           state: state,
-                          searchQuery: _searchQuery,
-                          searchColumn: _searchColumn,
-                          orderMode: _ordenFiltro,
-                          estadoFiltro: _estadoFiltro,
+                          onSort: (col) => ref.read(cobrosPaginadosProvider.notifier).cambiarOrdenamiento(col),
                         ),
                 ),
               ],
@@ -107,34 +98,22 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
 // Header de filtros.
 enum _CobrosPeriod { hoy, semana, mes }
 
-enum _CobrosOrden {
-  ninguno,
-  alfabeticoAsc,
-  alfabeticoDesc,
-  montoMayor,
-  montoMenor,
-}
-
 class _CobrosHeader extends ConsumerStatefulWidget {
   final List<Cobro> cobros;
   final TextEditingController searchController;
   final String selectedColumn;
-  final _CobrosOrden selectedOrder;
   final String selectedEstado;
   final ValueChanged<String> onSearch;
   final ValueChanged<String?> onColumnChanged;
-  final ValueChanged<_CobrosOrden> onOrderChanged;
   final ValueChanged<String> onEstadoChanged;
 
   const _CobrosHeader({
     required this.cobros,
     required this.searchController,
     required this.selectedColumn,
-    required this.selectedOrder,
     required this.selectedEstado,
     required this.onSearch,
     required this.onColumnChanged,
-    required this.onOrderChanged,
     required this.onEstadoChanged,
   });
   @override
@@ -210,11 +189,9 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
     }
     widget.searchController.clear();
     widget.onSearch('');
-    widget.onOrderChanged(_CobrosOrden.ninguno);
     widget.onEstadoChanged('Todos');
-    ref
-        .read(cobrosPaginadosProvider.notifier)
-        .aplicarFiltros(
+    ref.read(cobrosPaginadosProvider.notifier).cambiarColumnaBusqueda('Local');
+    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(
           rango: DateTimeRange(start: hoy, end: hoy),
           cobradorId: null,
         );
@@ -300,430 +277,6 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
         );
   }
 
-  Future<void> _abrirFiltrosBottomSheet() async {
-    var ordenLocal = widget.selectedOrder;
-    var estadoLocal = widget.selectedEstado;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        final colorScheme = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            Future<void> applyAndClose() async {
-              widget.onOrderChanged(ordenLocal);
-              widget.onEstadoChanged(estadoLocal);
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            Future<void> resetAndClose() async {
-              widget.onOrderChanged(_CobrosOrden.ninguno);
-              widget.onEstadoChanged('Todos');
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            return SafeArea(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    6,
-                    16,
-                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                                colorScheme.secondaryContainer.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.24,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.tune_rounded,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filtros de Cobros',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      'Ajusta orden y estado para revisar más rápido.',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sort_by_alpha_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden alfabético',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'A - Z',
-                                      selected:
-                                          ordenLocal ==
-                                          _CobrosOrden.alfabeticoAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenLocal =
-                                            _CobrosOrden.alfabeticoAsc,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Z - A',
-                                      selected:
-                                          ordenLocal ==
-                                          _CobrosOrden.alfabeticoDesc,
-                                      onTap: () => setSheetState(
-                                        () => ordenLocal =
-                                            _CobrosOrden.alfabeticoDesc,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.attach_money_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden por monto',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Monto mayor',
-                                      selected:
-                                          ordenLocal == _CobrosOrden.montoMayor,
-                                      onTap: () => setSheetState(
-                                        () => ordenLocal =
-                                            _CobrosOrden.montoMayor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Monto menor',
-                                      selected:
-                                          ordenLocal == _CobrosOrden.montoMenor,
-                                      onTap: () => setSheetState(
-                                        () => ordenLocal =
-                                            _CobrosOrden.montoMenor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              _OrderModeChip(
-                                label: 'Sin orden',
-                                selected: ordenLocal == _CobrosOrden.ninguno,
-                                onTap: () => setSheetState(
-                                  () => ordenLocal = _CobrosOrden.ninguno,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.label_important_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Estado',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Todos',
-                                      selected: estadoLocal == 'Todos',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'Todos',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Cobrado',
-                                      selected: estadoLocal == 'cobrado',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'cobrado',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Pendiente',
-                                      selected: estadoLocal == 'pendiente',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'pendiente',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Abono parcial',
-                                      selected: estadoLocal == 'abono_parcial',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'abono_parcial',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Abono deuda',
-                                      selected: estadoLocal == 'abono_deuda',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'abono_deuda',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Adelantado',
-                                      selected: estadoLocal == 'adelantado',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'adelantado',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Anulado',
-                                      selected: estadoLocal == 'anulado',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'anulado',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Cancelado',
-                                      selected: estadoLocal == 'cancelado',
-                                      onTap: () => setSheetState(
-                                        () => estadoLocal = 'cancelado',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Expanded(child: SizedBox.shrink()),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: resetAndClose,
-                                icon: const Icon(
-                                  Icons.restart_alt_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('Restablecer'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: applyAndClose,
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Aplicar'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   String _getDescripcion(DateTimeRange rango) {
     final periodo = _periodo;
     switch (periodo) {
@@ -771,15 +324,6 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
                       onPressed: _recargar,
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Recargar'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 34,
-                    child: OutlinedButton.icon(
-                      style: compactStyle,
-                      onPressed: _abrirFiltrosBottomSheet,
-                      icon: const Icon(Icons.tune_rounded, size: 15),
-                      label: const Text('Filtros'),
                     ),
                   ),
                   SizedBox(
@@ -1114,6 +658,7 @@ class _CobrosSearchColumnDropdown extends StatelessWidget {
         DropdownMenuItem(value: 'Mercado', child: Text('Mercado')),
         DropdownMenuItem(value: 'Estado', child: Text('Estado')),
         DropdownMenuItem(value: 'Cobrador', child: Text('Cobrador')),
+        DropdownMenuItem(value: 'Boleta', child: Text('Boleta')),
         DropdownMenuItem(value: 'Teléfono', child: Text('Teléfono')),
         DropdownMenuItem(value: 'Observaciones', child: Text('Observaciones')),
       ],
@@ -1178,123 +723,15 @@ class _CobrosDateFilterButton extends StatelessWidget {
   }
 }
 
-class _OrderModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OrderModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StatusModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: selected ? colorScheme.primary : colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // Tabla de cobros con paginación.
 class _CobrosFullTable extends ConsumerStatefulWidget {
   final CobrosPaginadosState state;
-  final String searchQuery;
-  final String searchColumn;
-  final _CobrosOrden orderMode;
-  final String estadoFiltro;
+  final Function(String) onSort;
 
   const _CobrosFullTable({
     required this.state,
-    required this.searchQuery,
-    required this.searchColumn,
-    required this.orderMode,
-    required this.estadoFiltro,
+    required this.onSort,
   });
 
   @override
@@ -1326,19 +763,6 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         .firstWhere((_) => true, orElse: () => 'Desconocido');
   }
 
-  double _montoParaOrden(Cobro cobro) {
-    if (cobro.estado == 'pendiente') {
-      return (cobro.saldoPendiente ?? 0).toDouble();
-    }
-    return (cobro.monto ?? 0).toDouble();
-  }
-
-  String _estadoComparable(Cobro cobro) {
-    final estado = (cobro.estado ?? '').trim().toLowerCase();
-    if (estado.isEmpty) return 'pendiente';
-    return estado;
-  }
-
   @override
   Widget build(BuildContext context) {
     // Escuchar activamente los datos maestros para que la tabla reaccione
@@ -1346,76 +770,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     final mercados = ref.watch(mercadosProvider).value ?? [];
     final usuarios = ref.watch(usuariosProvider).value ?? [];
 
-    final q = widget.searchQuery.toLowerCase();
-    final searchFiltered = q.isEmpty
-        ? widget.state.cobros
-        : widget.state.cobros.where((c) {
-            switch (widget.searchColumn) {
-              case 'Local':
-                return nombreLocal(
-                  c.localId,
-                  locales,
-                ).toLowerCase().contains(q);
-              case 'Mercado':
-                return nombreMercado(
-                  c.mercadoId,
-                  mercados,
-                ).toLowerCase().contains(q);
-              case 'Estado':
-                final estadoRaw = (c.estado ?? '').toLowerCase();
-                final estadoLabel = _cobroEstadoLabel(c.estado).toLowerCase();
-                return estadoRaw.contains(q) || estadoLabel.contains(q);
-              case 'Cobrador':
-                return nombreCobrador(
-                  c.cobradorId,
-                  usuarios,
-                ).toLowerCase().contains(q);
-              case 'Teléfono':
-                return (c.telefonoRepresentante ?? '').toLowerCase().contains(
-                  q,
-                );
-              case 'Observaciones':
-                return (c.observaciones ?? '').toLowerCase().contains(q);
-              default:
-                return true;
-            }
-          }).toList();
-
-    final estadoFiltered = widget.estadoFiltro == 'Todos'
-        ? searchFiltered
-        : searchFiltered
-              .where((c) => _estadoComparable(c) == widget.estadoFiltro)
-              .toList();
-
-    final filtered = [...estadoFiltered];
-    switch (widget.orderMode) {
-      case _CobrosOrden.ninguno:
-        break;
-      case _CobrosOrden.alfabeticoAsc:
-        filtered.sort(
-          (a, b) => nombreLocal(a.localId, locales).toLowerCase().compareTo(
-            nombreLocal(b.localId, locales).toLowerCase(),
-          ),
-        );
-        break;
-      case _CobrosOrden.alfabeticoDesc:
-        filtered.sort(
-          (a, b) => nombreLocal(b.localId, locales).toLowerCase().compareTo(
-            nombreLocal(a.localId, locales).toLowerCase(),
-          ),
-        );
-        break;
-      case _CobrosOrden.montoMayor:
-        filtered.sort(
-          (a, b) => _montoParaOrden(b).compareTo(_montoParaOrden(a)),
-        );
-        break;
-      case _CobrosOrden.montoMenor:
-        filtered.sort(
-          (a, b) => _montoParaOrden(a).compareTo(_montoParaOrden(b)),
-        );
-        break;
-    }
+    final filtered = ref.read(cobrosPaginadosProvider.notifier).getCobrosFiltrados(locales, mercados, usuarios);
 
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -1781,13 +1136,62 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                               },
                             ),
                           ),
-                        const DataColumn(label: Text('Fecha')),
-                        const DataColumn(label: Text('Mercado')),
-                        const DataColumn(label: Text('Local')),
-                        const DataColumn(label: Text('Monto')),
-                        const DataColumn(label: Text('Estado')),
-                        const DataColumn(label: Text('Cobrador')),
-                        const DataColumn(label: Text('Boleta')),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Fecha',
+                            isActive: widget.state.sortColumn == 'Fecha',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Fecha'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Mercado',
+                            isActive: widget.state.sortColumn == 'Mercado',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Mercado'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Local',
+                            isActive: widget.state.sortColumn == 'Local',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Local'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Monto',
+                            isActive: widget.state.sortColumn == 'Monto',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Monto'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Estado',
+                            isActive: widget.state.sortColumn == 'Estado',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Estado'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Cobrador',
+                            isActive: widget.state.sortColumn == 'Cobrador',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Cobrador'),
+                          ),
+                        ),
+                        DataColumn(
+                          label: SortableColumn(
+                            label: 'Boleta',
+                            isActive: widget.state.sortColumn == 'Boleta',
+                            ascending: widget.state.sortAsc,
+                            onTap: () => widget.onSort('Boleta'),
+                          ),
+                        ),
                         const DataColumn(label: Text('Acciones')),
                       ],
                       rows: filtered.map((c) {
