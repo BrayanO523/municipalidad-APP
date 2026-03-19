@@ -1381,7 +1381,7 @@ class _UsuariosHeader extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        'Pagina $paginaActual - $totalRegistros registros',
+                        'Página $paginaActual - $totalRegistros registros',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: colorScheme.onSurface.withValues(alpha: 0.62),
@@ -1694,7 +1694,7 @@ class _UsuariosTable extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'Codigo: ${u.codigoCobrador ?? 'S/C'} - $strMercado',
+                      'Código: ${u.codigoCobrador ?? 'S/C'} - $strMercado',
                       style: TextStyle(
                         color: Theme.of(
                           context,
@@ -1721,7 +1721,7 @@ class _UsuariosTable extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${u.email ?? ''} - Codigo: ${u.codigoCobrador ?? 'S/C'} - Mercado: $strMercado',
+                    '${u.email ?? ''} - Código: ${u.codigoCobrador ?? 'S/C'} - Mercado: $strMercado',
                     style: TextStyle(
                       color: Theme.of(
                         context,
@@ -1825,11 +1825,11 @@ class _PaginationBar extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-            tooltip: 'Pagina anterior',
+            tooltip: 'Página anterior',
           ),
           const SizedBox(width: 8),
           Text(
-            'Pagina $currentPage de $totalPages',
+            'Página $currentPage de $totalPages',
             style: TextStyle(
               color: Theme.of(
                 context,
@@ -1847,7 +1847,7 @@ class _PaginationBar extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-            tooltip: 'Pagina siguiente',
+            tooltip: 'Página siguiente',
           ),
         ],
       ),

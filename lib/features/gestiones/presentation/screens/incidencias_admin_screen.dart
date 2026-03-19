@@ -180,7 +180,7 @@ class _IncidenciasAdminScreenState
                           (l) => DropdownMenuItem<String>(
                             value: l.id,
                             child: Text(
-                              '${l.nombreSocial ?? 'Sin nombre'} | Cod: ${l.codigo ?? '-'}',
+                              '${l.nombreSocial ?? 'Sin nombre'} | Cód: ${l.codigo ?? '-'}',
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -452,7 +452,7 @@ class _IncidenciasAdminScreenState
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Clave: ${inc.localClave} | Cod: ${inc.localCodigo}',
+                            'Clave: ${inc.localClave} | Cód: ${inc.localCodigo}',
                             style: TextStyle(
                               color: colorScheme.onSurfaceVariant,
                               fontSize: 13,

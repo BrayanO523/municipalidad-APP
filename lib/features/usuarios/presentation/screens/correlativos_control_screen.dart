@@ -443,7 +443,7 @@ class _CorrelativosHeader extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        'Pagina $paginaActual - $totalRegistros registros',
+                        'Página $paginaActual - $totalRegistros registros',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: colorScheme.onSurface.withValues(alpha: 0.62),
@@ -907,11 +907,11 @@ class _PaginationBar extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-            tooltip: 'Pagina anterior',
+            tooltip: 'Página anterior',
           ),
           const SizedBox(width: 8),
           Text(
-            'Pagina $currentPage de $totalPages',
+            'Página $currentPage de $totalPages',
             style: TextStyle(
               color: Theme.of(
                 context,
@@ -929,7 +929,7 @@ class _PaginationBar extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.24),
-            tooltip: 'Pagina siguiente',
+            tooltip: 'Página siguiente',
           ),
         ],
       ),
