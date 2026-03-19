@@ -162,17 +162,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     final notifier = ref.read(localesPaginadosProvider.notifier);
     final showUsuario = !(user?.esCobrador ?? true);
 
-    return Card(
-      elevation: 3,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
+    return Container(
+      decoration: context.webHeaderDecoration(),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: LayoutBuilder(
@@ -399,13 +390,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
+                color: Color.alphaBlend(
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.01),
+                  Theme.of(context).colorScheme.surfaceContainerLowest,
+                ),
                 border: Border.all(
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.08),
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.36),
                 ),
               ),
               child: isMobile
@@ -709,14 +701,9 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           prefixIcon: const Icon(Icons.store_rounded, size: 16),
           isDense: true,
           contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-              width: 1,
-            ),
-          ),
         ),
         baseStyle: const TextStyle(fontSize: 13),
       ),
@@ -773,6 +760,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                   horizontal: 12,
                   vertical: 10,
                 ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -890,6 +879,20 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: const TextStyle(fontSize: 12),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            selectedForegroundColor: Theme.of(context).colorScheme.primary,
+            selectedBackgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.16),
+            side: BorderSide(
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.55),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
       ),

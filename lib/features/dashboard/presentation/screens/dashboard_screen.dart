@@ -710,25 +710,7 @@ class _DashboardHeader extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.surfaceContainerHigh.withAlpha(210),
-            colorScheme.surfaceContainerLow.withAlpha(190),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colorScheme.outlineVariant.withAlpha(90)),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.12),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      decoration: context.webHeaderDecoration(radius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1366,7 +1348,7 @@ class _DashboardHeader extends ConsumerWidget {
                             'Importación de Faltantes (Locales)',
                           ),
                           content: const Text(
-                            'Se importarán 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada Concepción usando docId por CLAVE. Se omiten por ahora los casos especiales (codigo 335 y 616). ¿Desea proceder?',
+                            'Se importarán 116 locales faltantes (hojas 001/019/333) al Mercado Inmaculada Concepción usando docId por CLAVE. Se omiten por ahora los casos especiales (código 335 y 616). ¿Desea proceder?',
                           ),
                           actions: [
                             TextButton(

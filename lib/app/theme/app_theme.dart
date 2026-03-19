@@ -113,6 +113,27 @@ extension AppThemeContextX on BuildContext {
     return theme.extension<AppSemanticColors>() ??
         AppSemanticColors.fromColorScheme(theme.colorScheme);
   }
+
+  BoxDecoration webHeaderDecoration({double radius = 16}) {
+    final theme = Theme.of(this);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final headerColor = Color.alphaBlend(
+      colorScheme.primary.withValues(alpha: isDark ? 0.06 : 0.04),
+      isDark
+          ? colorScheme.surfaceContainerHigh
+          : colorScheme.surfaceContainerLowest,
+    );
+    return BoxDecoration(
+      color: headerColor,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: colorScheme.outlineVariant.withValues(
+          alpha: isDark ? 0.38 : 0.36,
+        ),
+      ),
+    );
+  }
 }
 
 /// Color primario por defecto (Blue-Ribbon 600)
