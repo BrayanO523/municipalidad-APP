@@ -8,6 +8,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
 import '../../../../core/widgets/scrollable_table.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../data/models/tipo_negocio_model.dart';
 import '../../domain/entities/tipo_negocio.dart';
 
@@ -23,8 +24,9 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
   Timer? _debounce;
   String _searchQuery = '';
   String _searchColumn = 'Nombre';
-  bool _ordenarNombreAsc = true;
   String _estadoFiltro = 'Todos';
+  String? _sortColumn;
+  bool _sortAsc = true;
 
   @override
   void dispose() {
@@ -47,296 +49,56 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
     setState(() {
       _searchQuery = '';
       _searchColumn = 'Nombre';
-      _ordenarNombreAsc = true;
       _estadoFiltro = 'Todos';
+      _sortColumn = null;
+      _sortAsc = true;
     });
   }
 
-  Future<void> _abrirFiltrosBottomSheet(BuildContext context) async {
-    var ordenarAsc = _ordenarNombreAsc;
-    var estadoFiltro = _estadoFiltro;
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        if (_sortAsc) {
+          _sortAsc = false;
+        } else {
+          _sortColumn = null;
+          _sortAsc = true;
+        }
+      } else {
+        _sortColumn = column;
+        _sortAsc = true;
+      }
+    });
+  }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        final colorScheme = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            void applyAndClose() {
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              setState(() {
-                _ordenarNombreAsc = ordenarAsc;
-                _estadoFiltro = estadoFiltro;
-              });
-            }
-
-            void resetAndClose() {
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              unawaited(_limpiarFiltros());
-            }
-
-            return SafeArea(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    6,
-                    16,
-                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                                colorScheme.secondaryContainer.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.24,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.tune_rounded,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filtros de Tipos',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      'Ordena y filtra por estado.',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sort_by_alpha_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden alfabetico',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'A - Z',
-                                      selected: ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Z - A',
-                                      selected: !ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = false,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.toggle_on_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Estado',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Todos',
-                                      selected: estadoFiltro == 'Todos',
-                                      onTap: () => setSheetState(
-                                        () => estadoFiltro = 'Todos',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Activo',
-                                      selected: estadoFiltro == 'Activo',
-                                      onTap: () => setSheetState(
-                                        () => estadoFiltro = 'Activo',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Inactivo',
-                                      selected: estadoFiltro == 'Inactivo',
-                                      onTap: () => setSheetState(
-                                        () => estadoFiltro = 'Inactivo',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: resetAndClose,
-                                icon: const Icon(
-                                  Icons.restart_alt_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('Restablecer'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: applyAndClose,
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Aplicar'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  List<TipoNegocio> _applySort(List<TipoNegocio> lista) {
+    if (_sortColumn == null) return lista;
+    final sorted = List<TipoNegocio>.from(lista);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case 'Nombre':
+          cmp = (a.nombre ?? '').toLowerCase().compareTo(
+                (b.nombre ?? '').toLowerCase(),
+              );
+        case 'Descripcion':
+          cmp = (a.descripcion ?? '').toLowerCase().compareTo(
+                (b.descripcion ?? '').toLowerCase(),
+              );
+        case 'Estado':
+          final aVal = (a.activo ?? false) ? 1 : 0;
+          final bVal = (b.activo ?? false) ? 1 : 0;
+          cmp = aVal.compareTo(bVal);
+        case 'Fecha':
+          cmp = (a.creadoEn ?? DateTime(0)).compareTo(
+                b.creadoEn ?? DateTime(0),
+              );
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return sorted;
   }
 
   @override
@@ -367,8 +129,11 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                       setState(() => _searchColumn = val);
                     }
                   },
+                  estadoFiltro: _estadoFiltro,
+                  onEstadoChanged: (val) {
+                    if (val != null) setState(() => _estadoFiltro = val);
+                  },
                   onReload: () => ref.invalidate(tiposNegocioProvider),
-                  onOpenFilters: () => _abrirFiltrosBottomSheet(context),
                   onResetFilters: _limpiarFiltros,
                 ),
                 const SizedBox(height: 20),
@@ -376,7 +141,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                   child: tiposNegocio.when(
                     data: (list) {
                       final query = _searchQuery.trim().toLowerCase();
-                      final filtered = list.where((t) {
+                      var filtered = list.where((t) {
                         if (_estadoFiltro == 'Activo' && t.activo != true) {
                           return false;
                         }
@@ -396,12 +161,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                             (t.descripcion ?? '').toLowerCase().contains(query);
                       }).toList();
 
-                      filtered.sort((a, b) {
-                        final cmp = (a.nombre ?? '').toLowerCase().compareTo(
-                          (b.nombre ?? '').toLowerCase(),
-                        );
-                        return _ordenarNombreAsc ? cmp : -cmp;
-                      });
+                      filtered = _applySort(filtered);
 
                       if (filtered.isEmpty) {
                         return Center(
@@ -417,6 +177,9 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                       }
                       return _TiposTable(
                         tipos: filtered,
+                        sortColumn: _sortColumn,
+                        sortAsc: _sortAsc,
+                        onSort: _toggleSort,
                         onEdit: (t) => _showFormDialog(context, tipo: t),
                         onDelete: (t) => _confirmDelete(context, t),
                       );
@@ -498,32 +261,14 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                 TextField(
                   controller: descripcionCtrl,
                   decoration: const InputDecoration(labelText: 'Descripcion'),
-                  maxLines: 2,
+                  maxLines: 3,
                 ),
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.toggle_on_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('Estado')),
-                      Switch.adaptive(
-                        value: activo,
-                        onChanged: (value) =>
-                            setDialogState(() => activo = value),
-                      ),
-                      Text(activo ? 'Activo' : 'Inactivo'),
-                    ],
-                  ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Activo'),
+                  value: activo,
+                  onChanged: (v) => setDialogState(() => activo = v),
                 ),
               ],
             ),
@@ -533,28 +278,22 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
+                final nombre = nombreCtrl.text.trim();
+                if (nombre.isEmpty) return;
                 final ds = ref.read(tipoNegocioDatasourceProvider);
-                final now = DateTime.now();
                 final docId = isEditing
                     ? tipo.id!
-                    : IdNormalizer.tipoNegocioId(nombreCtrl.text);
-
+                    : IdNormalizer.tipoNegocioId(nombre);
                 final model = TipoNegocioJson(
-                  activo: activo,
-                  actualizadoEn: now,
-                  actualizadoPor: 'admin',
-                  creadoEn: isEditing ? tipo.creadoEn : now,
-                  creadoPor: isEditing ? tipo.creadoPor : 'admin',
-                  descripcion: descripcionCtrl.text,
                   id: docId,
-                  nombre: nombreCtrl.text,
-                  municipalidadId: isEditing
-                      ? tipo.municipalidadId
-                      : currentAdmin?.municipalidadId,
+                  nombre: nombre,
+                  descripcion: descripcionCtrl.text.trim(),
+                  activo: activo,
+                  creadoEn: tipo?.creadoEn ?? DateTime.now(),
+                  creadoPor: currentAdmin?.id,
                 );
-
                 if (isEditing) {
                   await ds.actualizar(docId, model.toJson());
                 } else {
@@ -579,8 +318,9 @@ class _TiposHeader extends StatelessWidget {
   final VoidCallback onAdd;
   final String selectedColumn;
   final ValueChanged<String?> onColumnChanged;
+  final String estadoFiltro;
+  final ValueChanged<String?> onEstadoChanged;
   final VoidCallback onReload;
-  final VoidCallback onOpenFilters;
   final VoidCallback onResetFilters;
 
   const _TiposHeader({
@@ -590,8 +330,9 @@ class _TiposHeader extends StatelessWidget {
     required this.onAdd,
     required this.selectedColumn,
     required this.onColumnChanged,
+    required this.estadoFiltro,
+    required this.onEstadoChanged,
     required this.onReload,
-    required this.onOpenFilters,
     required this.onResetFilters,
   });
 
@@ -625,15 +366,6 @@ class _TiposHeader extends StatelessWidget {
                       onPressed: onReload,
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Recargar'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 34,
-                    child: OutlinedButton.icon(
-                      style: compactStyle,
-                      onPressed: onOpenFilters,
-                      icon: const Icon(Icons.tune_rounded, size: 15),
-                      label: const Text('Filtros'),
                     ),
                   ),
                   SizedBox(
@@ -737,10 +469,18 @@ class _TiposHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 220,
+                    width: 180,
                     child: _SearchColumnDropdown(
                       value: selectedColumn,
                       onChanged: onColumnChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 150,
+                    child: _EstadoDropdown(
+                      value: estadoFiltro,
+                      onChanged: onEstadoChanged,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -757,9 +497,22 @@ class _TiposHeader extends StatelessWidget {
             Widget filtersTablet() {
               return Column(
                 children: [
-                  _SearchColumnDropdown(
-                    value: selectedColumn,
-                    onChanged: onColumnChanged,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SearchColumnDropdown(
+                          value: selectedColumn,
+                          onChanged: onColumnChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _EstadoDropdown(
+                          value: estadoFiltro,
+                          onChanged: onEstadoChanged,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   _SearchInput(
@@ -805,7 +558,7 @@ class _SearchColumnDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       icon: const Icon(Icons.arrow_drop_down_rounded),
       decoration: InputDecoration(
         labelText: 'Buscar por',
@@ -818,6 +571,35 @@ class _SearchColumnDropdown extends StatelessWidget {
       items: const [
         DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
         DropdownMenuItem(value: 'Descripcion', child: Text('Descripcion')),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _EstadoDropdown extends StatelessWidget {
+  final String value;
+  final ValueChanged<String?> onChanged;
+
+  const _EstadoDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      decoration: InputDecoration(
+        labelText: 'Estado',
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+        DropdownMenuItem(value: 'Activo', child: Text('Activo')),
+        DropdownMenuItem(value: 'Inactivo', child: Text('Inactivo')),
       ],
       onChanged: onChanged,
     );
@@ -853,71 +635,19 @@ class _SearchInput extends StatelessWidget {
   }
 }
 
-class _OrderModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OrderModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TiposTable extends StatelessWidget {
   final List<TipoNegocio> tipos;
+  final String? sortColumn;
+  final bool sortAsc;
+  final void Function(String) onSort;
   final ValueChanged<TipoNegocio> onEdit;
   final ValueChanged<TipoNegocio> onDelete;
 
   const _TiposTable({
     required this.tipos,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
     required this.onEdit,
     required this.onDelete,
   });
@@ -927,12 +657,40 @@ class _TiposTable extends StatelessWidget {
     return Card(
       child: ScrollableTable(
         child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Descripcion')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Fecha creacion')),
-            DataColumn(label: Text('Acciones')),
+          columns: [
+            DataColumn(
+              label: SortableColumn(
+                label: 'Nombre',
+                isActive: sortColumn == 'Nombre',
+                ascending: sortAsc,
+                onTap: () => onSort('Nombre'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Descripcion',
+                isActive: sortColumn == 'Descripcion',
+                ascending: sortAsc,
+                onTap: () => onSort('Descripcion'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Estado',
+                isActive: sortColumn == 'Estado',
+                ascending: sortAsc,
+                onTap: () => onSort('Estado'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Fecha creacion',
+                isActive: sortColumn == 'Fecha',
+                ascending: sortAsc,
+                onTap: () => onSort('Fecha'),
+              ),
+            ),
+            const DataColumn(label: Text('Acciones')),
           ],
           rows: tipos.map((t) {
             return DataRow(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../domain/entities/usuario.dart';
 import '../viewmodels/usuarios_paginados_notifier.dart';
 
@@ -21,6 +22,8 @@ class _CorrelativosControlScreenState
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
   String _searchColumn = 'Todos';
+  String? _sortColumn;
+  bool _sortAsc = true;
 
   @override
   void initState() {
@@ -55,232 +58,62 @@ class _CorrelativosControlScreenState
     setState(() {
       _searchColumn = 'Todos';
       _searchCtrl.clear();
+      _sortColumn = null;
+      _sortAsc = true;
     });
     await ref.read(usuariosPaginadosProvider.notifier).restablecerFiltros();
   }
 
-  Future<void> _abrirFiltrosBottomSheet({
-    required BuildContext context,
-    required UsuariosPaginadosNotifier notifier,
-    required UsuariosPaginadosState state,
-  }) async {
-    var ordenarAsc = state.ordenarNombreAsc;
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        if (_sortAsc) {
+          _sortAsc = false;
+        } else {
+          _sortColumn = null;
+          _sortAsc = true;
+        }
+      } else {
+        _sortColumn = column;
+        _sortAsc = true;
+      }
+    });
+  }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        final colorScheme = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            Future<void> applyAndClose() async {
-              await notifier.aplicarFiltros(ordenarNombreAsc: ordenarAsc);
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            Future<void> resetAndClose() async {
-              await notifier.aplicarFiltros(ordenarNombreAsc: true);
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            return SafeArea(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    6,
-                    16,
-                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                                colorScheme.tertiaryContainer.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.24,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.filter_alt_rounded,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filtros de Correlativos',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      'Ordena la lista para priorizar revisión.',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sort_by_alpha_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden alfabetico',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'A - Z',
-                                      selected: ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Z - A',
-                                      selected: !ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = false,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: resetAndClose,
-                                icon: const Icon(
-                                  Icons.restart_alt_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('Restablecer'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: applyAndClose,
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Aplicar'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  List<Usuario> _applySortCorrel(List<Usuario> lista) {
+    if (_sortColumn == null) return lista;
+    final sorted = List<Usuario>.from(lista);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case 'Cobrador':
+          cmp = (a.nombre ?? '').toLowerCase().compareTo(
+                (b.nombre ?? '').toLowerCase(),
+              );
+        case 'Código':
+          cmp = (a.codigoCobrador ?? '').compareTo(b.codigoCobrador ?? '');
+        case 'Año':
+          cmp = (a.anioCorrelativo ?? 0).compareTo(b.anioCorrelativo ?? 0);
+        case 'Correlativo':
+          cmp = (a.ultimoCorrelativo ?? 0).compareTo(b.ultimoCorrelativo ?? 0);
+        case 'Estado':
+          final aActivo = (a.ultimoCorrelativo ?? 0) > 0 ? 1 : 0;
+          final bActivo = (b.ultimoCorrelativo ?? 0) > 0 ? 1 : 0;
+          cmp = aActivo.compareTo(bActivo);
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return sorted;
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(usuariosPaginadosProvider);
     final notifier = ref.read(usuariosPaginadosProvider.notifier);
-    final usuarios = state.usuarios.where((u) => u.esCobrador).toList();
+    final usuariosRaw = state.usuarios.where((u) => u.esCobrador).toList();
+    final usuarios = _applySortCorrel(usuariosRaw);
     final isMobile = MediaQuery.sizeOf(context).width <= 760;
 
     return Scaffold(
@@ -309,11 +142,6 @@ class _CorrelativosControlScreenState
                     );
               },
               onReload: notifier.recargar,
-              onOpenFilters: () => _abrirFiltrosBottomSheet(
-                context: context,
-                notifier: notifier,
-                state: state,
-              ),
               onResetFilters: () => _limpiarFiltros(),
             ),
             const SizedBox(height: 16),
@@ -321,6 +149,9 @@ class _CorrelativosControlScreenState
               child: _CorrelativosContent(
                 state: state,
                 usuarios: usuarios,
+                sortColumn: _sortColumn,
+                sortAsc: _sortAsc,
+                onSort: _toggleSort,
                 onPrev: state.paginaActual > 1
                     ? notifier.irAPaginaAnterior
                     : null,
@@ -344,7 +175,6 @@ class _CorrelativosHeader extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<String?> onColumnChanged;
   final VoidCallback onReload;
-  final VoidCallback onOpenFilters;
   final VoidCallback onResetFilters;
 
   const _CorrelativosHeader({
@@ -355,7 +185,6 @@ class _CorrelativosHeader extends StatelessWidget {
     required this.onSearch,
     required this.onColumnChanged,
     required this.onReload,
-    required this.onOpenFilters,
     required this.onResetFilters,
   });
 
@@ -390,15 +219,6 @@ class _CorrelativosHeader extends StatelessWidget {
                       onPressed: onReload,
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Recargar'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 34,
-                    child: OutlinedButton.icon(
-                      style: compactStyle,
-                      onPressed: onOpenFilters,
-                      icon: const Icon(Icons.tune_rounded, size: 15),
-                      label: const Text('Filtros'),
                     ),
                   ),
                   SizedBox(
@@ -611,75 +431,23 @@ class _SearchInput extends StatelessWidget {
   }
 }
 
-class _OrderModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OrderModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CorrelativosContent extends StatelessWidget {
   final UsuariosPaginadosState state;
   final List<Usuario> usuarios;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
+  final String? sortColumn;
+  final bool sortAsc;
+  final void Function(String) onSort;
 
   const _CorrelativosContent({
     required this.state,
     required this.usuarios,
     required this.onPrev,
     required this.onNext,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
   });
 
   @override
@@ -719,7 +487,12 @@ class _CorrelativosContent extends StatelessWidget {
                     ),
                   );
                 }
-                return _CorrelativosTable(usuarios: usuarios);
+                return _CorrelativosTable(
+                  usuarios: usuarios,
+                  sortColumn: sortColumn,
+                  sortAsc: sortAsc,
+                  onSort: onSort,
+                );
               },
             ),
           ),
@@ -739,8 +512,16 @@ class _CorrelativosContent extends StatelessWidget {
 
 class _CorrelativosTable extends StatelessWidget {
   final List<Usuario> usuarios;
+  final String? sortColumn;
+  final bool sortAsc;
+  final void Function(String) onSort;
 
-  const _CorrelativosTable({required this.usuarios});
+  const _CorrelativosTable({
+    required this.usuarios,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -770,13 +551,48 @@ class _CorrelativosTable extends StatelessWidget {
                   ),
                   horizontalMargin: 16,
                   columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Cobrador')),
-                    DataColumn(label: Text('Código (Prefijo)')),
-                    DataColumn(label: Text('Año')),
-                    DataColumn(label: Text('Último Correlativo')),
-                    DataColumn(label: Text('Estado')),
-                    DataColumn(label: Text('Acciones')),
+                  columns: [
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Cobrador',
+                        isActive: sortColumn == 'Cobrador',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Cobrador'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Código (Prefijo)',
+                        isActive: sortColumn == 'Código',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Código'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Año',
+                        isActive: sortColumn == 'Año',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Año'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Último Correlativo',
+                        isActive: sortColumn == 'Correlativo',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Correlativo'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Estado',
+                        isActive: sortColumn == 'Estado',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Estado'),
+                      ),
+                    ),
+                    const DataColumn(label: Text('Acciones')),
                   ],
                   rows: usuarios.map((u) {
                     final ultimoC = u.ultimoCorrelativo ?? 0;

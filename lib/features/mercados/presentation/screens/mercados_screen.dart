@@ -9,6 +9,7 @@ import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../data/models/mercado_model.dart';
 import '../../domain/entities/mercado.dart';
 import '../widgets/map_picker_modal.dart';
@@ -26,6 +27,8 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
   Timer? _debounce;
   String _searchColumn = 'Todos';
   String _estadoFilter = 'Todos';
+  String? _sortColumn;
+  bool _sortAsc = true;
 
   @override
   void initState() {
@@ -62,8 +65,56 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
     setState(() {
       _searchColumn = 'Todos';
       _estadoFilter = 'Todos';
+      _sortColumn = null;
+      _sortAsc = true;
     });
     await ref.read(mercadosPaginadosProvider.notifier).restablecerFiltros();
+  }
+
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        if (_sortAsc) {
+          _sortAsc = false;
+        } else {
+          _sortColumn = null;
+          _sortAsc = true;
+        }
+      } else {
+        _sortColumn = column;
+        _sortAsc = true;
+      }
+    });
+  }
+
+  List<Mercado> _applySort(List<Mercado> lista) {
+    if (_sortColumn == null) return lista;
+    final sorted = List<Mercado>.from(lista);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case 'Nombre':
+          cmp = (a.nombre ?? '').toLowerCase().compareTo(
+                (b.nombre ?? '').toLowerCase(),
+              );
+        case 'Ubicacion':
+          cmp = (a.ubicacion ?? '').toLowerCase().compareTo(
+                (b.ubicacion ?? '').toLowerCase(),
+              );
+        case 'Estado':
+          final aVal = (a.activo ?? false) ? 1 : 0;
+          final bVal = (b.activo ?? false) ? 1 : 0;
+          cmp = aVal.compareTo(bVal);
+        case 'Fecha':
+          cmp = (a.creadoEn ?? DateTime(0)).compareTo(
+                b.creadoEn ?? DateTime(0),
+              );
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return sorted;
   }
 
   Future<LatLng?> _obtenerUbicacionActual() async {
@@ -85,310 +136,6 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
     } catch (_) {
       return null;
     }
-  }
-
-  Future<void> _abrirFiltrosBottomSheet({
-    required BuildContext context,
-    required MercadosPaginadosNotifier notifier,
-    required MercadosPaginadosState state,
-  }) async {
-    var ordenarAsc = state.ordenarNombreAsc;
-    var estadoFilter = state.estadoFilter;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        final colorScheme = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            Future<void> applyAndClose() async {
-              await notifier.aplicarFiltros(
-                searchQuery: _searchCtrl.text,
-                searchColumn: _searchColumn,
-                ordenarNombreAsc: ordenarAsc,
-                estadoFilter: estadoFilter,
-              );
-              if (mounted) {
-                setState(() => _estadoFilter = estadoFilter);
-              }
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            Future<void> resetAndClose() async {
-              _debounce?.cancel();
-              _searchCtrl.clear();
-              if (mounted) {
-                setState(() {
-                  _searchColumn = 'Todos';
-                  _estadoFilter = 'Todos';
-                });
-              }
-              await notifier.restablecerFiltros();
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            }
-
-            return SafeArea(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    6,
-                    16,
-                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                                colorScheme.secondaryContainer.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.24,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.tune_rounded,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filtros de Mercados',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      'Ajusta el orden para revisar mas rapido.',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.toggle_on_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Estado',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Todos',
-                                      selected: estadoFilter == 'Todos',
-                                      onTap: () => setSheetState(
-                                        () => estadoFilter = 'Todos',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Activo',
-                                      selected: estadoFilter == 'Activo',
-                                      onTap: () => setSheetState(
-                                        () => estadoFilter = 'Activo',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _StatusModeChip(
-                                      label: 'Inactivo',
-                                      selected: estadoFilter == 'Inactivo',
-                                      onTap: () => setSheetState(
-                                        () => estadoFilter = 'Inactivo',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sort_by_alpha_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden alfabetico',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'A - Z',
-                                      selected: ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Z - A',
-                                      selected: !ordenarAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenarAsc = false,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: resetAndClose,
-                                icon: const Icon(
-                                  Icons.restart_alt_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('Restablecer'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: applyAndClose,
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Aplicar'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   @override
@@ -426,12 +173,18 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                       );
                     }
                   },
+                  estadoFilter: _estadoFilter,
+                  onEstadoChanged: (val) {
+                    if (val != null) {
+                      setState(() => _estadoFilter = val);
+                      notifier.aplicarFiltros(
+                        searchQuery: _searchCtrl.text,
+                        searchColumn: _searchColumn,
+                        estadoFilter: val,
+                      );
+                    }
+                  },
                   onReload: notifier.recargar,
-                  onOpenFilters: () => _abrirFiltrosBottomSheet(
-                    context: context,
-                    notifier: notifier,
-                    state: state,
-                  ),
                   onResetFilters: () => _limpiarFiltros(),
                 ),
                 const SizedBox(height: 20),
@@ -478,8 +231,12 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                                   ),
                                 );
                               }
+                              final sorted = _applySort(state.mercados);
                               return _MercadosTable(
-                                mercados: state.mercados,
+                                mercados: sorted,
+                                sortColumn: _sortColumn,
+                                sortAsc: _sortAsc,
+                                onSort: _toggleSort,
                                 onEdit: (m) =>
                                     _showFormDialog(context, mercado: m),
                                 onDelete: (m) => _confirmDelete(context, m),
@@ -491,6 +248,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                           _PaginationBar(
                             currentPage: state.paginaActual,
                             totalPages: state.totalPaginas,
+                            isCargando: state.cargando,
                             onPrev: state.paginaActual > 1
                                 ? () => ref
                                       .read(mercadosPaginadosProvider.notifier)
@@ -501,7 +259,6 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                                       .read(mercadosPaginadosProvider.notifier)
                                       .irAPaginaSiguiente()
                                 : null,
-                            isCargando: state.cargando,
                           ),
                       ],
                     ),
@@ -515,13 +272,13 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, Mercado mercado) async {
+  Future<void> _confirmDelete(BuildContext context, Mercado mercado) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Mercado'),
         content: Text(
-          '¿Estás seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
+          '¿Estas seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
         ),
         actions: [
           TextButton(
@@ -709,8 +466,9 @@ class _MercadosHeader extends StatelessWidget {
   final VoidCallback onAdd;
   final String selectedColumn;
   final ValueChanged<String?> onColumnChanged;
+  final String estadoFilter;
+  final ValueChanged<String?> onEstadoChanged;
   final VoidCallback onReload;
-  final VoidCallback onOpenFilters;
   final VoidCallback onResetFilters;
 
   const _MercadosHeader({
@@ -721,8 +479,9 @@ class _MercadosHeader extends StatelessWidget {
     required this.onAdd,
     required this.selectedColumn,
     required this.onColumnChanged,
+    required this.estadoFilter,
+    required this.onEstadoChanged,
     required this.onReload,
-    required this.onOpenFilters,
     required this.onResetFilters,
   });
 
@@ -756,15 +515,6 @@ class _MercadosHeader extends StatelessWidget {
                       onPressed: onReload,
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Recargar'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 34,
-                    child: OutlinedButton.icon(
-                      style: compactStyle,
-                      onPressed: onOpenFilters,
-                      icon: const Icon(Icons.tune_rounded, size: 15),
-                      label: const Text('Filtros'),
                     ),
                   ),
                   SizedBox(
@@ -868,10 +618,18 @@ class _MercadosHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 220,
+                    width: 200,
                     child: _SearchColumnDropdown(
                       value: selectedColumn,
                       onChanged: onColumnChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 150,
+                    child: _EstadoDropdown(
+                      value: estadoFilter,
+                      onChanged: onEstadoChanged,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -888,9 +646,22 @@ class _MercadosHeader extends StatelessWidget {
             Widget filtersTablet() {
               return Column(
                 children: [
-                  _SearchColumnDropdown(
-                    value: selectedColumn,
-                    onChanged: onColumnChanged,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SearchColumnDropdown(
+                          value: selectedColumn,
+                          onChanged: onColumnChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _EstadoDropdown(
+                          value: estadoFilter,
+                          onChanged: onEstadoChanged,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   _SearchInput(
@@ -950,7 +721,35 @@ class _SearchColumnDropdown extends StatelessWidget {
         DropdownMenuItem(value: 'Todos', child: Text('Todos')),
         DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
         DropdownMenuItem(value: 'Ubicacion', child: Text('Ubicacion')),
-        DropdownMenuItem(value: 'Estado', child: Text('Estado')),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _EstadoDropdown extends StatelessWidget {
+  final String value;
+  final ValueChanged<String?> onChanged;
+
+  const _EstadoDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      decoration: InputDecoration(
+        labelText: 'Estado',
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+        DropdownMenuItem(value: 'Activo', child: Text('Activo')),
+        DropdownMenuItem(value: 'Inactivo', child: Text('Inactivo')),
       ],
       onChanged: onChanged,
     );
@@ -986,116 +785,19 @@ class _SearchInput extends StatelessWidget {
   }
 }
 
-class _OrderModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OrderModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StatusModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: selected ? colorScheme.primary : colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MercadosTable extends StatelessWidget {
   final List<Mercado> mercados;
+  final String? sortColumn;
+  final bool sortAsc;
+  final void Function(String) onSort;
   final ValueChanged<Mercado> onEdit;
   final ValueChanged<Mercado> onDelete;
 
   const _MercadosTable({
     required this.mercados,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
     required this.onEdit,
     required this.onDelete,
   });
@@ -1128,12 +830,40 @@ class _MercadosTable extends StatelessWidget {
                   ),
                   horizontalMargin: 16,
                   columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Mercado')),
-                    DataColumn(label: Text('Ubicacion')),
-                    DataColumn(label: Text('Estado')),
-                    DataColumn(label: Text('Fecha creacion')),
-                    DataColumn(label: Text('Acciones')),
+                  columns: [
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Mercado',
+                        isActive: sortColumn == 'Nombre',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Nombre'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Ubicacion',
+                        isActive: sortColumn == 'Ubicacion',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Ubicacion'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Estado',
+                        isActive: sortColumn == 'Estado',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Estado'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Fecha creacion',
+                        isActive: sortColumn == 'Fecha',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Fecha'),
+                      ),
+                    ),
+                    const DataColumn(label: Text('Acciones')),
                   ],
                   rows: mercados.map((m) {
                     final nombre =
