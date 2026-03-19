@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -157,6 +158,10 @@ class _CobradorMapScreenState extends ConsumerState<CobradorMapScreen> {
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.municipalidad.app',
+            tileProvider: NetworkTileProvider(
+              abortObsoleteRequests: !kIsWeb,
+              silenceExceptions: kIsWeb,
+            ),
           ),
 
           // Línea de Aproximación (Naranja) - GPS a Mercado

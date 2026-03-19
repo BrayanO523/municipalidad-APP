@@ -1,11 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../locales/domain/entities/local.dart';
+import '../../../mercados/domain/entities/mercado.dart';
 import '../../../usuarios/domain/entities/usuario.dart';
 
 class RutasAdminScreen extends ConsumerStatefulWidget {
@@ -21,10 +24,21 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
   List<String> _rutaActual = []; // Lista de IDs de locales en orden
 
   final MapController _mapController = MapController();
+  LatLng? _currentPosition;
+  bool _isMapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _detectarUbicacionActual();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final mercados = ref.watch(mercadosProvider).value ?? [];
+    final List<Mercado> mercados =
+        ref.watch(mercadosProvider).value ?? <Mercado>[];
     final List<Local> localesData = ref.watch(localesProvider).value ?? [];
     final List<Usuario> usuariosData = ref.watch(usuariosProvider).value ?? [];
 
@@ -147,7 +161,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
 
   Widget _buildSidebar(
     BuildContext context,
-    List<dynamic> mercados,
+    List<Mercado> mercados,
     List<Usuario> cobradores,
     Map<String, Local> mapLocales,
     List<Local> localesData, {
@@ -537,30 +551,56 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
 
   Widget _buildMap(
     BuildContext context,
-    dynamic selectedMercado,
+    Mercado? selectedMercado,
     List<Local> localesDelMercado,
     Map<String, Local> mapLocales,
   ) {
+    final mercadoPerimetroPoints = _toPolygonPoints(selectedMercado?.perimetro);
+    final localPolygons = localesDelMercado
+        .map((l) {
+          final points = _toPolygonPoints(l.perimetro);
+          if (points.isEmpty) return null;
+          return Polygon(
+            points: points,
+            color: context.semanticColors.success.withValues(alpha: 0.2),
+            borderColor: context.semanticColors.success.withValues(alpha: 0.5),
+            borderStrokeWidth: 2,
+          );
+        })
+        .whereType<Polygon>()
+        .toList();
+
     return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
-          options: const MapOptions(
-            initialCenter: LatLng(14.628434, -90.522713),
-            initialZoom: 15.0,
+          options: MapOptions(
+            initialCenter:
+                _currentPosition ?? const LatLng(14.628434, -90.522713),
+            initialZoom: _currentPosition != null ? 16.0 : 15.0,
+            onMapReady: () {
+              _isMapReady = true;
+              if (_currentPosition != null) {
+                _moverMapa(_currentPosition!, zoom: 16.0);
+              }
+            },
           ),
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.municipalidad.app',
+              tileProvider: NetworkTileProvider(
+                // En web, evitar abortos de requests en vuelo para que el
+                // debugger no se detenga dentro de package:http/browser_client.
+                abortObsoleteRequests: !kIsWeb,
+                silenceExceptions: kIsWeb,
+              ),
             ),
-            if (selectedMercado?.perimetro != null)
+            if (mercadoPerimetroPoints.isNotEmpty)
               PolygonLayer(
                 polygons: [
                   Polygon(
-                    points: selectedMercado!.perimetro!
-                        .map((p) => LatLng(p['lat']!, p['lng']!))
-                        .toList(),
+                    points: mercadoPerimetroPoints,
                     color: Theme.of(
                       context,
                     ).colorScheme.primary.withValues(alpha: 0.05),
@@ -571,25 +611,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                   ),
                 ],
               ),
-            PolygonLayer(
-              polygons: localesDelMercado
-                  .where((l) => l.perimetro != null && l.perimetro!.isNotEmpty)
-                  .map((l) {
-                    return Polygon(
-                      points: l.perimetro!
-                          .map((p) => LatLng(p['lat']!, p['lng']!))
-                          .toList(),
-                      color: context.semanticColors.success.withValues(
-                        alpha: 0.2,
-                      ),
-                      borderColor: context.semanticColors.success.withValues(
-                        alpha: 0.5,
-                      ),
-                      borderStrokeWidth: 2,
-                    );
-                  })
-                  .toList(),
-            ),
+            if (localPolygons.isNotEmpty) PolygonLayer(polygons: localPolygons),
             PolylineLayer(
               polylines: [
                 if (_rutaActual.any((id) => mapLocales.containsKey(id)))
@@ -609,39 +631,56 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
               ],
             ),
             MarkerLayer(
-              markers: _rutaActual
-                  .where((id) => mapLocales.containsKey(id))
-                  .map((id) {
-                    final loc = mapLocales[id]!;
-                    final index = _rutaActual.indexOf(id);
-                    return Marker(
-                      width: 30,
-                      height: 30,
-                      point: LatLng(loc.latitud!, loc.longitud!),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            color: context.semanticColors.danger,
-                            size: 30,
-                          ),
-                          Positioned(
-                            top: 2,
-                            child: Text(
-                              '${index + 1}',
-                              style: TextStyle(
-                                color: context.semanticColors.onDanger,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                              ),
+              markers: [
+                ..._rutaActual.where((id) => mapLocales.containsKey(id)).map((
+                  id,
+                ) {
+                  final loc = mapLocales[id]!;
+                  final index = _rutaActual.indexOf(id);
+                  return Marker(
+                    width: 30,
+                    height: 30,
+                    point: LatLng(loc.latitud!, loc.longitud!),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: context.semanticColors.danger,
+                          size: 30,
+                        ),
+                        Positioned(
+                          top: 2,
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: context.semanticColors.onDanger,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (_currentPosition != null)
+                  Marker(
+                    width: 24,
+                    height: 24,
+                    point: _currentPosition!,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: context.semanticColors.info,
+                        border: Border.all(
+                          color: context.semanticColors.onInfo,
+                          width: 2,
+                        ),
                       ),
-                    );
-                  })
-                  .toList(),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -659,8 +698,34 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
               ),
             ),
           ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton.small(
+            heroTag: 'rutas-admin-my-location',
+            onPressed: _detectarUbicacionActual,
+            child: const Icon(Icons.my_location_rounded),
+          ),
+        ),
       ],
     );
+  }
+
+  List<LatLng> _toPolygonPoints(List<Map<String, double>>? perimetro) {
+    if (perimetro == null || perimetro.isEmpty) return const [];
+
+    final points = perimetro
+        .map((p) {
+          final lat = p['lat'];
+          final lng = p['lng'];
+          if (lat == null || lng == null) return null;
+          if (!lat.isFinite || !lng.isFinite) return null;
+          return LatLng(lat, lng);
+        })
+        .whereType<LatLng>()
+        .toList();
+
+    return points;
   }
 
   void _centrarMapaEnLocales(List<Local> locales) {
@@ -684,7 +749,43 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
       sumLat / conCoordenadas.length,
       sumLng / conCoordenadas.length,
     );
-    _mapController.move(center, 16.0);
+    _moverMapa(center, zoom: 16.0);
+  }
+
+  Future<void> _detectarUbicacionActual() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+
+      final point = LatLng(pos.latitude, pos.longitude);
+      setState(() => _currentPosition = point);
+
+      if (_isMapReady) {
+        _moverMapa(point, zoom: 16.0);
+      }
+    } catch (_) {
+      // Ignorar errores de permisos/servicio y mantener fallback actual.
+    }
+  }
+
+  void _moverMapa(LatLng point, {double zoom = 16.0}) {
+    try {
+      _mapController.move(point, zoom);
+    } catch (_) {
+      // Evita romper la UI si el mapa aun no esta listo.
+    }
   }
 
   Future<void> _guardarRuta() async {
