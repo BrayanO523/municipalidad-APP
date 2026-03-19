@@ -11,7 +11,7 @@ import '../../../usuarios/domain/entities/usuario.dart';
 
 enum LocalFiltroDeuda { todos, soloDeudores, soloSaldosAFavor }
 
-enum LocalOrdenamiento { alfabeticoAsc, alfabeticoDesc, cuotaMayor, cuotaMenor }
+
 
 /// Estado completo para la pantalla de locales paginada.
 class LocalesPaginadosState {
@@ -28,7 +28,8 @@ class LocalesPaginadosState {
   final QueryDocumentSnapshot? ultimoDoc;
   final LocalFiltroDeuda filtroDeuda;
   final String? usuarioFiltradoId;
-  final LocalOrdenamiento ordenamiento;
+  final String? sortColumn;
+  final bool sortAsc;
 
   const LocalesPaginadosState({
     this.locales = const [],
@@ -44,7 +45,8 @@ class LocalesPaginadosState {
     this.ultimoDoc,
     this.filtroDeuda = LocalFiltroDeuda.todos,
     this.usuarioFiltradoId,
-    this.ordenamiento = LocalOrdenamiento.alfabeticoAsc,
+    this.sortColumn,
+    this.sortAsc = true,
   });
 
   LocalesPaginadosState copyWith({
@@ -61,12 +63,14 @@ class LocalesPaginadosState {
     QueryDocumentSnapshot? ultimoDoc,
     LocalFiltroDeuda? filtroDeuda,
     String? usuarioFiltradoId,
-    LocalOrdenamiento? ordenamiento,
+    String? sortColumn,
+    bool? sortAsc,
     bool clearError = false,
     bool clearUltimoDoc = false,
     bool clearBusqueda = false,
     bool clearMercadoSeleccionado = false,
     bool clearUsuarioFiltrado = false,
+    bool clearSortColumn = false,
   }) {
     return LocalesPaginadosState(
       locales: locales ?? this.locales,
@@ -86,7 +90,8 @@ class LocalesPaginadosState {
       usuarioFiltradoId: clearUsuarioFiltrado
           ? null
           : (usuarioFiltradoId ?? this.usuarioFiltradoId),
-      ordenamiento: ordenamiento ?? this.ordenamiento,
+      sortColumn: clearSortColumn ? null : (sortColumn ?? this.sortColumn),
+      sortAsc: sortAsc ?? this.sortAsc,
     );
   }
 }
@@ -114,7 +119,8 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       paginaActual: 1,
       snapshotsPaginas: [null],
       localesPagadosHoy: const {},
-      ordenamiento: state.ordenamiento,
+      sortColumn: state.sortColumn,
+      sortAsc: state.sortAsc,
     );
     await _fetchPagina();
   }
@@ -172,10 +178,22 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     await _fetchPagina();
   }
 
-  Future<void> cambiarOrdenamiento(LocalOrdenamiento ordenamiento) async {
-    if (state.ordenamiento == ordenamiento) return;
+  Future<void> cambiarOrdenamiento(String column) async {
+    bool asc = true;
+    String? newCol = column;
+    if (state.sortColumn == column) {
+      if (state.sortAsc) {
+        asc = false;
+      } else {
+        newCol = null;
+        asc = true;
+      }
+    }
+
     state = state.copyWith(
-      ordenamiento: ordenamiento,
+      sortColumn: newCol,
+      sortAsc: asc,
+      clearSortColumn: newCol == null,
       locales: [],
       hayMas: true,
       totalPaginas: 1,
@@ -199,7 +217,8 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       paginaActual: 1,
       snapshotsPaginas: [null],
       filtroDeuda: LocalFiltroDeuda.todos,
-      ordenamiento: LocalOrdenamiento.alfabeticoAsc,
+      sortAsc: true,
+      clearSortColumn: true,
       clearUltimoDoc: true,
       clearError: true,
       clearBusqueda: true,
@@ -260,7 +279,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         state.busqueda,
       );
 
-      _ordenarLocales(todosFiltrados, state.ordenamiento);
+      _ordenarLocales(todosFiltrados, state.sortColumn, state.sortAsc);
 
       final totalRegistros = todosFiltrados.length;
       final totalPaginas = totalRegistros == 0
@@ -354,29 +373,31 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     return all;
   }
 
-  void _ordenarLocales(List<Local> list, LocalOrdenamiento ordenamiento) {
-    switch (ordenamiento) {
-      case LocalOrdenamiento.alfabeticoAsc:
-        list.sort(
-          (a, b) => (a.nombreSocial ?? '').toLowerCase().compareTo(
-            (b.nombreSocial ?? '').toLowerCase(),
-          ),
-        );
-        break;
-      case LocalOrdenamiento.alfabeticoDesc:
-        list.sort(
-          (a, b) => (b.nombreSocial ?? '').toLowerCase().compareTo(
-            (a.nombreSocial ?? '').toLowerCase(),
-          ),
-        );
-        break;
-      case LocalOrdenamiento.cuotaMayor:
-        list.sort((a, b) => (b.cuotaDiaria ?? 0).compareTo(a.cuotaDiaria ?? 0));
-        break;
-      case LocalOrdenamiento.cuotaMenor:
-        list.sort((a, b) => (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0));
-        break;
-    }
+  void _ordenarLocales(List<Local> list, String? sortColumn, bool sortAsc) {
+    if (sortColumn == null) return;
+    list.sort((a, b) {
+      int cmp = 0;
+      switch (sortColumn) {
+        case 'Local':
+          cmp = (a.nombreSocial ?? '').toLowerCase().compareTo((b.nombreSocial ?? '').toLowerCase());
+          break;
+        case 'Cuota':
+          cmp = (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0);
+          break;
+        case 'Deuda':
+          cmp = (a.deudaAcumulada ?? 0).compareTo(b.deudaAcumulada ?? 0);
+          break;
+        case 'Saldo':
+          cmp = (a.saldoAFavor ?? 0).compareTo(b.saldoAFavor ?? 0);
+          break;
+        case 'Balance':
+          cmp = (a.balanceNeto).compareTo(b.balanceNeto);
+          break;
+        default:
+          cmp = (a.nombreSocial ?? '').toLowerCase().compareTo((b.nombreSocial ?? '').toLowerCase());
+      }
+      return sortAsc ? cmp : -cmp;
+    });
   }
 
   /// Verifica consultando el último cobro de cada local.
@@ -507,7 +528,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     );
 
     final filtrados = _filtrarLocalesPorBusquedaAvanzada(all, query);
-    _ordenarLocales(filtrados, state.ordenamiento);
+    _ordenarLocales(filtrados, state.sortColumn, state.sortAsc);
     return filtrados;
   }
 

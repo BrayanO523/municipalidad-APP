@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
@@ -16,6 +16,8 @@ import '../../../usuarios/domain/entities/usuario.dart';
 import '../../domain/entities/local.dart';
 import '../../../../core/widgets/usuario_filter.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
+import '../widgets/local_detalle_panel.dart';
+import '../../../../core/widgets/sortable_column.dart';
 
 class SaldosFavorScreen extends ConsumerStatefulWidget {
   const SaldosFavorScreen({super.key});
@@ -27,6 +29,8 @@ class SaldosFavorScreen extends ConsumerStatefulWidget {
 class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _searchDebounce;
+  Local? _localSeleccionado;
+  final FocusNode _tableFocusNode = FocusNode();
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
@@ -65,7 +69,29 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchCtrl.dispose();
+    _tableFocusNode.dispose();
     super.dispose();
+  }
+
+  void _moverSeleccion(int delta, List<Local> localesActuales) {
+    if (localesActuales.isEmpty) return;
+    if (_localSeleccionado == null) {
+      if (delta > 0) {
+        setState(() => _localSeleccionado = localesActuales.first);
+      }
+      return;
+    }
+    final currentIndex = localesActuales.indexWhere(
+      (l) => l.id == _localSeleccionado!.id,
+    );
+    if (currentIndex == -1) {
+      setState(() => _localSeleccionado = localesActuales.first);
+      return;
+    }
+    final nextIndex = currentIndex + delta;
+    if (nextIndex >= 0 && nextIndex < localesActuales.length) {
+      setState(() => _localSeleccionado = localesActuales[nextIndex]);
+    }
   }
 
   Future<void> _restablecerFiltrosVisuales(
@@ -84,12 +110,42 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
     }
   }
 
+  void _onLocalTapped(BuildContext context, Local local, bool isWide) {
+    if (isWide) {
+      setState(() {
+        _localSeleccionado = _localSeleccionado?.id == local.id ? null : local;
+      });
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollCtrl) => SingleChildScrollView(
+            controller: scrollCtrl,
+            padding: const EdgeInsets.all(16),
+            child: LocalDetallePanel(
+              local: local,
+              onClose: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(localesPaginadosProvider);
     final notifier = ref.read(localesPaginadosProvider.notifier);
     final mercados = ref.watch(mercadosProvider).value ?? [];
-
     final list = state.locales;
 
     return Scaffold(
@@ -97,6 +153,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
       body: LayoutBuilder(
         builder: (context, outerConstraints) {
           final isMobile = outerConstraints.maxWidth <= 700;
+          final isWide = outerConstraints.maxWidth > 900;
           return Padding(
             padding: isMobile
                 ? const EdgeInsets.all(12)
@@ -118,84 +175,151 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: Card(
-                    elevation: 2,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              if (state.cargando && list.isEmpty) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              if (state.errorMsg != null && list.isEmpty) {
-                                return Center(
-                                  child: Text(
-                                    'Error: ${state.errorMsg}',
-                                    style: TextStyle(
-                                      color: context.semanticColors.danger,
-                                    ),
-                                  ),
-                                );
-                              }
-                              if (list.isEmpty) {
-                                return Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.query_stats_rounded,
-                                        size: 48,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.24),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'No hay locales con saldo a favor',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.54),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                              return _SaldosTable(
-                                locales: list,
-                                mercados: mercados,
-                              );
-                            },
+                  child: Focus(
+                    focusNode: _tableFocusNode,
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                          _moverSeleccion(1, list);
+                          return KeyEventResult.handled;
+                        }
+                        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                          _moverSeleccion(-1, list);
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: GestureDetector(
+                      onTap: () => _tableFocusNode.requestFocus(),
+                      child: Card(
+                        elevation: 2,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.1),
                           ),
                         ),
-                        if (state.totalPaginas > 0)
-                          _PaginationBar(
-                            currentPage: state.paginaActual,
-                            totalPages: state.totalPaginas,
-                            onPrev: state.paginaActual > 1
-                                ? () => notifier.irAPaginaAnterior()
-                                : null,
-                            onNext: state.paginaActual < state.totalPaginas
-                                ? () => notifier.irAPaginaSiguiente()
-                                : null,
-                            isCargando: state.cargando,
-                          ),
-                      ],
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Columna izquierda: tabla + paginación
+                            Expanded(
+                              flex: 13,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Builder(
+                                      builder: (context) {
+                                        if (state.cargando && list.isEmpty) {
+                                          return const Center(
+                                            child: CircularProgressIndicator(),
+                                          );
+                                        }
+                                        if (state.errorMsg != null &&
+                                            list.isEmpty) {
+                                          return Center(
+                                            child: Text(
+                                              'Error: ${state.errorMsg}',
+                                              style: TextStyle(
+                                                color: context
+                                                    .semanticColors
+                                                    .danger,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        if (list.isEmpty) {
+                                          return Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.query_stats_rounded,
+                                                  size: 48,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.24),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  'No hay locales con saldo a favor',
+                                                  style: TextStyle(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withValues(
+                                                          alpha: 0.54,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return _SaldosTable(
+                                          locales: list,
+                                          mercados: mercados,
+                                          selectedLocalId:
+                                              _localSeleccionado?.id,
+                                          onSelect: (l) => _onLocalTapped(
+                                            context,
+                                            l,
+                                            isWide,
+                                          ),
+                                          sortColumn: state.sortColumn,
+                                          sortAsc: state.sortAsc,
+                                          onSort: notifier.cambiarOrdenamiento,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  if (state.totalPaginas > 0)
+                                    _PaginationBar(
+                                      currentPage: state.paginaActual,
+                                      totalPages: state.totalPaginas,
+                                      onPrev: state.paginaActual > 1
+                                          ? () => notifier.irAPaginaAnterior()
+                                          : null,
+                                      onNext:
+                                          state.paginaActual <
+                                              state.totalPaginas
+                                          ? () => notifier.irAPaginaSiguiente()
+                                          : null,
+                                      isCargando: state.cargando,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            // Panel lateral de detalles (solo en desktop)
+                            if (isWide) ...[
+                              VerticalDivider(
+                                width: 1,
+                                thickness: 1,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.1),
+                              ),
+                              Expanded(
+                                flex: 9,
+                                child: _localSeleccionado != null
+                                    ? LocalDetallePanel(
+                                        local: _localSeleccionado!,
+                                        onClose: () => setState(
+                                          () => _localSeleccionado = null,
+                                        ),
+                                      )
+                                    : const PanelDetalleVacio(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -401,32 +525,6 @@ class _SaldosFavorHeader extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.semanticColors.success.withValues(
-                        alpha: 0.14,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: context.semanticColors.success.withValues(
-                          alpha: 0.35,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      'Solo saldos a favor',
-                      style: TextStyle(
-                        color: context.semanticColors.success,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
                 ],
               );
             }
@@ -536,154 +634,124 @@ class _SaldosSearchInput extends StatelessWidget {
 class _SaldosTable extends StatelessWidget {
   final List<Local> locales;
   final List<Mercado> mercados;
+  final String? selectedLocalId;
+  final ValueChanged<Local> onSelect;
+  final String? sortColumn;
+  final bool sortAsc;
+  final ValueChanged<String> onSort;
 
-  const _SaldosTable({required this.locales, required this.mercados});
+  const _SaldosTable({
+    required this.locales,
+    required this.mercados,
+    required this.onSelect,
+    this.selectedLocalId,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final mercadosById = {
-      for (final m in mercados)
-        if ((m.id ?? '').isNotEmpty) m.id!: (m.nombre ?? '-'),
-    };
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const sidePadding = 16.0;
-        final availableWidth = constraints.maxWidth;
-        final minTableWidth = availableWidth < 1220 ? 1220.0 : availableWidth;
-
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: minTableWidth),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                sidePadding,
-                8,
-                sidePadding,
-                8,
-              ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(
-                    colorScheme.primary.withAlpha(13),
-                  ),
-                  horizontalMargin: 16,
-                  columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Local')),
-                    DataColumn(label: Text('Mercado')),
-                    DataColumn(label: Text('Representante')),
-                    DataColumn(label: Text('Telefono')),
-                    DataColumn(label: Text('Saldo a favor')),
-                    DataColumn(label: Text('Balance neto')),
-                    DataColumn(label: Text('Acciones')),
-                  ],
-                  rows: locales.map((l) {
-                    final nombre =
-                        (l.nombreSocial == null ||
-                            l.nombreSocial!.trim().isEmpty)
-                        ? '-'
-                        : l.nombreSocial!.trim();
-                    final initial = nombre == '-'
-                        ? 'L'
-                        : nombre.substring(0, 1).toUpperCase();
-                    final mercadoNombre = mercadosById[l.mercadoId] ?? '-';
-
-                    return DataRow(
-                      cells: [
-                        DataCell(
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: colorScheme.primary.withAlpha(
-                                  26,
-                                ),
-                                child: Text(
-                                  initial,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              SizedBox(
-                                width: 220,
-                                child: Text(
-                                  nombre,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 170,
-                            child: Text(
-                              mercadoNombre,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 170,
-                            child: Text(
-                              (l.representante == null ||
-                                      l.representante!.trim().isEmpty)
-                                  ? '-'
-                                  : l.representante!.trim(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(Text(l.telefonoRepresentante ?? '-')),
-                        DataCell(
-                          _MoneyChip(
-                            value: (l.saldoAFavor ?? 0).toDouble(),
-                            isPositive: true,
-                          ),
-                        ),
-                        DataCell(
-                          _MoneyChip(
-                            value: l.balanceNeto.toDouble(),
-                            isPositive: l.balanceNeto >= 0,
-                          ),
-                        ),
-                        DataCell(
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.history_rounded, size: 16),
-                            label: const Text('Historial'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              foregroundColor: colorScheme.primary,
-                            ),
-                            onPressed: () => context.push(
-                              '/locales/${l.id}/historial',
-                              extra: l,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
+    return SingleChildScrollView(
+      child: DataTable(
+        headingRowColor: WidgetStateProperty.all(
+          colorScheme.primary.withAlpha(13),
+        ),
+        horizontalMargin: 16,
+        columnSpacing: 24,
+        showCheckboxColumn: false,
+        columns: [
+          DataColumn(
+            label: SortableColumn(
+              label: 'Local',
+              isActive: sortColumn == 'Local',
+              ascending: sortAsc,
+              onTap: () => onSort('Local'),
             ),
           ),
-        );
-      },
+          DataColumn(
+            numeric: true,
+            label: SortableColumn(
+              label: 'Saldo a favor',
+              isActive: sortColumn == 'Saldo',
+              ascending: sortAsc,
+              onTap: () => onSort('Saldo'),
+            ),
+          ),
+          DataColumn(
+            numeric: true,
+            label: SortableColumn(
+              label: 'Balance neto',
+              isActive: sortColumn == 'Balance',
+              ascending: sortAsc,
+              onTap: () => onSort('Balance'),
+            ),
+          ),
+        ],
+        rows: locales.map((l) {
+          final nombre =
+              (l.nombreSocial == null || l.nombreSocial!.trim().isEmpty)
+              ? '-'
+              : l.nombreSocial!.trim();
+          final initial = nombre == '-'
+              ? 'L'
+              : nombre.substring(0, 1).toUpperCase();
+
+          return DataRow(
+            selected: selectedLocalId == l.id,
+            color: WidgetStateProperty.resolveWith<Color?>((states) {
+              if (states.contains(WidgetState.selected)) {
+                return colorScheme.primary.withValues(alpha: 0.15);
+              }
+              return null;
+            }),
+            onSelectChanged: (_) => onSelect(l),
+            cells: [
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: colorScheme.primary.withAlpha(26),
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              DataCell(
+                _MoneyChip(
+                  value: (l.saldoAFavor ?? 0).toDouble(),
+                  isPositive: true,
+                ),
+              ),
+              DataCell(
+                _MoneyChip(
+                  value: l.balanceNeto.toDouble(),
+                  isPositive: l.balanceNeto >= 0,
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 }

@@ -16,6 +16,7 @@ import '../../../../core/utils/date_formatter.dart';
 
 import '../../../../core/utils/qr_pdf_generator.dart';
 import '../../../../core/widgets/scrollable_table.dart';
+import '../../../../core/widgets/sortable_column.dart';
 import '../../../../core/platform/web_downloader/web_downloader.dart';
 
 import '../../domain/entities/local.dart';
@@ -23,6 +24,7 @@ import '../../../mercados/domain/entities/mercado.dart';
 import '../../../usuarios/domain/entities/usuario.dart';
 
 import '../viewmodels/locales_paginados_notifier.dart';
+import '../widgets/local_detalle_panel.dart';
 import '../widgets/local_form_dialog.dart';
 
 const bool _kShowDevTools =
@@ -43,6 +45,8 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
   Mercado? _mercadoSeleccionado;
   Local? _localSeleccionado;
   bool _isExportingCsv = false;
+  String? _sortColumn;
+  bool _sortAsc = true;
   bool _isMigratingCodigo = false;
 
   void _onSearchChanged(String value) {
@@ -150,298 +154,51 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       if (limpiarSeleccion) _localSeleccionado = null;
       _searchKey = UniqueKey();
       _autocompleteRequestToken++;
+      _sortColumn = null;
+      _sortAsc = true;
     });
     _debounce?.cancel();
     await notifier.restablecerFiltros();
   }
 
-  Future<void> _abrirFiltrosBottomSheet({
-    required BuildContext context,
-    required LocalesPaginadosNotifier notifier,
-    required LocalesPaginadosState state,
-  }) async {
-    var ordenamiento = state.ordenamiento;
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        if (_sortAsc) {
+          _sortAsc = false;
+        } else {
+          _sortColumn = null;
+          _sortAsc = true;
+        }
+      } else {
+        _sortColumn = column;
+        _sortAsc = true;
+      }
+    });
+  }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        final colorScheme = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            void applyAndClose() {
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              unawaited(notifier.cambiarOrdenamiento(ordenamiento));
-            }
-
-            void resetAndClose() {
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              unawaited(_limpiarFiltros(notifier));
-            }
-
-            return SafeArea(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    6,
-                    16,
-                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                                colorScheme.secondaryContainer.withValues(
-                                  alpha: 0.62,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.24,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.tune_rounded,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filtros de Locales',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      'Ajusta el orden de visualizacion.',
-                                      style: Theme.of(sheetCtx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sort_by_alpha_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden alfabetico',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'A - Z',
-                                      selected:
-                                          ordenamiento ==
-                                          LocalOrdenamiento.alfabeticoAsc,
-                                      onTap: () => setSheetState(
-                                        () => ordenamiento =
-                                            LocalOrdenamiento.alfabeticoAsc,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Z - A',
-                                      selected:
-                                          ordenamiento ==
-                                          LocalOrdenamiento.alfabeticoDesc,
-                                      onTap: () => setSheetState(
-                                        () => ordenamiento =
-                                            LocalOrdenamiento.alfabeticoDesc,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.paid_rounded,
-                                    size: 18,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Orden por cuota',
-                                    style: Theme.of(sheetCtx)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Mayor cuota',
-                                      selected:
-                                          ordenamiento ==
-                                          LocalOrdenamiento.cuotaMayor,
-                                      onTap: () => setSheetState(
-                                        () => ordenamiento =
-                                            LocalOrdenamiento.cuotaMayor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _OrderModeChip(
-                                      label: 'Menor cuota',
-                                      selected:
-                                          ordenamiento ==
-                                          LocalOrdenamiento.cuotaMenor,
-                                      onTap: () => setSheetState(
-                                        () => ordenamiento =
-                                            LocalOrdenamiento.cuotaMenor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: resetAndClose,
-                                icon: const Icon(
-                                  Icons.restart_alt_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('Restablecer'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: applyAndClose,
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Aplicar'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  List<Local> _applySort(List<Local> lista) {
+    if (_sortColumn == null) return lista;
+    final sorted = List<Local>.from(lista);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case 'Local':
+          cmp = (a.nombreSocial ?? '').toLowerCase().compareTo(
+            (b.nombreSocial ?? '').toLowerCase(),
+          );
+        case 'Cuota':
+          cmp = (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0);
+        case 'Deuda':
+          cmp = (a.deudaAcumulada ?? 0).compareTo(b.deudaAcumulada ?? 0);
+        case 'Saldo':
+          cmp = (a.saldoAFavor ?? 0).compareTo(b.saldoAFavor ?? 0);
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return sorted;
   }
 
   Widget _buildFiltros(BuildContext context) {
@@ -479,19 +236,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                       onPressed: notifier.recargar,
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Recargar'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 34,
-                    child: OutlinedButton.icon(
-                      style: compactStyle,
-                      onPressed: () => _abrirFiltrosBottomSheet(
-                        context: context,
-                        notifier: notifier,
-                        state: state,
-                      ),
-                      icon: const Icon(Icons.tune_rounded, size: 15),
-                      label: const Text('Filtros'),
                     ),
                   ),
                   SizedBox(
@@ -1333,24 +1077,20 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     if (!state.cargando &&
         state.locales.isEmpty &&
         state.mercadoSeleccionadoId == null) {
-      return const _EmptyStateWidget(
-        icon: Icons.store_mall_directory_rounded,
-        mensaje:
-            'Selecciona un mercado en el filtro superior\npara ver sus locales comerciales.',
-      );
+      return const PanelDetalleVacio();
     }
 
     if (!state.cargando && state.locales.isEmpty) {
-      return const _EmptyStateWidget(
-        icon: Icons.search_off_rounded,
-        mensaje: 'No se encontraron locales con esos filtros.',
-      );
+      return const PanelDetalleVacio();
     }
 
     final Widget mainList = _LocalesListView(
-      locales: state.locales,
+      locales: _applySort(state.locales),
       selectedLocalId: _localSeleccionado?.id,
       scrollController: _scrollCtrl,
+      sortColumn: _sortColumn,
+      sortAsc: _sortAsc,
+      onSort: _toggleSort,
       onSelect: (l) {
         final isWide = MediaQuery.of(context).size.width > 800;
         if (isWide) {
@@ -1370,15 +1110,18 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            builder: (_) => DraggableScrollableSheet(
+            builder: (ctx) => DraggableScrollableSheet(
               initialChildSize: 0.6,
               minChildSize: 0.3,
               maxChildSize: 0.9,
               expand: false,
-              builder: (ctx, scrollCtrl) => SingleChildScrollView(
+              builder: (sheetCtx, scrollCtrl) => SingleChildScrollView(
                 controller: scrollCtrl,
                 padding: const EdgeInsets.all(16),
-                child: _buildPanelDetalleContent(ctx, l),
+                child: LocalDetallePanel(
+                  local: l,
+                  onClose: () => Navigator.of(ctx).pop(),
+                ),
               ),
             ),
           );
@@ -1483,8 +1226,12 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     children: [
                       Expanded(
                         child: _localSeleccionado != null
-                            ? _buildPanelDetalle(context, _localSeleccionado!)
-                            : const _PanelDetalleVacio(),
+                            ? LocalDetallePanel(
+                                local: _localSeleccionado!,
+                                onClose: () =>
+                                    setState(() => _localSeleccionado = null),
+                              )
+                            : const PanelDetalleVacio(),
                       ),
                       panelPaginacion,
                     ],
@@ -1516,263 +1263,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildPanelDetalle(BuildContext context, Local local) {
-    final usuarios = ref.watch(usuariosProvider).value ?? [];
-    final tipos = ref.watch(tiposNegocioProvider).value ?? [];
-
-    final enRuta = usuarios.where(
-      (u) => u.esCobrador && (u.rutaAsignada?.contains(local.id) ?? false),
-    );
-
-    String? cobradorNombre;
-    if (enRuta.isNotEmpty) {
-      cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
-    } else {
-      final enMercado = usuarios
-          .where((u) => u.esCobrador && u.mercadoId == local.mercadoId)
-          .toList();
-      if (enMercado.length == 1) {
-        cobradorNombre = enMercado.first.nombre;
-      }
-    }
-
-    final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
-    final strTipo = tipoIndex >= 0
-        ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-')
-        : (local.tipoNegocioId ?? '-');
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxHeight < 200;
-        final pd = compact ? 12.0 : 24.0;
-        return Container(
-          color: Theme.of(context).colorScheme.surface,
-          child: Padding(
-            padding: EdgeInsets.all(pd),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        local.nombreSocial ?? 'Detalles del Local',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (_kShowDevTools)
-                      IconButton(
-                        icon: const Icon(Icons.tune_rounded),
-                        onPressed: () =>
-                            _showDebugDebtSaldoDialog(context, local),
-                        tooltip: 'Debug: editar deuda y saldo',
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () =>
-                          setState(() => _localSeleccionado = null),
-                      tooltip: 'Cerrar detalle',
-                    ),
-                  ],
-                ),
-                const Divider(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _DetailRow(
-                          icon: Icons.person_rounded,
-                          label: 'Representante',
-                          value: local.representante ?? '-',
-                        ),
-                        _DetailRow(
-                          icon: Icons.phone_rounded,
-                          label: 'Teléfono',
-                          value: local.telefonoRepresentante ?? '-',
-                        ),
-                        _DetailRow(
-                          icon: Icons.badge_rounded,
-                          label: 'Cobrador Asignado',
-                          value: cobradorNombre ?? 'Sin asignar',
-                        ),
-                        _DetailRow(
-                          icon: Icons.category_rounded,
-                          label: 'Tipo de Negocio',
-                          value: strTipo,
-                        ),
-                        _DetailRow(
-                          icon: Icons.square_foot_rounded,
-                          label: 'Espacio (m²)',
-                          value: '${local.espacioM2 ?? 0}',
-                        ),
-                        _DetailRow(
-                          icon: Icons.event_repeat_rounded,
-                          label: 'Frecuencia de Cobro',
-                          value: local.frecuenciaCobro ?? 'Diaria',
-                        ),
-                        if ((local.frecuenciaCobro ?? '').toLowerCase() ==
-                            'mensual')
-                          _DetailRow(
-                            icon: Icons.calendar_month_rounded,
-                            label: 'Día de Cobro Mensual',
-                            value:
-                                local.diaCobroMensual?.toString() ??
-                                'No definido',
-                          ),
-                        _DetailRow(
-                          icon: Icons.vpn_key_rounded,
-                          label: 'Clave',
-                          value: local.clave ?? '-',
-                        ),
-                        _DetailRow(
-                          icon: Icons.map_rounded,
-                          label: 'Código Local',
-                          value: local.codigo ?? '-',
-                        ),
-                        _DetailRow(
-                          icon: Icons.calendar_today_rounded,
-                          label: 'Creado En',
-                          value: local.creadoEn != null
-                              ? DateFormatter.formatDate(local.creadoEn!)
-                              : '-',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Versión "flat" del panel de detalle (sin Expanded) — para bottom sheet en móvil.
-  Widget _buildPanelDetalleContent(BuildContext context, Local local) {
-    final usuarios = ref.watch(usuariosProvider).value ?? [];
-    final tipos = ref.watch(tiposNegocioProvider).value ?? [];
-
-    final enRuta = usuarios.where(
-      (u) => u.esCobrador && (u.rutaAsignada?.contains(local.id) ?? false),
-    );
-
-    String? cobradorNombre;
-    if (enRuta.isNotEmpty) {
-      cobradorNombre = enRuta.map((u) => u.nombre).join(', ');
-    } else {
-      final enMercado = usuarios
-          .where((u) => u.esCobrador && u.mercadoId == local.mercadoId)
-          .toList();
-      if (enMercado.length == 1) {
-        cobradorNombre = enMercado.first.nombre;
-      }
-    }
-
-    final tipoIndex = tipos.indexWhere((t) => t.id == local.tipoNegocioId);
-    final strTipo = tipoIndex >= 0
-        ? (tipos[tipoIndex].nombre ?? local.tipoNegocioId ?? '-')
-        : (local.tipoNegocioId ?? '-');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Handle bar
-        Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-        Text(
-          local.nombreSocial ?? 'Detalles del Local',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const Divider(height: 24),
-        if (_kShowDevTools) ...[
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: () => _showDebugDebtSaldoDialog(context, local),
-              icon: const Icon(Icons.tune_rounded, size: 18),
-              label: const Text('Debug: editar deuda/saldo'),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        _DetailRow(
-          icon: Icons.person_rounded,
-          label: 'Representante',
-          value: local.representante ?? '-',
-        ),
-        _DetailRow(
-          icon: Icons.phone_rounded,
-          label: 'Teléfono',
-          value: local.telefonoRepresentante ?? '-',
-        ),
-        _DetailRow(
-          icon: Icons.badge_rounded,
-          label: 'Cobrador Asignado',
-          value: cobradorNombre ?? 'Sin asignar',
-        ),
-        _DetailRow(
-          icon: Icons.category_rounded,
-          label: 'Tipo de Negocio',
-          value: strTipo,
-        ),
-        _DetailRow(
-          icon: Icons.square_foot_rounded,
-          label: 'Espacio (m²)',
-          value: '${local.espacioM2 ?? 0}',
-        ),
-        _DetailRow(
-          icon: Icons.event_repeat_rounded,
-          label: 'Frecuencia de Cobro',
-          value: local.frecuenciaCobro ?? 'Diaria',
-        ),
-        if ((local.frecuenciaCobro ?? '').toLowerCase() == 'mensual')
-          _DetailRow(
-            icon: Icons.calendar_month_rounded,
-            label: 'Día de Cobro Mensual',
-            value: local.diaCobroMensual?.toString() ?? 'No definido',
-          ),
-        _DetailRow(
-          icon: Icons.vpn_key_rounded,
-          label: 'Clave',
-          value: local.clave ?? '-',
-        ),
-        _DetailRow(
-          icon: Icons.map_rounded,
-          label: 'Código Local',
-          value: local.codigo ?? '-',
-        ),
-        _DetailRow(
-          icon: Icons.calendar_today_rounded,
-          label: 'Creado En',
-          value: local.creadoEn != null
-              ? DateFormatter.formatDate(local.creadoEn!)
-              : '-',
-        ),
-      ],
     );
   }
 
@@ -1907,138 +1397,6 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
       },
     );
   }
-
-  Future<void> _showDebugDebtSaldoDialog(
-    BuildContext context,
-    Local local,
-  ) async {
-    if (!_kShowDevTools || local.id == null) return;
-
-    final deudaActual = (local.deudaAcumulada ?? 0).toDouble();
-    final saldoActual = (local.saldoAFavor ?? 0).toDouble();
-    final deudaCtrl = TextEditingController(
-      text: deudaActual.toStringAsFixed(2),
-    );
-    final saldoCtrl = TextEditingController(
-      text: saldoActual.toStringAsFixed(2),
-    );
-
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Debug: editar deuda y saldo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: deudaCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Deuda acumulada',
-                prefixIcon: Icon(Icons.trending_down_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: saldoCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Saldo a favor',
-                prefixIcon: Icon(Icons.trending_up_rounded),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado != true) return;
-
-    final nuevaDeuda = _parseDecimalInput(deudaCtrl.text);
-    final nuevoSaldo = _parseDecimalInput(saldoCtrl.text);
-
-    if (nuevaDeuda == null ||
-        nuevoSaldo == null ||
-        nuevaDeuda < 0 ||
-        nuevoSaldo < 0) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Valores invalidos: usa numeros >= 0.'),
-            backgroundColor: context.semanticColors.danger,
-          ),
-        );
-      }
-      return;
-    }
-
-    final deltaDeuda = nuevaDeuda - deudaActual;
-    final deltaSaldo = nuevoSaldo - saldoActual;
-    final ds = ref.read(localDatasourceProvider);
-
-    try {
-      await ds.actualizarConStats(
-        localId: local.id!,
-        data: {
-          'deudaAcumulada': nuevaDeuda,
-          'saldoAFavor': nuevoSaldo,
-          if (local.municipalidadId != null)
-            'municipalidadId': local.municipalidadId,
-          if (local.mercadoId != null) 'mercadoId': local.mercadoId,
-          'ajusteDebugManual': true,
-        },
-        deltaDeuda: deltaDeuda,
-        deltaSaldo: deltaSaldo,
-      );
-
-      ref.read(localesPaginadosProvider.notifier).recargar();
-      if (_localSeleccionado?.id == local.id) {
-        setState(() {
-          _localSeleccionado = _localSeleccionado?.copyWith(
-            deudaAcumulada: nuevaDeuda,
-            saldoAFavor: nuevoSaldo,
-          );
-        });
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Deuda y saldo actualizados (debug).'),
-            backgroundColor: context.semanticColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar: $e'),
-            backgroundColor: context.semanticColors.danger,
-          ),
-        );
-      }
-    }
-  }
-
-  double? _parseDecimalInput(String raw) {
-    final normalized = raw.trim().replaceAll(',', '.');
-    return double.tryParse(normalized);
-  }
 }
 
 /// Vista de la lista de locales con scroll infinito.
@@ -2046,6 +1404,9 @@ class _LocalesListView extends ConsumerWidget {
   final List<Local> locales;
   final String? selectedLocalId;
   final ScrollController scrollController;
+  final String? sortColumn;
+  final bool sortAsc;
+  final ValueChanged<String> onSort;
   final ValueChanged<Local> onSelect;
   final ValueChanged<Local> onEdit;
   final ValueChanged<Local> onViewQr;
@@ -2055,6 +1416,9 @@ class _LocalesListView extends ConsumerWidget {
     required this.locales,
     this.selectedLocalId,
     required this.scrollController,
+    required this.sortColumn,
+    required this.sortAsc,
+    required this.onSort,
     required this.onSelect,
     required this.onEdit,
     required this.onViewQr,
@@ -2072,21 +1436,48 @@ class _LocalesListView extends ConsumerWidget {
       child: ScrollableTable(
         verticalController: scrollController,
         child: DataTable(
-          showCheckboxColumn:
-              false, // Desactiva la columna de checkboxes por defecto
+          showCheckboxColumn: false,
           horizontalMargin: 16,
           columnSpacing: 16,
           headingRowColor: WidgetStateProperty.all(
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
           ),
-          columns: const [
-            DataColumn(label: Text('Local')),
-            DataColumn(label: Text('Cuota')),
-            DataColumn(label: Text('Deuda')),
-            DataColumn(label: Text('Saldo')),
-            DataColumn(label: Text('QR')),
-            DataColumn(label: Text('Hist.')),
-            DataColumn(label: Text('Acciones')),
+          columns: [
+            DataColumn(
+              label: SortableColumn(
+                label: 'Local',
+                isActive: sortColumn == 'Local',
+                ascending: sortAsc,
+                onTap: () => onSort('Local'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Cuota',
+                isActive: sortColumn == 'Cuota',
+                ascending: sortAsc,
+                onTap: () => onSort('Cuota'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Deuda',
+                isActive: sortColumn == 'Deuda',
+                ascending: sortAsc,
+                onTap: () => onSort('Deuda'),
+              ),
+            ),
+            DataColumn(
+              label: SortableColumn(
+                label: 'Saldo',
+                isActive: sortColumn == 'Saldo',
+                ascending: sortAsc,
+                onTap: () => onSort('Saldo'),
+              ),
+            ),
+            const DataColumn(label: Text('QR')),
+            const DataColumn(label: Text('Hist.')),
+            const DataColumn(label: Text('Acciones')),
           ],
           rows: locales.map((l) {
             final isSelected = selectedLocalId == l.id;
@@ -2197,165 +1588,4 @@ class _LocalesListView extends ConsumerWidget {
   }
 }
 
-class _OrderModeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OrderModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.16)
-              : colorScheme.surface,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.7)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: selected ? colorScheme.primary : colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                  ),
-                ),
-                Text(value, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Widget de estado vacío reutilizable.
-class _EmptyStateWidget extends StatelessWidget {
-  final IconData icon;
-  final String mensaje;
-
-  const _EmptyStateWidget({required this.icon, required this.mensaje});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 64,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.12),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            mensaje,
-            style: TextStyle(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.7),
-              fontSize: 15,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PanelDetalleVacio extends StatelessWidget {
-  const _PanelDetalleVacio();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.touch_app_rounded,
-                size: 64,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.12),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Selecciona un local de la tabla\npara ver su información completa.',
-                style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                  fontSize: 15,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// End of locales_screen.dart
