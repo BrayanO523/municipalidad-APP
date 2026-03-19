@@ -155,6 +155,295 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
     await notifier.restablecerFiltros();
   }
 
+  Future<void> _abrirFiltrosBottomSheet({
+    required BuildContext context,
+    required LocalesPaginadosNotifier notifier,
+    required LocalesPaginadosState state,
+  }) async {
+    var ordenamiento = state.ordenamiento;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final colorScheme = Theme.of(sheetCtx).colorScheme;
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            void applyAndClose() {
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+              unawaited(notifier.cambiarOrdenamiento(ordenamiento));
+            }
+
+            void resetAndClose() {
+              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+              unawaited(_limpiarFiltros(notifier));
+            }
+
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                                colorScheme.secondaryContainer.withValues(
+                                  alpha: 0.62,
+                                ),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.24,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filtros de Locales',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    Text(
+                                      'Ajusta el orden de visualizacion.',
+                                      style: Theme.of(sheetCtx)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.sort_by_alpha_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Orden alfabetico',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'A - Z',
+                                      selected:
+                                          ordenamiento ==
+                                          LocalOrdenamiento.alfabeticoAsc,
+                                      onTap: () => setSheetState(
+                                        () => ordenamiento =
+                                            LocalOrdenamiento.alfabeticoAsc,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Z - A',
+                                      selected:
+                                          ordenamiento ==
+                                          LocalOrdenamiento.alfabeticoDesc,
+                                      onTap: () => setSheetState(
+                                        () => ordenamiento =
+                                            LocalOrdenamiento.alfabeticoDesc,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.45,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.paid_rounded,
+                                    size: 18,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Orden por cuota',
+                                    style: Theme.of(sheetCtx)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Mayor cuota',
+                                      selected:
+                                          ordenamiento ==
+                                          LocalOrdenamiento.cuotaMayor,
+                                      onTap: () => setSheetState(
+                                        () => ordenamiento =
+                                            LocalOrdenamiento.cuotaMayor,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _OrderModeChip(
+                                      label: 'Menor cuota',
+                                      selected:
+                                          ordenamiento ==
+                                          LocalOrdenamiento.cuotaMenor,
+                                      onTap: () => setSheetState(
+                                        () => ordenamiento =
+                                            LocalOrdenamiento.cuotaMenor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: resetAndClose,
+                                icon: const Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Restablecer'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: applyAndClose,
+                                icon: const Icon(Icons.check_rounded, size: 16),
+                                label: const Text('Aplicar'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildFiltros(BuildContext context) {
     final user = ref.watch(currentUsuarioProvider).value;
     final municipalidadId = user?.municipalidadId;
@@ -196,9 +485,22 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                     height: 34,
                     child: OutlinedButton.icon(
                       style: compactStyle,
+                      onPressed: () => _abrirFiltrosBottomSheet(
+                        context: context,
+                        notifier: notifier,
+                        state: state,
+                      ),
+                      icon: const Icon(Icons.tune_rounded, size: 15),
+                      label: const Text('Filtros'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
                       onPressed: () => _limpiarFiltros(notifier),
-                      icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
-                      label: const Text('Limpiar'),
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
                     ),
                   ),
                   if (kIsWeb)
@@ -276,7 +578,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                             ),
                       ),
                       Text(
-                        'Pagina ${state.paginaActual} · ${state.locales.length} locales',
+                        'Página ${state.paginaActual} · ${state.locales.length} locales',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: Theme.of(
@@ -1889,6 +2191,51 @@ class _LocalesListView extends ConsumerWidget {
               ],
             );
           }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _OrderModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.16)
+              : colorScheme.surface,
+          border: Border.all(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.7)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected ? colorScheme.primary : colorScheme.onSurface,
+            ),
+          ),
         ),
       ),
     );

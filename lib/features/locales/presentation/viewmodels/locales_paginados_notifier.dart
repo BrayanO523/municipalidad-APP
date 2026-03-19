@@ -11,6 +11,8 @@ import '../../../usuarios/domain/entities/usuario.dart';
 
 enum LocalFiltroDeuda { todos, soloDeudores, soloSaldosAFavor }
 
+enum LocalOrdenamiento { alfabeticoAsc, alfabeticoDesc, cuotaMayor, cuotaMenor }
+
 /// Estado completo para la pantalla de locales paginada.
 class LocalesPaginadosState {
   final List<Local> locales;
@@ -26,6 +28,7 @@ class LocalesPaginadosState {
   final QueryDocumentSnapshot? ultimoDoc;
   final LocalFiltroDeuda filtroDeuda;
   final String? usuarioFiltradoId;
+  final LocalOrdenamiento ordenamiento;
 
   const LocalesPaginadosState({
     this.locales = const [],
@@ -41,6 +44,7 @@ class LocalesPaginadosState {
     this.ultimoDoc,
     this.filtroDeuda = LocalFiltroDeuda.todos,
     this.usuarioFiltradoId,
+    this.ordenamiento = LocalOrdenamiento.alfabeticoAsc,
   });
 
   LocalesPaginadosState copyWith({
@@ -57,6 +61,7 @@ class LocalesPaginadosState {
     QueryDocumentSnapshot? ultimoDoc,
     LocalFiltroDeuda? filtroDeuda,
     String? usuarioFiltradoId,
+    LocalOrdenamiento? ordenamiento,
     bool clearError = false,
     bool clearUltimoDoc = false,
     bool clearBusqueda = false,
@@ -81,6 +86,7 @@ class LocalesPaginadosState {
       usuarioFiltradoId: clearUsuarioFiltrado
           ? null
           : (usuarioFiltradoId ?? this.usuarioFiltradoId),
+      ordenamiento: ordenamiento ?? this.ordenamiento,
     );
   }
 }
@@ -108,8 +114,9 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       paginaActual: 1,
       snapshotsPaginas: [null],
       localesPagadosHoy: const {},
+      ordenamiento: state.ordenamiento,
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
   }
 
   /// Aplica búsqueda (llamar después del debounce de 500ms).
@@ -127,7 +134,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       clearError: true,
       clearBusqueda: query.isEmpty,
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
   }
 
   /// Cambia el filtro de deuda y recarga desde cero.
@@ -144,7 +151,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       clearError: true,
       localesPagadosHoy: const {},
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
   }
 
   /// Cambia el usuario (cobrador) para filtrar por su ruta asignada.
@@ -162,7 +169,24 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       clearError: true,
       localesPagadosHoy: const {},
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
+  }
+
+  Future<void> cambiarOrdenamiento(LocalOrdenamiento ordenamiento) async {
+    if (state.ordenamiento == ordenamiento) return;
+    state = state.copyWith(
+      ordenamiento: ordenamiento,
+      locales: [],
+      hayMas: true,
+      totalPaginas: 1,
+      cargando: true,
+      paginaActual: 1,
+      snapshotsPaginas: [null],
+      clearUltimoDoc: true,
+      clearError: true,
+      localesPagadosHoy: const {},
+    );
+    await _fetchPagina();
   }
 
   /// Limpia filtros y recarga desde cero.
@@ -175,6 +199,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       paginaActual: 1,
       snapshotsPaginas: [null],
       filtroDeuda: LocalFiltroDeuda.todos,
+      ordenamiento: LocalOrdenamiento.alfabeticoAsc,
       clearUltimoDoc: true,
       clearError: true,
       clearBusqueda: true,
@@ -182,114 +207,82 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       clearUsuarioFiltrado: true,
       localesPagadosHoy: const {},
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
   }
 
   /// Navega a la siguiente página.
   Future<void> irAPaginaSiguiente() async {
-    if (state.cargando || !state.hayMas) return;
-
-    final nuevosSnapshots = List<QueryDocumentSnapshot?>.from(
-      state.snapshotsPaginas,
-    );
-    // El snapshot para la siguiente página es el ultimoDoc de la actual.
-    if (nuevosSnapshots.length <= state.paginaActual) {
-      nuevosSnapshots.add(state.ultimoDoc);
-    }
-
+    if (state.cargando || state.paginaActual >= state.totalPaginas) return;
     state = state.copyWith(
       cargando: true,
       paginaActual: state.paginaActual + 1,
-      snapshotsPaginas: nuevosSnapshots,
+      clearError: true,
     );
-
-    await _fetchPagina(lastDoc: state.ultimoDoc);
+    await _fetchPagina();
   }
 
   /// Navega a la página anterior.
   Future<void> irAPaginaAnterior() async {
     if (state.cargando || state.paginaActual <= 1) return;
-
-    final nuevaPagina = state.paginaActual - 1;
-    final startDoc = state.snapshotsPaginas[nuevaPagina - 1];
-
-    state = state.copyWith(cargando: true, paginaActual: nuevaPagina);
-
-    await _fetchPagina(lastDoc: startDoc);
+    state = state.copyWith(
+      cargando: true,
+      paginaActual: state.paginaActual - 1,
+      clearError: true,
+    );
+    await _fetchPagina();
   }
 
-  Future<void> _fetchPagina({required QueryDocumentSnapshot? lastDoc}) async {
+  Future<void> _fetchPagina() async {
     try {
       final municipalidadId = _municipalidadId;
-      final mercadoId = state.mercadoSeleccionadoId;
-      final query = state.busqueda;
-
-      // Mapear el nombre del enum al string esperado por el datasource
-      String filtroDs = 'todos';
-      if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) {
-        filtroDs = 'deudores';
-      }
-      if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) {
-        filtroDs = 'saldos';
-      }
-
-      List<String>? filterLocalIds;
-      if (state.usuarioFiltradoId != null) {
-        final usuarios = ref.read(usuariosProvider).value ?? [];
-        final usuario = usuarios.whereType<Usuario>().firstWhere(
-          (u) => u.id == state.usuarioFiltradoId,
-          orElse: () => const Usuario(),
+      if (municipalidadId == null) {
+        state = state.copyWith(
+          locales: const [],
+          cargando: false,
+          hayMas: false,
+          totalPaginas: 1,
+          paginaActual: 1,
+          localesPagadosHoy: const {},
         );
-        filterLocalIds = usuario.rutaAsignada;
-      }
-
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
-      int? totalRegistros;
-
-      if (municipalidadId != null) {
-        if (lastDoc == null) {
-          totalRegistros = await _ds.contarLocalesPorMunicipalidad(
-            municipalidadId: municipalidadId,
-            mercadoId: mercadoId,
-            searchQuery: query,
-            filtroDeuda: filtroDs,
-            filterLocalIds: filterLocalIds,
-          );
-        }
-
-        docs = await _ds.listarPaginaPorMunicipalidad(
-          municipalidadId: municipalidadId,
-          mercadoId: mercadoId,
-          searchQuery: query,
-          lastDoc: lastDoc,
-          limit: _pageSize,
-          filtroDeuda: filtroDs,
-          filterLocalIds: filterLocalIds,
-        );
-      } else {
-        state = state.copyWith(cargando: false, hayMas: false);
         return;
       }
 
-      final nuevos = docs.map((doc) {
-        return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;
-      }).toList();
+      final todos = await _cargarTodosFiltrados(
+        municipalidadId: municipalidadId,
+        mercadoId: state.mercadoSeleccionadoId,
+        searchQuery: state.busqueda,
+        filtroDeuda: _filtroDeudaDatasource(state.filtroDeuda),
+        filterLocalIds: _resolverFilterLocalIds(),
+      );
 
-      final ultimoDoc = docs.isNotEmpty ? docs.last : null;
+      _ordenarLocales(todos, state.ordenamiento);
+
+      final totalRegistros = todos.length;
+      final totalPaginas = totalRegistros == 0
+          ? 1
+          : (totalRegistros / _pageSize).ceil();
+      final paginaActual = state.paginaActual.clamp(1, totalPaginas);
+      final inicio = (paginaActual - 1) * _pageSize;
+      final fin = (inicio + _pageSize > totalRegistros)
+          ? totalRegistros
+          : inicio + _pageSize;
+      final pagina = inicio >= totalRegistros
+          ? <Local>[]
+          : todos.sublist(inicio, fin);
 
       state = state.copyWith(
-        locales: nuevos, // Reemplazamos en lugar de agregar
-        hayMas: docs.length >= _pageSize,
+        locales: pagina,
+        hayMas: paginaActual < totalPaginas,
         cargando: false,
-        ultimoDoc: ultimoDoc,
-        totalPaginas: totalRegistros == null
-            ? state.totalPaginas
-            : (totalRegistros == 0 ? 1 : (totalRegistros / _pageSize).ceil()),
+        totalPaginas: totalPaginas,
+        paginaActual: paginaActual,
+        snapshotsPaginas: const [null],
+        clearUltimoDoc: true,
+        localesPagadosHoy: const {},
         clearError: true,
       );
 
-      // Verificar cuáles de estos locales ya pagaron hoy
-      await _verificarPagosHoy(nuevos);
+      await _verificarPagosHoy(pagina);
     } catch (e) {
       final text = e.toString();
       debugPrint('Error en Firestore: $text');
@@ -298,6 +291,86 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
         hayMas: false,
         errorMsg: 'Error al cargar locales: $text',
       );
+    }
+  }
+
+  String _filtroDeudaDatasource(LocalFiltroDeuda filtro) {
+    return switch (filtro) {
+      LocalFiltroDeuda.soloDeudores => 'deudores',
+      LocalFiltroDeuda.soloSaldosAFavor => 'saldos',
+      _ => 'todos',
+    };
+  }
+
+  List<String>? _resolverFilterLocalIds() {
+    if (state.usuarioFiltradoId == null) return null;
+    final usuarios = ref.read(usuariosProvider).value ?? [];
+    final usuario = usuarios.whereType<Usuario>().firstWhere(
+      (u) => u.id == state.usuarioFiltradoId,
+      orElse: () => const Usuario(),
+    );
+    return usuario.rutaAsignada;
+  }
+
+  Future<List<Local>> _cargarTodosFiltrados({
+    required String municipalidadId,
+    String? mercadoId,
+    String? searchQuery,
+    required String filtroDeuda,
+    List<String>? filterLocalIds,
+  }) async {
+    final List<Local> all = [];
+    QueryDocumentSnapshot? lastDoc;
+    var hasMore = true;
+
+    while (hasMore) {
+      final docs = await _ds.listarPaginaPorMunicipalidad(
+        municipalidadId: municipalidadId,
+        mercadoId: mercadoId,
+        searchQuery: searchQuery,
+        lastDoc: lastDoc,
+        limit: _exportPageSize,
+        filtroDeuda: filtroDeuda,
+        filterLocalIds: filterLocalIds,
+      );
+
+      final nuevos = docs.map((doc) {
+        return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;
+      }).toList();
+      all.addAll(nuevos);
+
+      if (docs.length < _exportPageSize) {
+        hasMore = false;
+      } else {
+        lastDoc = docs.last;
+      }
+    }
+
+    return all;
+  }
+
+  void _ordenarLocales(List<Local> list, LocalOrdenamiento ordenamiento) {
+    switch (ordenamiento) {
+      case LocalOrdenamiento.alfabeticoAsc:
+        list.sort(
+          (a, b) => (a.nombreSocial ?? '').toLowerCase().compareTo(
+            (b.nombreSocial ?? '').toLowerCase(),
+          ),
+        );
+        break;
+      case LocalOrdenamiento.alfabeticoDesc:
+        list.sort(
+          (a, b) => (b.nombreSocial ?? '').toLowerCase().compareTo(
+            (a.nombreSocial ?? '').toLowerCase(),
+          ),
+        );
+        break;
+      case LocalOrdenamiento.cuotaMayor:
+        list.sort((a, b) => (b.cuotaDiaria ?? 0).compareTo(a.cuotaDiaria ?? 0));
+        break;
+      case LocalOrdenamiento.cuotaMenor:
+        list.sort((a, b) => (a.cuotaDiaria ?? 0).compareTo(b.cuotaDiaria ?? 0));
+        break;
     }
   }
 
@@ -406,10 +479,9 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       snapshotsPaginas: [null],
       clearUltimoDoc: true,
       clearError: true,
-      clearBusqueda: true,
       localesPagadosHoy: const {},
     );
-    await _fetchPagina(lastDoc: null);
+    await _fetchPagina();
   }
 
   /// Exporta todos los locales con los filtros actuales (sin afectar el estado de la UI).
@@ -417,58 +489,19 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     final municipalidadId = _municipalidadId;
     final mercadoId = state.mercadoSeleccionadoId;
     final query = state.busqueda;
-
-    // Mapear el nombre del enum al string esperado por el datasource
-    String filtroDs = 'todos';
-    if (state.filtroDeuda == LocalFiltroDeuda.soloDeudores) {
-      filtroDs = 'deudores';
-    }
-    if (state.filtroDeuda == LocalFiltroDeuda.soloSaldosAFavor) {
-      filtroDs = 'saldos';
-    }
-
-    List<String>? filterLocalIds;
-    if (state.usuarioFiltradoId != null) {
-      final usuarios = ref.read(usuariosProvider).value ?? [];
-      final usuario = usuarios.whereType<Usuario>().firstWhere(
-        (u) => u.id == state.usuarioFiltradoId,
-        orElse: () => const Usuario(),
-      );
-      filterLocalIds = usuario.rutaAsignada;
-    }
+    final filtroDs = _filtroDeudaDatasource(state.filtroDeuda);
+    final filterLocalIds = _resolverFilterLocalIds();
 
     if (mercadoId == null && municipalidadId == null) return [];
+    final all = await _cargarTodosFiltrados(
+      municipalidadId: municipalidadId!,
+      mercadoId: mercadoId,
+      searchQuery: query,
+      filtroDeuda: filtroDs,
+      filterLocalIds: filterLocalIds,
+    );
 
-    final List<Local> all = [];
-    QueryDocumentSnapshot? lastDoc;
-    bool hasMore = true;
-
-    while (hasMore) {
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
-
-      docs = await _ds.listarPaginaPorMunicipalidad(
-        municipalidadId: municipalidadId!,
-        mercadoId: mercadoId,
-        searchQuery: query,
-        lastDoc: lastDoc,
-        limit: _exportPageSize,
-        filtroDeuda: filtroDs,
-        filterLocalIds: filterLocalIds,
-      );
-
-      final nuevos = docs.map((doc) {
-        return LocalJson.fromJson(doc.data(), docId: doc.id) as Local;
-      }).toList();
-
-      all.addAll(nuevos);
-
-      if (docs.length < _exportPageSize) {
-        hasMore = false;
-      } else {
-        lastDoc = docs.last;
-      }
-    }
-
+    _ordenarLocales(all, state.ordenamiento);
     return all;
   }
 }
