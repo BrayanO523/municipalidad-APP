@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../app/di/providers.dart';
@@ -24,16 +23,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
   List<String> _rutaActual = []; // Lista de IDs de locales en orden
 
   final MapController _mapController = MapController();
-  LatLng? _currentPosition;
   bool _isMapReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _detectarUbicacionActual();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,9 +47,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
 
     final mapLocales = {for (var l in localesDelMercado) l.id!: l};
 
-    final selectedMercado = mercados.isEmpty || _selectedMercadoId == null
-        ? null
-        : mercados.firstWhere((m) => m.id == _selectedMercadoId);
+    final selectedMercado = _buscarMercadoPorId(mercados, _selectedMercadoId);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -117,7 +105,6 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                               mercados,
                               cobradores,
                               mapLocales,
-                              localesData,
                               isMobile: true,
                               scrollController: scrollController,
                             ),
@@ -136,13 +123,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
             children: [
               SizedBox(
                 width: 380,
-                child: _buildSidebar(
-                  context,
-                  mercados,
-                  cobradores,
-                  mapLocales,
-                  localesData,
-                ),
+                child: _buildSidebar(context, mercados, cobradores, mapLocales),
               ),
               Expanded(
                 child: _buildMap(
@@ -163,8 +144,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     BuildContext context,
     List<Mercado> mercados,
     List<Usuario> cobradores,
-    Map<String, Local> mapLocales,
-    List<Local> localesData, {
+    Map<String, Local> mapLocales, {
     bool isMobile = false,
     ScrollController? scrollController,
   }) {
@@ -174,7 +154,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     List<Widget> buildHeaderControls() {
       return [
         Text(
-          'Diseño de Rutas',
+          'Diseno de Rutas',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: isMobile ? 18 : 24,
@@ -216,10 +196,8 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
               _selectedMercadoId = val;
               _selectedCobradorId = null;
               _rutaActual = [];
-              _centrarMapaEnLocales(
-                localesData.where((l) => l.mercadoId == val).toList(),
-              );
             });
+            _centrarMapaEnMercado(_buscarMercadoPorId(mercados, val));
           },
         ),
         const SizedBox(height: 10),
@@ -364,7 +342,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
       }).toList();
     }
 
-    // ──── MOBILE layout: everything scrollable ────
+    // MOBILE layout: everything scrollable
     if (isMobile) {
       return Padding(
         padding: const EdgeInsets.all(12),
@@ -452,7 +430,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
       );
     }
 
-    // ──── DESKTOP layout: fixed sidebar with Expanded list ────
+    // DESKTOP layout: fixed sidebar with Expanded list
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       padding: const EdgeInsets.all(24),
@@ -556,6 +534,7 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     Map<String, Local> mapLocales,
   ) {
     final mercadoPerimetroPoints = _toPolygonPoints(selectedMercado?.perimetro);
+    final centroMercado = _centroMercadoPorPerimetro(selectedMercado);
     final localPolygons = localesDelMercado
         .map((l) {
           final points = _toPolygonPoints(l.perimetro);
@@ -575,13 +554,12 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter:
-                _currentPosition ?? const LatLng(14.628434, -90.522713),
-            initialZoom: _currentPosition != null ? 16.0 : 15.0,
+            initialCenter: centroMercado ?? const LatLng(14.628434, -90.522713),
+            initialZoom: centroMercado != null ? 16.0 : 15.0,
             onMapReady: () {
               _isMapReady = true;
-              if (_currentPosition != null) {
-                _moverMapa(_currentPosition!, zoom: 16.0);
+              if (centroMercado != null) {
+                _moverMapa(centroMercado, zoom: 16.0);
               }
             },
           ),
@@ -603,11 +581,11 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     points: mercadoPerimetroPoints,
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.05),
+                    ).colorScheme.primary.withValues(alpha: 0.14),
                     borderColor: Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                    borderStrokeWidth: 1,
+                    ).colorScheme.primary.withValues(alpha: 0.88),
+                    borderStrokeWidth: 3,
                   ),
                 ],
               ),
@@ -664,26 +642,65 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
                     ),
                   );
                 }),
-                if (_currentPosition != null)
-                  Marker(
-                    width: 24,
-                    height: 24,
-                    point: _currentPosition!,
+                ...mercadoPerimetroPoints.map((point) {
+                  return Marker(
+                    width: 12,
+                    height: 12,
+                    point: point,
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: context.semanticColors.info,
+                        color: Theme.of(context).colorScheme.primary,
                         border: Border.all(
-                          color: context.semanticColors.onInfo,
+                          color: Theme.of(context).colorScheme.surface,
                           width: 2,
                         ),
                       ),
                     ),
-                  ),
+                  );
+                }),
               ],
             ),
           ],
         ),
+        if (_selectedMercadoId != null && mercadoPerimetroPoints.isNotEmpty)
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.polyline_rounded,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Perimetro del mercado',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         if (_selectedMercadoId == null)
           Container(
             color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
@@ -698,15 +715,24 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
               ),
             ),
           ),
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: FloatingActionButton.small(
-            heroTag: 'rutas-admin-my-location',
-            onPressed: _detectarUbicacionActual,
-            child: const Icon(Icons.my_location_rounded),
+        if (_selectedMercadoId != null && mercadoPerimetroPoints.isEmpty)
+          Container(
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'El mercado seleccionado no tiene perimetro. Agregue el perimetro en la vista de Mercados para disenar rutas.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -728,56 +754,30 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
     return points;
   }
 
-  void _centrarMapaEnLocales(List<Local> locales) {
-    if (locales.isEmpty) return;
-
-    final conCoordenadas = locales
-        .where((l) => l.latitud != null && l.longitud != null)
-        .toList();
-    if (conCoordenadas.isEmpty) return;
-
+  LatLng? _centroMercadoPorPerimetro(Mercado? mercado) {
+    final puntos = _toPolygonPoints(mercado?.perimetro);
+    if (puntos.isEmpty) return null;
     double sumLat = 0;
     double sumLng = 0;
-    for (var l in conCoordenadas) {
-      if (l.latitud != null && l.longitud != null) {
-        sumLat += l.latitud!;
-        sumLng += l.longitud!;
-      }
+    for (final point in puntos) {
+      sumLat += point.latitude;
+      sumLng += point.longitude;
     }
+    return LatLng(sumLat / puntos.length, sumLng / puntos.length);
+  }
 
-    final center = LatLng(
-      sumLat / conCoordenadas.length,
-      sumLng / conCoordenadas.length,
-    );
+  void _centrarMapaEnMercado(Mercado? mercado) {
+    final center = _centroMercadoPorPerimetro(mercado);
+    if (center == null) return;
     _moverMapa(center, zoom: 16.0);
   }
 
-  Future<void> _detectarUbicacionActual() async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition();
-      if (!mounted) return;
-
-      final point = LatLng(pos.latitude, pos.longitude);
-      setState(() => _currentPosition = point);
-
-      if (_isMapReady) {
-        _moverMapa(point, zoom: 16.0);
-      }
-    } catch (_) {
-      // Ignorar errores de permisos/servicio y mantener fallback actual.
+  Mercado? _buscarMercadoPorId(List<Mercado> mercados, String? mercadoId) {
+    if (mercadoId == null) return null;
+    for (final mercado in mercados) {
+      if (mercado.id == mercadoId) return mercado;
     }
+    return null;
   }
 
   void _moverMapa(LatLng point, {double zoom = 16.0}) {

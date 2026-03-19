@@ -171,6 +171,9 @@ class MercadosPaginadosNotifier extends Notifier<MercadosPaginadosState> {
 
   Mercado _mapDocToMercado(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
+    final geoPoint = data['ubicacion_geo'] is GeoPoint
+        ? data['ubicacion_geo'] as GeoPoint
+        : null;
     return Mercado(
       id: doc.id,
       nombre: data['nombre'],
@@ -179,19 +182,44 @@ class MercadosPaginadosNotifier extends Notifier<MercadosPaginadosState> {
       activo: data['activo'] ?? true,
       creadoEn: (data['creadoEn'] as Timestamp?)?.toDate(),
       creadoPor: data['creadoPor'],
-      perimetro: data['perimetro'] != null
-          ? List<Map<String, double>>.from(
-              (data['perimetro'] as List).map(
-                (p) => {
-                  'lat': (p['lat'] as num).toDouble(),
-                  'lng': (p['lng'] as num).toDouble(),
-                },
-              ),
-            )
-          : null,
-      latitud: (data['latitud'] as num?)?.toDouble(),
-      longitud: (data['longitud'] as num?)?.toDouble(),
+      perimetro: _parsePerimetro(data['perimetro']),
+      latitud: _toDouble(data['latitud']) ?? geoPoint?.latitude,
+      longitud: _toDouble(data['longitud']) ?? geoPoint?.longitude,
     );
+  }
+
+  List<Map<String, double>>? _parsePerimetro(dynamic rawPerimetro) {
+    if (rawPerimetro is! List) return null;
+
+    final points = rawPerimetro
+        .map(_parsePoint)
+        .whereType<Map<String, double>>()
+        .toList(growable: false);
+
+    return points.isEmpty ? null : points;
+  }
+
+  Map<String, double>? _parsePoint(dynamic value) {
+    if (value is GeoPoint) {
+      return {'lat': value.latitude, 'lng': value.longitude};
+    }
+
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      final lat = _toDouble(map['lat'] ?? map['latitude']);
+      final lng = _toDouble(map['lng'] ?? map['lon'] ?? map['longitude']);
+      if (lat != null && lng != null) {
+        return {'lat': lat, 'lng': lng};
+      }
+    }
+
+    return null;
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   void irAPaginaSiguiente() {

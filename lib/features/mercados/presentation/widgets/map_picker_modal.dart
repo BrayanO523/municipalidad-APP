@@ -10,6 +10,7 @@ enum MapPickerMode { point, polygon }
 class MapPickerModal extends StatefulWidget {
   final MapPickerMode mode;
   final LatLng? initialCenter;
+  final LatLng? marketCenter;
   final double? initialZoom;
   final List<LatLng>? initialPoints;
   final List<LatLng>?
@@ -21,6 +22,7 @@ class MapPickerModal extends StatefulWidget {
     super.key,
     required this.mode,
     this.initialCenter,
+    this.marketCenter,
     this.initialZoom,
     this.initialPoints,
     this.marketPerimeter,
@@ -48,11 +50,21 @@ class _MapPickerModalState extends State<MapPickerModal> {
   }
 
   LatLng get _initialMapCenter {
-    return _currentPosition ??
-        widget.initialCenter ??
+    return widget.initialCenter ??
         (widget.initialPoints?.isNotEmpty == true
             ? widget.initialPoints!.first
-            : const LatLng(14.582, -90.589));
+            : widget.marketCenter ??
+                  _currentPosition ??
+                  const LatLng(14.582, -90.589));
+  }
+
+  bool get _shouldAutoCenterToCurrentLocation {
+    final hasInitialPoints = widget.initialPoints?.isNotEmpty == true;
+    final hasMarketPerimeter = widget.marketPerimeter?.isNotEmpty == true;
+    return widget.initialCenter == null &&
+        !hasInitialPoints &&
+        widget.marketCenter == null &&
+        !hasMarketPerimeter;
   }
 
   Future<void> _detectarUbicacionActual() async {
@@ -75,7 +87,7 @@ class _MapPickerModalState extends State<MapPickerModal> {
       final point = LatLng(pos.latitude, pos.longitude);
       setState(() => _currentPosition = point);
 
-      if (_isMapReady) {
+      if (_isMapReady && _shouldAutoCenterToCurrentLocation) {
         _moverMapa(point, zoom: widget.initialZoom ?? 15.0);
       }
     } catch (_) {
@@ -161,7 +173,8 @@ class _MapPickerModalState extends State<MapPickerModal> {
                       onTap: _handleTap,
                       onMapReady: () {
                         _isMapReady = true;
-                        if (_currentPosition != null) {
+                        if (_currentPosition != null &&
+                            _shouldAutoCenterToCurrentLocation) {
                           _moverMapa(
                             _currentPosition!,
                             zoom: widget.initialZoom ?? 15.0,
@@ -237,6 +250,31 @@ class _MapPickerModalState extends State<MapPickerModal> {
                               ),
                             );
                           }).toList(),
+                        ),
+                      if (widget.marketCenter != null)
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: widget.marketCenter!,
+                              width: 38,
+                              height: 38,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: semantic.info,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: semantic.onInfo,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.storefront_rounded,
+                                  color: semantic.onInfo,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
                       // Dibujo actual

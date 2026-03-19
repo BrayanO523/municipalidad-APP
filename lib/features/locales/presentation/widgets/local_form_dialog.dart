@@ -52,6 +52,23 @@ Future<void> showLocalFormDialog(
       ? 'mensual'
       : 'diaria';
 
+  LatLng? centerFromPerimeter(List<Map<String, double>>? perimetro) {
+    if (perimetro == null || perimetro.isEmpty) return null;
+    var sumLat = 0.0;
+    var sumLng = 0.0;
+    var count = 0;
+    for (final point in perimetro) {
+      final lat = point['lat'];
+      final lng = point['lng'];
+      if (lat == null || lng == null) continue;
+      sumLat += lat;
+      sumLng += lng;
+      count++;
+    }
+    if (count == 0) return null;
+    return LatLng(sumLat / count, sumLng / count);
+  }
+
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -397,6 +414,16 @@ Future<void> showLocalFormDialog(
 
                                   if (mercado == null) return;
 
+                                  final marketCenter =
+                                      centerFromPerimeter(mercado.perimetro) ??
+                                      (mercado.latitud != null &&
+                                              mercado.longitud != null
+                                          ? LatLng(
+                                              mercado.latitud!,
+                                              mercado.longitud!,
+                                            )
+                                          : null);
+
                                   final otrosLocales = currentLocs
                                       .where(
                                         (l) =>
@@ -460,12 +487,8 @@ Future<void> showLocalFormDialog(
                                               temporalPerimetro!.first['lat']!,
                                               temporalPerimetro!.first['lng']!,
                                             )
-                                          : (mercado.latitud != null
-                                                ? LatLng(
-                                                    mercado.latitud!,
-                                                    mercado.longitud!,
-                                                  )
-                                                : null),
+                                          : marketCenter,
+                                      marketCenter: marketCenter,
                                     ),
                                   );
 
