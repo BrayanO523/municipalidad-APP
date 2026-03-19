@@ -26,10 +26,7 @@ class PdfGenerator {
     final fontBold = await PdfGoogleFonts.poppinsBold();
 
     final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(
-        base: fontRegular,
-        bold: fontBold,
-      ),
+      theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
     );
     final DateFormat formatter = DateFormat('dd/MM/yyyy hh:mm a');
 
@@ -49,8 +46,17 @@ class PdfGenerator {
       (sum, i) => sum + ((i['montoPendiente'] as num?)?.toDouble() ?? 0),
     );
     // 4. Desglose mora / corriente
-    final totalMoraCorte = (corte.totalMora ?? cobrados.fold<double>(0, (s, c) => s + (c.montoMora ?? 0).toDouble())).toDouble();
-    final totalCorrienteCorte = (totalCobrado - totalMoraCorte).clamp(0.0, double.infinity);
+    final totalMoraCorte =
+        (corte.totalMora ??
+                cobrados.fold<double>(
+                  0,
+                  (s, c) => s + (c.montoMora ?? 0).toDouble(),
+                ))
+            .toDouble();
+    final totalCorrienteCorte = (totalCobrado - totalMoraCorte).clamp(
+      0.0,
+      double.infinity,
+    );
     final tieneMora = totalMoraCorte > 0;
 
     pdf.addPage(
@@ -59,7 +65,7 @@ class PdfGenerator {
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return [
-            // â”€â”€ Cabecera Principal â”€â”€
+            // Cabecera Principal
             pw.Header(
               level: 0,
               child: pw.Row(
@@ -83,8 +89,7 @@ class PdfGenerator {
               ),
             ),
             pw.SizedBox(height: 16),
-
-            // â”€â”€ Resumen â”€â”€
+            // Resumen
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -143,26 +148,40 @@ class PdfGenerator {
                         mainAxisSize: pw.MainAxisSize.min,
                         children: [
                           pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
                             decoration: pw.BoxDecoration(
                               color: const PdfColor.fromInt(0xFFD1FAE5),
                               borderRadius: pw.BorderRadius.circular(4),
                             ),
                             child: pw.Text(
                               'Corriente: ${CurrencyFormatter.format(totalCorrienteCorte)}',
-                              style: pw.TextStyle(fontSize: 8, color: PdfColors.green900, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                color: PdfColors.green900,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
                             ),
                           ),
                           pw.SizedBox(width: 6),
                           pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
                             decoration: pw.BoxDecoration(
                               color: const PdfColor.fromInt(0xFFFFEDD5),
                               borderRadius: pw.BorderRadius.circular(4),
                             ),
                             child: pw.Text(
                               'Mora: ${CurrencyFormatter.format(totalMoraCorte)}',
-                              style: pw.TextStyle(fontSize: 8, color: const PdfColor.fromInt(0xFFC2410C), fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                color: const PdfColor.fromInt(0xFFC2410C),
+                                fontWeight: pw.FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -184,8 +203,7 @@ class PdfGenerator {
             pw.SizedBox(height: 24),
             pw.Divider(color: PdfColors.grey400),
             pw.SizedBox(height: 16),
-
-            // â”€â”€ Tabla Cobrados â”€â”€
+            // Tabla Cobrados
             if (cobrados.isNotEmpty) ...[
               pw.Text(
                 'Detalle de Cobros y Abonos',
@@ -215,8 +233,7 @@ class PdfGenerator {
               _buildIncidenciasTabla(gestionesInfo, localInfo),
               pw.SizedBox(height: 24),
             ],
-
-            // â”€â”€ Tabla Pendientes (desde pendientesInfo) â”€â”€
+            // Tabla Pendientes (desde pendientesInfo)
             if (pendientesInfo.isNotEmpty) ...[
               pw.Text(
                 'Detalle de Locales Pendientes',
@@ -241,8 +258,7 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 24),
             ],
-
-            // â”€â”€ Zona de Firmas â”€â”€
+            // Zona de Firmas
             pw.SizedBox(height: 40),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
@@ -361,16 +377,24 @@ class PdfGenerator {
                   children: [
                     pw.Text(
                       localDisplay,
-                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
                     ),
                     if ((codigo != null && codigo.isNotEmpty) ||
                         (clave != null && clave.isNotEmpty))
                       pw.Text(
                         [
-                          if (codigo != null && codigo.isNotEmpty) 'Cód: $codigo',
-                          if (clave != null && clave.isNotEmpty) 'Clave: $clave',
-                        ].join(' • '),
-                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                          if (codigo != null && codigo.isNotEmpty)
+                            'Cod: $codigo',
+                          if (clave != null && clave.isNotEmpty)
+                            'Clave: $clave',
+                        ].join(' - '),
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.grey700,
+                        ),
                       ),
                   ],
                 ),
@@ -418,7 +442,7 @@ class PdfGenerator {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          'Incidencias del día',
+          'Incidencias del dia',
           style: pw.TextStyle(
             fontSize: 14,
             fontWeight: pw.FontWeight.bold,
@@ -457,7 +481,7 @@ class PdfGenerator {
               final comentario = g['comentario'] as String? ?? '';
 
               final detallesLocal = [
-                if (codigo.isNotEmpty) 'Cód: $codigo',
+                if (codigo.isNotEmpty) 'Cod: $codigo',
                 if (clave.isNotEmpty) 'Clave: $clave',
               ].join(' \u2022 ');
 
@@ -468,21 +492,39 @@ class PdfGenerator {
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(localNombre, style: const pw.TextStyle(fontSize: 9)),
+                        pw.Text(
+                          localNombre,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
                         if (detallesLocal.isNotEmpty)
                           pw.Text(
                             detallesLocal,
-                            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+                            style: const pw.TextStyle(
+                              fontSize: 7,
+                              color: PdfColors.grey700,
+                            ),
                           ),
                       ],
                     ),
                   ),
-                  _cellBody(pw.Text(boleta.isNotEmpty ? boleta : '-', style: const pw.TextStyle(fontSize: 9))),
-                  _cellBody(pw.Text(_labelTipoIncidencia(tipo), style: const pw.TextStyle(fontSize: 9))),
-                  _cellBody(pw.Text(
-                    comentario.isNotEmpty ? comentario : '-',
-                    style: const pw.TextStyle(fontSize: 9),
-                  )),
+                  _cellBody(
+                    pw.Text(
+                      boleta.isNotEmpty ? boleta : '-',
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
+                  ),
+                  _cellBody(
+                    pw.Text(
+                      _labelTipoIncidencia(tipo),
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
+                  ),
+                  _cellBody(
+                    pw.Text(
+                      comentario.isNotEmpty ? comentario : '-',
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
+                  ),
                 ],
               );
             }),
@@ -493,12 +535,12 @@ class PdfGenerator {
   }
 
   static pw.Widget _cellHeader(String text) => pw.Padding(
-        padding: const pw.EdgeInsets.all(6),
-        child: pw.Text(
-          text,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-        ),
-      );
+    padding: const pw.EdgeInsets.all(6),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+    ),
+  );
 
   static pw.Widget _cellBody(pw.Widget child) =>
       pw.Padding(padding: const pw.EdgeInsets.all(6), child: child);
@@ -550,7 +592,7 @@ class PdfGenerator {
           final saldoCubreCuota = info['saldoCubreCuota'] == true;
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (codigo.isNotEmpty) 'Cod: $codigo',
             if (clave.isNotEmpty) 'Clave Catastral: $clave',
             if (tieneSaldoAFavor)
               saldoCubreCuota
@@ -607,7 +649,7 @@ class PdfGenerator {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver más tarde';
+        return 'Volver mas tarde';
       default:
         return 'Otro motivo';
     }
@@ -689,7 +731,7 @@ class PdfGenerator {
           }
 
           final detallesLocal = [
-            if (codigo.isNotEmpty) 'Cód: $codigo',
+            if (codigo.isNotEmpty) 'Cod: $codigo',
             if (clave.isNotEmpty) 'Clave Catastral: $clave',
           ].join(' \u2022 ');
 
@@ -767,10 +809,7 @@ class PdfGenerator {
     final fontBold = await PdfGoogleFonts.poppinsBold();
 
     final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(
-        base: fontRegular,
-        bold: fontBold,
-      ),
+      theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
     );
     final DateFormat formatter = DateFormat('dd/MM/yyyy hh:mm a');
     final DateFormat dateOnly = DateFormat('dd/MM/yyyy');
@@ -796,7 +835,8 @@ class PdfGenerator {
       0,
       (sum, c) => sum + (c.totalMora ?? 0).toDouble(),
     );
-    final totalCorrienteConsolidado = (totalConsolidado - totalMoraConsolidado).clamp(0.0, double.infinity);
+    final totalCorrienteConsolidado = (totalConsolidado - totalMoraConsolidado)
+        .clamp(0.0, double.infinity);
     final tieneMoraConsolidado = totalMoraConsolidado > 0;
 
     pdf.addPage(
@@ -805,7 +845,7 @@ class PdfGenerator {
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return [
-            // ─── Cabecera Principal ───
+            // Cabecera Principal
             pw.Header(
               level: 0,
               child: pw.Row(
@@ -830,7 +870,7 @@ class PdfGenerator {
             ),
             pw.SizedBox(height: 16),
 
-            // ─── Información del Mercado ───
+            // Informacion del Mercado
             pw.Container(
               padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
@@ -861,8 +901,7 @@ class PdfGenerator {
               ),
             ),
             pw.SizedBox(height: 20),
-
-            // ─── Resumen Consolidado ───
+            // Resumen
             pw.Container(
               padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
@@ -910,26 +949,40 @@ class PdfGenerator {
                           mainAxisSize: pw.MainAxisSize.min,
                           children: [
                             pw.Container(
-                              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
                               decoration: pw.BoxDecoration(
                                 color: const PdfColor.fromInt(0xFFD1FAE5),
                                 borderRadius: pw.BorderRadius.circular(4),
                               ),
                               child: pw.Text(
                                 'Corriente: ${CurrencyFormatter.format(totalCorrienteConsolidado)}',
-                                style: pw.TextStyle(fontSize: 8, color: PdfColors.green900, fontWeight: pw.FontWeight.bold),
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: PdfColors.green900,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
                               ),
                             ),
                             pw.SizedBox(width: 6),
                             pw.Container(
-                              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
                               decoration: pw.BoxDecoration(
                                 color: const PdfColor.fromInt(0xFFFFEDD5),
                                 borderRadius: pw.BorderRadius.circular(4),
                               ),
                               child: pw.Text(
                                 'Mora: ${CurrencyFormatter.format(totalMoraConsolidado)}',
-                                style: pw.TextStyle(fontSize: 8, color: const PdfColor.fromInt(0xFFC2410C), fontWeight: pw.FontWeight.bold),
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: const PdfColor.fromInt(0xFFC2410C),
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -942,14 +995,14 @@ class PdfGenerator {
             ),
             pw.SizedBox(height: 24),
 
-            // ─── Título de la Tabla ───
+            // Titulo de la Tabla
             pw.Text(
               'Detalle por Cobrador',
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 12),
 
-            // ─── Tabla de Cortes por Cobrador ───
+            // Tabla de Cortes por Cobrador
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey300),
               columnWidths: {
@@ -1035,7 +1088,8 @@ class PdfGenerator {
                 // Filas de datos
                 ...cortesCobradores.map((corte) {
                   final String? rangoBoletas;
-                  if (corte.primerBoleta != null && corte.ultimaBoleta != null) {
+                  if (corte.primerBoleta != null &&
+                      corte.ultimaBoleta != null) {
                     rangoBoletas = corte.primerBoleta == corte.ultimaBoleta
                         ? corte.primerBoleta
                         : '${corte.primerBoleta} - ${corte.ultimaBoleta}';
@@ -1114,7 +1168,7 @@ class PdfGenerator {
 
             pw.SizedBox(height: 20),
 
-            // ─── Pie de página ───
+            // Pie de pagina
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(

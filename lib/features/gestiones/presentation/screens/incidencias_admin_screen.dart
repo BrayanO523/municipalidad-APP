@@ -28,8 +28,8 @@ class _IncidenciasAdminScreenState
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: Theme.of(context).colorScheme.primary,
-                ),
+              primary: Theme.of(context).colorScheme.primary,
+            ),
           ),
           child: child!,
         );
@@ -78,18 +78,18 @@ class _IncidenciasAdminScreenState
     if (incidenciaId == null || incidenciaId.isEmpty) return;
 
     try {
-      await ref.read(incidenciasAdminProvider.notifier).eliminarIncidencia(
-            incidenciaId,
-          );
+      await ref
+          .read(incidenciasAdminProvider.notifier)
+          .eliminarIncidencia(incidenciaId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incidencia eliminada.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Incidencia eliminada.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
     }
   }
 
@@ -111,22 +111,28 @@ class _IncidenciasAdminScreenState
     final authDs = ref.read(authDatasourceProvider);
 
     final localesRaw = await localDs.listarTodos();
-    final usuariosRaw = await authDs.listarTodos(municipalidadId: municipalidadId);
+    final usuariosRaw = await authDs.listarTodos(
+      municipalidadId: municipalidadId,
+    );
 
-    final locales = localesRaw
-        .where((l) => l.id != null && l.municipalidadId == municipalidadId)
-        .toList()
-      ..sort((a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''));
-    final cobradores = usuariosRaw
-        .where((u) => u.id != null && u.esCobrador)
-        .toList()
-      ..sort((a, b) => (a.nombre ?? '').compareTo(b.nombre ?? ''));
+    final locales =
+        localesRaw
+            .where((l) => l.id != null && l.municipalidadId == municipalidadId)
+            .toList()
+          ..sort(
+            (a, b) => (a.nombreSocial ?? '').compareTo(b.nombreSocial ?? ''),
+          );
+    final cobradores =
+        usuariosRaw.where((u) => u.id != null && u.esCobrador).toList()
+          ..sort((a, b) => (a.nombre ?? '').compareTo(b.nombre ?? ''));
 
     if (locales.isEmpty || cobradores.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Se requieren locales y cobradores para registrar incidencias.'),
+          content: Text(
+            'Se requieren locales y cobradores para registrar incidencias.',
+          ),
         ),
       );
       return;
@@ -135,7 +141,8 @@ class _IncidenciasAdminScreenState
     String? localId = incidencia?.gestion.localId;
     String? cobradorId = incidencia?.gestion.cobradorId;
     String tipoIncidencia =
-        incidencia?.gestion.tipoIncidencia ?? TipoIncidencia.otro.firestoreValue;
+        incidencia?.gestion.tipoIncidencia ??
+        TipoIncidencia.otro.firestoreValue;
     final comentarioCtrl = TextEditingController(
       text: incidencia?.gestion.comentario ?? '',
     );
@@ -151,7 +158,9 @@ class _IncidenciasAdminScreenState
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocalState) => AlertDialog(
-          title: Text(incidencia == null ? 'Crear incidencia' : 'Editar incidencia'),
+          title: Text(
+            incidencia == null ? 'Crear incidencia' : 'Editar incidencia',
+          ),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -469,7 +478,7 @@ class _IncidenciasAdminScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Motivo / Observacion: ${_tipoIncidenciaLabel(inc.gestion.tipoIncidencia)}',
+                              'Motivo / Observación: ${_tipoIncidenciaLabel(inc.gestion.tipoIncidencia)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -512,7 +521,9 @@ class _IncidenciasAdminScreenState
                             DateFormatter.formatDateTime(inc.gestion.timestamp),
                             style: TextStyle(
                               fontSize: 12,
-                              color: colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           ),
                         ],
@@ -526,7 +537,10 @@ class _IncidenciasAdminScreenState
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
-          child: Text('Error: $err', style: TextStyle(color: colorScheme.error)),
+          child: Text(
+            'Error: $err',
+            style: TextStyle(color: colorScheme.error),
+          ),
         ),
       ),
     );

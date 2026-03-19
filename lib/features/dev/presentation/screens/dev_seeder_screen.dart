@@ -59,11 +59,15 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Esto creara cobros PENDIENTES en Firestore. Solo para pruebas.',
+                      'Esto creará cobros PENDIENTES en Firestore. Solo para pruebas.',
                       style: TextStyle(color: Colors.orange, fontSize: 12),
                     ),
                   ),
@@ -73,7 +77,10 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
             const SizedBox(height: 20),
 
             // Selector de local con buscador
-            const Text('Seleccionar Local:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            const Text(
+              'Seleccionar Local:',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
             const SizedBox(height: 8),
             // Campo de búsqueda — filtra en memoria, sin lecturas extra
             TextField(
@@ -82,10 +89,18 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
               decoration: InputDecoration(
                 hintText: 'Buscar local por nombre...',
                 hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 18),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Colors.white38,
+                  size: 18,
+                ),
                 suffixIcon: _busqueda.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white38,
+                          size: 18,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _busqueda = '');
@@ -94,7 +109,10 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                     : null,
                 filled: true,
                 fillColor: const Color(0xFF1A1B27),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: Colors.white12),
@@ -116,13 +134,21 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                 // Filtrar en memoria sin ninguna lectura adicional de Firestore
                 final filtrados = _busqueda.isEmpty
                     ? locales
-                    : locales.where((l) =>
-                        (l.nombreSocial ?? '').toLowerCase().contains(_busqueda)).toList();
+                    : locales
+                          .where(
+                            (l) => (l.nombreSocial ?? '')
+                                .toLowerCase()
+                                .contains(_busqueda),
+                          )
+                          .toList();
 
                 if (filtrados.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('Sin resultados', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                    child: Text(
+                      'Sin resultados',
+                      style: TextStyle(color: Colors.white38, fontSize: 12),
+                    ),
                   );
                 }
 
@@ -143,18 +169,27 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                         dense: true,
                         selected: isSelected,
                         selectedColor: const Color(0xFF6C63FF),
-                        selectedTileColor: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                        selectedTileColor: const Color(
+                          0xFF6C63FF,
+                        ).withValues(alpha: 0.15),
                         title: Text(
                           l.nombreSocial ?? 'Sin nombre',
                           style: TextStyle(
-                            color: isSelected ? const Color(0xFF6C63FF) : Colors.white,
+                            color: isSelected
+                                ? const Color(0xFF6C63FF)
+                                : Colors.white,
                             fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                         trailing: Text(
                           'L ${(l.cuotaDiaria ?? 0).toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
                         ),
                         onTap: () => setState(() {
                           _localIdSeleccionado = l.id;
@@ -170,14 +205,18 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                 padding: EdgeInsets.all(8),
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
-              error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
             ),
             const SizedBox(height: 20),
 
             // Días de deuda — campo editable
             Row(
               children: [
-                const Text('Dias de deuda: ', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const Text(
+                  'Dias de deuda: ',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 72,
@@ -189,7 +228,10 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: const Color(0xFF1A1B27),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 8,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(color: Colors.white12),
@@ -232,11 +274,18 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                 children: [
                   Text(
                     'Se crearan $_diasDeDeuda cobros pendientes',
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Deuda total: ${DateFormatter.formatCurrency(_diasDeDeuda * _cuotaDiaria)}',
-                    style: const TextStyle(color: Color(0xFFEE5A6F), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFFEE5A6F),
+                      fontSize: 12,
+                    ),
                   ),
                   Text(
                     'Fechas: hace $_diasDeDeuda dias hasta ayer',
@@ -256,14 +305,25 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                     ? null
                     : () => _generarDatos(),
                 icon: _cargando
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Icon(Icons.rocket_launch_rounded),
-                label: Text(_cargando ? 'Generando...' : 'Generar Datos de Prueba'),
+                label: Text(
+                  _cargando ? 'Generando...' : 'Generar Datos de Prueba',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6C63FF),
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.white12,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -283,7 +343,11 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                   child: SingleChildScrollView(
                     child: Text(
                       _log,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.greenAccent),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: Colors.greenAccent,
+                      ),
                     ),
                   ),
                 ),
@@ -296,7 +360,10 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
 
   Future<void> _generarDatos() async {
     if (_localIdSeleccionado == null) return;
-    setState(() { _cargando = true; _log = ''; });
+    setState(() {
+      _cargando = true;
+      _log = '';
+    });
 
     try {
       final firestore = FirebaseFirestore.instance;
@@ -315,7 +382,11 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
       _addLog('Generando $_diasDeDeuda cobros pendientes...\n');
 
       for (int i = _diasDeDeuda; i >= 1; i--) {
-        final fecha = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+        final fecha = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(Duration(days: i));
         final docId = 'TEST-$localId-${fecha.millisecondsSinceEpoch}';
 
         final data = <String, dynamic>{
@@ -337,13 +408,17 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
         };
 
         batch.set(firestore.collection('cobros').doc(docId), data);
-        final fechaStr = '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
-        _addLog('  + $fechaStr  L ${_cuotaDiaria.toStringAsFixed(2)}  [$docId]');
+        final fechaStr =
+            '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+        _addLog(
+          '  + $fechaStr  L ${_cuotaDiaria.toStringAsFixed(2)}  [$docId]',
+        );
       }
 
       // Actualizar deudaAcumulada del local
       final deudaTotal = _diasDeDeuda * _cuotaDiaria;
-      final deudaExistente = (localData['deudaAcumulada'] as num?)?.toDouble() ?? 0;
+      final deudaExistente =
+          (localData['deudaAcumulada'] as num?)?.toDouble() ?? 0;
       batch.update(firestore.collection('locales').doc(localId), {
         'deudaAcumulada': deudaExistente + deudaTotal,
       });
@@ -353,7 +428,9 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
       _addLog('\n--- COMPLETADO ---');
       _addLog('$_diasDeDeuda cobros pendientes creados');
       _addLog('Deuda sumada: ${DateFormatter.formatCurrency(deudaTotal)}');
-      _addLog('Deuda total local: ${DateFormatter.formatCurrency(deudaExistente + deudaTotal)}');
+      _addLog(
+        'Deuda total local: ${DateFormatter.formatCurrency(deudaExistente + deudaTotal)}',
+      );
       _addLog('\nAhora ve a cobrar ese local para probar FIFO');
     } catch (e) {
       _addLog('\n--- ERROR ---\n$e');

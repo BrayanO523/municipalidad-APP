@@ -751,7 +751,7 @@ class _GestionTile extends StatelessWidget {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver mas tarde';
+        return 'Volver más tarde';
       default:
         return 'Otro motivo';
     }
@@ -1060,7 +1060,7 @@ void _showCobroBottomSheet(
             if (incidenciasLocal.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Incidencias del dÃ­a (${incidenciasLocal.length})',
+                'Incidencias del dia (${incidenciasLocal.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
@@ -1080,7 +1080,7 @@ void _showCobroBottomSheet(
                   child: _BottomInfoChip(
                     label: ts == null
                         ? detalle
-                        : '${_formatDateTime(ts)} â€¢ $detalle',
+                        : '${_formatDateTime(ts)} - $detalle',
                     color: AppColors.warning,
                   ),
                 );
@@ -1113,7 +1113,7 @@ void _showGestionBottomSheet(BuildContext context, Map<String, dynamic> info) {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver mas tarde';
+        return 'Volver más tarde';
       default:
         return 'Otro motivo';
     }
@@ -1235,7 +1235,7 @@ String _labelTipoIncidencia(String tipo) {
     case 'NEGADO':
       return 'Se niega a pagar';
     case 'VOLVER_TARDE':
-      return 'Volver mÃ¡s tarde';
+      return 'Volver más tarde';
     default:
       return 'Otro motivo';
   }

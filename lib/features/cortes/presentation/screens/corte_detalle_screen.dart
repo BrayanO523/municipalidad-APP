@@ -1157,7 +1157,7 @@ class _PendientesInfoSection extends StatelessWidget {
                           if (codigo.isNotEmpty || clave.isNotEmpty)
                             Text(
                               [
-                                if (codigo.isNotEmpty) 'Codigo: $codigo',
+                                if (codigo.isNotEmpty) 'Código: $codigo',
                                 if (clave.isNotEmpty) 'Clave: $clave',
                               ].join(' | '),
                               style: TextStyle(
@@ -1260,7 +1260,7 @@ class _PendientesInfoSection extends StatelessWidget {
                         if (codigo.isNotEmpty || clave.isNotEmpty)
                           Text(
                             [
-                              if (codigo.isNotEmpty) 'Codigo: $codigo',
+                              if (codigo.isNotEmpty) 'Código: $codigo',
                               if (clave.isNotEmpty) 'Clave: $clave',
                             ].join(' | '),
                             style: TextStyle(
@@ -1687,7 +1687,7 @@ class _CobradosInfoSection extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if ((item.localCodigo ?? '').isNotEmpty)
-                    _infoChip(context, 'Codigo: ${item.localCodigo}'),
+                    _infoChip(context, 'Código: ${item.localCodigo}'),
                   if ((item.localClave ?? '').isNotEmpty)
                     _infoChip(context, 'Clave: ${item.localClave}'),
                   if ((item.ruta ?? '').isNotEmpty)
@@ -1873,7 +1873,7 @@ class _GestionesInfoSection extends StatelessWidget {
       case 'NEGADO':
         return 'Se niega a pagar';
       case 'VOLVER_TARDE':
-        return 'Volver mas tarde';
+        return 'Volver más tarde';
       default:
         return 'Otro motivo';
     }
@@ -1963,7 +1963,7 @@ class _GestionesInfoSection extends StatelessWidget {
                         ),
                         Text(
                           [
-                            if (codigo.isNotEmpty) 'Codigo: $codigo',
+                            if (codigo.isNotEmpty) 'Código: $codigo',
                             if (clave.isNotEmpty) 'Clave: $clave',
                             comentario.isNotEmpty
                                 ? '${_labelTipo(tipo)} - $comentario'

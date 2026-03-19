@@ -61,7 +61,7 @@ class CobrosScreen extends ConsumerWidget {
                       : state.cobros.isEmpty
                       ? Center(
                           child: Text(
-                            'No hay cobros registrados aun',
+                            'No hay cobros registrados aún',
                             style: TextStyle(
                               color: Theme.of(
                                 context,
