@@ -19,220 +19,194 @@ class CortesMercadoScreen extends ConsumerWidget {
     final mercadosAsync = ref.watch(mercadosProvider);
     final state = ref.watch(corteMercadoProvider);
     final notifier = ref.read(corteMercadoProvider.notifier);
-    final isWide = MediaQuery.sizeOf(context).width > 800;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final isWide = viewportWidth > 800;
+    final horizontalPadding = viewportWidth >= 1200 ? 24.0 : 16.0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      appBar: AppBar(
-        title: const Text('Corte de Mercado'),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          if (state.mercadoSeleccionado != null)
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () => notifier.recargar(),
-              tooltip: 'Recargar',
+      appBar: AppBar(title: const Text('Corte de Mercado'), elevation: 0),
+      body: CustomScrollView(
+        slivers: [
+          // Selector de mercado
+          SliverPadding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 16,
             ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: isWide ? 900 : double.infinity),
-          child: CustomScrollView(
-            slivers: [
-              // ─── Selector de Mercado ───
-              SliverPadding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isWide ? 32 : 16,
-                  vertical: 16,
+            sliver: SliverToBoxAdapter(
+              child: mercadosAsync.when(
+                data: (mercados) => _SelectorMercado(
+                  mercados: mercados,
+                  seleccionado: state.mercadoSeleccionado,
+                  onSeleccionado: notifier.seleccionarMercado,
+                  onRecargar: state.mercadoSeleccionado != null
+                      ? notifier.recargar
+                      : null,
+                  onImprimirTodos: state.cortesDelDia.isNotEmpty
+                      ? () => _imprimirTodos(context, state)
+                      : null,
                 ),
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Error cargando mercados: $e'),
+              ),
+            ),
+          ),
+
+          // Selector de fecha
+          if (state.mercadoSeleccionado != null)
+            SliverPadding(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: 8,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _SelectorFecha(
+                  fechaDesde: state.fechaDesde,
+                  fechaHasta: state.fechaHasta,
+                  onCambiarDesde: notifier.seleccionarDesde,
+                  onCambiarHasta: notifier.seleccionarHasta,
+                  onSeleccionRapida: notifier.seleccionarFechaUnica,
+                ),
+              ),
+            ),
+
+          // Contenido dinamico
+          if (state.mercadoSeleccionado == null)
+            SliverFillRemaining(
+              child: _EmptyState(
+                icon: Icons.storefront_outlined,
+                title: 'Selecciona un Mercado',
+                subtitle:
+                    'Elige un mercado del desplegable para ver\nlos cortes del dia disponibles.',
+              ),
+            )
+          else if (state.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else ...[
+            // Resumen
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              sliver: SliverToBoxAdapter(
+                child: _ResumenCard(state: state, isWide: isWide),
+              ),
+            ),
+
+            // Error
+            if (state.error != null)
+              SliverPadding(
+                padding: EdgeInsets.all(horizontalPadding),
                 sliver: SliverToBoxAdapter(
-                  child: mercadosAsync.when(
-                    data: (mercados) => _SelectorMercado(
-                      mercados: mercados,
-                      seleccionado: state.mercadoSeleccionado,
-                      onSeleccionado: notifier.seleccionarMercado,
-                    ),
-                    loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text('Error cargando mercados: $e'),
-                  ),
+                  child: _ErrorBanner(message: state.error!),
                 ),
               ),
 
-              // ─── Selector de Fecha ───
-              if (state.mercadoSeleccionado != null)
-                SliverPadding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isWide ? 32 : 16,
-                    vertical: 8,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: _SelectorFecha(
-                      fechaDesde: state.fechaDesde,
-                      fechaHasta: state.fechaHasta,
-                      onCambiarDesde: notifier.seleccionarDesde,
-                      onCambiarHasta: notifier.seleccionarHasta,
-                      onSeleccionRapida: notifier.seleccionarFechaUnica,
+            // Titulo lista
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                24,
+                horizontalPadding,
+                8,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Cortes de Cobradores del Dia',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${state.cortesDelDia.length} corte(s)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+            ),
 
-              // ─── Contenido dinámico ───
-              if (state.mercadoSeleccionado == null)
-                SliverFillRemaining(
+            // Lista de cortes
+            if (state.cortesDelDia.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
                   child: _EmptyState(
-                    icon: Icons.storefront_outlined,
-                    title: 'Selecciona un Mercado',
+                    icon: Icons.inbox_outlined,
+                    title: 'Sin Cortes',
                     subtitle:
-                        'Elige un mercado del desplegable para ver\nlos cortes del día disponibles.',
-                  ),
-                )
-              else if (state.isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else ...[
-                // ─── Resumen ───
-                SliverPadding(
-                  padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _ResumenCard(state: state, isWide: isWide),
+                        'No hay cortes de cobradores\nregistrados para esta fecha.',
+                    compact: true,
                   ),
                 ),
-
-                // ─── Error ───
-                if (state.error != null)
-                  SliverPadding(
-                    padding: EdgeInsets.all(isWide ? 32 : 16),
-                    sliver: SliverToBoxAdapter(
-                      child: _ErrorBanner(message: state.error!),
+              )
+            else ...[
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _CorteCobradorTile(
+                      corte: state.cortesDelDia[i],
+                      index: i,
+                      onTap: () => context.push(
+                        '/corte-detalle',
+                        extra: state.cortesDelDia[i],
+                      ),
                     ),
-                  ),
-
-                // ─── Título lista ───
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    isWide ? 32 : 16,
-                    24,
-                    isWide ? 32 : 16,
-                    8,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.receipt_long_rounded,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Cortes de Cobradores del Día',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${state.cortesDelDia.length} corte(s)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    childCount: state.cortesDelDia.length,
                   ),
                 ),
-
-                // ─── Lista de cortes ───
-                if (state.cortesDelDia.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: _EmptyState(
-                        icon: Icons.inbox_outlined,
-                        title: 'Sin Cortes',
-                        subtitle:
-                            'No hay cortes de cobradores\nregistrados para esta fecha.',
-                        compact: true,
-                      ),
-                    ),
-                  )
-                else ...[
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => _CorteCobradorTile(
-                          corte: state.cortesDelDia[i],
-                          index: i,
-                          onTap: () => context.push(
-                            '/corte-detalle',
-                            extra: state.cortesDelDia[i],
-                          ),
-                        ),
-                        childCount: state.cortesDelDia.length,
-                      ),
-                    ),
-                  ),
-
-                  // ─── Botones de Impresión ───
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isWide ? 32 : 16,
-                      vertical: 16,
-                    ),
-                    sliver: SliverToBoxAdapter(
-                      child: _BotonesImpresion(
-                        state: state,
-                        onImprimirTodos: () => _imprimirTodos(context, state),
-                      ),
-                    ),
-                  ),
-                ],
-
-                // ─── Botón confirmar ───
-                SliverPadding(
-                  padding: EdgeInsets.all(isWide ? 32 : 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _BotonCorteMercado(state: state, notifier: notifier),
-                  ),
-                ),
-
-                const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-              ],
+              ),
             ],
-          ),
-        ),
+
+            // Boton confirmar
+            SliverPadding(
+              padding: EdgeInsets.all(horizontalPadding),
+              sliver: SliverToBoxAdapter(
+                child: _BotonCorteMercado(state: state, notifier: notifier),
+              ),
+            ),
+
+            const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+          ],
+        ],
       ),
     );
   }
@@ -249,22 +223,22 @@ class CortesMercadoScreen extends ConsumerWidget {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ PDF de corte de mercado generado')),
+          const SnackBar(content: Text('PDF de corte de mercado generado')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ Error al generar PDF: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error al generar PDF: $e')));
       }
     }
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Widgets auxiliares
-// ──────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 class _EmptyState extends StatelessWidget {
   final IconData icon;
@@ -358,11 +332,15 @@ class _SelectorMercado extends StatelessWidget {
   final List<Mercado> mercados;
   final Mercado? seleccionado;
   final ValueChanged<Mercado> onSeleccionado;
+  final VoidCallback? onRecargar;
+  final VoidCallback? onImprimirTodos;
 
   const _SelectorMercado({
     required this.mercados,
     required this.seleccionado,
     required this.onSeleccionado,
+    this.onRecargar,
+    this.onImprimirTodos,
   });
 
   @override
@@ -378,63 +356,117 @@ class _SelectorMercado extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.storefront_rounded,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Seleccionar Mercado',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: idValido,
-            hint: const Text('Elige un mercado'),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              filled: true,
-              fillColor: theme.colorScheme.surfaceContainerLow,
-            ),
-            items: mercados
-                .map(
-                  (m) => DropdownMenuItem<String>(
-                    value: m.id,
-                    child: Text(m.nombre ?? 'Sin nombre'),
+      decoration: context.webHeaderDecoration(),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 760;
+            final titleBlock = Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.82,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                )
-                .toList(),
-            onChanged: (id) {
-              if (id != null) {
-                final m = mercados.firstWhere((element) => element.id == id);
-                onSeleccionado(m);
-              }
-            },
-          ),
-        ],
+                  child: Icon(
+                    Icons.storefront_rounded,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Seleccionar Mercado',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
+                ),
+              ],
+            );
+
+            final actions = Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  height: 34,
+                  child: OutlinedButton.icon(
+                    onPressed: onRecargar,
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
+                    label: const Text('Recargar'),
+                  ),
+                ),
+                SizedBox(
+                  height: 34,
+                  child: OutlinedButton.icon(
+                    onPressed: onImprimirTodos,
+                    icon: const Icon(Icons.print_rounded, size: 15),
+                    label: const Text('PDF'),
+                  ),
+                ),
+              ],
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isNarrow) ...[
+                  titleBlock,
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: actions,
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Expanded(child: titleBlock),
+                      const SizedBox(width: 8),
+                      actions,
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: idValido,
+                  hint: const Text('Elige un mercado'),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerLow,
+                  ),
+                  items: mercados
+                      .map(
+                        (m) => DropdownMenuItem<String>(
+                          value: m.id,
+                          child: Text(m.nombre ?? 'Sin nombre'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) {
+                    if (id != null) {
+                      final m = mercados.firstWhere(
+                        (element) => element.id == id,
+                      );
+                      onSeleccionado(m);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -490,7 +522,7 @@ class _ResumenCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // ── Estadísticas ──
+          // Estadisticas
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -633,7 +665,7 @@ class _CorteCobradorTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${corte.cantidadRegistros} cobros • '
+                        '${corte.cantidadRegistros} cobros - '
                         '${DateFormat('hh:mm a').format(corte.fechaCorte)}',
                         style: TextStyle(
                           fontSize: 12,
@@ -735,7 +767,7 @@ class _CorteCobradorTile extends StatelessWidget {
                   Icon(Icons.report, color: theme.colorScheme.error),
                   const SizedBox(width: 8),
                   const Text(
-                    'Incidencias del día',
+                    'Incidencias del dia',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ],
@@ -776,7 +808,7 @@ class _CorteCobradorTile extends StatelessWidget {
                     final detalles = [
                       if (codigo.isNotEmpty) 'Cód: $codigo',
                       if (clave.isNotEmpty) 'Clave: $clave',
-                    ].join(' • ');
+                    ].join(' - ');
 
                     return ListTile(
                       dense: true,
@@ -921,10 +953,10 @@ class _BotonCorteMercado extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Confirmar Corte de Mercado'),
         content: Text(
-          '¿Deseas consolidar los ${state.cortesDelDia.length} cortes del día '
+          'Deseas consolidar los ${state.cortesDelDia.length} cortes del dia '
           'del mercado "${state.mercadoSeleccionado?.nombre}" por un total de '
           '${CurrencyFormatter.format(state.totalConsolidado)}?\n\n'
-          'Esta acción registrará el cierre oficial del mercado para hoy.',
+          'Esta accion registrara el cierre oficial del mercado para hoy.',
         ),
         actions: [
           TextButton(
@@ -938,7 +970,7 @@ class _BotonCorteMercado extends StatelessWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('✅ Corte de mercado realizado con éxito'),
+                    content: Text('Corte de mercado realizado con exito'),
                     backgroundColor: AppColors.success,
                   ),
                 );
@@ -1014,7 +1046,7 @@ class _SelectorFecha extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             _FechaButton(
-              label: 'Mañana',
+              label: 'Manana',
               fecha: now.add(const Duration(days: 1)),
               seleccionada:
                   _isSameDate(fechaDesde, now.add(const Duration(days: 1))) &&
@@ -1110,50 +1142,6 @@ class _FechaButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label, style: const TextStyle(fontSize: 14)),
-    );
-  }
-}
-
-class _BotonesImpresion extends StatelessWidget {
-  final cmn.CorteMercadoState state;
-  final VoidCallback onImprimirTodos;
-
-  const _BotonesImpresion({required this.state, required this.onImprimirTodos});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Imprimir Cortes',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.print, size: 18),
-                label: const Text('Imprimir Todos'),
-                onPressed: state.cortesDelDia.isNotEmpty
-                    ? onImprimirTodos
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

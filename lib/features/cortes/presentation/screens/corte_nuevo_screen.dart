@@ -683,7 +683,7 @@ class _PendienteTile extends StatelessWidget {
           ),
           subtitle: Text(
             [
-              if (codigo.isNotEmpty) 'Cod: $codigo',
+              if (codigo.isNotEmpty) 'Cód: $codigo',
               if (clave.isNotEmpty) 'Clave: $clave',
               'Cuota pendiente',
               if (tieneSaldoAFavor)
@@ -794,7 +794,7 @@ class _GestionTile extends StatelessWidget {
           ),
           subtitle: Text(
             [
-              if (codigo.isNotEmpty) 'Cod: $codigo',
+              if (codigo.isNotEmpty) 'Cód: $codigo',
               if (clave.isNotEmpty) 'Clave: $clave',
               comentario.isNotEmpty
                   ? '${_labelTipo(tipo)} - $comentario'
@@ -890,7 +890,7 @@ void _showPendienteBottomSheet(
                       const SizedBox(height: 2),
                       Text(
                         [
-                          if (codigo.isNotEmpty) 'Cod: $codigo',
+                          if (codigo.isNotEmpty) 'Cód: $codigo',
                           if (clave.isNotEmpty) 'Clave: $clave',
                         ].join(' | '),
                         style: TextStyle(
@@ -1005,7 +1005,7 @@ void _showCobroBottomSheet(
                       Text(
                         [
                           if ((item.localCodigo ?? '').isNotEmpty)
-                            'Cod: ${item.localCodigo}',
+                            'Cód: ${item.localCodigo}',
                           if ((item.localClave ?? '').isNotEmpty)
                             'Clave: ${item.localClave}',
                         ].join(' | '),
@@ -1165,7 +1165,7 @@ void _showGestionBottomSheet(BuildContext context, Map<String, dynamic> info) {
                       const SizedBox(height: 2),
                       Text(
                         [
-                          if (codigo.isNotEmpty) 'Cod: $codigo',
+                          if (codigo.isNotEmpty) 'Cód: $codigo',
                           if (clave.isNotEmpty) 'Clave: $clave',
                         ].join(' | '),
                         style: TextStyle(

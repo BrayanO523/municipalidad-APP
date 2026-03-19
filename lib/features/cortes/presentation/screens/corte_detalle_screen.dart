@@ -420,6 +420,12 @@ class _HeaderCard extends StatelessWidget {
     final theme = Theme.of(context);
     final onPrimary = theme.colorScheme.onPrimary;
     final semantic = context.semanticColors;
+    final totalPendiente =
+        (corte.pendientesInfo ?? const <Map<String, dynamic>>[]).fold<double>(
+          0,
+          (sum, info) =>
+              sum + ((info['montoPendiente'] as num?)?.toDouble() ?? 0),
+        );
 
     return Container(
       decoration: BoxDecoration(
@@ -501,65 +507,89 @@ class _HeaderCard extends StatelessWidget {
               color: onPrimary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Column(
               children: [
-                Column(
+                Row(
                   children: [
-                    Text(
-                      'Total Recaudado',
-                      style: TextStyle(
-                        color: onPrimary.withValues(alpha: 0.7),
-                        fontSize: 11,
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'Total Recaudado',
+                            style: TextStyle(
+                              color: onPrimary.withValues(alpha: 0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            CurrencyFormatter.format(corte.totalCobrado),
+                            style: TextStyle(
+                              color: onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      CurrencyFormatter.format(corte.totalCobrado),
-                      style: TextStyle(
-                        color: onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
+                    Container(
+                      width: 1,
+                      height: 46,
+                      color: onPrimary.withValues(alpha: 0.2),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'Total Pendiente',
+                            style: TextStyle(
+                              color: onPrimary.withValues(alpha: 0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            CurrencyFormatter.format(totalPendiente),
+                            style: TextStyle(
+                              color: onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: onPrimary.withValues(alpha: 0.2),
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.spaceEvenly,
+                  spacing: 16,
+                  runSpacing: 10,
+                  children: [
+                    _MiniStat(
+                      icon: Icons.check_circle,
+                      value: '${corte.cantidadCobrados ?? '-'}',
+                      label: 'Cobrados',
+                      color: semantic.success,
+                    ),
+                    _MiniStat(
+                      icon: Icons.schedule,
+                      value: '${corte.cantidadPendientes ?? '-'}',
+                      label: 'Pendientes',
+                      color: semantic.warning,
+                    ),
+                    if (corte.gestionesInfo != null &&
+                        corte.gestionesInfo!.isNotEmpty)
+                      _MiniStat(
+                        icon: Icons.assignment_late_rounded,
+                        value: '${corte.gestionesInfo!.length}',
+                        label: 'Incidencias',
+                        color: semantic.warning,
+                      ),
+                  ],
                 ),
-                _MiniStat(
-                  icon: Icons.check_circle,
-                  value: '${corte.cantidadCobrados ?? '-'}',
-                  label: 'Cobrados',
-                  color: semantic.success,
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: onPrimary.withValues(alpha: 0.2),
-                ),
-                _MiniStat(
-                  icon: Icons.schedule,
-                  value: '${corte.cantidadPendientes ?? '-'}',
-                  label: 'Pendientes',
-                  color: semantic.warning,
-                ),
-                if (corte.gestionesInfo != null &&
-                    corte.gestionesInfo!.isNotEmpty) ...[
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: onPrimary.withValues(alpha: 0.2),
-                  ),
-                  _MiniStat(
-                    icon: Icons.assignment_late_rounded,
-                    value: '${corte.gestionesInfo!.length}',
-                    label: 'Incidencias',
-                    color: semantic.warning,
-                  ),
-                ],
               ],
             ),
           ),
@@ -1536,7 +1566,7 @@ class _CobradosInfoSection extends StatelessWidget {
                         Text(
                           [
                             if ((item.localCodigo ?? '').isNotEmpty)
-                              'Cod: ${item.localCodigo}',
+                              'Cód: ${item.localCodigo}',
                             if ((item.localClave ?? '').isNotEmpty)
                               'Clave: ${item.localClave}',
                             if (incidenciasLocal.isNotEmpty)
