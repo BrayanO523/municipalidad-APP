@@ -155,7 +155,9 @@ class CorteDetalleScreen extends ConsumerWidget {
     );
     final theme = Theme.of(context);
     final semantic = context.semanticColors;
-    final isWide = MediaQuery.sizeOf(context).width > 800;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final isWide = viewportWidth > 800;
+    final horizontalPadding = viewportWidth >= 1200 ? 24.0 : 16.0;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainerLowest,
@@ -186,7 +188,7 @@ class CorteDetalleScreen extends ConsumerWidget {
             loading: () => const SizedBox(),
             error: (_, __) => const SizedBox(),
           ),
-          if (kIsWeb && kDebugMode)
+          if (kIsWeb)
             IconButton(
               icon: Icon(Icons.delete_outline, color: semantic.danger),
               tooltip: 'Eliminar Corte',
@@ -194,210 +196,186 @@ class CorteDetalleScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: isWide ? 950 : double.infinity),
-          child: CustomScrollView(
-            slivers: [
-              // Header Card
-              SliverPadding(
-                padding: EdgeInsets.all(isWide ? 24 : 16),
-                sliver: SliverToBoxAdapter(
-                  child: _HeaderCard(
-                    corte: corte,
-                    formatter: formatter,
-                    isWide: isWide,
-                  ),
-                ),
+      body: CustomScrollView(
+        slivers: [
+          // Header Card
+          SliverPadding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 16,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: _HeaderCard(
+                corte: corte,
+                formatter: formatter,
+                isWide: isWide,
               ),
+            ),
+          ),
 
-              // Contenido de boletas
-              cobrosAsync.when(
-                data: (items) {
-                  if (items.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.inbox_outlined,
-                                size: 48,
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text('No hay detalles de cobros.'),
-                            ],
+          // Contenido de boletas
+          cobrosAsync.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 48,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('No hay detalles de cobros.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final cobrados = items
+                  .where((i) => _esMovimiento(i.cobro))
+                  .toList();
+
+              final totalCobrados = cobrados.fold<double>(
+                0,
+                (s, i) => s + (i.cobro.monto ?? 0).toDouble(),
+              );
+
+              return SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Titulo seccion
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_rounded,
+                            size: 18,
+                            color: theme.colorScheme.primary,
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Desglose de Boletas',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Cobrados (estilo similar a pendientes)
+                    if (cobrados.isNotEmpty) ...[
+                      _CobradosInfoSection(
+                        cobrados: cobrados,
+                        subtotal: totalCobrados,
+                        color: AppColors.success,
+                        icon: Icons.check_circle,
+                        gestionesInfo: corte.gestionesInfo ?? const [],
                       ),
-                    );
-                  }
+                      const SizedBox(height: 16),
+                    ],
 
-                  final cobrados = items
-                      .where((i) => _esMovimiento(i.cobro))
-                      .toList();
+                    // Gestiones/Incidencias (desde gestionesInfo del corte)
+                    if (corte.gestionesInfo != null &&
+                        corte.gestionesInfo!.isNotEmpty) ...[
+                      _GestionesInfoSection(
+                        gestionesInfo: corte.gestionesInfo!,
+                        color: semantic.warning,
+                        icon: Icons.assignment_late_rounded,
+                        isWide: isWide,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
-                  final totalCobrados = cobrados.fold<double>(
-                    0,
-                    (s, i) => s + (i.cobro.monto ?? 0).toDouble(),
-                  );
+                    // Pendientes (desde pendientesInfo del corte)
+                    if (corte.pendientesInfo != null &&
+                        corte.pendientesInfo!.isNotEmpty) ...[
+                      _PendientesInfoSection(
+                        pendientesInfo: corte.pendientesInfo!,
+                        gestionesInfo: corte.gestionesInfo ?? const [],
+                        color: AppColors.warning,
+                        icon: Icons.schedule,
+                        isWide: isWide,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
-                  return SliverPadding(
-                    padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        // Titulo seccion
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.receipt_long_rounded,
-                                size: 18,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'Desglose de Boletas',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    // Total general
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primaryContainer,
+                            theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.6,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-
-                        // Cobrados (estilo similar a pendientes)
-                        if (cobrados.isNotEmpty) ...[
-                          _CobradosInfoSection(
-                            cobrados: cobrados,
-                            subtotal: totalCobrados,
-                            color: AppColors.success,
-                            icon: Icons.check_circle,
-                            gestionesInfo: corte.gestionesInfo ?? const [],
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Gestiones/Incidencias (desde gestionesInfo del corte)
-                        if (corte.gestionesInfo != null &&
-                            corte.gestionesInfo!.isNotEmpty) ...[
-                          _GestionesInfoSection(
-                            gestionesInfo: corte.gestionesInfo!,
-                            color: semantic.warning,
-                            icon: Icons.assignment_late_rounded,
-                            isWide: isWide,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Pendientes (desde pendientesInfo del corte)
-                        if (corte.pendientesInfo != null &&
-                            corte.pendientesInfo!.isNotEmpty) ...[
-                          _PendientesInfoSection(
-                            pendientesInfo: corte.pendientesInfo!,
-                            gestionesInfo: corte.gestionesInfo ?? const [],
-                            color: AppColors.warning,
-                            icon: Icons.schedule,
-                            isWide: isWide,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Total general
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                theme.colorScheme.primaryContainer,
-                                theme.colorScheme.primaryContainer.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.summarize_rounded,
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'TOTAL GENERAL',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color:
-                                          theme.colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                ],
+                              Icon(
+                                Icons.summarize_rounded,
+                                color: theme.colorScheme.onPrimaryContainer,
+                                size: 20,
                               ),
+                              const SizedBox(width: 10),
                               Text(
-                                CurrencyFormatter.format(corte.totalCobrado),
+                                'TOTAL GENERAL',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 20,
+                                  fontSize: 14,
                                   color: theme.colorScheme.onPrimaryContainer,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 80),
-                      ]),
+                          Text(
+                            CurrencyFormatter.format(corte.totalCobrado),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                loading: () => const SliverToBoxAdapter(
-                  child: Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 80),
+                  ]),
                 ),
-                error: (err, _) => SliverToBoxAdapter(
-                  child: Center(child: Text('Error al cargar cobros: $err')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: cobrosAsync.when(
-        data: (items) => FloatingActionButton.extended(
-          onPressed: () => PdfGenerator.printCorte(
-            corte,
-            items.map((item) => item.cobro).toList(),
-            localInfo: {
-              for (var item in items)
-                if (item.cobro.localId != null)
-                  item.cobro.localId!: {
-                    'nombre': item.localNombre,
-                    if (item.localCodigo != null) 'codigo': item.localCodigo!,
-                    if (item.localClave != null) 'clave': item.localClave!,
-                  },
+              );
             },
+            loading: () => const SliverToBoxAdapter(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (err, _) => SliverToBoxAdapter(
+              child: Center(child: Text('Error al cargar cobros: $err')),
+            ),
           ),
-          label: const Text('Compartir Reporte'),
-          icon: const Icon(Icons.share),
-        ),
-        loading: () => null,
-        error: (_, __) => null,
+        ],
       ),
     );
   }

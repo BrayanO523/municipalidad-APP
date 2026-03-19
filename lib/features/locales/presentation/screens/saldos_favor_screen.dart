@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../mercados/domain/entities/mercado.dart';
+import '../../../usuarios/domain/entities/usuario.dart';
 import '../../domain/entities/local.dart';
 import '../../../../core/widgets/usuario_filter.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
@@ -22,6 +25,16 @@ class SaldosFavorScreen extends ConsumerStatefulWidget {
 }
 
 class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () {
+      ref.read(localesPaginadosProvider.notifier).aplicarBusqueda(value);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +55,33 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
       if ((state.busqueda ?? '').isNotEmpty) {
         await notifier.aplicarBusqueda('');
       }
+      if (mounted) {
+        _searchCtrl.text = '';
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restablecerFiltrosVisuales(
+    LocalesPaginadosNotifier notifier,
+    LocalesPaginadosState state,
+  ) async {
+    _searchCtrl.clear();
+    if ((state.busqueda ?? '').isNotEmpty) {
+      await notifier.aplicarBusqueda('');
+    }
+    if (state.usuarioFiltradoId != null) {
+      await notifier.seleccionarUsuario(null);
+    }
+    if (state.filtroDeuda != LocalFiltroDeuda.soloSaldosAFavor) {
+      await notifier.cambiarFiltroDeuda(LocalFiltroDeuda.soloSaldosAFavor);
+    }
   }
 
   @override
@@ -65,161 +104,99 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header y filtros
-                if (isMobile)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        onChanged: (val) => notifier.aplicarBusqueda(val),
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar por nombre de local...',
-                          prefixIcon: Icon(Icons.search_rounded, size: 18),
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
+                _SaldosFavorHeader(
+                  paginaActual: state.paginaActual,
+                  totalRegistros: list.length,
+                  searchController: _searchCtrl,
+                  onSearch: _onSearchChanged,
+                  selectedUsuarioId: state.usuarioFiltradoId,
+                  onUsuarioChanged: (u) => notifier.seleccionarUsuario(u?.id),
+                  onReload: notifier.recargar,
+                  onResetFilters: () =>
+                      _restablecerFiltrosVisuales(notifier, state),
+                  todosPagina: list,
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Filtro: Saldos a Favor',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: context.semanticColors.success,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 300,
-                        child: TextField(
-                          onChanged: (val) => notifier.aplicarBusqueda(val),
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nombre de local...',
-                            prefixIcon: Icon(Icons.search_rounded, size: 18),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Filtro por Cobrador (Admin/Gestión)
-                      if (!(ref
-                              .watch(currentUsuarioProvider)
-                              .value
-                              ?.esCobrador ??
-                          true))
-                        SizedBox(
-                          width: 250,
-                          child: UsuarioFilter(
-                            selectedUsuarioId: state.usuarioFiltradoId,
-                            onUsuarioChanged: (u) {
-                              notifier.seleccionarUsuario(u?.id);
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              if (state.cargando && list.isEmpty) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              if (state.errorMsg != null && list.isEmpty) {
+                                return Center(
+                                  child: Text(
+                                    'Error: ${state.errorMsg}',
+                                    style: TextStyle(
+                                      color: context.semanticColors.danger,
+                                    ),
+                                  ),
+                                );
+                              }
+                              if (list.isEmpty) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.query_stats_rounded,
+                                        size: 48,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.24),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No hay locales con saldo a favor',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.54),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return _SaldosTable(
+                                locales: list,
+                                mercados: mercados,
+                              );
                             },
                           ),
                         ),
-                      const Spacer(),
-                      Text(
-                        'Filtro: Saldos a Favor',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: context.semanticColors.success,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Column(
-                    children: [
-                      if (state.cargando && list.isEmpty)
-                        const Expanded(
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (state.errorMsg != null)
-                        Expanded(
-                          child: Center(
-                            child: Text(
-                              'Error: ${state.errorMsg}',
-                              style: TextStyle(
-                                color: context.semanticColors.danger,
-                              ),
-                            ),
+                        if (state.totalPaginas > 0)
+                          _PaginationBar(
+                            currentPage: state.paginaActual,
+                            totalPages: state.totalPaginas,
+                            onPrev: state.paginaActual > 1
+                                ? () => notifier.irAPaginaAnterior()
+                                : null,
+                            onNext: state.paginaActual < state.totalPaginas
+                                ? () => notifier.irAPaginaSiguiente()
+                                : null,
+                            isCargando: state.cargando,
                           ),
-                        )
-                      else if (list.isEmpty)
-                        Expanded(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.query_stats_rounded,
-                                  size: 48,
-                                  color: Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.24),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No hay locales con saldo a favor actualmente',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.54),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _Header(todos: list),
-                              const SizedBox(height: 16),
-                              Expanded(
-                                child: _SaldosTable(
-                                  locales: list,
-                                  mercados: mercados,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _PaginationBar(
-                                currentPage: state.paginaActual - 1,
-                                totalPages: state.hayMas
-                                    ? state.paginaActual + 1
-                                    : state.paginaActual,
-                                totalItems: list.length,
-                                pageSize: 20,
-                                onPrev: state.paginaActual > 1
-                                    ? () => notifier.irAPaginaAnterior()
-                                    : null,
-                                onNext: state.hayMas
-                                    ? () => notifier.irAPaginaSiguiente()
-                                    : null,
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (state.cargando && list.isNotEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: LinearProgressIndicator(),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -231,274 +208,581 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
   }
 }
 
-// Header con boton Exportar PDF
-class _Header extends ConsumerWidget {
-  final List<Local> todos;
-  const _Header({required this.todos});
+// Header estilo web (igual patron mercados/correlativos)
+class _SaldosFavorHeader extends ConsumerWidget {
+  final int paginaActual;
+  final int totalRegistros;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearch;
+  final String? selectedUsuarioId;
+  final ValueChanged<Usuario?> onUsuarioChanged;
+  final VoidCallback onReload;
+  final VoidCallback onResetFilters;
+  final List<Local> todosPagina;
+
+  const _SaldosFavorHeader({
+    required this.paginaActual,
+    required this.totalRegistros,
+    required this.searchController,
+    required this.onSearch,
+    required this.selectedUsuarioId,
+    required this.onUsuarioChanged,
+    required this.onReload,
+    required this.onResetFilters,
+    required this.todosPagina,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final mercados = ref.watch(mercadosProvider).value ?? [];
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Saldos a Favor',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+    final esCobrador =
+        ref.watch(currentUsuarioProvider).value?.esCobrador ?? true;
+
+    Future<void> exportarPdf() async {
+      final bytes = await ReportePdfGenerator.generarReporteSaldosFavor(
+        locales: todosPagina,
+        mercados: mercados,
+      );
+      if (kIsWeb) {
+        await descargarPdfWeb(bytes, 'Reporte_SaldosAFavor.pdf');
+      } else {
+        await Printing.layoutPdf(
+          onLayout: (_) async => bytes,
+          name: 'Reporte_SaldosAFavor',
+        );
+      }
+    }
+
+    return Container(
+      decoration: context.webHeaderDecoration(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final isDesktop = w >= 1100;
+            final isTablet = w >= 760 && w < 1100;
+            final isMobile = w < 760;
+
+            Widget actions({required bool compact}) {
+              final compactStyle = OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              );
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onReload,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('Recargar'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      style: compactStyle,
+                      onPressed: onResetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                      label: const Text('Restablecer'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
+                        ),
+                        backgroundColor: context.semanticColors.success,
+                        foregroundColor: context.semanticColors.onSuccess,
+                      ),
+                      onPressed: todosPagina.isEmpty ? null : exportarPdf,
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 15),
+                      label: const Text('Exportar PDF'),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            final headerLeft = Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Listado de locales con crédito prepagado disponible',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.54),
-                ),
-              ),
-            ],
-          ),
-        ),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-          label: const Text('Exportar PDF'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: context.semanticColors.success,
-            foregroundColor: context.semanticColors.onSuccess,
-          ),
-          onPressed: todos.isEmpty
-              ? null
-              : () async {
-                  final bytes =
-                      await ReportePdfGenerator.generarReporteSaldosFavor(
-                        locales: todos,
-                        mercados: mercados,
-                      );
-                  if (kIsWeb) {
-                    await descargarPdfWeb(bytes, 'Reporte_SaldosAFavor.pdf');
-                  } else {
-                    await Printing.layoutPdf(
-                      onLayout: (_) async => bytes,
-                      name: 'Reporte_SaldosAFavor',
-                    );
-                  }
-                },
-        ),
-      ],
-    );
-  }
-}
-
-// Tabla
-class _SaldosTable extends StatefulWidget {
-  final List<Local> locales;
-  final List<Mercado> mercados;
-
-  const _SaldosTable({required this.locales, required this.mercados});
-
-  @override
-  State<_SaldosTable> createState() => _SaldosTableState();
-}
-
-class _SaldosTableState extends State<_SaldosTable> {
-  final ScrollController _scrollHorizontal = ScrollController();
-  final ScrollController _scrollVertical = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollHorizontal.dispose();
-    _scrollVertical.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Scrollbar(
-        controller: _scrollHorizontal,
-        thumbVisibility: true,
-        trackVisibility: true,
-        child: SingleChildScrollView(
-          controller: _scrollHorizontal,
-          scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            controller: _scrollVertical,
-            scrollDirection: Axis.vertical,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-              ),
-              columns: const [
-                DataColumn(label: Text('Local')),
-                DataColumn(label: Text('Mercado')),
-                DataColumn(label: Text('Representante')),
-                DataColumn(label: Text('Teléfono')),
-                DataColumn(label: Text('Saldo a Favor')),
-                DataColumn(label: Text('Balance Neto')),
-                DataColumn(label: Text('Acciones')),
-              ],
-              rows: widget.locales.map((l) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l.nombreSocial ?? '-',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            l.id ?? '-',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.7),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Saldos a favor',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
                             ),
-                          ),
-                        ],
                       ),
-                    ),
-                    DataCell(
                       Text(
-                        widget.mercados
-                                .cast<Mercado>()
-                                .firstWhere(
-                                  (m) => m.id == l.mercadoId,
-                                  orElse: () => const Mercado(nombre: '-'),
-                                )
-                                .nombre ??
-                            '-',
-                        style: TextStyle(
+                        'Pagina $paginaActual - $totalRegistros registros',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: colorScheme.onSurface.withValues(alpha: 0.62),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
+            final header = isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      headerLeft,
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: actions(compact: true),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: headerLeft),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: actions(compact: !isDesktop),
                         ),
                       ),
+                    ],
+                  );
+
+            Widget filtersDesktop() {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: _SaldosSearchInput(
+                      controller: searchController,
+                      onChanged: onSearch,
                     ),
-                    DataCell(Text(l.representante ?? '-')),
-                    DataCell(
-                      Text(
-                        l.telefonoRepresentante ?? '-',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.semanticColors.success.withValues(
-                            alpha: 0.1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          DateFormatter.formatCurrency(l.saldoAFavor),
-                          style: TextStyle(
-                            color: context.semanticColors.success,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        DateFormatter.formatCurrency(l.balanceNeto),
-                        style: TextStyle(
-                          color: l.balanceNeto >= 0
-                              ? context.semanticColors.success
-                              : context.semanticColors.danger,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      IconButton(
-                        icon: const Icon(Icons.history_rounded, size: 20),
-                        onPressed: () => context.push(
-                          '/locales/${l.id}/historial',
-                          extra: l,
-                        ),
-                        tooltip: 'Ver Historial',
+                  ),
+                  if (!esCobrador) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 270,
+                      child: UsuarioFilter(
+                        selectedUsuarioId: selectedUsuarioId,
+                        onUsuarioChanged: onUsuarioChanged,
                       ),
                     ),
                   ],
-                );
-              }).toList(),
-            ),
-          ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.semanticColors.success.withValues(
+                        alpha: 0.14,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: context.semanticColors.success.withValues(
+                          alpha: 0.35,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Solo saldos a favor',
+                      style: TextStyle(
+                        color: context.semanticColors.success,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            Widget filtersTablet() {
+              return Column(
+                children: [
+                  _SaldosSearchInput(
+                    controller: searchController,
+                    onChanged: onSearch,
+                  ),
+                  if (!esCobrador) ...[
+                    const SizedBox(height: 8),
+                    UsuarioFilter(
+                      selectedUsuarioId: selectedUsuarioId,
+                      onUsuarioChanged: onUsuarioChanged,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.semanticColors.success.withValues(
+                          alpha: 0.14,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: context.semanticColors.success.withValues(
+                            alpha: 0.35,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Solo saldos a favor',
+                        style: TextStyle(
+                          color: context.semanticColors.success,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            final filtersGroup = Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Color.alphaBlend(
+                  colorScheme.primary.withValues(alpha: 0.01),
+                  colorScheme.surfaceContainerLowest,
+                ),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.36),
+                ),
+              ),
+              child: isTablet || isMobile ? filtersTablet() : filtersDesktop(),
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [header, const SizedBox(height: 8), filtersGroup],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-// Paginacion
+class _SaldosSearchInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _SaldosSearchInput({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Buscar local',
+        hintText: 'Local, cobrador, boleta/codigo, representante...',
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _SaldosTable extends StatelessWidget {
+  final List<Local> locales;
+  final List<Mercado> mercados;
+
+  const _SaldosTable({required this.locales, required this.mercados});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final mercadosById = {
+      for (final m in mercados)
+        if ((m.id ?? '').isNotEmpty) m.id!: (m.nombre ?? '-'),
+    };
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const sidePadding = 16.0;
+        final availableWidth = constraints.maxWidth;
+        final minTableWidth = availableWidth < 1220 ? 1220.0 : availableWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minTableWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                sidePadding,
+                8,
+                sidePadding,
+                8,
+              ),
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    colorScheme.primary.withAlpha(13),
+                  ),
+                  horizontalMargin: 16,
+                  columnSpacing: 24,
+                  columns: const [
+                    DataColumn(label: Text('Local')),
+                    DataColumn(label: Text('Mercado')),
+                    DataColumn(label: Text('Representante')),
+                    DataColumn(label: Text('Telefono')),
+                    DataColumn(label: Text('Saldo a favor')),
+                    DataColumn(label: Text('Balance neto')),
+                    DataColumn(label: Text('Acciones')),
+                  ],
+                  rows: locales.map((l) {
+                    final nombre =
+                        (l.nombreSocial == null ||
+                            l.nombreSocial!.trim().isEmpty)
+                        ? '-'
+                        : l.nombreSocial!.trim();
+                    final initial = nombre == '-'
+                        ? 'L'
+                        : nombre.substring(0, 1).toUpperCase();
+                    final mercadoNombre = mercadosById[l.mercadoId] ?? '-';
+
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: colorScheme.primary.withAlpha(
+                                  26,
+                                ),
+                                child: Text(
+                                  initial,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 220,
+                                child: Text(
+                                  nombre,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 170,
+                            child: Text(
+                              mercadoNombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 170,
+                            child: Text(
+                              (l.representante == null ||
+                                      l.representante!.trim().isEmpty)
+                                  ? '-'
+                                  : l.representante!.trim(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(l.telefonoRepresentante ?? '-')),
+                        DataCell(
+                          _MoneyChip(
+                            value: (l.saldoAFavor ?? 0).toDouble(),
+                            isPositive: true,
+                          ),
+                        ),
+                        DataCell(
+                          _MoneyChip(
+                            value: l.balanceNeto.toDouble(),
+                            isPositive: l.balanceNeto >= 0,
+                          ),
+                        ),
+                        DataCell(
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.history_rounded, size: 16),
+                            label: const Text('Historial'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              foregroundColor: colorScheme.primary,
+                            ),
+                            onPressed: () => context.push(
+                              '/locales/${l.id}/historial',
+                              extra: l,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MoneyChip extends StatelessWidget {
+  final double value;
+  final bool isPositive;
+
+  const _MoneyChip({required this.value, required this.isPositive});
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semanticColors;
+    final color = isPositive ? semantic.success : semantic.danger;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        DateFormatter.formatCurrency(value),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
-  final int totalItems;
-  final int pageSize;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
+  final bool isCargando;
 
   const _PaginationBar({
     required this.currentPage,
     required this.totalPages,
-    required this.totalItems,
-    required this.pageSize,
     required this.onPrev,
     required this.onNext,
+    required this.isCargando,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded),
-          onPressed: onPrev,
-          color: onPrev != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Página ${currentPage + 1}',
-          style: TextStyle(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            fontSize: 13,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina anterior',
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded),
-          onPressed: onNext,
-          color: onNext != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
-        ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            'Pagina $currentPage de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina siguiente',
+          ),
+        ],
+      ),
     );
   }
 }

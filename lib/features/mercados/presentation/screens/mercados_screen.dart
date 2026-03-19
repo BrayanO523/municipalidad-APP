@@ -9,7 +9,6 @@ import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
-import '../../../../core/widgets/scrollable_table.dart';
 import '../../data/models/mercado_model.dart';
 import '../../domain/entities/mercado.dart';
 import '../widgets/map_picker_modal.dart';
@@ -396,6 +395,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(mercadosPaginadosProvider);
     final notifier = ref.read(mercadosPaginadosProvider.notifier);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -436,60 +436,76 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
                 ),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: state.cargando && state.mercados.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : state.errorMsg != null
-                      ? Center(
-                          child: Text(
-                            state.errorMsg!,
-                            style: TextStyle(
-                              color: context.semanticColors.danger,
-                            ),
-                          ),
-                        )
-                      : state.mercados.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No se encontraron mercados',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.54),
-                            ),
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            Expanded(
-                              child: _MercadosTable(
+                  child: Card(
+                    elevation: 2,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              if (state.cargando && state.mercados.isEmpty) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              if (state.errorMsg != null &&
+                                  state.mercados.isEmpty) {
+                                return Center(
+                                  child: Text(
+                                    state.errorMsg!,
+                                    style: TextStyle(
+                                      color: context.semanticColors.danger,
+                                    ),
+                                  ),
+                                );
+                              }
+                              if (state.mercados.isEmpty) {
+                                return Center(
+                                  child: Text(
+                                    'No se encontraron mercados',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.54,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return _MercadosTable(
                                 mercados: state.mercados,
                                 onEdit: (m) =>
                                     _showFormDialog(context, mercado: m),
                                 onDelete: (m) => _confirmDelete(context, m),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _PaginationBar(
-                              currentPage: state.paginaActual,
-                              totalPages: state.totalPaginas,
-                              onPrev: state.paginaActual > 1
-                                  ? () => ref
-                                        .read(
-                                          mercadosPaginadosProvider.notifier,
-                                        )
-                                        .irAPaginaAnterior()
-                                  : null,
-                              onNext: state.paginaActual < state.totalPaginas
-                                  ? () => ref
-                                        .read(
-                                          mercadosPaginadosProvider.notifier,
-                                        )
-                                        .irAPaginaSiguiente()
-                                  : null,
-                              isCargando: state.cargando,
-                            ),
-                          ],
+                              );
+                            },
+                          ),
                         ),
+                        if (state.totalRegistros > 0)
+                          _PaginationBar(
+                            currentPage: state.paginaActual,
+                            totalPages: state.totalPaginas,
+                            onPrev: state.paginaActual > 1
+                                ? () => ref
+                                      .read(mercadosPaginadosProvider.notifier)
+                                      .irAPaginaAnterior()
+                                : null,
+                            onNext: state.paginaActual < state.totalPaginas
+                                ? () => ref
+                                      .read(mercadosPaginadosProvider.notifier)
+                                      .irAPaginaSiguiente()
+                                : null,
+                            isCargando: state.cargando,
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1086,55 +1102,145 @@ class _MercadosTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ScrollableTable(
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Ubicación')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Fecha Creación')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: mercados.map((m) {
-            return DataRow(
-              cells: [
-                DataCell(Text(m.nombre ?? '-')),
-                DataCell(Text(m.ubicacion ?? '-')),
-                DataCell(_ActiveChip(active: m.activo ?? false)),
-                DataCell(
-                  Text(
-                    m.creadoEn != null
-                        ? DateFormatter.formatDate(m.creadoEn!)
-                        : '-',
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const sidePadding = 16.0;
+        final availableWidth = constraints.maxWidth;
+        final minTableWidth = availableWidth < 980 ? 980.0 : availableWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minTableWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                sidePadding,
+                8,
+                sidePadding,
+                8,
+              ),
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    colorScheme.primary.withAlpha(13),
                   ),
-                ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_rounded, size: 18),
-                        onPressed: () => onEdit(m),
-                        tooltip: 'Editar',
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_rounded,
-                          size: 18,
-                          color: context.semanticColors.danger,
+                  horizontalMargin: 16,
+                  columnSpacing: 24,
+                  columns: const [
+                    DataColumn(label: Text('Mercado')),
+                    DataColumn(label: Text('Ubicacion')),
+                    DataColumn(label: Text('Estado')),
+                    DataColumn(label: Text('Fecha creacion')),
+                    DataColumn(label: Text('Acciones')),
+                  ],
+                  rows: mercados.map((m) {
+                    final nombre =
+                        (m.nombre == null || m.nombre!.trim().isEmpty)
+                        ? '-'
+                        : m.nombre!.trim();
+                    final initial = nombre == '-'
+                        ? 'M'
+                        : nombre.substring(0, 1).toUpperCase();
+
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: colorScheme.primary.withAlpha(
+                                  26,
+                                ),
+                                child: Text(
+                                  initial,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(nombre),
+                            ],
+                          ),
                         ),
-                        onPressed: () => onDelete(m),
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
-                  ),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 260),
+                            child: Text(
+                              (m.ubicacion == null ||
+                                      m.ubicacion!.trim().isEmpty)
+                                  ? '-'
+                                  : m.ubicacion!.trim(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(_ActiveChip(active: m.activo ?? false)),
+                        DataCell(
+                          Text(
+                            m.creadoEn != null
+                                ? DateFormatter.formatDate(m.creadoEn!)
+                                : '-',
+                          ),
+                        ),
+                        DataCell(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.edit_rounded, size: 16),
+                                label: const Text('Editar'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  foregroundColor: colorScheme.primary,
+                                ),
+                                onPressed: () => onEdit(m),
+                              ),
+                              OutlinedButton.icon(
+                                icon: Icon(
+                                  Icons.delete_rounded,
+                                  size: 16,
+                                  color: context.semanticColors.danger,
+                                ),
+                                label: Text(
+                                  'Eliminar',
+                                  style: TextStyle(
+                                    color: context.semanticColors.danger,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  side: BorderSide(
+                                    color: context.semanticColors.danger
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                ),
+                                onPressed: () => onDelete(m),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 ),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1155,13 +1261,18 @@ class _ActiveChip extends StatelessWidget {
           alpha: 0.15,
         ),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (active ? semantic.success : colorScheme.outline).withValues(
+            alpha: 0.35,
+          ),
+        ),
       ),
       child: Text(
         active ? 'Activo' : 'Inactivo',
         style: TextStyle(
           color: active ? semantic.success : colorScheme.outline,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -1185,47 +1296,54 @@ class _PaginationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (isCargando)
-          const Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Pagina $currentPage de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded),
-          onPressed: isCargando ? null : onPrev,
-          color: onPrev != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página anterior',
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Página $currentPage de $totalPages',
-          style: TextStyle(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.54),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina siguiente',
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded),
-          onPressed: isCargando ? null : onNext,
-          color: onNext != null
-              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-          tooltip: 'Página siguiente',
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

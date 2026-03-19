@@ -250,14 +250,19 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
       final todos = await _cargarTodosFiltrados(
         municipalidadId: municipalidadId,
         mercadoId: state.mercadoSeleccionadoId,
-        searchQuery: state.busqueda,
+        searchQuery: null,
         filtroDeuda: _filtroDeudaDatasource(state.filtroDeuda),
         filterLocalIds: _resolverFilterLocalIds(),
       );
 
-      _ordenarLocales(todos, state.ordenamiento);
+      final todosFiltrados = _filtrarLocalesPorBusquedaAvanzada(
+        todos,
+        state.busqueda,
+      );
 
-      final totalRegistros = todos.length;
+      _ordenarLocales(todosFiltrados, state.ordenamiento);
+
+      final totalRegistros = todosFiltrados.length;
       final totalPaginas = totalRegistros == 0
           ? 1
           : (totalRegistros / _pageSize).ceil();
@@ -268,7 +273,7 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
           : inicio + _pageSize;
       final pagina = inicio >= totalRegistros
           ? <Local>[]
-          : todos.sublist(inicio, fin);
+          : todosFiltrados.sublist(inicio, fin);
 
       state = state.copyWith(
         locales: pagina,
@@ -496,13 +501,99 @@ class LocalesPaginadosNotifier extends Notifier<LocalesPaginadosState> {
     final all = await _cargarTodosFiltrados(
       municipalidadId: municipalidadId!,
       mercadoId: mercadoId,
-      searchQuery: query,
+      searchQuery: null,
       filtroDeuda: filtroDs,
       filterLocalIds: filterLocalIds,
     );
 
-    _ordenarLocales(all, state.ordenamiento);
-    return all;
+    final filtrados = _filtrarLocalesPorBusquedaAvanzada(all, query);
+    _ordenarLocales(filtrados, state.ordenamiento);
+    return filtrados;
+  }
+
+  List<Local> _filtrarLocalesPorBusquedaAvanzada(
+    List<Local> locales,
+    String? query,
+  ) {
+    final q = _normalizarTexto(query);
+    if (q.isEmpty) return locales;
+
+    final mercados = ref.read(mercadosProvider).value ?? const <Mercado>[];
+    final mercadoNombreById = {
+      for (final m in mercados)
+        if ((m.id ?? '').isNotEmpty)
+          _normalizarTexto(m.id!): _normalizarTexto(m.nombre),
+    };
+
+    final usuarios = ref.read(usuariosProvider).value ?? const <Usuario>[];
+    final Map<String, Set<String>> cobradoresPorLocalId = {};
+    for (final u in usuarios) {
+      final nombre = _normalizarTexto(u.nombre);
+      final codigo = _normalizarTexto(u.codigoCobrador);
+      final ruta = u.rutaAsignada ?? const <String>[];
+      for (final localId in ruta) {
+        final key = _normalizarTexto(localId);
+        if (key.isEmpty) continue;
+        final bucket = cobradoresPorLocalId.putIfAbsent(key, () => <String>{});
+        if (nombre.isNotEmpty) bucket.add(nombre);
+        if (codigo.isNotEmpty) bucket.add(codigo);
+      }
+    }
+
+    return locales.where((l) {
+      final localIdNorm = _normalizarTexto(l.id);
+      final cobradores = cobradoresPorLocalId[localIdNorm] ?? const <String>{};
+      final mercadoNombre =
+          mercadoNombreById[_normalizarTexto(l.mercadoId)] ?? '';
+      final searchable = <String>[
+        _normalizarTexto(l.nombreSocial),
+        _normalizarTexto(l.representante),
+        _normalizarTexto(l.telefonoRepresentante),
+        _normalizarTexto(l.codigo),
+        _normalizarTexto(l.clave),
+        _normalizarTexto(l.codigoCatastral),
+        _normalizarTexto(l.ruta),
+        _normalizarTexto(l.id),
+        _normalizarTexto(l.qrData),
+        mercadoNombre,
+        ...cobradores,
+      ].where((s) => s.isNotEmpty);
+
+      for (final value in searchable) {
+        if (value.contains(q)) return true;
+      }
+      return false;
+    }).toList();
+  }
+
+  String _normalizarTexto(String? value) {
+    var text = (value ?? '').toLowerCase().trim();
+    if (text.isEmpty) return '';
+    const map = {
+      'á': 'a',
+      'à': 'a',
+      'ä': 'a',
+      'â': 'a',
+      'é': 'e',
+      'è': 'e',
+      'ë': 'e',
+      'ê': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'ï': 'i',
+      'î': 'i',
+      'ó': 'o',
+      'ò': 'o',
+      'ö': 'o',
+      'ô': 'o',
+      'ú': 'u',
+      'ù': 'u',
+      'ü': 'u',
+      'û': 'u',
+      'ñ': 'n',
+    };
+    map.forEach((from, to) => text = text.replaceAll(from, to));
+    return text;
   }
 }
 
