@@ -1034,7 +1034,6 @@ class _FilterPill extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isActive;
-  final bool isOutlined;
   final VoidCallback onTap;
 
   const _FilterPill({
@@ -1042,7 +1041,6 @@ class _FilterPill extends StatelessWidget {
     required this.icon,
     required this.isActive,
     required this.onTap,
-    this.isOutlined = false,
   });
 
   @override
@@ -1058,23 +1056,16 @@ class _FilterPill extends StatelessWidget {
       bgColor = colorScheme.primaryContainer;
       textColor = colorScheme.onPrimaryContainer;
       iconColor = colorScheme.primary;
-      if (isOutlined) {
-        border = Border.all(color: colorScheme.primary, width: 1.5);
-      }
     } else {
       bgColor = colorScheme.surfaceContainerHigh;
       textColor = colorScheme.onSurfaceVariant;
       iconColor = colorScheme.onSurfaceVariant;
-      if (isOutlined) {
-        bgColor = colorScheme.surface;
-        border = Border.all(color: colorScheme.outlineVariant, width: 1);
-      }
     }
 
     return Material(
       color: bgColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      elevation: isActive && !isOutlined ? 1 : 0,
+      elevation: isActive ? 1 : 0,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
@@ -1563,65 +1554,6 @@ class _BottomSheetFilterChip extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomSheetDateButton extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final VoidCallback onTap;
-
-  const _BottomSheetDateButton({
-    required this.label,
-    required this.date,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isSelected = date != null;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary.withValues(alpha: 0.45)
-                : colorScheme.outlineVariant.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_month_rounded,
-              size: 16,
-              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '$label: ${date != null ? DateFormat('dd/MM/yyyy').format(date!) : 'DD/MM/AAAA'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
               ),
             ),
           ],

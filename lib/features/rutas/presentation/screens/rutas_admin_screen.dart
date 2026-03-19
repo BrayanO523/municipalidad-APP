@@ -23,7 +23,6 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
   List<String> _rutaActual = []; // Lista de IDs de locales en orden
 
   final MapController _mapController = MapController();
-  bool _isMapReady = false;
 
   @override
   Widget build(BuildContext context) {
@@ -557,7 +556,6 @@ class _RutasAdminScreenState extends ConsumerState<RutasAdminScreen> {
             initialCenter: centroMercado ?? const LatLng(14.628434, -90.522713),
             initialZoom: centroMercado != null ? 16.0 : 15.0,
             onMapReady: () {
-              _isMapReady = true;
               if (centroMercado != null) {
                 _moverMapa(centroMercado, zoom: 16.0);
               }
