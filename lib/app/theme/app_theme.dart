@@ -297,14 +297,28 @@ abstract class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbVisibility: WidgetStateProperty.all(true),
-        trackVisibility: WidgetStateProperty.all(true),
+        thumbVisibility: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.dragged) ||
+              states.contains(WidgetState.hovered);
+        }),
+        trackVisibility: WidgetStateProperty.all(false),
         interactive: true,
-        thickness: WidgetStateProperty.all(8),
-        radius: const Radius.circular(10),
-        thumbColor: WidgetStateProperty.all(
-          colorScheme.primary.withValues(alpha: 0.5),
-        ),
+        thickness: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) return 6;
+          if (states.contains(WidgetState.hovered)) return 5;
+          return 3.5;
+        }),
+        radius: const Radius.circular(999),
+        minThumbLength: 28,
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return colorScheme.onSurface.withValues(alpha: 0.48);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return colorScheme.onSurface.withValues(alpha: 0.36);
+          }
+          return colorScheme.onSurface.withValues(alpha: 0.22);
+        }),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Color.alphaBlend(
@@ -481,14 +495,28 @@ abstract class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbVisibility: WidgetStateProperty.all(true),
-        trackVisibility: WidgetStateProperty.all(true),
+        thumbVisibility: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.dragged) ||
+              states.contains(WidgetState.hovered);
+        }),
+        trackVisibility: WidgetStateProperty.all(false),
         interactive: true,
-        thickness: WidgetStateProperty.all(8),
-        radius: const Radius.circular(10),
-        thumbColor: WidgetStateProperty.all(
-          colorScheme.primary.withValues(alpha: 0.5),
-        ),
+        thickness: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) return 6;
+          if (states.contains(WidgetState.hovered)) return 5;
+          return 3.5;
+        }),
+        radius: const Radius.circular(999),
+        minThumbLength: 28,
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return colorScheme.onSurface.withValues(alpha: 0.42);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return colorScheme.onSurface.withValues(alpha: 0.30);
+          }
+          return colorScheme.onSurface.withValues(alpha: 0.20);
+        }),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Color.alphaBlend(
