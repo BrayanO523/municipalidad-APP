@@ -31,13 +31,19 @@ class VisualDebtUtils {
     final hoy = DateTime(ahora.year, ahora.month, ahora.day);
 
     // 1. ¿Ya tiene un registro hoy?
-    final hoyTieneRegistro = actualCobros.any(
-      (c) =>
-          c.fecha != null &&
-          c.fecha!.year == hoy.year &&
-          c.fecha!.month == hoy.month &&
-          c.fecha!.day == hoy.day,
-    );
+    final hoyTieneRegistro = actualCobros.any((c) {
+      if (c.fecha == null ||
+          c.fecha!.year != hoy.year ||
+          c.fecha!.month != hoy.month ||
+          c.fecha!.day != hoy.day) {
+        return false;
+      }
+      final pagoACuota = (c.pagoACuota ?? 0);
+      final montoAbonadoDeuda = (c.montoAbonadoDeuda ?? 0);
+      final esAbonoSoloDeuda = pagoACuota <= 0 && montoAbonadoDeuda > 0;
+      if (esAbonoSoloDeuda) return false;
+      return true;
+    });
 
     if (hoyTieneRegistro) return null;
 
@@ -71,13 +77,19 @@ class VisualDebtUtils {
     final ahora = DateTime.now();
     final hoy = DateTime(ahora.year, ahora.month, ahora.day);
 
-    final hoyTieneRegistro = actualCobros.any(
-      (c) =>
-          c.fecha != null &&
-          c.fecha!.year == hoy.year &&
-          c.fecha!.month == hoy.month &&
-          c.fecha!.day == hoy.day,
-    );
+    final hoyTieneRegistro = actualCobros.any((c) {
+      if (c.fecha == null ||
+          c.fecha!.year != hoy.year ||
+          c.fecha!.month != hoy.month ||
+          c.fecha!.day != hoy.day) {
+        return false;
+      }
+      final pagoACuota = (c.pagoACuota ?? 0);
+      final montoAbonadoDeuda = (c.montoAbonadoDeuda ?? 0);
+      final esAbonoSoloDeuda = pagoACuota <= 0 && montoAbonadoDeuda > 0;
+      if (esAbonoSoloDeuda) return false;
+      return true;
+    });
 
     final fechaInicio = hoyTieneRegistro
         ? hoy.add(const Duration(days: 1))

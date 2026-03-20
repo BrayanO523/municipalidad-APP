@@ -36,6 +36,10 @@ class _CobradorEstadoCuentaScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  String? _boletaId(Cobro cobro) {
+    return _boletaAgrupacionId(cobro);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -175,10 +179,45 @@ class _CobradorEstadoCuentaScreenState
     final balanceResumen = (local.saldoAFavor ?? 0) - deudaResumen;
     final numAdelantados = adelantadosVirtuales.length;
 
-    final cobrados = combinedList.where((c) => c.estado == 'cobrado').toList();
+    final boletasConCobroAplicado = <String>{};
+    for (final c in combinedList) {
+      final boletaId = _boletaId(c);
+      if (boletaId == null) continue;
+      final tieneFechasSaldadas = (c.fechasDeudasSaldadas?.isNotEmpty ?? false);
+      final abonoDeuda = (c.montoAbonadoDeuda ?? 0) > 0;
+      if (c.estado == 'cobrado' || tieneFechasSaldadas || abonoDeuda) {
+        boletasConCobroAplicado.add(boletaId);
+      }
+    }
+
+    final cobrados = combinedList.where((c) {
+      final boletaId = _boletaId(c);
+      if (boletaId != null) {
+        return boletasConCobroAplicado.contains(boletaId);
+      }
+      return c.estado == 'cobrado';
+    }).toList();
+    final todosOrdenados = List<Cobro>.from(combinedList)
+      ..sort((a, b) {
+        final aBoleta = _boletaId(a);
+        final bBoleta = _boletaId(b);
+        final aEsCobrado = aBoleta != null
+            ? boletasConCobroAplicado.contains(aBoleta)
+            : a.estado == 'cobrado';
+        final bEsCobrado = bBoleta != null
+            ? boletasConCobroAplicado.contains(bBoleta)
+            : b.estado == 'cobrado';
+        if (aEsCobrado != bEsCobrado) {
+          return aEsCobrado ? -1 : 1;
+        }
+        return (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0));
+      });
     final pendientes = combinedList
         .where((c) => c.estado == 'pendiente')
         .toList();
+    final totalItemsTodos = _agruparCobrosParaVista(todosOrdenados).length;
+    final totalItemsCobrados = _agruparCobrosParaVista(cobrados).length;
+    final totalItemsPendientes = _agruparCobrosParaVista(pendientes).length;
 
     return Scaffold(
       body: NestedScrollView(
@@ -266,9 +305,9 @@ class _CobradorEstadoCuentaScreenState
                 fontWeight: FontWeight.w600,
               ),
               tabs: [
-                Tab(text: 'Todos (${combinedList.length})'),
-                Tab(text: 'Cobrados (${cobrados.length})'),
-                Tab(text: 'Pendientes (${pendientes.length})'),
+                Tab(text: 'Todos ($totalItemsTodos)'),
+                Tab(text: 'Cobrados ($totalItemsCobrados)'),
+                Tab(text: 'Pendientes ($totalItemsPendientes)'),
               ],
             ),
           ),
@@ -276,7 +315,7 @@ class _CobradorEstadoCuentaScreenState
         body: TabBarView(
           controller: _tabController,
           children: [
-            _CobrosList(cobros: combinedList, local: local),
+            _CobrosList(cobros: todosOrdenados, local: local),
             _CobrosList(cobros: cobrados, local: local),
             _CobrosList(cobros: pendientes, local: local),
           ],
@@ -597,6 +636,59 @@ DateTime _normalizarDia(DateTime fecha) {
   return DateTime(fecha.year, fecha.month, fecha.day);
 }
 
+String? _boletaAgrupacionId(Cobro cobro) {
+  final id = (cobro.numeroBoleta ?? cobro.correlativo?.toString())?.trim();
+  if (id == null || id.isEmpty || id == '0') return null;
+  return id;
+}
+
+List<List<Cobro>> _agruparCobrosParaVista(List<Cobro> lista) {
+  final result = <List<Cobro>>[];
+  final groups = <String, List<Cobro>>{};
+  final Set<DateTime> fechasCubiertasPorMaestros = {};
+
+  for (final c in lista) {
+    final boletaId = _boletaAgrupacionId(c);
+    if (boletaId != null) {
+      groups.putIfAbsent(boletaId, () => []).add(c);
+
+      if (c.fechasDeudasSaldadas != null) {
+        for (final d in c.fechasDeudasSaldadas!) {
+          fechasCubiertasPorMaestros.add(DateTime(d.year, d.month, d.day));
+        }
+      }
+      if ((c.pagoACuota ?? 0) > 0 && c.fecha != null) {
+        fechasCubiertasPorMaestros.add(
+          DateTime(c.fecha!.year, c.fecha!.month, c.fecha!.day),
+        );
+      }
+    }
+  }
+
+  final Set<String> boletasAgregadas = {};
+  for (final c in lista) {
+    final boletaId = _boletaAgrupacionId(c);
+
+    if (boletaId != null) {
+      if (!boletasAgregadas.contains(boletaId)) {
+        result.add(groups[boletaId]!);
+        boletasAgregadas.add(boletaId);
+      }
+    } else {
+      final fechaRef = c.fecha;
+      if (fechaRef != null) {
+        final dRef = DateTime(fechaRef.year, fechaRef.month, fechaRef.day);
+        if (fechasCubiertasPorMaestros.contains(dRef)) {
+          continue;
+        }
+      }
+      result.add([c]);
+    }
+  }
+
+  return result;
+}
+
 class _CobrosList extends ConsumerWidget {
   final List<Cobro> cobros;
   final Local local;
@@ -755,8 +847,8 @@ class _CobrosList extends ConsumerWidget {
   /// Agrupa cobros basándose en el número de boleta o correlativo,
   /// eliminando registros "hijo" redundantes que ya están contenidos
   /// dentro de la información de una boleta maestra.
-  List<dynamic> _agruparPorBoleta(List<Cobro> lista) {
-    final result = <dynamic>[];
+  List<List<Cobro>> _agruparPorBoleta(List<Cobro> lista) {
+    final result = <List<Cobro>>[];
     final groups = <String, List<Cobro>>{};
     final Set<DateTime> fechasCubiertasPorMaestros = {};
 

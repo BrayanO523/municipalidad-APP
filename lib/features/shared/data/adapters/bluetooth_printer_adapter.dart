@@ -1,12 +1,115 @@
+import 'dart:async';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
+
+import '../../../../core/platform/printer_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/date_range_formatter.dart';
-import '../../../../core/platform/printer_service.dart';
-import 'package:flutter/foundation.dart';
 
 class BluetoothPrinterAdapter implements PrinterService {
+  static Future<void> _printQueue = Future<void>.value();
+
+  Future<T> _enqueuePrint<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+
+    _printQueue = _printQueue.catchError((_) {}).then((_) async {
+      try {
+        final result = await action();
+        completer.complete(result);
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+
+    return completer.future;
+  }
+
+  String _toAscii(String text) {
+    const map = <String, String>{
+      'á': 'a',
+      'é': 'e',
+      'í': 'i',
+      'ó': 'o',
+      'ú': 'u',
+      'Á': 'A',
+      'É': 'E',
+      'Í': 'I',
+      'Ó': 'O',
+      'Ú': 'U',
+      'ñ': 'n',
+      'Ñ': 'N',
+      'ü': 'u',
+      'Ü': 'U',
+      '¡': '',
+      '¿': '',
+      '“': '"',
+      '”': '"',
+      '‘': "'",
+      '’': "'",
+      '–': '-',
+      '—': '-',
+      '\t': ' ',
+      '\r': ' ',
+      '\n': ' ',
+    };
+
+    final b = StringBuffer();
+    for (final rune in text.runes) {
+      final ch = String.fromCharCode(rune);
+      final mapped = map[ch];
+      if (mapped != null) {
+        b.write(mapped);
+      } else if (rune >= 32 && rune <= 126) {
+        b.write(ch);
+      } else {
+        b.write(' ');
+      }
+    }
+
+    return b.toString();
+  }
+
+  List<String> _wrapText(String text, int width) {
+    final clean = _toAscii(text).replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (clean.isEmpty || width <= 0) return const [''];
+
+    final words = clean.split(' ');
+    final lines = <String>[];
+    var current = '';
+
+    for (var word in words) {
+      if (word.isEmpty) continue;
+
+      while (word.length > width) {
+        if (current.isNotEmpty) {
+          lines.add(current);
+          current = '';
+        }
+        lines.add(word.substring(0, width));
+        word = word.substring(width);
+      }
+
+      if (current.isEmpty) {
+        current = word;
+        continue;
+      }
+
+      final candidate = '$current $word';
+      if (candidate.length <= width) {
+        current = candidate;
+      } else {
+        lines.add(current);
+        current = word;
+      }
+    }
+
+    if (current.isNotEmpty) lines.add(current);
+    return lines.isEmpty ? const [''] : lines;
+  }
+
   @override
   Future<List<Map<String, dynamic>>> getPairedDevices() async {
     try {
@@ -21,7 +124,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       final isPermissionGranted =
           await PrintBluetoothThermal.isPermissionBluetoothGranted;
       if (!isPermissionGranted && !Platform.isAndroid) {
-        // En Android a veces el plugin devuelve falso incluso si ya los dimos.
+        // On Android, plugin can return false even with granted permissions.
         return [];
       }
 
@@ -29,7 +132,7 @@ class BluetoothPrinterAdapter implements PrinterService {
       return devicesInfo.map((info) {
         return {'name': info.name, 'mac': info.macAdress};
       }).toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -46,22 +149,21 @@ class BluetoothPrinterAdapter implements PrinterService {
       }
 
       debugPrint('--- Verificando estado de Bluetooth ---');
-      final bool isBluetoothEnabled =
-          await PrintBluetoothThermal.bluetoothEnabled;
+      final isBluetoothEnabled = await PrintBluetoothThermal.bluetoothEnabled;
       if (!isBluetoothEnabled) {
         debugPrint('--- Error: Bluetooth desactivado ---');
         return false;
       }
 
-      // Desconexión preventiva para limpiar sockets previos
-      debugPrint('--- Desconexión preventiva ---');
+      // Preventive disconnect to clear previous sockets.
+      debugPrint('--- Desconexion preventiva ---');
       await PrintBluetoothThermal.disconnect;
 
       debugPrint('--- Intentando conectar a impresora: $macAddress ---');
       final isConnected = await PrintBluetoothThermal.connect(
         macPrinterAddress: macAddress,
       );
-      debugPrint('--- Resultado de conexión: $isConnected ---');
+      debugPrint('--- Resultado de conexion: $isConnected ---');
       return isConnected;
     } catch (e) {
       debugPrint('--- Error fatal en connect: $e ---');
@@ -72,9 +174,8 @@ class BluetoothPrinterAdapter implements PrinterService {
   @override
   Future<bool> disconnect() async {
     try {
-      final isDisconnected = await PrintBluetoothThermal.disconnect;
-      return isDisconnected;
-    } catch (e) {
+      return await PrintBluetoothThermal.disconnect;
+    } catch (_) {
       return false;
     }
   }
@@ -102,212 +203,208 @@ class BluetoothPrinterAdapter implements PrinterService {
     String? clave,
     String? codigoLocal,
     String? codigoCatastral,
-  }) async {
-    try {
-      if (Platform.isAndroid) {
-        await [
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
-          Permission.location,
-        ].request();
-      }
-
-      // Intentamos imprimir directamente.
-      // MUCHOS DISPOSITIVOS ANDROID RETORNAN FALSE EN connectionStatus SI ESTÁN OFFLINE, A PESAR DE TENER BLUETOOTH CONECTADO.
-      // Solo verificamos si Bluetooth está encendido.
-      final isBluetoothEnabled = await PrintBluetoothThermal.bluetoothEnabled;
-      if (!isBluetoothEnabled) return false;
-
-      // Buffer para unificar toda la impresión en un solo envío de bytes ESC/POS
-      List<int> bytes = [];
-
-      // Comandos nativos ESC/POS
-      void addAlign(int align) {
-        bytes.addAll([27, 97, align]); // 0: Izquierda, 1: Centro, 2: Derecha
-      }
-
-      void addSize(int size) {
-        if (size == 1) {
-          bytes.addAll([27, 33, 0]); // Texto normal
-        } else if (size == 2) {
-          bytes.addAll([27, 33, 48]); // Texto grande (doble alto y ancho)
+  }) {
+    return _enqueuePrint(() async {
+      try {
+        if (Platform.isAndroid) {
+          await [
+            Permission.bluetoothScan,
+            Permission.bluetoothConnect,
+            Permission.location,
+          ].request();
         }
-      }
 
-      void addText(String text, int size, int align) {
-        addAlign(align);
-        addSize(size);
+        // Some devices report invalid connectionStatus while still connected.
+        final isBluetoothEnabled = await PrintBluetoothThermal.bluetoothEnabled;
+        if (!isBluetoothEnabled) return false;
 
-        // Limpiamos los caracteres latinos para evitar caracteres corruptos
-        // ya que las impresoras chinas varían en su soporte de codepage.
-        String safeText = text
-            .replaceAll('á', 'a')
-            .replaceAll('é', 'e')
-            .replaceAll('í', 'i')
-            .replaceAll('ó', 'o')
-            .replaceAll('ú', 'u')
-            .replaceAll('Á', 'A')
-            .replaceAll('É', 'E')
-            .replaceAll('Í', 'I')
-            .replaceAll('Ó', 'O')
-            .replaceAll('Ú', 'U')
-            .replaceAll('ñ', 'n')
-            .replaceAll('Ñ', 'N')
-            .replaceAll('¡', ''); // Strip unmappable
+        final bytes = <int>[];
 
-        bytes.addAll(
-          safeText.codeUnits,
-        ); // Mapeo directo a 1 byte (ASCII seguro)
-        bytes.addAll([10]); // \n
-      }
+        void addAlign(int align) {
+          bytes.addAll([27, 97, align]); // 0: left, 1: center, 2: right
+        }
 
-      // Ayuda para alinear clave a la izquierda y valor a la derecha (espaciado interno)
-      String r(String key, String value, int width) {
-        int spaceCount = width - key.length - value.length;
-        if (spaceCount < 1) return '$key $value'; // Fallback
-        return key + (' ' * spaceCount) + value;
-      }
+        void addSize(int size) {
+          if (size == 2) {
+            bytes.addAll([27, 33, 48]); // double size
+          } else {
+            bytes.addAll([27, 33, 0]); // normal
+          }
+        }
 
-      // Volvemos a 32 como standard para la línea punteada ya que el centrado
-      // por hardware ESC/POS arreglará los títulos sin importar su longitud.
-      const int normalWidth = 32;
-      const String d = '--------------------------------';
+        void addTextLine(String text, int size, int align) {
+          addAlign(align);
+          addSize(size);
+          bytes.addAll(_toAscii(text).codeUnits);
+          bytes.add(10); // \n
+        }
 
-      // Inicialización de la impresora
-      bytes.addAll([27, 64]); // Reset printer
+        void addWrappedText(String text, int size, int align, int width) {
+          final effectiveWidth = size == 2 ? (width ~/ 2) : width;
+          for (final line in _wrapText(text, effectiveWidth)) {
+            addTextLine(line, size, align);
+          }
+        }
 
-      // 1. ENCABEZADO CENTRADO (alineación = 1)
-      addText(empresa.toUpperCase(), 1, 1);
-      if (mercado != null) {
-        addText(mercado.toUpperCase(), 1, 1);
-      }
-      addText('BOLETA DE PAGO', 1, 1);
-      addText('No. $numeroBoleta', 1, 1);
-      addText(d, 1, 1);
+        void addKeyValue(String key, String value, int width) {
+          final cleanKey = _toAscii(key);
+          final cleanValue = _toAscii(value);
 
-      // 2. CUERPO (Alineado a la izquierda = 0)
-      final fechaStr = DateFormatter.formatDateTime(fecha);
-      addText(r('LOCAL:', local.toUpperCase(), normalWidth), 1, 0);
-      if (clave != null && clave.isNotEmpty) {
-        // Label change only (value stays the same).
-        addText(r('CLAVE CATASTRAL:', clave, normalWidth), 1, 0);
-      }
-      if (codigoLocal != null && codigoLocal.isNotEmpty) {
-        addText(r('NUM PUESTO:', codigoLocal, normalWidth), 1, 0);
-      }
-      if (codigoCatastral != null && codigoCatastral.isNotEmpty) {
-        addText(r('COD.CATA:', codigoCatastral, normalWidth), 1, 0);
-      }
-      addText(r('FECHA:', fechaStr, normalWidth), 1, 0);
-      if (cobrador != null) {
-        addText(r('COBRADOR:', cobrador.toUpperCase(), normalWidth), 1, 0);
-      }
-      addText(d, 1, 1); // Línea centrada
+          if (cleanValue.isEmpty) {
+            addTextLine(cleanKey, 1, 0);
+            return;
+          }
 
-      // 3. MONTO (Centrado y Grande)
-      addText('MONTO PAGADO:', 1, 1);
-      addText('L ${monto.toStringAsFixed(2)}', 2, 1); // Tamaño 2
-      addText(d, 1, 1);
+          // Mantener formato fijo: clave al borde izquierdo y valor al borde derecho.
+          // Reservamos columna izquierda para la clave y derecha para el valor.
+          final keyWidth = (width * 0.5).round().clamp(8, width - 6);
+          final valueWidth = width - keyWidth;
+          if (valueWidth <= 0) {
+            addTextLine('$cleanKey $cleanValue', 1, 0);
+            return;
+          }
 
-      // 4. SALDOS (Alineados a la izquierda)
-      if (deudaAnterior != null && deudaAnterior > 0) {
-        addText(
-          r(
+          final keyText = cleanKey.length > keyWidth
+              ? cleanKey.substring(0, keyWidth)
+              : cleanKey;
+          final keyCol = keyText.padRight(keyWidth);
+
+          final valueLines = _wrapText(cleanValue, valueWidth);
+          if (valueLines.isEmpty) {
+            addTextLine(keyCol, 1, 0);
+            return;
+          }
+
+          // Primera línea: clave (izquierda) + valor (derecha).
+          addTextLine(
+            '$keyCol${valueLines.first.padLeft(valueWidth)}',
+            1,
+            0,
+          );
+
+          // Líneas adicionales del valor: mantener valor en la columna derecha.
+          for (final line in valueLines.skip(1)) {
+            addTextLine(
+              '${' ' * keyWidth}${line.padLeft(valueWidth)}',
+              1,
+              0,
+            );
+          }
+        }
+
+        const normalWidth = 32;
+        final divider = '-' * normalWidth;
+
+        // Initialize printer.
+        bytes.addAll([27, 64]);
+
+        // 1) Header.
+        addWrappedText(empresa.toUpperCase(), 1, 1, normalWidth);
+        if (mercado != null && mercado.trim().isNotEmpty) {
+          addWrappedText(mercado.toUpperCase(), 1, 1, normalWidth);
+        }
+        addTextLine('BOLETA DE PAGO', 1, 1);
+        addWrappedText('No. $numeroBoleta', 1, 1, normalWidth);
+        addTextLine(divider, 1, 1);
+
+        // 2) Body.
+        final fechaStr = DateFormatter.formatDateTime(fecha);
+        addKeyValue('LOCAL:', local.toUpperCase(), normalWidth);
+        if (clave != null && clave.isNotEmpty) {
+          addKeyValue('CLAVE CATASTRAL:', clave, normalWidth);
+        }
+        if (codigoLocal != null && codigoLocal.isNotEmpty) {
+          addKeyValue('NUM PUESTO:', codigoLocal, normalWidth);
+        }
+        if (codigoCatastral != null && codigoCatastral.isNotEmpty) {
+          addKeyValue('COD.CATA:', codigoCatastral, normalWidth);
+        }
+        addKeyValue('FECHA:', fechaStr, normalWidth);
+        if (cobrador != null && cobrador.trim().isNotEmpty) {
+          addKeyValue('COBRADOR:', cobrador.toUpperCase(), normalWidth);
+        }
+        addTextLine(divider, 1, 1);
+
+        // 3) Amount.
+        addTextLine('MONTO PAGADO:', 1, 1);
+        addWrappedText('L ${monto.toStringAsFixed(2)}', 2, 1, normalWidth);
+        addTextLine(divider, 1, 1);
+
+        // 4) Balances.
+        if (deudaAnterior != null && deudaAnterior > 0) {
+          addKeyValue(
             'DEUDA ANTERIOR:',
             DateFormatter.formatCurrency(deudaAnterior),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-        addText(
-          r(
+          );
+          addKeyValue(
             'ABONO A DEUDA:',
             DateFormatter.formatCurrency(montoAbonadoDeuda ?? 0),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-        addText(
-          r(
+          );
+          addKeyValue(
             'DEUDA ACTUAL:',
             DateFormatter.formatCurrency(saldoPendiente ?? 0),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-      } else if (saldoPendiente != null && saldoPendiente > 0) {
-        addText(
-          r(
+          );
+        } else if (saldoPendiente != null && saldoPendiente > 0) {
+          addKeyValue(
             'DEUDA ACTUAL:',
             DateFormatter.formatCurrency(saldoPendiente),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-      }
+          );
+        }
 
-      if (pagoHoy != null) {
-        addText(
-          r(
-            'CUOTA DEL DÍA:',
+        if (pagoHoy != null) {
+          addKeyValue(
+            'CUOTA DEL DIA:',
             DateFormatter.formatCurrency(pagoHoy),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-      }
-
-      // Fechas cubiertas
-      if (periodoAbonadoStr != null &&
-          periodoAbonadoStr.isNotEmpty &&
-          periodoAbonadoStr != '-') {
-        addText('FECHAS CUBIERTAS:', 1, 0);
-        addText(periodoAbonadoStr, 1, 0);
-      } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
-        final diasStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
-        if (diasStr != null) {
-          addText('FECHAS CUBIERTAS:', 1, 0);
-          addText(diasStr, 1, 0);
+          );
         }
-      }
 
-      if (saldoAFavor != null && saldoAFavor > 0) {
-        addText(
-          r(
+        if (periodoAbonadoStr != null &&
+            periodoAbonadoStr.isNotEmpty &&
+            periodoAbonadoStr != '-') {
+          addTextLine('FECHAS CUBIERTAS:', 1, 0);
+          addWrappedText(periodoAbonadoStr, 1, 0, normalWidth);
+        } else if (fechasSaldadas != null && fechasSaldadas.length > 1) {
+          final diasStr = DateRangeFormatter.formatearRangos(fechasSaldadas);
+          if (diasStr != null && diasStr.isNotEmpty) {
+            addTextLine('FECHAS CUBIERTAS:', 1, 0);
+            addWrappedText(diasStr, 1, 0, normalWidth);
+          }
+        }
+
+        if (saldoAFavor != null && saldoAFavor > 0) {
+          addKeyValue(
             'SALDO A FAVOR:',
             DateFormatter.formatCurrency(saldoAFavor),
             normalWidth,
-          ),
-          1,
-          0,
-        );
-        if (periodoSaldoAFavorStr != null && periodoSaldoAFavorStr.isNotEmpty) {
-          addText('FECHAS ADELANTADAS:', 1, 0);
-          addText(periodoSaldoAFavorStr, 1, 0);
+          );
+          if (periodoSaldoAFavorStr != null &&
+              periodoSaldoAFavorStr.isNotEmpty) {
+            addTextLine('FECHAS ADELANTADAS:', 1, 0);
+            addWrappedText(periodoSaldoAFavorStr, 1, 0, normalWidth);
+          }
         }
+        addTextLine(divider, 1, 1);
+
+        // 5) Footer.
+        addTextLine('', 1, 1);
+        addTextLine('Gracias por su pago!', 1, 1);
+        if (slogan != null && slogan.trim().isNotEmpty) {
+          addWrappedText(slogan.trim(), 1, 1, normalWidth);
+        }
+        bytes.addAll([10, 10, 10]); // feed
+
+        await PrintBluetoothThermal.writeBytes(bytes);
+        return true;
+      } catch (e) {
+        debugPrint('Bluetooth print error: $e');
+        return false;
       }
-      addText(d, 1, 1);
-
-      // 5. PIE (Centrado)
-      addText('', 1, 1); // Espacio en blanco
-      addText('¡Gracias por su pago!', 1, 1);
-      if (slogan != null && slogan.trim().isNotEmpty) {
-        addText(slogan.trim(), 1, 1);
-      }
-      bytes.addAll([10, 10, 10]); // Avance de papel para fácil corte
-
-      // Enviar de una sola vez
-      await PrintBluetoothThermal.writeBytes(bytes);
-
-      return true;
-    } catch (e) {
-      return false;
-    }
+    });
   }
 }
 

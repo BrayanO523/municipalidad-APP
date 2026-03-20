@@ -790,16 +790,18 @@ class CobroDatasource {
 
     WriteBatch batch = _firestore.batch();
     num restante = montoASaldar;
+    const double toleranciaMonetaria = 0.01;
     num montoMoraAcumulado = 0;
     final List<String> idsSaldados = [];
     final List<DateTime> fechasSaldadas = [];
 
     for (var doc in snapshot.docs) {
-      if (restante <= 0) break;
+      if (restante <= toleranciaMonetaria) break;
 
       final data = doc.data();
       final saldoPendiente =
           (data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0) as num;
+      if (saldoPendiente <= 0) continue;
 
       // Capturar la fecha del cobro histórico para el recibo
       final fechaRaw = data['fecha'];
@@ -811,7 +813,7 @@ class CobroDatasource {
       // Determinar si esta deuda es "Mora" (su fecha es anterior al mes de referencia)
       final esMora = fechaDoc != null && fechaDoc.isBefore(inicioMesReferencia);
 
-      if (restante >= saldoPendiente) {
+      if ((restante + toleranciaMonetaria) >= saldoPendiente) {
         // Se salda completamente este día
         final updateData = <String, dynamic>{
           'estado': 'cobrado',
@@ -826,13 +828,17 @@ class CobroDatasource {
         batch.update(doc.reference, updateData);
         if (esMora) montoMoraAcumulado += saldoPendiente;
         restante -= saldoPendiente;
+        if (restante.abs() <= toleranciaMonetaria) {
+          restante = 0;
+        }
         // Solo agregar a fechasSaldadas si el día fue cubierto al 100%
         if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
       } else {
+        if (restante <= toleranciaMonetaria) break;
         // Se abona parcialmente — el día NO está cubierto, no agregar fecha
         final updateData = <String, dynamic>{
           'estado': 'abono_parcial',
-          'saldoPendiente': saldoPendiente - restante,
+          'saldoPendiente': (saldoPendiente - restante).toDouble(),
         };
         if (numeroBoleta != null && numeroBoleta.trim().isNotEmpty) {
           updateData['numeroBoleta'] = numeroBoleta.trim();
