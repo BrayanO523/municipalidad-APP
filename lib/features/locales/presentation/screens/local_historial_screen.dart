@@ -153,12 +153,16 @@ class _LocalHistorialScreenState extends ConsumerState<LocalHistorialScreen> {
                               )
                               .nombre ??
                           '-';
+                      final municipalidadNombre = ref
+                          .read(municipalidadActualProvider)
+                          ?.nombre;
 
                       final bytes =
                           await ReportePdfGenerator.generarEstadoCuentaLocalPdf(
                             local: local,
                             cobros: combinedList,
                             nombreMercado: mercadoName,
+                            municipalidadNombre: municipalidadNombre,
                           );
                       if (kIsWeb) {
                         await descargarPdfWeb(

@@ -1827,6 +1827,9 @@ class _DashboardHeader extends ConsumerWidget {
                       final cobros = ref.read(cobrosHoyProvider).value ?? [];
                       final locales = ref.read(localesProvider).value ?? [];
                       final mercados = ref.read(mercadosProvider).value ?? [];
+                      final municipalidadNombre = ref
+                          .read(municipalidadActualProvider)
+                          ?.nombre;
                       final filter = ref.read(dashboardFilterProvider);
 
                       final bytes =
@@ -1837,6 +1840,7 @@ class _DashboardHeader extends ConsumerWidget {
                             periodoLabel: filter.period == DashboardPeriod.hoy
                                 ? 'Hoy'
                                 : filter.label,
+                            municipalidadNombre: municipalidadNombre,
                           );
 
                       if (kIsWeb) {

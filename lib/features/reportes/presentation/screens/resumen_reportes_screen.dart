@@ -43,7 +43,12 @@ class ResumenReportesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, ReportesResumenState state, DashboardFilterState filter) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    ReportesResumenState state,
+    DashboardFilterState filter,
+  ) {
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -56,34 +61,42 @@ class ResumenReportesScreen extends ConsumerWidget {
           children: [
             Text(
               'Resumen Operativo',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             Text(
               'Consolidado de métricas clave del sistema',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                  ),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+              ),
             ),
           ],
         ),
         FilledButton.icon(
           onPressed: () async {
             final mercados = ref.read(mercadosProvider).value ?? [];
-            final bytes = await ReportePdfGenerator.generarReporteResumenOperativo(
-              totalCobrado: state.totalCobrado,
-              totalPendiente: state.totalPendiente,
-              totalMora: state.totalMora,
-              totalFavor: state.totalSaldosAFavor,
-              periodoLabel: filter.label,
-              mercados: mercados,
-              cobros: state.cobros,
-            );
+            final municipalidadNombre = ref
+                .read(municipalidadActualProvider)
+                ?.nombre;
+            final bytes =
+                await ReportePdfGenerator.generarReporteResumenOperativo(
+                  totalCobrado: state.totalCobrado,
+                  totalPendiente: state.totalPendiente,
+                  totalMora: state.totalMora,
+                  totalFavor: state.totalSaldosAFavor,
+                  periodoLabel: filter.label,
+                  mercados: mercados,
+                  cobros: state.cobros,
+                  municipalidadNombre: municipalidadNombre,
+                );
 
             if (kIsWeb) {
-              await descargarPdfWeb(bytes, 'Resumen_Operativo_${filter.label}.pdf');
+              await descargarPdfWeb(
+                bytes,
+                'Resumen_Operativo_${filter.label}.pdf',
+              );
             } else {
               await Printing.layoutPdf(
                 onLayout: (_) async => bytes,
@@ -101,12 +114,18 @@ class ResumenReportesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPeriodSelector(BuildContext context, WidgetRef ref, DashboardFilterState filter) {
+  Widget _buildPeriodSelector(
+    BuildContext context,
+    WidgetRef ref,
+    DashboardFilterState filter,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(76),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withAlpha(76),
         borderRadius: BorderRadius.circular(12),
       ),
       child: SingleChildScrollView(
@@ -117,22 +136,30 @@ class ResumenReportesScreen extends ConsumerWidget {
             _PeriodTab(
               label: 'Hoy',
               isSelected: filter.period == DashboardPeriod.hoy,
-              onTap: () => ref.read(dashboardFilterProvider.notifier).setPeriod(DashboardPeriod.hoy),
+              onTap: () => ref
+                  .read(dashboardFilterProvider.notifier)
+                  .setPeriod(DashboardPeriod.hoy),
             ),
             _PeriodTab(
               label: 'Semana',
               isSelected: filter.period == DashboardPeriod.semana,
-              onTap: () => ref.read(dashboardFilterProvider.notifier).setPeriod(DashboardPeriod.semana),
+              onTap: () => ref
+                  .read(dashboardFilterProvider.notifier)
+                  .setPeriod(DashboardPeriod.semana),
             ),
             _PeriodTab(
               label: 'Mes',
               isSelected: filter.period == DashboardPeriod.mes,
-              onTap: () => ref.read(dashboardFilterProvider.notifier).setPeriod(DashboardPeriod.mes),
+              onTap: () => ref
+                  .read(dashboardFilterProvider.notifier)
+                  .setPeriod(DashboardPeriod.mes),
             ),
             _PeriodTab(
               label: 'Año',
               isSelected: filter.period == DashboardPeriod.anio,
-              onTap: () => ref.read(dashboardFilterProvider.notifier).setPeriod(DashboardPeriod.anio),
+              onTap: () => ref
+                  .read(dashboardFilterProvider.notifier)
+                  .setPeriod(DashboardPeriod.anio),
             ),
           ],
         ),
@@ -143,9 +170,13 @@ class ResumenReportesScreen extends ConsumerWidget {
   Widget _buildMetricsGrid(BuildContext context, ReportesResumenState state) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 1200 ? 4 : (constraints.maxWidth > 700 ? 2 : 1);
+        final crossAxisCount = constraints.maxWidth > 1200
+            ? 4
+            : (constraints.maxWidth > 700 ? 2 : 1);
         final spacing = 20.0;
-        final itemWidth = (constraints.maxWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+        final itemWidth =
+            (constraints.maxWidth - (spacing * (crossAxisCount - 1))) /
+            crossAxisCount;
 
         return Wrap(
           spacing: spacing,
@@ -197,7 +228,6 @@ class ResumenReportesScreen extends ConsumerWidget {
       },
     );
   }
-
 }
 
 class _PeriodTab extends StatelessWidget {
@@ -227,7 +257,9 @@ class _PeriodTab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface.withAlpha(178),
+            color: isSelected
+                ? colorScheme.onPrimary
+                : colorScheme.onSurface.withAlpha(178),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -235,4 +267,3 @@ class _PeriodTab extends StatelessWidget {
     );
   }
 }
-
