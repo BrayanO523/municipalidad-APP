@@ -175,6 +175,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                 Expanded(
                   child: Focus(
                     focusNode: _tableFocusNode,
+                    autofocus: true,
                     onKeyEvent: (node, event) {
                       if (event is KeyDownEvent || event is KeyRepeatEvent) {
                         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
@@ -277,7 +278,7 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                                       },
                                     ),
                                   ),
-                                  if (state.totalPaginas > 0)
+                                  if (!isWide && state.totalPaginas > 0)
                                     _PaginationBar(
                                       currentPage: state.paginaActual,
                                       totalPages: state.totalPaginas,
@@ -305,14 +306,35 @@ class _SaldosFavorScreenState extends ConsumerState<SaldosFavorScreen> {
                               ),
                               Expanded(
                                 flex: 9,
-                                child: _localSeleccionado != null
-                                    ? LocalDetallePanel(
-                                        local: _localSeleccionado!,
-                                        onClose: () => setState(
-                                          () => _localSeleccionado = null,
-                                        ),
-                                      )
-                                    : const PanelDetalleVacio(),
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      child: _localSeleccionado != null
+                                          ? LocalDetallePanel(
+                                              local: _localSeleccionado!,
+                                              onClose: () => setState(
+                                                () => _localSeleccionado = null,
+                                              ),
+                                            )
+                                          : const PanelDetalleVacio(),
+                                    ),
+                                    if (state.totalPaginas > 0)
+                                      _PaginationBar(
+                                        currentPage: state.paginaActual,
+                                        totalPages: state.totalPaginas,
+                                        onPrev: state.paginaActual > 1
+                                            ? () => notifier.irAPaginaAnterior()
+                                            : null,
+                                        onNext:
+                                            state.paginaActual <
+                                                state.totalPaginas
+                                            ? () =>
+                                                  notifier.irAPaginaSiguiente()
+                                            : null,
+                                        isCargando: state.cargando,
+                                      ),
+                                  ],
+                                ),
                               ),
                             ],
                           ],

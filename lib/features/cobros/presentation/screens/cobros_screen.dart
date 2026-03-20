@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import 'package:printing/printing.dart';
@@ -760,6 +761,13 @@ class _CobrosFullTable extends ConsumerStatefulWidget {
 
 class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
   Cobro? _cobroSeleccionado;
+  final FocusNode _tableFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _tableFocusNode.dispose();
+    super.dispose();
+  }
 
   String nombreLocal(String? id, List<Local> locales) {
     if (id == null) return '-';
@@ -806,6 +814,30 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     final dias = (c.nuevoSaldoFavor! / (c.cuotaDiaria ?? 1)).floor();
     final inicioFavor = c.fecha?.add(const Duration(days: 1)) ?? DateTime.now();
     return DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+  }
+
+  void _moverSeleccion(int delta, List<Cobro> cobrosActuales) {
+    if (cobrosActuales.isEmpty) return;
+
+    if (_cobroSeleccionado == null) {
+      if (delta > 0) {
+        setState(() => _cobroSeleccionado = cobrosActuales.first);
+      }
+      return;
+    }
+
+    final currentIndex = cobrosActuales.indexWhere(
+      (c) => _esMismoCobro(c, _cobroSeleccionado!),
+    );
+    if (currentIndex == -1) {
+      setState(() => _cobroSeleccionado = cobrosActuales.first);
+      return;
+    }
+
+    final nextIndex = currentIndex + delta;
+    if (nextIndex >= 0 && nextIndex < cobrosActuales.length) {
+      setState(() => _cobroSeleccionado = cobrosActuales[nextIndex]);
+    }
   }
 
   void _onCobroTapped(
@@ -878,6 +910,9 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
     final colorScheme = Theme.of(context).colorScheme;
     final isWide = MediaQuery.of(context).size.width > 900;
+    final totalPaginas = widget.state.hayMas
+        ? widget.state.paginaActual + 1
+        : widget.state.paginaActual;
     Cobro? cobroSeleccionado;
     if (_cobroSeleccionado != null) {
       for (final c in filtered) {
@@ -888,15 +923,35 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
       }
     }
 
-    return Card(
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        children: [
+    return Focus(
+      focusNode: _tableFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent || event is KeyRepeatEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            _moverSeleccion(1, filtered);
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            _moverSeleccion(-1, filtered);
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: () => _tableFocusNode.requestFocus(),
+        child: Card(
+          elevation: 2,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
           if (kDebugMode && widget.state.seleccionados.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -1429,33 +1484,82 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                     ),
                     Expanded(
                       flex: 9,
-                      child: selectedCobro != null
-                          ? _CobroDetallePanel(
-                              cobro: selectedCobro,
-                              localNombre: nombreLocal(
-                                selectedCobro.localId,
-                                locales,
-                              ),
-                              mercadoNombre: nombreMercado(
-                                selectedCobro.mercadoId,
-                                mercados,
-                              ),
-                              cobradorNombre: nombreCobrador(
-                                selectedCobro.cobradorId,
-                                usuarios,
-                              ),
-                              periodoAbonado: _periodoAbonadoStr(selectedCobro),
-                              periodoFavor: _periodoFavorStr(selectedCobro),
-                              onImprimir: () => _imprimirCobro(selectedCobro),
-                              onEliminar: () => _confirmarEliminacion(
-                                context,
-                                ref,
-                                selectedCobro,
-                              ),
-                              onClose: () =>
-                                  setState(() => _cobroSeleccionado = null),
-                            )
-                          : const _CobroDetalleVacio(),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: selectedCobro != null
+                                ? _CobroDetallePanel(
+                                    cobro: selectedCobro,
+                                    localNombre: nombreLocal(
+                                      selectedCobro.localId,
+                                      locales,
+                                    ),
+                                    mercadoNombre: nombreMercado(
+                                      selectedCobro.mercadoId,
+                                      mercados,
+                                    ),
+                                    cobradorNombre: nombreCobrador(
+                                      selectedCobro.cobradorId,
+                                      usuarios,
+                                    ),
+                                    periodoAbonado: _periodoAbonadoStr(
+                                      selectedCobro,
+                                    ),
+                                    periodoFavor: _periodoFavorStr(
+                                      selectedCobro,
+                                    ),
+                                    onImprimir: () =>
+                                        _imprimirCobro(selectedCobro),
+                                    onEliminar: () => _confirmarEliminacion(
+                                      context,
+                                      ref,
+                                      selectedCobro,
+                                    ),
+                                    onClose: () => setState(
+                                      () => _cobroSeleccionado = null,
+                                    ),
+                                    showActions: false,
+                                  )
+                                : const _CobroDetalleVacio(),
+                          ),
+                          if (widget.state.cobros.isNotEmpty)
+                            _CobroPanelFooter(
+                              currentPage: widget.state.paginaActual,
+                              totalPages: totalPaginas,
+                              onPrev: widget.state.paginaActual > 1
+                                  ? () {
+                                      setState(() => _cobroSeleccionado = null);
+                                      ref
+                                          .read(
+                                            cobrosPaginadosProvider.notifier,
+                                          )
+                                          .irAPaginaAnterior();
+                                    }
+                                  : null,
+                              onNext: widget.state.hayMas
+                                  ? () {
+                                      setState(() => _cobroSeleccionado = null);
+                                      ref
+                                          .read(
+                                            cobrosPaginadosProvider.notifier,
+                                          )
+                                          .irAPaginaSiguiente();
+                                    }
+                                  : null,
+                              isCargando: widget.state.cargando,
+                              onEditar: selectedCobro == null
+                                  ? null
+                                  : () => _editarCobro(context, selectedCobro),
+                              onEliminar: selectedCobro == null
+                                  ? null
+                                  : () => _confirmarEliminacion(
+                                      context,
+                                      ref,
+                                      selectedCobro,
+                                    ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                 );
@@ -1463,10 +1567,11 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             ),
           ),
 
-          // Controles de paginación.
-          if (widget.state.cobros.isNotEmpty)
+          // En desktop la paginación vive dentro del panel derecho.
+          if (widget.state.cobros.isNotEmpty && !isWide)
             _PaginationBar(
               currentPage: widget.state.paginaActual,
+              totalPages: totalPaginas,
               onPrev: widget.state.paginaActual > 1
                   ? () {
                       setState(() => _cobroSeleccionado = null);
@@ -1485,7 +1590,9 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                   : null,
               isCargando: widget.state.cargando,
             ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1496,6 +1603,63 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
       ref: ref,
       cobro: cobro,
     );
+  }
+
+  Future<void> _editarCobro(BuildContext context, Cobro cobro) async {
+    if (cobro.id == null) return;
+    final controller = TextEditingController(text: cobro.observaciones ?? '');
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final guardar = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Editar observaciones'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Observaciones',
+            hintText: 'Ingresa el detalle del cobro',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (guardar != true) return;
+
+    try {
+      await ref.read(cobroDatasourceProvider).actualizar(cobro.id!, {
+        'observaciones': controller.text.trim(),
+      });
+      ref.read(cobrosPaginadosProvider.notifier).recargar();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Observaciones actualizadas correctamente.'),
+          backgroundColor: colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el cobro: $e'),
+          backgroundColor: colorScheme.error,
+        ),
+      );
+    }
   }
 
   void _confirmarEliminacion(BuildContext context, WidgetRef ref, Cobro c) {
@@ -1595,6 +1759,7 @@ class _CobroDetallePanel extends StatelessWidget {
   final VoidCallback onImprimir;
   final VoidCallback onEliminar;
   final VoidCallback onClose;
+  final bool showActions;
 
   const _CobroDetallePanel({
     required this.cobro,
@@ -1606,6 +1771,7 @@ class _CobroDetallePanel extends StatelessWidget {
     required this.onImprimir,
     required this.onEliminar,
     required this.onClose,
+    this.showActions = true,
   });
 
   @override
@@ -1639,6 +1805,11 @@ class _CobroDetallePanel extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.print_rounded),
+                      onPressed: onImprimir,
+                      tooltip: 'Imprimir',
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
@@ -1757,33 +1928,27 @@ class _CobroDetallePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!compact) const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onImprimir,
-                        icon: const Icon(Icons.print_rounded, size: 18),
-                        label: const Text('Imprimir'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onEliminar,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: context.semanticColors.danger,
-                          foregroundColor: context.semanticColors.onDanger,
+                if (showActions) ...[
+                  if (!compact) const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: onEliminar,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: context.semanticColors.danger,
+                            foregroundColor: context.semanticColors.onDanger,
+                          ),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                          ),
+                          label: const Text('Eliminar'),
                         ),
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 18,
-                        ),
-                        label: const Text('Eliminar'),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -1874,14 +2039,109 @@ class _CobroDetalleVacio extends StatelessWidget {
   }
 }
 
+class _CobroPanelFooter extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+  final VoidCallback? onEditar;
+  final VoidCallback? onEliminar;
+
+  const _CobroPanelFooter({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+    this.onEditar,
+    this.onEliminar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          if (onEditar != null) ...[
+            OutlinedButton.icon(
+              onPressed: onEditar,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (onEliminar != null) ...[
+            FilledButton.icon(
+              onPressed: onEliminar,
+              style: FilledButton.styleFrom(
+                backgroundColor: context.semanticColors.danger,
+                foregroundColor: context.semanticColors.onDanger,
+              ),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Eliminar'),
+            ),
+            const SizedBox(width: 12),
+          ],
+          const Spacer(),
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Página anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Página ${currentPage > totalPages ? totalPages : currentPage} de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Página siguiente',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
+  final int totalPages;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final bool isCargando;
 
   const _PaginationBar({
     required this.currentPage,
+    required this.totalPages,
     required this.onPrev,
     required this.onNext,
     required this.isCargando,
@@ -1915,7 +2175,7 @@ class _PaginationBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'Página $currentPage',
+            'Página ${currentPage > totalPages ? totalPages : currentPage} de $totalPages',
             style: TextStyle(
               color: Theme.of(
                 context,

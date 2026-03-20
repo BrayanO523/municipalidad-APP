@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
@@ -31,6 +32,7 @@ class _IncidenciasAdminScreenState
   String? _sortColumn;
   bool _sortAsc = true;
   IncidenciaUI? _incidenciaSeleccionada;
+  final FocusNode _tableFocusNode = FocusNode();
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
@@ -48,6 +50,7 @@ class _IncidenciasAdminScreenState
   void dispose() {
     _searchDebounce?.cancel();
     _searchCtrl.dispose();
+    _tableFocusNode.dispose();
     super.dispose();
   }
 
@@ -178,6 +181,30 @@ class _IncidenciasAdminScreenState
       if (ts == null) return false;
       return !ts.isBefore(inicio) && !ts.isAfter(fin);
     }).toList();
+  }
+
+  void _moverSeleccion(int delta, List<IncidenciaUI> incidenciasActuales) {
+    if (incidenciasActuales.isEmpty) return;
+
+    if (_incidenciaSeleccionada == null) {
+      if (delta > 0) {
+        setState(() => _incidenciaSeleccionada = incidenciasActuales.first);
+      }
+      return;
+    }
+
+    final currentIndex = incidenciasActuales.indexWhere(
+      (inc) => _mismaIncidencia(inc, _incidenciaSeleccionada!),
+    );
+    if (currentIndex == -1) {
+      setState(() => _incidenciaSeleccionada = incidenciasActuales.first);
+      return;
+    }
+
+    final nextIndex = currentIndex + delta;
+    if (nextIndex >= 0 && nextIndex < incidenciasActuales.length) {
+      setState(() => _incidenciaSeleccionada = incidenciasActuales[nextIndex]);
+    }
   }
 
   bool _mismaIncidencia(IncidenciaUI a, IncidenciaUI b) {
@@ -637,20 +664,38 @@ class _IncidenciasAdminScreenState
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: Card(
-                    elevation: 2,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                  child: Focus(
+                    focusNode: _tableFocusNode,
+                    autofocus: true,
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                          _moverSeleccion(1, incidenciasPagina);
+                          return KeyEventResult.handled;
+                        }
+                        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                          _moverSeleccion(-1, incidenciasPagina);
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: GestureDetector(
+                      onTap: () => _tableFocusNode.requestFocus(),
+                      child: Card(
+                        elevation: 2,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                         Expanded(
                           flex: 13,
                           child: Column(
@@ -731,7 +776,7 @@ class _IncidenciasAdminScreenState
                                   },
                                 ),
                               ),
-                              if (incidenciasFiltradas.isNotEmpty)
+                              if (!isWide && incidenciasFiltradas.isNotEmpty)
                                 _PaginationBar(
                                   currentPage: paginaActual,
                                   totalPages: totalPaginas,
@@ -762,24 +807,66 @@ class _IncidenciasAdminScreenState
                           ),
                           Expanded(
                             flex: 9,
-                            child: _incidenciaSeleccionada != null
-                                ? _IncidenciaDetallePanel(
-                                    incidencia: _incidenciaSeleccionada!,
-                                    tipoIncidenciaLabel: _tipoIncidenciaLabel,
-                                    onEdit: () => _abrirFormularioIncidencia(
-                                      incidencia: _incidenciaSeleccionada!,
-                                    ),
-                                    onDelete: () => _confirmarEliminar(
-                                      _incidenciaSeleccionada!,
-                                    ),
-                                    onClose: () => setState(
-                                      () => _incidenciaSeleccionada = null,
-                                    ),
-                                  )
-                                : const _PanelDetalleIncidenciaVacio(),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: _incidenciaSeleccionada != null
+                                      ? _IncidenciaDetallePanel(
+                                          incidencia: _incidenciaSeleccionada!,
+                                          tipoIncidenciaLabel:
+                                              _tipoIncidenciaLabel,
+                                          onEdit: () =>
+                                              _abrirFormularioIncidencia(
+                                                incidencia:
+                                                    _incidenciaSeleccionada!,
+                                              ),
+                                          onDelete: () => _confirmarEliminar(
+                                            _incidenciaSeleccionada!,
+                                          ),
+                                          onClose: () => setState(
+                                            () =>
+                                                _incidenciaSeleccionada = null,
+                                          ),
+                                          showActions: false,
+                                        )
+                                      : const _PanelDetalleIncidenciaVacio(),
+                                ),
+                                if (incidenciasFiltradas.isNotEmpty)
+                                  _IncidenciaPanelFooter(
+                                    currentPage: paginaActual,
+                                    totalPages: totalPaginas,
+                                    onPrev: paginaActual > 1
+                                        ? () => setState(() {
+                                            _paginaActual = paginaActual - 1;
+                                            _incidenciaSeleccionada = null;
+                                          })
+                                        : null,
+                                    onNext: paginaActual < totalPaginas
+                                        ? () => setState(() {
+                                            _paginaActual = paginaActual + 1;
+                                            _incidenciaSeleccionada = null;
+                                          })
+                                        : null,
+                                    isCargando: state.isLoading,
+                                    onEdit: _incidenciaSeleccionada == null
+                                        ? null
+                                        : () => _abrirFormularioIncidencia(
+                                            incidencia:
+                                                _incidenciaSeleccionada!,
+                                          ),
+                                    onDelete: _incidenciaSeleccionada == null
+                                        ? null
+                                        : () => _confirmarEliminar(
+                                            _incidenciaSeleccionada!,
+                                          ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1395,6 +1482,7 @@ class _IncidenciaDetallePanel extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onClose;
+  final bool showActions;
 
   const _IncidenciaDetallePanel({
     required this.incidencia,
@@ -1402,6 +1490,7 @@ class _IncidenciaDetallePanel extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onClose,
+    this.showActions = true,
   });
 
   @override
@@ -1477,30 +1566,32 @@ class _IncidenciaDetallePanel extends StatelessWidget {
               ),
               child: Text(comentario.isEmpty ? '-' : comentario),
             ),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Editar'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onDelete,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: context.semanticColors.danger,
-                      foregroundColor: context.semanticColors.onDanger,
+            if (showActions) ...[
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Editar'),
                     ),
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Eliminar'),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onDelete,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: context.semanticColors.danger,
+                        foregroundColor: context.semanticColors.onDanger,
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      label: const Text('Eliminar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -1611,6 +1702,99 @@ class _TypeChip extends StatelessWidget {
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
+      ),
+    );
+  }
+}
+
+class _IncidenciaPanelFooter extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _IncidenciaPanelFooter({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          if (onEdit != null) ...[
+            OutlinedButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (onDelete != null) ...[
+            FilledButton.icon(
+              onPressed: onDelete,
+              style: FilledButton.styleFrom(
+                backgroundColor: context.semanticColors.danger,
+                foregroundColor: context.semanticColors.onDanger,
+              ),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Eliminar'),
+            ),
+            const SizedBox(width: 12),
+          ],
+          const Spacer(),
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Página anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Página $currentPage de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Página siguiente',
+          ),
+        ],
       ),
     );
   }

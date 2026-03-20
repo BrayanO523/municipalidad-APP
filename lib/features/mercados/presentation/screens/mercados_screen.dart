@@ -95,20 +95,20 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
       switch (_sortColumn) {
         case 'Nombre':
           cmp = (a.nombre ?? '').toLowerCase().compareTo(
-                (b.nombre ?? '').toLowerCase(),
-              );
+            (b.nombre ?? '').toLowerCase(),
+          );
         case 'Ubicacion':
           cmp = (a.ubicacion ?? '').toLowerCase().compareTo(
-                (b.ubicacion ?? '').toLowerCase(),
-              );
+            (b.ubicacion ?? '').toLowerCase(),
+          );
         case 'Estado':
           final aVal = (a.activo ?? false) ? 1 : 0;
           final bVal = (b.activo ?? false) ? 1 : 0;
           cmp = aVal.compareTo(bVal);
         case 'Fecha':
           cmp = (a.creadoEn ?? DateTime(0)).compareTo(
-                b.creadoEn ?? DateTime(0),
-              );
+            b.creadoEn ?? DateTime(0),
+          );
         default:
           cmp = 0;
       }
@@ -870,34 +870,10 @@ class _MercadosTable extends StatelessWidget {
                         (m.nombre == null || m.nombre!.trim().isEmpty)
                         ? '-'
                         : m.nombre!.trim();
-                    final initial = nombre == '-'
-                        ? 'M'
-                        : nombre.substring(0, 1).toUpperCase();
 
                     return DataRow(
                       cells: [
-                        DataCell(
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: colorScheme.primary.withAlpha(
-                                  26,
-                                ),
-                                child: Text(
-                                  initial,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(nombre),
-                            ],
-                          ),
-                        ),
+                        DataCell(Text(nombre)),
                         DataCell(
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 260),

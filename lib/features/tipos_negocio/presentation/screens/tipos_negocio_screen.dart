@@ -7,7 +7,6 @@ import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/id_normalizer.dart';
-import '../../../../core/widgets/scrollable_table.dart';
 import '../../../../core/widgets/sortable_column.dart';
 import '../../data/models/tipo_negocio_model.dart';
 import '../../domain/entities/tipo_negocio.dart';
@@ -20,11 +19,14 @@ class TiposNegocioScreen extends ConsumerStatefulWidget {
 }
 
 class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
+  static const int _pageSize = 20;
+
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
-  String _searchColumn = 'Nombre';
+  String _searchColumn = 'Todos';
   String _estadoFiltro = 'Todos';
+  int _paginaActual = 1;
   String? _sortColumn;
   bool _sortAsc = true;
 
@@ -39,7 +41,10 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
     _debounce?.cancel();
     _debounce = Timer(
       const Duration(milliseconds: 350),
-      () => setState(() => _searchQuery = value),
+      () => setState(() {
+        _searchQuery = value;
+        _paginaActual = 1;
+      }),
     );
   }
 
@@ -48,8 +53,9 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
     _searchCtrl.clear();
     setState(() {
       _searchQuery = '';
-      _searchColumn = 'Nombre';
+      _searchColumn = 'Todos';
       _estadoFiltro = 'Todos';
+      _paginaActual = 1;
       _sortColumn = null;
       _sortAsc = true;
     });
@@ -79,20 +85,20 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
       switch (_sortColumn) {
         case 'Nombre':
           cmp = (a.nombre ?? '').toLowerCase().compareTo(
-                (b.nombre ?? '').toLowerCase(),
-              );
+            (b.nombre ?? '').toLowerCase(),
+          );
         case 'Descripcion':
           cmp = (a.descripcion ?? '').toLowerCase().compareTo(
-                (b.descripcion ?? '').toLowerCase(),
-              );
+            (b.descripcion ?? '').toLowerCase(),
+          );
         case 'Estado':
           final aVal = (a.activo ?? false) ? 1 : 0;
           final bVal = (b.activo ?? false) ? 1 : 0;
           cmp = aVal.compareTo(bVal);
         case 'Fecha':
           cmp = (a.creadoEn ?? DateTime(0)).compareTo(
-                b.creadoEn ?? DateTime(0),
-              );
+            b.creadoEn ?? DateTime(0),
+          );
         default:
           cmp = 0;
       }
@@ -119,6 +125,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _TiposHeader(
+                  paginaActual: _paginaActual,
                   totalRegistros: totalRegistros,
                   searchController: _searchCtrl,
                   onSearch: _onSearchChanged,
@@ -126,70 +133,136 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                   selectedColumn: _searchColumn,
                   onColumnChanged: (val) {
                     if (val != null) {
-                      setState(() => _searchColumn = val);
+                      setState(() {
+                        _searchColumn = val;
+                        _paginaActual = 1;
+                      });
                     }
                   },
                   estadoFiltro: _estadoFiltro,
                   onEstadoChanged: (val) {
-                    if (val != null) setState(() => _estadoFiltro = val);
+                    if (val != null) {
+                      setState(() {
+                        _estadoFiltro = val;
+                        _paginaActual = 1;
+                      });
+                    }
                   },
-                  onReload: () => ref.invalidate(tiposNegocioProvider),
+                  onReload: () {
+                    setState(() => _paginaActual = 1);
+                    ref.invalidate(tiposNegocioProvider);
+                  },
                   onResetFilters: _limpiarFiltros,
                 ),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: tiposNegocio.when(
-                    data: (list) {
-                      final query = _searchQuery.trim().toLowerCase();
-                      var filtered = list.where((t) {
-                        if (_estadoFiltro == 'Activo' && t.activo != true) {
-                          return false;
-                        }
-                        if (_estadoFiltro == 'Inactivo' && t.activo == true) {
-                          return false;
-                        }
-                        if (query.isEmpty) return true;
-                        if (_searchColumn == 'Nombre') {
-                          return (t.nombre ?? '').toLowerCase().contains(query);
-                        }
-                        if (_searchColumn == 'Descripcion') {
-                          return (t.descripcion ?? '').toLowerCase().contains(
-                            query,
+                  child: Card(
+                    elevation: 2,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: tiposNegocio.when(
+                      data: (list) {
+                        final query = _searchQuery.trim().toLowerCase();
+                        var filtered = list.where((t) {
+                          if (_estadoFiltro == 'Activo' && t.activo != true) {
+                            return false;
+                          }
+                          if (_estadoFiltro == 'Inactivo' && t.activo == true) {
+                            return false;
+                          }
+                          if (query.isEmpty) return true;
+                          if (_searchColumn == 'Nombre') {
+                            return (t.nombre ?? '').toLowerCase().contains(
+                              query,
+                            );
+                          }
+                          if (_searchColumn == 'Descripcion') {
+                            return (t.descripcion ?? '').toLowerCase().contains(
+                              query,
+                            );
+                          }
+                          return (t.nombre ?? '').toLowerCase().contains(
+                                query,
+                              ) ||
+                              (t.descripcion ?? '').toLowerCase().contains(
+                                query,
+                              );
+                        }).toList();
+
+                        filtered = _applySort(filtered);
+
+                        if (filtered.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'No se encontraron tipos de negocio',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                              ),
+                            ),
                           );
                         }
-                        return (t.nombre ?? '').toLowerCase().contains(query) ||
-                            (t.descripcion ?? '').toLowerCase().contains(query);
-                      }).toList();
-
-                      filtered = _applySort(filtered);
-
-                      if (filtered.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No se encontraron tipos de negocio',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.54),
-                            ),
-                          ),
+                        final totalPaginas = (filtered.length / _pageSize)
+                            .ceil();
+                        final paginaActual = _paginaActual.clamp(
+                          1,
+                          totalPaginas,
                         );
-                      }
-                      return _TiposTable(
-                        tipos: filtered,
-                        sortColumn: _sortColumn,
-                        sortAsc: _sortAsc,
-                        onSort: _toggleSort,
-                        onEdit: (t) => _showFormDialog(context, tipo: t),
-                        onDelete: (t) => _confirmDelete(context, t),
-                      );
-                    },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(
-                      child: Text(
-                        'Error: $e',
-                        style: TextStyle(color: context.semanticColors.danger),
+                        final inicio = (paginaActual - 1) * _pageSize;
+                        final fin = (inicio + _pageSize).clamp(
+                          0,
+                          filtered.length,
+                        );
+                        final tiposPagina = filtered.sublist(inicio, fin);
+
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: _TiposTable(
+                                tipos: tiposPagina,
+                                sortColumn: _sortColumn,
+                                sortAsc: _sortAsc,
+                                onSort: _toggleSort,
+                                onEdit: (t) =>
+                                    _showFormDialog(context, tipo: t),
+                                onDelete: (t) => _confirmDelete(context, t),
+                              ),
+                            ),
+                            _PaginationBar(
+                              currentPage: paginaActual,
+                              totalPages: totalPaginas,
+                              onPrev: paginaActual > 1
+                                  ? () => setState(
+                                      () => _paginaActual = paginaActual - 1,
+                                    )
+                                  : null,
+                              onNext: paginaActual < totalPaginas
+                                  ? () => setState(
+                                      () => _paginaActual = paginaActual + 1,
+                                    )
+                                  : null,
+                              isCargando: false,
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Text(
+                          'Error: $e',
+                          style: TextStyle(
+                            color: context.semanticColors.danger,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -230,6 +303,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
     if (confirm == true) {
       final ds = ref.read(tipoNegocioDatasourceProvider);
       await ds.eliminar(tipo.id!);
+      if (mounted) setState(() => _paginaActual = 1);
       ref.invalidate(tiposNegocioProvider);
     }
   }
@@ -299,6 +373,9 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
                 } else {
                   await ds.crear(docId, model.toJson());
                 }
+                if (mounted) {
+                  setState(() => _paginaActual = 1);
+                }
                 ref.invalidate(tiposNegocioProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
@@ -312,6 +389,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
 }
 
 class _TiposHeader extends StatelessWidget {
+  final int paginaActual;
   final int totalRegistros;
   final TextEditingController searchController;
   final ValueChanged<String> onSearch;
@@ -324,6 +402,7 @@ class _TiposHeader extends StatelessWidget {
   final VoidCallback onResetFilters;
 
   const _TiposHeader({
+    required this.paginaActual,
     required this.totalRegistros,
     required this.searchController,
     required this.onSearch,
@@ -424,7 +503,7 @@ class _TiposHeader extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        '$totalRegistros registros',
+                        'Pagina $paginaActual - $totalRegistros registros',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           color: colorScheme.onSurface.withValues(alpha: 0.62),
@@ -469,7 +548,7 @@ class _TiposHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 180,
+                    width: 200,
                     child: _SearchColumnDropdown(
                       value: selectedColumn,
                       onChanged: onColumnChanged,
@@ -569,6 +648,7 @@ class _SearchColumnDropdown extends StatelessWidget {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       items: const [
+        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
         DropdownMenuItem(value: 'Nombre', child: Text('Nombre')),
         DropdownMenuItem(value: 'Descripcion', child: Text('Descripcion')),
       ],
@@ -654,82 +734,216 @@ class _TiposTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ScrollableTable(
-        child: DataTable(
-          columns: [
-            DataColumn(
-              label: SortableColumn(
-                label: 'Nombre',
-                isActive: sortColumn == 'Nombre',
-                ascending: sortAsc,
-                onTap: () => onSort('Nombre'),
+    final colorScheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const sidePadding = 16.0;
+        final availableWidth = constraints.maxWidth;
+        final minTableWidth = availableWidth < 980 ? 980.0 : availableWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minTableWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                sidePadding,
+                8,
+                sidePadding,
+                8,
               ),
-            ),
-            DataColumn(
-              label: SortableColumn(
-                label: 'Descripcion',
-                isActive: sortColumn == 'Descripcion',
-                ascending: sortAsc,
-                onTap: () => onSort('Descripcion'),
-              ),
-            ),
-            DataColumn(
-              label: SortableColumn(
-                label: 'Estado',
-                isActive: sortColumn == 'Estado',
-                ascending: sortAsc,
-                onTap: () => onSort('Estado'),
-              ),
-            ),
-            DataColumn(
-              label: SortableColumn(
-                label: 'Fecha creacion',
-                isActive: sortColumn == 'Fecha',
-                ascending: sortAsc,
-                onTap: () => onSort('Fecha'),
-              ),
-            ),
-            const DataColumn(label: Text('Acciones')),
-          ],
-          rows: tipos.map((t) {
-            return DataRow(
-              cells: [
-                DataCell(Text(t.nombre ?? '-')),
-                DataCell(Text(t.descripcion ?? '-')),
-                DataCell(_ActiveChip(active: t.activo ?? false)),
-                DataCell(
-                  Text(
-                    t.creadoEn != null
-                        ? DateFormatter.formatDate(t.creadoEn!)
-                        : '-',
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    colorScheme.primary.withAlpha(13),
                   ),
-                ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_rounded, size: 18),
-                        onPressed: () => onEdit(t),
-                        tooltip: 'Editar',
+                  horizontalMargin: 16,
+                  columnSpacing: 24,
+                  columns: [
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Tipo de negocio',
+                        isActive: sortColumn == 'Nombre',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Nombre'),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_rounded,
-                          size: 18,
-                          color: context.semanticColors.danger,
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Descripcion',
+                        isActive: sortColumn == 'Descripcion',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Descripcion'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Estado',
+                        isActive: sortColumn == 'Estado',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Estado'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: SortableColumn(
+                        label: 'Fecha creacion',
+                        isActive: sortColumn == 'Fecha',
+                        ascending: sortAsc,
+                        onTap: () => onSort('Fecha'),
+                      ),
+                    ),
+                    const DataColumn(label: Text('Acciones')),
+                  ],
+                  rows: tipos.map((t) {
+                    final nombre =
+                        (t.nombre == null || t.nombre!.trim().isEmpty)
+                        ? '-'
+                        : t.nombre!.trim();
+
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(nombre)),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 260),
+                            child: Text(
+                              (t.descripcion == null ||
+                                      t.descripcion!.trim().isEmpty)
+                                  ? '-'
+                                  : t.descripcion!.trim(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                        onPressed: () => onDelete(t),
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
-                  ),
+                        DataCell(_ActiveChip(active: t.activo ?? false)),
+                        DataCell(
+                          Text(
+                            t.creadoEn != null
+                                ? DateFormatter.formatDate(t.creadoEn!)
+                                : '-',
+                          ),
+                        ),
+                        DataCell(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.edit_rounded, size: 16),
+                                label: const Text('Editar'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  foregroundColor: colorScheme.primary,
+                                ),
+                                onPressed: () => onEdit(t),
+                              ),
+                              OutlinedButton.icon(
+                                icon: Icon(
+                                  Icons.delete_rounded,
+                                  size: 16,
+                                  color: context.semanticColors.danger,
+                                ),
+                                label: Text(
+                                  'Eliminar',
+                                  style: TextStyle(
+                                    color: context.semanticColors.danger,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  side: BorderSide(
+                                    color: context.semanticColors.danger
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                ),
+                                onPressed: () => onDelete(t),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 ),
-              ],
-            );
-          }).toList(),
-        ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final bool isCargando;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.isCargando,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (isCargando)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: isCargando ? null : onPrev,
+            color: onPrev != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina anterior',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Pagina $currentPage de $totalPages',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.54),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: isCargando ? null : onNext,
+            color: onNext != null
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
+            tooltip: 'Pagina siguiente',
+          ),
+        ],
       ),
     );
   }
@@ -751,13 +965,18 @@ class _ActiveChip extends StatelessWidget {
           alpha: 0.15,
         ),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (active ? semantic.success : colorScheme.outline).withValues(
+            alpha: 0.35,
+          ),
+        ),
       ),
       child: Text(
         active ? 'Activo' : 'Inactivo',
         style: TextStyle(
           color: active ? semantic.success : colorScheme.outline,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
