@@ -58,14 +58,19 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                   searchController: _searchController,
                   selectedColumn: state.searchColumn,
                   selectedEstado: state.estadoFiltro,
-                  onSearch: (value) => ref.read(cobrosPaginadosProvider.notifier).buscar(value),
+                  onSearch: (value) =>
+                      ref.read(cobrosPaginadosProvider.notifier).buscar(value),
                   onColumnChanged: (value) {
                     if (value != null) {
-                      ref.read(cobrosPaginadosProvider.notifier).cambiarColumnaBusqueda(value);
+                      ref
+                          .read(cobrosPaginadosProvider.notifier)
+                          .cambiarColumnaBusqueda(value);
                     }
                   },
                   onEstadoChanged: (value) {
-                    ref.read(cobrosPaginadosProvider.notifier).cambiarFiltroEstado(value);
+                    ref
+                        .read(cobrosPaginadosProvider.notifier)
+                        .cambiarFiltroEstado(value);
                   },
                 ),
                 const SizedBox(height: 20),
@@ -83,7 +88,9 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                         )
                       : _CobrosFullTable(
                           state: state,
-                          onSort: (col) => ref.read(cobrosPaginadosProvider.notifier).cambiarOrdenamiento(col),
+                          onSort: (col) => ref
+                              .read(cobrosPaginadosProvider.notifier)
+                              .cambiarOrdenamiento(col),
                         ),
                 ),
               ],
@@ -191,7 +198,9 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
     widget.onSearch('');
     widget.onEstadoChanged('Todos');
     ref.read(cobrosPaginadosProvider.notifier).cambiarColumnaBusqueda('Local');
-    ref.read(cobrosPaginadosProvider.notifier).aplicarFiltros(
+    ref
+        .read(cobrosPaginadosProvider.notifier)
+        .aplicarFiltros(
           rango: DateTimeRange(start: hoy, end: hoy),
           cobradorId: null,
         );
@@ -289,6 +298,19 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
       case null:
         return 'Del ${DateFormatter.formatDate(rango.start)} al ${DateFormatter.formatDate(rango.end)}';
     }
+  }
+
+  String _getDescripcionPdf(DateTimeRange rango) {
+    final inicio = DateTime(
+      rango.start.year,
+      rango.start.month,
+      rango.start.day,
+    );
+    final fin = DateTime(rango.end.year, rango.end.month, rango.end.day);
+    if (inicio == fin) {
+      return 'Fecha del reporte: ${DateFormatter.formatDate(inicio)}';
+    }
+    return 'Rango del reporte: ${DateFormatter.formatDate(inicio)} al ${DateFormatter.formatDate(fin)}';
   }
 
   @override
@@ -611,14 +633,16 @@ class _CobrosHeaderState extends ConsumerState<_CobrosHeader> {
   }
 
   Future<void> _exportPdf() async {
-    final descripcion = _getDescripcion(_rangoActualOHoy());
+    final descripcion = _getDescripcionPdf(_rangoActualOHoy());
     final locales = ref.read(localesProvider).value ?? [];
     final mercados = ref.read(mercadosProvider).value ?? [];
+    final municipalidadNombre = ref.read(municipalidadActualProvider)?.nombre;
     final bytes = await ReportePdfGenerator.generarReporteCobros(
       cobros: widget.cobros,
       locales: locales,
       mercados: mercados,
       periodoLabel: descripcion,
+      municipalidadNombre: municipalidadNombre,
     );
     if (kIsWeb) {
       await descargarPdfWeb(bytes, 'Reporte_Cobros.pdf');
@@ -723,22 +747,20 @@ class _CobrosDateFilterButton extends StatelessWidget {
   }
 }
 
-
 // Tabla de cobros con paginación.
 class _CobrosFullTable extends ConsumerStatefulWidget {
   final CobrosPaginadosState state;
   final Function(String) onSort;
 
-  const _CobrosFullTable({
-    required this.state,
-    required this.onSort,
-  });
+  const _CobrosFullTable({required this.state, required this.onSort});
 
   @override
   ConsumerState<_CobrosFullTable> createState() => _CobrosFullTableState();
 }
 
 class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
+  Cobro? _cobroSeleccionado;
+
   String nombreLocal(String? id, List<Local> locales) {
     if (id == null) return '-';
     return locales
@@ -763,6 +785,86 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
         .firstWhere((_) => true, orElse: () => 'Desconocido');
   }
 
+  bool _esMismoCobro(Cobro a, Cobro b) {
+    if (a.id != null && b.id != null) return a.id == b.id;
+    return a.localId == b.localId &&
+        a.fecha == b.fecha &&
+        a.numeroBoletaFmt == b.numeroBoletaFmt;
+  }
+
+  String? _periodoAbonadoStr(Cobro c) {
+    if (c.montoAbonadoDeuda == null || c.montoAbonadoDeuda! <= 0) return null;
+    return DateRangeFormatter.formatearRangoAbonado(
+      c.fecha,
+      c.montoAbonadoDeuda!.toDouble(),
+      c.cuotaDiaria?.toDouble(),
+    );
+  }
+
+  String? _periodoFavorStr(Cobro c) {
+    if (c.nuevoSaldoFavor == null || c.nuevoSaldoFavor! <= 0) return null;
+    final dias = (c.nuevoSaldoFavor! / (c.cuotaDiaria ?? 1)).floor();
+    final inicioFavor = c.fecha?.add(const Duration(days: 1)) ?? DateTime.now();
+    return DateRangeFormatter.calcularPeriodoFuturo(inicioFavor, dias);
+  }
+
+  void _onCobroTapped(
+    BuildContext context,
+    Cobro cobro,
+    bool isWide,
+    List<Local> locales,
+    List<Mercado> mercados,
+    List<Usuario> usuarios,
+  ) {
+    if (isWide) {
+      setState(() {
+        if (_cobroSeleccionado != null &&
+            _esMismoCobro(_cobroSeleccionado!, cobro)) {
+          _cobroSeleccionado = null;
+        } else {
+          _cobroSeleccionado = cobro;
+        }
+      });
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.68,
+        minChildSize: 0.35,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, scrollCtrl) => SingleChildScrollView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.all(16),
+          child: _CobroDetallePanel(
+            cobro: cobro,
+            localNombre: nombreLocal(cobro.localId, locales),
+            mercadoNombre: nombreMercado(cobro.mercadoId, mercados),
+            cobradorNombre: nombreCobrador(cobro.cobradorId, usuarios),
+            periodoAbonado: _periodoAbonadoStr(cobro),
+            periodoFavor: _periodoFavorStr(cobro),
+            onImprimir: () {
+              Navigator.of(ctx).pop();
+              _imprimirCobro(cobro);
+            },
+            onEliminar: () {
+              Navigator.of(ctx).pop();
+              _confirmarEliminacion(context, ref, cobro);
+            },
+            onClose: () => Navigator.of(ctx).pop(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Escuchar activamente los datos maestros para que la tabla reaccione
@@ -770,9 +872,21 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
     final mercados = ref.watch(mercadosProvider).value ?? [];
     final usuarios = ref.watch(usuariosProvider).value ?? [];
 
-    final filtered = ref.read(cobrosPaginadosProvider.notifier).getCobrosFiltrados(locales, mercados, usuarios);
+    final filtered = ref
+        .read(cobrosPaginadosProvider.notifier)
+        .getCobrosFiltrados(locales, mercados, usuarios);
 
     final colorScheme = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.of(context).size.width > 900;
+    Cobro? cobroSeleccionado;
+    if (_cobroSeleccionado != null) {
+      for (final c in filtered) {
+        if (_esMismoCobro(c, _cobroSeleccionado!)) {
+          cobroSeleccionado = c;
+          break;
+        }
+      }
+    }
 
     return Card(
       elevation: 2,
@@ -874,219 +988,238 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                     );
                               }
 
-                              return Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: Theme.of(context).colorScheme.outline
-                                        .withValues(alpha: 0.15),
-                                  ),
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _onCobroTapped(
+                                  context,
+                                  c,
+                                  false,
+                                  locales,
+                                  mercados,
+                                  usuarios,
                                 ),
-                                child: Stack(
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Fila 1: Local + Monto
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  nombreLocal(
-                                                    c.localId,
-                                                    locales,
+                                child: Card(
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline
+                                          .withValues(alpha: 0.15),
+                                    ),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Fila 1: Local + Monto
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    nombreLocal(
+                                                      c.localId,
+                                                      locales,
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 14,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  c.estado == 'pendiente'
+                                                      ? CurrencyFormatter.format(
+                                                          (c.saldoPendiente ??
+                                                                  0)
+                                                              .toDouble(),
+                                                        )
+                                                      : CurrencyFormatter.format(
+                                                          (c.monto ?? 0)
+                                                              .toDouble(),
+                                                        ),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                    color:
+                                                        c.estado == 'pendiente'
+                                                        ? Theme.of(
+                                                            context,
+                                                          ).colorScheme.error
+                                                        : Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
                                                   ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                c.estado == 'pendiente'
-                                                    ? CurrencyFormatter.format(
-                                                        (c.saldoPendiente ?? 0)
-                                                            .toDouble(),
-                                                      )
-                                                    : CurrencyFormatter.format(
-                                                        (c.monto ?? 0)
-                                                            .toDouble(),
-                                                      ),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                  color: c.estado == 'pendiente'
-                                                      ? Theme.of(
-                                                          context,
-                                                        ).colorScheme.error
-                                                      : Theme.of(
-                                                          context,
-                                                        ).colorScheme.primary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          // Fila 2: Mercado + Cobrador
-                                          Text(
-                                            '${nombreMercado(c.mercadoId, mercados)} • ${nombreCobrador(c.cobradorId, usuarios)}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.6),
+                                              ],
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-
-                                          if (periodoAbonadoStr != null ||
-                                              periodoFavorStr != null) ...[
                                             const SizedBox(height: 6),
-                                            if (periodoAbonadoStr != null)
-                                              Text(
-                                                'Abono: $periodoAbonadoStr',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: context
-                                                      .semanticColors
-                                                      .warning,
-                                                ),
-                                              ),
-                                            if (periodoFavorStr != null)
-                                              Text(
-                                                'A favor: $periodoFavorStr',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: context
-                                                      .semanticColors
-                                                      .success,
-                                                ),
-                                              ),
-                                          ],
-
-                                          const SizedBox(height: 8),
-                                          // Fila 3: Fecha + Estado + Boleta + Acciones
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.calendar_today,
-                                                size: 12,
+                                            // Fila 2: Mercado + Cobrador
+                                            Text(
+                                              '${nombreMercado(c.mercadoId, mercados)} • ${nombreCobrador(c.cobradorId, usuarios)}',
+                                              style: TextStyle(
+                                                fontSize: 12,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .onSurface
-                                                    .withValues(alpha: 0.4),
+                                                    .withValues(alpha: 0.6),
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                DateFormatter.formatDateTime(
-                                                  c.fecha,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+
+                                            if (periodoAbonadoStr != null ||
+                                                periodoFavorStr != null) ...[
+                                              const SizedBox(height: 6),
+                                              if (periodoAbonadoStr != null)
+                                                Text(
+                                                  'Abono: $periodoAbonadoStr',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: context
+                                                        .semanticColors
+                                                        .warning,
+                                                  ),
                                                 ),
-                                                style: TextStyle(
-                                                  fontSize: 11,
+                                              if (periodoFavorStr != null)
+                                                Text(
+                                                  'A favor: $periodoFavorStr',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: context
+                                                        .semanticColors
+                                                        .success,
+                                                  ),
+                                                ),
+                                            ],
+
+                                            const SizedBox(height: 8),
+                                            // Fila 3: Fecha + Estado + Boleta + Acciones
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_today,
+                                                  size: 12,
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .onSurface
-                                                      .withValues(alpha: 0.5),
+                                                      .withValues(alpha: 0.4),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _EstadoChip(estado: c.estado),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  c.numeroBoletaFmt,
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  DateFormatter.formatDateTime(
+                                                    c.fecha,
+                                                  ),
                                                   style: TextStyle(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 11,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                                 ),
-                                              ),
-                                              const Spacer(),
-                                              SizedBox(
-                                                width: 32,
-                                                height: 32,
-                                                child: IconButton(
-                                                  icon: const Icon(
-                                                    Icons.print_rounded,
-                                                    size: 16,
-                                                  ),
-                                                  padding: EdgeInsets.zero,
-                                                  onPressed: () =>
-                                                      _imprimirCobro(c),
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                width: 32,
-                                                height: 32,
-                                                child: IconButton(
-                                                  icon: Icon(
-                                                    Icons
-                                                        .delete_forever_rounded,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.error,
-                                                    size: 16,
-                                                  ),
-                                                  padding: EdgeInsets.zero,
-                                                  onPressed: () =>
-                                                      _confirmarEliminacion(
-                                                        context,
-                                                        ref,
-                                                        c,
+                                                const SizedBox(width: 8),
+                                                _EstadoChip(estado: c.estado),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
                                                       ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary
+                                                        .withValues(alpha: 0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    c.numeroBoletaFmt,
+                                                    style: TextStyle(
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (kDebugMode)
-                                      Positioned(
-                                        top: 4,
-                                        right: 4,
-                                        child: Checkbox(
-                                          value: widget.state.seleccionados
-                                              .contains(c.id),
-                                          onChanged: (val) {
-                                            if (c.id != null) {
-                                              ref
-                                                  .read(
-                                                    cobrosPaginadosProvider
-                                                        .notifier,
-                                                  )
-                                                  .toggleSeleccion(c.id!);
-                                            }
-                                          },
+                                                const Spacer(),
+                                                SizedBox(
+                                                  width: 32,
+                                                  height: 32,
+                                                  child: IconButton(
+                                                    icon: const Icon(
+                                                      Icons.print_rounded,
+                                                      size: 16,
+                                                    ),
+                                                    padding: EdgeInsets.zero,
+                                                    onPressed: () =>
+                                                        _imprimirCobro(c),
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 32,
+                                                  height: 32,
+                                                  child: IconButton(
+                                                    icon: Icon(
+                                                      Icons
+                                                          .delete_forever_rounded,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.error,
+                                                      size: 16,
+                                                    ),
+                                                    padding: EdgeInsets.zero,
+                                                    onPressed: () =>
+                                                        _confirmarEliminacion(
+                                                          context,
+                                                          ref,
+                                                          c,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                  ],
+                                      if (kDebugMode)
+                                        Positioned(
+                                          top: 4,
+                                          right: 4,
+                                          child: Checkbox(
+                                            value: widget.state.seleccionados
+                                                .contains(c.id),
+                                            onChanged: (val) {
+                                              if (c.id != null) {
+                                                ref
+                                                    .read(
+                                                      cobrosPaginadosProvider
+                                                          .notifier,
+                                                    )
+                                                    .toggleSeleccion(c.id!);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },
@@ -1095,7 +1228,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                 }
 
                 // Vista de tabla para desktop.
-                return Container(
+                final tableView = Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
@@ -1146,14 +1279,6 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                         ),
                         DataColumn(
                           label: SortableColumn(
-                            label: 'Mercado',
-                            isActive: widget.state.sortColumn == 'Mercado',
-                            ascending: widget.state.sortAsc,
-                            onTap: () => widget.onSort('Mercado'),
-                          ),
-                        ),
-                        DataColumn(
-                          label: SortableColumn(
                             label: 'Local',
                             isActive: widget.state.sortColumn == 'Local',
                             ascending: widget.state.sortAsc,
@@ -1178,34 +1303,35 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                         ),
                         DataColumn(
                           label: SortableColumn(
-                            label: 'Cobrador',
-                            isActive: widget.state.sortColumn == 'Cobrador',
-                            ascending: widget.state.sortAsc,
-                            onTap: () => widget.onSort('Cobrador'),
-                          ),
-                        ),
-                        DataColumn(
-                          label: SortableColumn(
                             label: 'Boleta',
                             isActive: widget.state.sortColumn == 'Boleta',
                             ascending: widget.state.sortAsc,
                             onTap: () => widget.onSort('Boleta'),
                           ),
                         ),
-                        const DataColumn(label: Text('Acciones')),
                       ],
                       rows: filtered.map((c) {
+                        final filaSeleccionada =
+                            cobroSeleccionado != null &&
+                            _esMismoCobro(cobroSeleccionado, c);
                         return DataRow(
-                          selected: widget.state.seleccionados.contains(c.id),
-                          onSelectChanged: kDebugMode
-                              ? (val) {
-                                  if (c.id != null) {
-                                    ref
-                                        .read(cobrosPaginadosProvider.notifier)
-                                        .toggleSeleccion(c.id!);
-                                  }
-                                }
-                              : null,
+                          selected: filaSeleccionada,
+                          color: WidgetStateProperty.resolveWith<Color?>((_) {
+                            if (filaSeleccionada) {
+                              return colorScheme.primary.withValues(
+                                alpha: 0.15,
+                              );
+                            }
+                            return null;
+                          }),
+                          onSelectChanged: (_) => _onCobroTapped(
+                            context,
+                            c,
+                            isWide,
+                            locales,
+                            mercados,
+                            usuarios,
+                          ),
                           cells: [
                             if (kDebugMode)
                               DataCell(
@@ -1228,9 +1354,15 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                               Text(DateFormatter.formatDateTime(c.fecha)),
                             ),
                             DataCell(
-                              Text(nombreMercado(c.mercadoId, mercados)),
+                              SizedBox(
+                                width: 220,
+                                child: Text(
+                                  nombreLocal(c.localId, locales),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ),
-                            DataCell(Text(nombreLocal(c.localId, locales))),
                             DataCell(
                               Text(
                                 c.estado == 'pendiente'
@@ -1249,9 +1381,6 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                               ),
                             ),
                             DataCell(_EstadoChip(estado: c.estado)),
-                            DataCell(
-                              Text(nombreCobrador(c.cobradorId, usuarios)),
-                            ),
                             DataCell(
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1276,36 +1405,59 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                 ),
                               ),
                             ),
-                            DataCell(
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.print_rounded,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => _imprimirCobro(c),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.delete_forever_rounded,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                      size: 20,
-                                    ),
-                                    tooltip: 'Eliminar cobro',
-                                    onPressed: () =>
-                                        _confirmarEliminacion(context, ref, c),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         );
                       }).toList(),
                     ),
                   ),
+                );
+
+                if (!isWide) return tableView;
+
+                final selectedCobro = cobroSeleccionado;
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 13, child: tableView),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.1),
+                    ),
+                    Expanded(
+                      flex: 9,
+                      child: selectedCobro != null
+                          ? _CobroDetallePanel(
+                              cobro: selectedCobro,
+                              localNombre: nombreLocal(
+                                selectedCobro.localId,
+                                locales,
+                              ),
+                              mercadoNombre: nombreMercado(
+                                selectedCobro.mercadoId,
+                                mercados,
+                              ),
+                              cobradorNombre: nombreCobrador(
+                                selectedCobro.cobradorId,
+                                usuarios,
+                              ),
+                              periodoAbonado: _periodoAbonadoStr(selectedCobro),
+                              periodoFavor: _periodoFavorStr(selectedCobro),
+                              onImprimir: () => _imprimirCobro(selectedCobro),
+                              onEliminar: () => _confirmarEliminacion(
+                                context,
+                                ref,
+                                selectedCobro,
+                              ),
+                              onClose: () =>
+                                  setState(() => _cobroSeleccionado = null),
+                            )
+                          : const _CobroDetalleVacio(),
+                    ),
+                  ],
                 );
               },
             ),
@@ -1316,14 +1468,20 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
             _PaginationBar(
               currentPage: widget.state.paginaActual,
               onPrev: widget.state.paginaActual > 1
-                  ? () => ref
-                        .read(cobrosPaginadosProvider.notifier)
-                        .irAPaginaAnterior()
+                  ? () {
+                      setState(() => _cobroSeleccionado = null);
+                      ref
+                          .read(cobrosPaginadosProvider.notifier)
+                          .irAPaginaAnterior();
+                    }
                   : null,
               onNext: widget.state.hayMas
-                  ? () => ref
-                        .read(cobrosPaginadosProvider.notifier)
-                        .irAPaginaSiguiente()
+                  ? () {
+                      setState(() => _cobroSeleccionado = null);
+                      ref
+                          .read(cobrosPaginadosProvider.notifier)
+                          .irAPaginaSiguiente();
+                    }
                   : null,
               isCargando: widget.state.cargando,
             ),
@@ -1427,6 +1585,295 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 }
 
 // Widget reutilizable de paginación.
+class _CobroDetallePanel extends StatelessWidget {
+  final Cobro cobro;
+  final String localNombre;
+  final String mercadoNombre;
+  final String cobradorNombre;
+  final String? periodoAbonado;
+  final String? periodoFavor;
+  final VoidCallback onImprimir;
+  final VoidCallback onEliminar;
+  final VoidCallback onClose;
+
+  const _CobroDetallePanel({
+    required this.cobro,
+    required this.localNombre,
+    required this.mercadoNombre,
+    required this.cobradorNombre,
+    required this.periodoAbonado,
+    required this.periodoFavor,
+    required this.onImprimir,
+    required this.onEliminar,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final observaciones = (cobro.observaciones ?? '').trim();
+    final montoPrincipal = cobro.estado == 'pendiente'
+        ? (cobro.saldoPendiente ?? cobro.monto ?? 0).toDouble()
+        : (cobro.monto ?? 0).toDouble();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 240;
+        final padding = compact ? 12.0 : 24.0;
+
+        return Container(
+          color: colorScheme.surface,
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        localNombre,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: onClose,
+                      tooltip: 'Cerrar detalle',
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _CobroDetalleRow(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Boleta',
+                          value: cobro.numeroBoletaFmt,
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.schedule_rounded,
+                          label: 'Fecha',
+                          value: DateFormatter.formatDateTime(cobro.fecha),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.flag_rounded,
+                          label: 'Estado',
+                          value: _cobroEstadoLabel(cobro.estado),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.storefront_rounded,
+                          label: 'Mercado',
+                          value: mercadoNombre,
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Cobrador',
+                          value: cobradorNombre,
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.attach_money_rounded,
+                          label: 'Monto',
+                          value: CurrencyFormatter.format(montoPrincipal),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.paid_rounded,
+                          label: 'Pago a cuota',
+                          value: CurrencyFormatter.format(
+                            (cobro.pagoACuota ?? 0).toDouble(),
+                          ),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Abono a deuda',
+                          value: CurrencyFormatter.format(
+                            (cobro.montoAbonadoDeuda ?? 0).toDouble(),
+                          ),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.trending_down_rounded,
+                          label: 'Deuda anterior',
+                          value: CurrencyFormatter.format(
+                            (cobro.deudaAnterior ?? 0).toDouble(),
+                          ),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.warning_amber_rounded,
+                          label: 'Saldo pendiente',
+                          value: CurrencyFormatter.format(
+                            (cobro.saldoPendiente ?? 0).toDouble(),
+                          ),
+                        ),
+                        _CobroDetalleRow(
+                          icon: Icons.savings_rounded,
+                          label: 'Nuevo saldo a favor',
+                          value: CurrencyFormatter.format(
+                            (cobro.nuevoSaldoFavor ?? 0).toDouble(),
+                          ),
+                        ),
+                        if (periodoAbonado != null)
+                          _CobroDetalleRow(
+                            icon: Icons.history_toggle_off_rounded,
+                            label: 'Periodo abonado',
+                            value: periodoAbonado!,
+                          ),
+                        if (periodoFavor != null)
+                          _CobroDetalleRow(
+                            icon: Icons.event_available_rounded,
+                            label: 'Periodo a favor',
+                            value: periodoFavor!,
+                          ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Observaciones',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            observaciones.isEmpty ? '-' : observaciones,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (!compact) const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onImprimir,
+                        icon: const Icon(Icons.print_rounded, size: 18),
+                        label: const Text('Imprimir'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onEliminar,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: context.semanticColors.danger,
+                          foregroundColor: context.semanticColors.onDanger,
+                        ),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Eliminar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CobroDetalleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _CobroDetalleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  ),
+                ),
+                Text(value, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CobroDetalleVacio extends StatelessWidget {
+  const _CobroDetalleVacio();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.touch_app_rounded,
+                size: 64,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Selecciona un cobro de la tabla\npara ver su informacion completa.',
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
+                  fontSize: 15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final VoidCallback? onPrev;
