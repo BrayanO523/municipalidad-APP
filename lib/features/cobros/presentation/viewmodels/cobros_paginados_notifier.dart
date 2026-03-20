@@ -293,18 +293,36 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
     state = state.copyWith(cargando: true);
     try {
       final repository = ref.read(cobroRepositoryProvider);
+      final seleccionados = Set<String>.from(state.seleccionados);
 
-      for (final id in state.seleccionados) {
-        final cobro = state.cobros.firstWhere(
-          (c) => c.id == id,
-          orElse: () => Cobro(),
-        );
-        if (cobro.id != null) {
-          await repository.eliminarCobro(cobro);
-        }
+      final cobrosAEliminar =
+          state.cobros
+              .where((c) => c.id != null && seleccionados.contains(c.id))
+              .toList()
+            ..sort((a, b) {
+              final anioA = a.anioCorrelativo ?? 0;
+              final anioB = b.anioCorrelativo ?? 0;
+              if (anioA != anioB) return anioB.compareTo(anioA);
+
+              final corrA = a.correlativo ?? 0;
+              final corrB = b.correlativo ?? 0;
+              return corrB.compareTo(corrA);
+            });
+
+      // En debug puede haber selección masiva. Ejecutamos en lotes pequeños
+      // para reducir el tiempo total sin saturar Firestore.
+      const int chunkSize = 3;
+      for (var i = 0; i < cobrosAEliminar.length; i += chunkSize) {
+        final end = i + chunkSize < cobrosAEliminar.length
+            ? i + chunkSize
+            : cobrosAEliminar.length;
+        final chunk = cobrosAEliminar.sublist(i, end);
+        await Future.wait(chunk.map(repository.eliminarCobro));
       }
 
-      state = state.copyWith(seleccionados: const {});
+      // Importante: bajar el flag de carga antes de recargar, para que
+      // cargarPagina() no salga por el guard "if (state.cargando) return;".
+      state = state.copyWith(cargando: false, seleccionados: const {});
       await cargarPagina(reiniciar: true);
     } catch (e) {
       state = state.copyWith(

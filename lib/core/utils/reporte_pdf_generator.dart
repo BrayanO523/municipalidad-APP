@@ -384,6 +384,7 @@ class ReportePdfGenerator {
     final pdf = pw.Document();
     final fechaGen = _fFechaHora.format(DateTime.now());
     final entidad = _entidadReporte(municipalidadNombre);
+    final resumenDeuda = _resumenDeudaEstadoCuenta(local, cobros);
 
     final subtituloCompleto =
         '${local.nombreSocial ?? 'Local'}${local.clave != null ? ' | Clave Catastral: ${local.clave}' : ''}${local.codigo != null ? ' | Cód: ${local.codigo}' : ''}';
@@ -404,16 +405,34 @@ class ReportePdfGenerator {
           _resumenCard(
             fonts,
             items: [
-              ('Balance Neto', 'L ${_fMoneda.format(local.balanceNeto)}'),
               (
-                'Deuda Total',
-                'L ${_fMoneda.format(local.deudaAcumulada ?? 0)}',
+                'Deuda Original',
+                'L ${_fMoneda.format(resumenDeuda.deudaOriginal)}',
+              ),
+              (
+                'Abonado a Deuda',
+                'L ${_fMoneda.format(resumenDeuda.abonadoDeuda)}',
+              ),
+              (
+                'Deuda Actual',
+                'L ${_fMoneda.format(resumenDeuda.deudaActual)}',
               ),
               ('Saldo a Favor', 'L ${_fMoneda.format(local.saldoAFavor ?? 0)}'),
             ],
           ),
+          if (resumenDeuda.ultimaFechaAbono != null) ...[
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'Último abono registrado: ${_fFecha.format(resumenDeuda.ultimaFechaAbono!)}',
+              style: pw.TextStyle(
+                font: fonts['regular'],
+                fontSize: 8,
+                color: _colorGris,
+              ),
+            ),
+          ],
           pw.SizedBox(height: 16),
-          _tablaCobros(fonts, cobros),
+          _tablaEstadoCuentaLocal(fonts, local, cobros),
         ],
       ),
     );
@@ -795,7 +814,7 @@ class ReportePdfGenerator {
   }
 
   static pw.Widget _tablaCobros(Map<String, pw.Font> f, List<Cobro> items) {
-    const h = ['#', 'Fecha', 'Est.', 'Cuota', 'Abono', 'Monto'];
+    const h = ['Boleta', 'Fecha', 'Est.', 'Cuota', 'Abono', 'Monto'];
     return pw.Table(
       columnWidths: {
         0: const pw.FlexColumnWidth(0.6),
@@ -850,6 +869,383 @@ class ReportePdfGenerator {
         ),
       ],
     );
+  }
+
+  static pw.Widget _tablaEstadoCuentaLocal(
+    Map<String, pw.Font> f,
+    Local local,
+    List<Cobro> items,
+  ) {
+    const h = ['#', 'Fecha', 'Est.', 'Cuota', 'Abono', 'Monto'];
+    final filas = _normalizarFilasEstadoCuenta(local, items);
+
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FlexColumnWidth(0.6),
+        1: const pw.FlexColumnWidth(1.5),
+        2: const pw.FlexColumnWidth(1.2),
+        3: const pw.FlexColumnWidth(1.2),
+        4: const pw.FlexColumnWidth(1.2),
+        5: const pw.FlexColumnWidth(1.3),
+      },
+      children: [
+        _tableHeaderRow(f, h, small: true),
+        ...filas.asMap().entries.map(
+          (e) => pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: e.key.isEven ? _colorFondoFila : PdfColors.white,
+            ),
+            children: [
+              _cell(f, e.value.boleta, small: true),
+              _cell(
+                f,
+                e.value.fecha != null ? _fFecha.format(e.value.fecha!) : '—',
+                small: true,
+              ),
+              _cell(f, e.value.estado, small: true),
+              _cell(f, 'L ${_fMoneda.format(e.value.cuota)}', small: true),
+              _cell(
+                f,
+                e.value.abono > 0 ? 'L ${_fMoneda.format(e.value.abono)}' : '—',
+                small: true,
+              ),
+              _cell(
+                f,
+                'L ${_fMoneda.format(e.value.monto)}',
+                bold: true,
+                small: true,
+                color: _colorPrimario,
+              ),
+            ],
+          ),
+        ),
+        _tableTotalRow(
+          f,
+          h.length,
+          'SUBTOTAL',
+          'L ${_fMoneda.format(filas.fold<double>(0, (s, r) => s + r.monto))}',
+        ),
+      ],
+    );
+  }
+
+  static List<_EstadoCuentaFilaPdf> _normalizarFilasEstadoCuenta(
+    Local local,
+    List<Cobro> items,
+  ) {
+    final filas = <_EstadoCuentaFilaPdf>[];
+    final porBoleta = <String, List<Cobro>>{};
+    final sinBoleta = <Cobro>[];
+    final fechasCubiertasPorBoleta = <DateTime>{};
+    final cuotaLocal = _toDouble(local.cuotaDiaria);
+
+    for (final c in items) {
+      final boletaId = _boletaIdValida(c);
+      if (boletaId != null) {
+        porBoleta.putIfAbsent(boletaId, () => []).add(c);
+      } else {
+        sinBoleta.add(c);
+      }
+    }
+
+    for (final entry in porBoleta.entries) {
+      final boleta = entry.key;
+      final grupo = entry.value;
+      if (grupo.isEmpty) continue;
+
+      Cobro master = grupo.first;
+      var maxMonto = _toDouble(master.monto);
+      for (final c in grupo) {
+        final monto = _toDouble(c.monto);
+        if (monto > maxMonto) {
+          maxMonto = monto;
+          master = c;
+        }
+      }
+
+      final cuotaGrupo = _maxPositivo([
+        for (final c in grupo) _toDouble(c.cuotaDiaria),
+        cuotaLocal,
+      ]);
+
+      final rowsPorFecha = <DateTime, _EstadoCuentaFilaPdf>{};
+      void acumularFila(_EstadoCuentaFilaPdf nueva) {
+        final fecha = nueva.fecha;
+        if (fecha == null) {
+          filas.add(nueva);
+          return;
+        }
+        final actual = rowsPorFecha[fecha];
+        if (actual == null) {
+          rowsPorFecha[fecha] = nueva;
+          return;
+        }
+        rowsPorFecha[fecha] = _EstadoCuentaFilaPdf(
+          boleta: actual.boleta,
+          fecha: actual.fecha,
+          estado:
+              actual.estado == 'abono_parcial' ||
+                  nueva.estado == 'abono_parcial'
+              ? 'abono_parcial'
+              : actual.estado,
+          cuota: actual.cuota + nueva.cuota,
+          abono: actual.abono + nueva.abono,
+          monto: actual.monto + nueva.monto,
+        );
+      }
+
+      final fechasDeuda = <DateTime>{};
+      final cuotaPorFecha = <DateTime, double>{};
+      for (final c in grupo) {
+        for (final d in (c.fechasDeudasSaldadas ?? const <DateTime>[])) {
+          fechasDeuda.add(_soloFecha(d));
+        }
+        final pagoCuota = _toDouble(c.pagoACuota);
+        if (pagoCuota > 0) {
+          final fechaCuota = c.fecha ?? c.creadoEn;
+          if (fechaCuota != null) {
+            final normalizada = _soloFecha(fechaCuota);
+            cuotaPorFecha[normalizada] =
+                (cuotaPorFecha[normalizada] ?? 0) + pagoCuota;
+          }
+        }
+      }
+
+      for (final d in fechasDeuda) {
+        fechasCubiertasPorBoleta.add(d);
+        final valorCuota = _maxPositivo([cuotaGrupo, cuotaLocal]);
+        acumularFila(
+          _EstadoCuentaFilaPdf(
+            boleta: boleta,
+            fecha: d,
+            estado: 'cobrado',
+            cuota: valorCuota,
+            abono: valorCuota,
+            monto: valorCuota,
+          ),
+        );
+      }
+
+      for (final e in cuotaPorFecha.entries) {
+        fechasCubiertasPorBoleta.add(e.key);
+        final pago = _maxPositivo([e.value, cuotaGrupo, cuotaLocal]);
+        final esParcial = cuotaGrupo > 0 && (pago + 0.001) < cuotaGrupo;
+        acumularFila(
+          _EstadoCuentaFilaPdf(
+            boleta: boleta,
+            fecha: e.key,
+            estado: esParcial ? 'abono_parcial' : 'cobrado',
+            cuota: pago,
+            abono: 0,
+            monto: pago,
+          ),
+        );
+      }
+
+      if (rowsPorFecha.isEmpty) {
+        final fecha = master.fecha ?? master.creadoEn;
+        final cuota = _maxPositivo([
+          _toDouble(master.pagoACuota),
+          _toDouble(master.saldoPendiente),
+          _toDouble(master.cuotaDiaria),
+          cuotaGrupo,
+          cuotaLocal,
+        ]);
+        final abono = _toDouble(master.montoAbonadoDeuda);
+        final monto = _maxPositivo([
+          _toDouble(master.monto),
+          cuota + abono,
+          cuota,
+          abono,
+        ]);
+        final estado = (master.estado ?? 'cobrado').trim();
+        filas.add(
+          _EstadoCuentaFilaPdf(
+            boleta: boleta,
+            fecha: fecha,
+            estado: estado.isNotEmpty ? estado : 'cobrado',
+            cuota: cuota,
+            abono: abono,
+            monto: monto,
+          ),
+        );
+        if (fecha != null) {
+          fechasCubiertasPorBoleta.add(_soloFecha(fecha));
+        }
+      } else {
+        final listaGrupo = rowsPorFecha.values.toList()
+          ..sort(
+            (a, b) =>
+                (b.fecha ?? DateTime(0)).compareTo(a.fecha ?? DateTime(0)),
+          );
+        filas.addAll(listaGrupo);
+      }
+    }
+
+    for (final c in sinBoleta) {
+      final fecha = c.fecha ?? c.creadoEn;
+      if (fecha != null) {
+        final normalizada = _soloFecha(fecha);
+        if (fechasCubiertasPorBoleta.contains(normalizada)) continue;
+      }
+
+      final estado = (c.estado ?? 'pendiente').trim();
+      final esPendiente = estado == 'pendiente' || estado == 'abono_parcial';
+
+      final cuota = esPendiente
+          ? _maxPositivo([
+              _toDouble(c.saldoPendiente),
+              _toDouble(c.cuotaDiaria),
+              cuotaLocal,
+            ])
+          : _maxPositivo([
+              _toDouble(c.pagoACuota),
+              _toDouble(c.cuotaDiaria),
+              _toDouble(c.monto),
+              cuotaLocal,
+            ]);
+
+      final abono = _toDouble(c.montoAbonadoDeuda);
+      final monto = _maxPositivo([
+        _toDouble(c.monto),
+        cuota + abono,
+        cuota,
+        abono,
+      ]);
+
+      filas.add(
+        _EstadoCuentaFilaPdf(
+          boleta: c.numeroBoletaFmt == '0' ? '—' : c.numeroBoletaFmt,
+          fecha: fecha != null ? _soloFecha(fecha) : null,
+          estado: estado.isNotEmpty ? estado : 'pendiente',
+          cuota: cuota,
+          abono: abono,
+          monto: monto,
+        ),
+      );
+    }
+
+    filas.sort((a, b) {
+      final cmpFecha = (b.fecha ?? DateTime(0)).compareTo(
+        a.fecha ?? DateTime(0),
+      );
+      if (cmpFecha != 0) return cmpFecha;
+      return a.boleta.compareTo(b.boleta);
+    });
+
+    return filas;
+  }
+
+  static _ResumenDeudaEstadoCuenta _resumenDeudaEstadoCuenta(
+    Local local,
+    List<Cobro> items,
+  ) {
+    final deudaActual = _toDouble(local.deudaAcumulada);
+    final porBoleta = <String, List<Cobro>>{};
+    final sinBoleta = <Cobro>[];
+
+    for (final c in items) {
+      final boleta = _boletaIdValida(c);
+      if (boleta != null) {
+        porBoleta.putIfAbsent(boleta, () => []).add(c);
+      } else {
+        sinBoleta.add(c);
+      }
+    }
+
+    double abonadoDeuda = 0;
+    DateTime? ultimaFechaAbono;
+
+    void registrarFechaAbono(DateTime? fecha) {
+      if (fecha == null) return;
+      if (ultimaFechaAbono == null || fecha.isAfter(ultimaFechaAbono!)) {
+        ultimaFechaAbono = fecha;
+      }
+    }
+
+    for (final grupo in porBoleta.values) {
+      if (grupo.isEmpty) continue;
+
+      final cuotaGrupo = _maxPositivo([
+        for (final c in grupo) _toDouble(c.cuotaDiaria),
+        _toDouble(local.cuotaDiaria),
+      ]);
+
+      double abonoGrupo = 0;
+      DateTime? fechaBoleta;
+      final fechasDeuda = <DateTime>{};
+
+      for (final c in grupo) {
+        final abono = _toDouble(c.montoAbonadoDeuda);
+        if (abono > abonoGrupo) abonoGrupo = abono;
+
+        for (final d in (c.fechasDeudasSaldadas ?? const <DateTime>[])) {
+          fechasDeuda.add(_soloFecha(d));
+        }
+
+        final fechaRef = c.fecha ?? c.creadoEn;
+        if (fechaRef != null &&
+            (fechaBoleta == null || fechaRef.isAfter(fechaBoleta!))) {
+          fechaBoleta = fechaRef;
+        }
+      }
+
+      if (abonoGrupo <= 0 && cuotaGrupo > 0 && fechasDeuda.isNotEmpty) {
+        abonoGrupo = cuotaGrupo * fechasDeuda.length;
+      }
+
+      if (abonoGrupo > 0) {
+        abonadoDeuda += abonoGrupo;
+        registrarFechaAbono(fechaBoleta);
+      }
+    }
+
+    for (final c in sinBoleta) {
+      final cuota = _maxPositivo([
+        _toDouble(c.cuotaDiaria),
+        _toDouble(local.cuotaDiaria),
+      ]);
+      final fechasDeuda = (c.fechasDeudasSaldadas ?? const <DateTime>[])
+          .map(_soloFecha)
+          .toSet();
+
+      double abono = _toDouble(c.montoAbonadoDeuda);
+      if (abono <= 0 && cuota > 0 && fechasDeuda.isNotEmpty) {
+        abono = cuota * fechasDeuda.length;
+      }
+
+      if (abono > 0) {
+        abonadoDeuda += abono;
+        registrarFechaAbono(c.fecha ?? c.creadoEn);
+      }
+    }
+
+    return _ResumenDeudaEstadoCuenta(
+      deudaOriginal: deudaActual + abonadoDeuda,
+      abonadoDeuda: abonadoDeuda,
+      deudaActual: deudaActual,
+      ultimaFechaAbono: ultimaFechaAbono != null
+          ? _soloFecha(ultimaFechaAbono!)
+          : null,
+    );
+  }
+
+  static String? _boletaIdValida(Cobro c) {
+    final id = (c.numeroBoleta ?? c.correlativo?.toString())?.trim();
+    if (id == null || id.isEmpty || id == '0') return null;
+    return id;
+  }
+
+  static DateTime _soloFecha(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  static double _toDouble(num? n) => (n ?? 0).toDouble();
+
+  static double _maxPositivo(Iterable<double> values) {
+    double max = 0;
+    for (final v in values) {
+      if (v > max) max = v;
+    }
+    return max;
   }
 
   static List<List<T>> _dividirEnBloques<T>(List<T> items, int tamano) {
@@ -978,4 +1374,36 @@ class ReportePdfGenerator {
       ],
     );
   }
+}
+
+class _EstadoCuentaFilaPdf {
+  final String boleta;
+  final DateTime? fecha;
+  final String estado;
+  final double cuota;
+  final double abono;
+  final double monto;
+
+  const _EstadoCuentaFilaPdf({
+    required this.boleta,
+    required this.fecha,
+    required this.estado,
+    required this.cuota,
+    required this.abono,
+    required this.monto,
+  });
+}
+
+class _ResumenDeudaEstadoCuenta {
+  final double deudaOriginal;
+  final double abonadoDeuda;
+  final double deudaActual;
+  final DateTime? ultimaFechaAbono;
+
+  const _ResumenDeudaEstadoCuenta({
+    required this.deudaOriginal,
+    required this.abonadoDeuda,
+    required this.deudaActual,
+    required this.ultimaFechaAbono,
+  });
 }

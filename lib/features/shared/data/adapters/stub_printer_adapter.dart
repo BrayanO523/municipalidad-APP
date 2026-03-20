@@ -144,6 +144,9 @@ class StubPrinterAdapter implements PrinterService {
               if (pagoHoy != null)
                 _pdfRow('CUOTA DEL DÍA:', fCurrency.format(pagoHoy)),
 
+              if (abonoCuotaHoy != null)
+                _pdfRow('ABONO CUOTA HOY:', fCurrency.format(abonoCuotaHoy)),
+
               if (periodoAbonadoStr != null &&
                   periodoAbonadoStr.isNotEmpty &&
                   periodoAbonadoStr != '-') ...[

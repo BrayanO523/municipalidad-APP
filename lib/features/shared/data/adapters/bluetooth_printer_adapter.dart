@@ -276,19 +276,11 @@ class BluetoothPrinterAdapter implements PrinterService {
           }
 
           // Primera línea: clave (izquierda) + valor (derecha).
-          addTextLine(
-            '$keyCol${valueLines.first.padLeft(valueWidth)}',
-            1,
-            0,
-          );
+          addTextLine('$keyCol${valueLines.first.padLeft(valueWidth)}', 1, 0);
 
           // Líneas adicionales del valor: mantener valor en la columna derecha.
           for (final line in valueLines.skip(1)) {
-            addTextLine(
-              '${' ' * keyWidth}${line.padLeft(valueWidth)}',
-              1,
-              0,
-            );
+            addTextLine('${' ' * keyWidth}${line.padLeft(valueWidth)}', 1, 0);
           }
         }
 
@@ -359,6 +351,14 @@ class BluetoothPrinterAdapter implements PrinterService {
           addKeyValue(
             'CUOTA DEL DIA:',
             DateFormatter.formatCurrency(pagoHoy),
+            normalWidth,
+          );
+        }
+
+        if (abonoCuotaHoy != null) {
+          addKeyValue(
+            'ABONO CUOTA HOY:',
+            DateFormatter.formatCurrency(abonoCuotaHoy),
             normalWidth,
           );
         }
