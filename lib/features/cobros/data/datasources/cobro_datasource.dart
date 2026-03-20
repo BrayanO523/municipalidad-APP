@@ -533,12 +533,15 @@ class CobroDatasource {
         .where('fecha', isLessThan: Timestamp.fromDate(fechaFin))
         .orderBy('fecha', descending: true);
 
-    if (municipalidadId != null)
+    if (municipalidadId != null) {
       query = query.where('municipalidadId', isEqualTo: municipalidadId);
-    if (mercadoId != null)
+    }
+    if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
-    if (cobradorId != null)
+    }
+    if (cobradorId != null) {
       query = query.where('creadoPor', isEqualTo: cobradorId);
+    }
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -745,8 +748,9 @@ class CobroDatasource {
     num montoASaldar, {
     DateTime? fechaReferenciaMora,
   }) async {
-    if (montoASaldar <= 0)
+    if (montoASaldar <= 0) {
       return (ids: <String>[], fechas: <DateTime>[], montoMora: 0);
+    }
 
     // Inicio del mes de referencia (por defecto: mes actual)
     final ref = fechaReferenciaMora ?? DateTime.now();
