@@ -1185,7 +1185,7 @@ class ReportePdfGenerator {
 
         final fechaRef = c.fecha ?? c.creadoEn;
         if (fechaRef != null &&
-            (fechaBoleta == null || fechaRef.isAfter(fechaBoleta!))) {
+            (fechaBoleta == null || fechaRef.isAfter(fechaBoleta))) {
           fechaBoleta = fechaRef;
         }
       }

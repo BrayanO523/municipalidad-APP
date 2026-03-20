@@ -1704,7 +1704,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                     tooltip:
                                         'Forzar relleno pendientes (debug)',
                                     onPressed: () =>
-                                        _forzarRellenoPendientesDebug(context),
+                                        _forzarRellenoPendientesDebug(),
                                   ),
                                 IconButton(
                                   icon: Icon(
@@ -2146,7 +2146,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     return DateTime(fecha.year, fecha.month, fecha.day);
   }
 
-  Future<void> _forzarRellenoPendientesDebug(BuildContext context) async {
+  Future<void> _forzarRellenoPendientesDebug() async {
     if (!kDebugMode) return;
 
     final usuario = ref.read(currentUsuarioProvider).value;

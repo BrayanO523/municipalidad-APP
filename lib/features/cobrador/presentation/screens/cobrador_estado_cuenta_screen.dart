@@ -942,47 +942,44 @@ class _CobrosList extends ConsumerWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final item = items[i];
-        if (item is List<Cobro>) {
-          Cobro? masterPayment;
-          double maxMonto = 0;
-          for (final c in item) {
-            final m = (c.monto ?? 0).toDouble();
-            if (m > maxMonto) {
-              maxMonto = m;
-              masterPayment = c;
-            }
+        Cobro? masterPayment;
+        double maxMonto = 0;
+        for (final c in item) {
+          final m = (c.monto ?? 0).toDouble();
+          if (m > maxMonto) {
+            maxMonto = m;
+            masterPayment = c;
           }
-          if (masterPayment == null && item.isNotEmpty) {
-            masterPayment = item.first;
-          }
-
-          // Si es un cobro huérfano y PENDIENTE, mostrar como tile plano en lugar de acordeón
-          if (item.length == 1 && item.first.estado != 'cobrado') {
-            final boleta =
-                item.first.numeroBoleta ?? item.first.correlativo?.toString();
-            if (boleta == null || boleta.isEmpty || boleta == '0') {
-              return _CobroTile(
-                cobro: item.first,
-                local: local,
-                onReprint: (ctx, ref, c) =>
-                    _reimprimirCobroIndividual(ctx, ref, local, c),
-                onShare: (ctx, ref, c) =>
-                    _compartirCobroIndividual(ctx, ref, local, c),
-              );
-            }
-          }
-
-          return _GrupoBoletaCard(
-            cobros: item,
-            local: local,
-            masterPayment: masterPayment,
-            onImprimirCobro: (ctx, ref, cobro, fecha) =>
-                _imprimirDiaEspecifico(ctx, ref, local, cobro, fecha),
-            onCompartirCobro: (ctx, ref, cobro, fecha) =>
-                _compartirDiaEspecifico(ctx, ref, local, cobro, fecha),
-          );
         }
-        return const SizedBox.shrink(); // No debería ocurrir
+        if (masterPayment == null && item.isNotEmpty) {
+          masterPayment = item.first;
+        }
+
+        // Si es un cobro huérfano y PENDIENTE, mostrar como tile plano en lugar de acordeón
+        if (item.length == 1 && item.first.estado != 'cobrado') {
+          final boleta =
+              item.first.numeroBoleta ?? item.first.correlativo?.toString();
+          if (boleta == null || boleta.isEmpty || boleta == '0') {
+            return _CobroTile(
+              cobro: item.first,
+              local: local,
+              onReprint: (ctx, ref, c) =>
+                  _reimprimirCobroIndividual(ctx, ref, local, c),
+              onShare: (ctx, ref, c) =>
+                  _compartirCobroIndividual(ctx, ref, local, c),
+            );
+          }
+        }
+
+        return _GrupoBoletaCard(
+          cobros: item,
+          local: local,
+          masterPayment: masterPayment,
+          onImprimirCobro: (ctx, ref, cobro, fecha) =>
+              _imprimirDiaEspecifico(ctx, ref, local, cobro, fecha),
+          onCompartirCobro: (ctx, ref, cobro, fecha) =>
+              _compartirDiaEspecifico(ctx, ref, local, cobro, fecha),
+        );
       },
     );
   }
