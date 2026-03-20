@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import 'package:printing/printing.dart';
 
 import '../../../../app/di/providers.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/platform/web_downloader/web_downloader.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/reporte_pdf_generator.dart';
 import '../../../../core/widgets/usuario_filter.dart';
@@ -361,17 +359,18 @@ class _DeudoresHeader extends ConsumerWidget {
         ref.watch(currentUsuarioProvider).value?.esCobrador ?? true;
 
     Future<void> exportarPdf() async {
-      final bytes = await ReportePdfGenerator.generarReporteDeudores(
-        locales: todosPagina,
-        mercados: mercados,
-      );
-      if (kIsWeb) {
-        await descargarPdfWeb(bytes, 'Reporte_Deudores.pdf');
-      } else {
-        await Printing.layoutPdf(
-          onLayout: (_) async => bytes,
-          name: 'Reporte_Deudores',
+      try {
+        final municipalidadNombre = ref
+            .read(municipalidadActualProvider)
+            ?.nombre;
+        final bytes = await ReportePdfGenerator.generarReporteDeudores(
+          locales: todosPagina,
+          mercados: mercados,
+          municipalidadNombre: municipalidadNombre,
         );
+        await Printing.sharePdf(bytes: bytes, filename: 'Reporte_Deudores.pdf');
+      } catch (e, st) {
+        debugPrint('Error al exportar PDF: $e\n$st');
       }
     }
 
@@ -695,9 +694,6 @@ class _DeudoresTable extends StatelessWidget {
               (l.nombreSocial == null || l.nombreSocial!.trim().isEmpty)
               ? '-'
               : l.nombreSocial!.trim();
-          final initial = nombre == '-'
-              ? 'L'
-              : nombre.substring(0, 1).toUpperCase();
 
           return DataRow(
             selected: selectedLocalId == l.id,
@@ -710,30 +706,13 @@ class _DeudoresTable extends StatelessWidget {
             onSelectChanged: (_) => onSelect(l),
             cells: [
               DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: colorScheme.primary.withAlpha(26),
-                      child: Text(
-                        initial,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                        nombre,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  width: 220,
+                  child: Text(
+                    nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
               DataCell(

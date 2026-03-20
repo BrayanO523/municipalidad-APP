@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/di/providers.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/local.dart';
 import '../viewmodels/locales_paginados_notifier.dart';
@@ -10,11 +11,15 @@ const bool _kShowDevTools = true;
 
 class LocalDetallePanel extends ConsumerWidget {
   final Local local;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
   final VoidCallback onClose;
 
   const LocalDetallePanel({
     super.key,
     required this.local,
+    this.onEdit,
+    this.onDelete,
     required this.onClose,
   });
 
@@ -231,6 +236,38 @@ class LocalDetallePanel extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (onEdit != null || onDelete != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (onEdit != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onEdit,
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text('Editar'),
+                          ),
+                        ),
+                      if (onEdit != null && onDelete != null)
+                        const SizedBox(width: 8),
+                      if (onDelete != null)
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: onDelete,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: context.semanticColors.danger,
+                              foregroundColor: context.semanticColors.onDanger,
+                            ),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Eliminar'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

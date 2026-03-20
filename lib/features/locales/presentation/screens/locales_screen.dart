@@ -1120,6 +1120,14 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
                 padding: const EdgeInsets.all(16),
                 child: LocalDetallePanel(
                   local: l,
+                  onEdit: () {
+                    Navigator.of(ctx).pop();
+                    _showFormDialog(context, local: l);
+                  },
+                  onDelete: () {
+                    Navigator.of(ctx).pop();
+                    _confirmDelete(context, l);
+                  },
                   onClose: () => Navigator.of(ctx).pop(),
                 ),
               ),
@@ -1127,9 +1135,7 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
           );
         }
       },
-      onEdit: (l) => _showFormDialog(context, local: l),
       onViewQr: (l) => _showQrDialog(context, l),
-      onDelete: (l) => _confirmDelete(context, l),
     );
 
     final Widget panelPaginacion = state.locales.isEmpty
@@ -1137,8 +1143,28 @@ class _LocalesScreenState extends ConsumerState<LocalesScreen> {
         : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (_localSeleccionado != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _showFormDialog(context, local: _localSeleccionado!),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Editar'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        _confirmDelete(context, _localSeleccionado!),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.semanticColors.danger,
+                      foregroundColor: context.semanticColors.onDanger,
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Eliminar'),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                const Spacer(),
                 if (state.cargando)
                   const Padding(
                     padding: EdgeInsets.only(right: 16),
@@ -1408,9 +1434,7 @@ class _LocalesListView extends ConsumerWidget {
   final bool sortAsc;
   final ValueChanged<String> onSort;
   final ValueChanged<Local> onSelect;
-  final ValueChanged<Local> onEdit;
   final ValueChanged<Local> onViewQr;
-  final ValueChanged<Local> onDelete;
 
   const _LocalesListView({
     required this.locales,
@@ -1420,9 +1444,7 @@ class _LocalesListView extends ConsumerWidget {
     required this.sortAsc,
     required this.onSort,
     required this.onSelect,
-    required this.onEdit,
     required this.onViewQr,
-    required this.onDelete,
   });
 
   @override
@@ -1477,7 +1499,6 @@ class _LocalesListView extends ConsumerWidget {
             ),
             const DataColumn(label: Text('QR')),
             const DataColumn(label: Text('Hist.')),
-            const DataColumn(label: Text('Acciones')),
           ],
           rows: locales.map((l) {
             final isSelected = selectedLocalId == l.id;
@@ -1553,30 +1574,6 @@ class _LocalesListView extends ConsumerWidget {
                     onPressed: () =>
                         context.push('/locales/${l.id}/historial', extra: l),
                     tooltip: 'Ver Historial',
-                  ),
-                ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_rounded, size: 18),
-                        onPressed: () {
-                          if (!isSelected) onSelect(l);
-                          onEdit(l);
-                        },
-                        tooltip: 'Editar',
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_rounded,
-                          size: 18,
-                          color: context.semanticColors.danger,
-                        ),
-                        onPressed: () => onDelete(l),
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
                   ),
                 ),
               ],
