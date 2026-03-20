@@ -1882,6 +1882,17 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                                   tooltip: 'Ver BD Local (Hive)',
                                   onPressed: () => _mostrarDebugHive(context),
                                 ),
+                                if (kDebugMode)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.playlist_add_check_rounded,
+                                      color: AppColors.warning,
+                                    ),
+                                    tooltip:
+                                        'Forzar relleno pendientes (debug)',
+                                    onPressed: () =>
+                                        _forzarRellenoPendientesDebug(context),
+                                  ),
                                 IconButton(
                                   icon: Icon(
                                     Icons.cloud_download_rounded,
@@ -2316,6 +2327,144 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
         ),
       ),
     );
+  }
+
+  DateTime _soloFecha(DateTime fecha) {
+    return DateTime(fecha.year, fecha.month, fecha.day);
+  }
+
+  Future<void> _forzarRellenoPendientesDebug(BuildContext context) async {
+    if (!kDebugMode) return;
+
+    final usuario = ref.read(currentUsuarioProvider).value;
+    if (usuario == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Forzar relleno de pendientes'),
+        content: const Text(
+          'Proceso de diagnóstico: por cada local toma la última fecha '
+          'registrada y crea pendientes faltantes desde ese punto hasta ayer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ejecutar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Ejecutando relleno debug de pendientes...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('last_debt_scan_${usuario.id}');
+
+      final locales = await ref.read(localesCobradorProvider.future);
+      final cobroDs = ref.read(cobroDatasourceProvider);
+      final deudaService = ref.read(deudaServiceProvider);
+
+      if (!mounted) return;
+      if (locales.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay locales para procesar.')),
+        );
+        return;
+      }
+
+      final ahora = DateTime.now();
+      final ayer = DateTime(ahora.year, ahora.month, ahora.day - 1);
+
+      int totalLocales = 0;
+      int localesConRelleno = 0;
+      int totalPendientesCreados = 0;
+
+      for (final local in locales) {
+        if (local.id == null) continue;
+        totalLocales++;
+
+        final cobrosLocal = await cobroDs.listarPorLocal(local.id!);
+
+        DateTime? ultimaFechaRegistrada;
+        for (final c in cobrosLocal) {
+          final f = c.fecha;
+          if (f == null) continue;
+          final dia = _soloFecha(f);
+          if (ultimaFechaRegistrada == null ||
+              dia.isAfter(ultimaFechaRegistrada)) {
+            ultimaFechaRegistrada = dia;
+          }
+        }
+
+        DateTime inicioRango;
+        if (ultimaFechaRegistrada != null) {
+          inicioRango = ultimaFechaRegistrada.add(const Duration(days: 1));
+        } else if (local.creadoEn != null) {
+          inicioRango = _soloFecha(local.creadoEn!);
+        } else {
+          inicioRango = ayer;
+        }
+
+        if (local.creadoEn != null) {
+          final creado = _soloFecha(local.creadoEn!);
+          if (inicioRango.isBefore(creado)) {
+            inicioRango = creado;
+          }
+        }
+
+        if (inicioRango.isAfter(ayer)) continue;
+
+        final creados = await deudaService.registrarDeudaPorRango(
+          local: local,
+          start: inicioRango,
+          end: ayer,
+          cobradorId: usuario.id,
+        );
+
+        if (creados > 0) {
+          localesConRelleno++;
+          totalPendientesCreados += creados;
+        }
+      }
+
+      ref.invalidate(localesCobradorProvider);
+      ref.invalidate(cobrosHoyCobradorProvider);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Debug OK: locales procesados $totalLocales, '
+            'con relleno $localesConRelleno, '
+            'pendientes creados $totalPendientesCreados.',
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error en relleno debug: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      debugPrint('Error en _forzarRellenoPendientesDebug: $e');
+    }
   }
 
   Future<void> _descargarDatosManual(BuildContext context) async {
