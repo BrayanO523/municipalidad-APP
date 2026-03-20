@@ -802,6 +802,11 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
 
   String? _periodoAbonadoStr(Cobro c) {
     if (c.montoAbonadoDeuda == null || c.montoAbonadoDeuda! <= 0) return null;
+    final fechasSaldadas = c.fechasDeudasSaldadas;
+    if (fechasSaldadas != null && fechasSaldadas.isNotEmpty) {
+      final rangoReal = DateRangeFormatter.formatearRangos(fechasSaldadas);
+      if (rangoReal != null && rangoReal.isNotEmpty) return rangoReal;
+    }
     return DateRangeFormatter.formatearRangoAbonado(
       c.fecha,
       c.montoAbonadoDeuda!.toDouble(),
@@ -1017,16 +1022,9 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                                   final c = filtered[index];
 
                                   // Formatear periodos si existen
-                                  String? periodoAbonadoStr;
-                                  if (c.montoAbonadoDeuda != null &&
-                                      c.montoAbonadoDeuda! > 0) {
-                                    periodoAbonadoStr =
-                                        DateRangeFormatter.formatearRangoAbonado(
-                                          c.fecha,
-                                          c.montoAbonadoDeuda!.toDouble(),
-                                          c.cuotaDiaria?.toDouble(),
-                                        );
-                                  }
+                                  final periodoAbonadoStr = _periodoAbonadoStr(
+                                    c,
+                                  );
 
                                   String? periodoFavorStr;
                                   if (c.nuevoSaldoFavor != null &&

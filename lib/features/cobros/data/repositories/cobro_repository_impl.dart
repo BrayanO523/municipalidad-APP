@@ -70,7 +70,8 @@ class CobroRepositoryImpl implements CobroRepository {
 
   /// Registra el cobro completo y retorna la boleta + las fechas históricas saldadas (FIFO).
   @override
-  Future<({String numeroBoleta, List<DateTime> fechasSaldadas})> registrarCobroCompleto(
+  Future<({String numeroBoleta, List<DateTime> fechasSaldadas})>
+  registrarCobroCompleto(
     Cobro cobro,
     String localId, {
     num montoAbonadoDeuda = 0,
@@ -108,6 +109,7 @@ class CobroRepositoryImpl implements CobroRepository {
         cobroFinal.localId!,
         montoAbonadoDeuda,
         fechaReferenciaMora: fechaReferenciaMora,
+        numeroBoleta: cobroFinal.numeroBoleta,
       );
       idsDeudasSaldadas = resultado.ids;
       fechasSaldadas = resultado.fechas;
@@ -146,12 +148,14 @@ class CobroRepositoryImpl implements CobroRepository {
     String? municipalidadId,
     String? mercadoId,
   }) {
-    return Stream.fromFuture(_remoteDatasource.listarPorRangoFechas(
-      inicio,
-      fin,
-      municipalidadId: municipalidadId,
-      mercadoId: mercadoId,
-    ));
+    return Stream.fromFuture(
+      _remoteDatasource.listarPorRangoFechas(
+        inicio,
+        fin,
+        municipalidadId: municipalidadId,
+        mercadoId: mercadoId,
+      ),
+    );
   }
 
   @override
@@ -179,7 +183,10 @@ class CobroRepositoryImpl implements CobroRepository {
 
     // 1. Eliminar el registro del cobro (Remote + Local Cache)
     if (cobro.id != null) {
-      await _remoteDatasource.eliminar(cobro.id!, municipalidadId: cobro.municipalidadId);
+      await _remoteDatasource.eliminar(
+        cobro.id!,
+        municipalidadId: cobro.municipalidadId,
+      );
       await _localDatasource.eliminarCobro(cobro.id!);
     }
 

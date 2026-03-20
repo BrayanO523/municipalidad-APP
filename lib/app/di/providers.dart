@@ -589,16 +589,25 @@ final dashboardRealTimeStatsProvider =
 
       // Calculos de recaudacion (basados en el filtro de periodo)
       num totalRecaudado = 0;
-      int totalCobrosCount = 0;
+      final boletasUnicas = <String>{};
 
       for (final c in cobros) {
         if (c.estado != 'anulado') {
           totalRecaudado += (c.monto ?? 0);
-          if ((c.correlativo ?? 0) > 0 || c.numeroBoleta != null) {
-            totalCobrosCount++;
+          final numeroBoleta = (c.numeroBoleta ?? '').trim();
+          if (numeroBoleta.isNotEmpty) {
+            boletasUnicas.add(numeroBoleta);
+          } else if ((c.correlativo ?? 0) > 0) {
+            final anio = c.anioCorrelativo;
+            boletasUnicas.add(
+              (anio != null && anio > 0)
+                  ? '$anio-${c.correlativo}'
+                  : '${c.correlativo}',
+            );
           }
         }
       }
+      final totalCobrosCount = boletasUnicas.length;
 
       // Calculos de locales (agregacion en memoria para consistencia total)
       // Filtramos por mercado si hay uno seleccionado

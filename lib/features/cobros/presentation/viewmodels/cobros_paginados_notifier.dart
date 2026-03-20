@@ -182,6 +182,15 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
 
   Cobro _mapDocToCobro(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
+    final fechasRaw = data['fechasDeudasSaldadas'] as List<dynamic>?;
+    final fechasDeudasSaldadas = fechasRaw
+        ?.map((e) {
+          if (e is Timestamp) return e.toDate();
+          if (e is DateTime) return e;
+          return null;
+        })
+        .whereType<DateTime>()
+        .toList();
     return Cobro(
       id: doc.id,
       cobradorId: data['cobradorId'],
@@ -208,6 +217,10 @@ class CobrosPaginadosNotifier extends Notifier<CobrosPaginadosState> {
       pagoACuota: data['pagoACuota'],
       idsDeudasSaldadas: data['idsDeudasSaldadas'] != null
           ? List<String>.from(data['idsDeudasSaldadas'])
+          : null,
+      fechasDeudasSaldadas:
+          (fechasDeudasSaldadas != null && fechasDeudasSaldadas.isNotEmpty)
+          ? fechasDeudasSaldadas
           : null,
     );
   }

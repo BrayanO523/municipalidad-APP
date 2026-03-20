@@ -747,6 +747,7 @@ class CobroDatasource {
     String localId,
     num montoASaldar, {
     DateTime? fechaReferenciaMora,
+    String? numeroBoleta,
   }) async {
     if (montoASaldar <= 0) {
       return (ids: <String>[], fechas: <DateTime>[], montoMora: 0);
@@ -812,23 +813,31 @@ class CobroDatasource {
 
       if (restante >= saldoPendiente) {
         // Se salda completamente este día
-        batch.update(doc.reference, {
+        final updateData = <String, dynamic>{
           'estado': 'cobrado',
           'saldoPendiente': 0,
           'observaciones':
               '${data['observaciones'] ?? ''}\nSaldado por abono general.'
                   .trim(),
-        });
+        };
+        if (numeroBoleta != null && numeroBoleta.trim().isNotEmpty) {
+          updateData['numeroBoleta'] = numeroBoleta.trim();
+        }
+        batch.update(doc.reference, updateData);
         if (esMora) montoMoraAcumulado += saldoPendiente;
         restante -= saldoPendiente;
         // Solo agregar a fechasSaldadas si el día fue cubierto al 100%
         if (fechaDoc != null) fechasSaldadas.add(fechaDoc);
       } else {
         // Se abona parcialmente — el día NO está cubierto, no agregar fecha
-        batch.update(doc.reference, {
+        final updateData = <String, dynamic>{
           'estado': 'abono_parcial',
           'saldoPendiente': saldoPendiente - restante,
-        });
+        };
+        if (numeroBoleta != null && numeroBoleta.trim().isNotEmpty) {
+          updateData['numeroBoleta'] = numeroBoleta.trim();
+        }
+        batch.update(doc.reference, updateData);
         if (esMora) montoMoraAcumulado += restante;
         restante = 0;
       }
@@ -874,6 +883,7 @@ class CobroDatasource {
         'observaciones': (data['observaciones'] as String? ?? '')
             .replaceAll('\nSaldado por abono general.', '')
             .trim(),
+        'numeroBoleta': FieldValue.delete(),
       });
     }
 
