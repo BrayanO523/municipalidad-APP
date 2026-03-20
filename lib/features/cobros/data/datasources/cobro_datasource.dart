@@ -39,14 +39,15 @@ class CobroDatasource {
     // Estos deben haberse sincronizado al iniciar sesión o antes de salir.
     final String codigoCobrador = prefs.getString('prefijo_$userId') ?? 'C';
     final int anioActual = DateTime.now().year;
-    
+
     // Llave de SharedPreferences para este usuario y año
     final String keyContador = 'correlativo_${userId}_$anioActual';
     int ultimoCorrelativo = prefs.getInt(keyContador) ?? 0;
     int nuevoCorrelativo = ultimoCorrelativo + 1;
 
     // 2. Generar Número de Boleta: ANIO-CODIGO-0001
-    final numeroBoleta = '$anioActual-$codigoCobrador-${nuevoCorrelativo.toString().padLeft(4, "0")}';
+    final numeroBoleta =
+        '$anioActual-$codigoCobrador-${nuevoCorrelativo.toString().padLeft(4, "0")}';
 
     // 3. Guardar nuevo correlativo localmente de inmediato
     await prefs.setInt(keyContador, nuevoCorrelativo);
@@ -56,20 +57,22 @@ class CobroDatasource {
     finalCobroData['correlativo'] = nuevoCorrelativo;
     finalCobroData['anioCorrelativo'] = anioActual;
     finalCobroData['numeroBoleta'] = numeroBoleta;
-    
+
     // Intentar determinar si estamos online para marcar esOffline
     final connectivityResult = await Connectivity().checkConnectivity().timeout(
       const Duration(seconds: 1),
       onTimeout: () => [ConnectivityResult.none],
     );
     // En las versiones más recientes checkConnectivity devuelve una lista
-    final isOnline = connectivityResult.any((res) => res != ConnectivityResult.none);
+    final isOnline = connectivityResult.any(
+      (res) => res != ConnectivityResult.none,
+    );
     finalCobroData['esOffline'] = !isOnline;
 
     // 5. Preparar Lote de Escritura (Atomicidad)
     final batch = _firestore.batch();
     final docRef = _collection.doc(cobroId);
-    
+
     // a. Registrar en Firestore el cobro
     batch.set(docRef, finalCobroData);
 
@@ -102,13 +105,19 @@ class CobroDatasource {
     final incrementoSaldo =
         incrementoSaldoFavor ??
         ((finalCobroData['nuevoSaldoFavor'] as num?) ?? 0);
-    
+
     await _localDs.actualizarDeudaAcumulada(localId, -abonoDeuda, batch: batch);
-    await _localDs.actualizarSaldoAFavor(localId, incrementoSaldo, batch: batch);
+    await _localDs.actualizarSaldoAFavor(
+      localId,
+      incrementoSaldo,
+      batch: batch,
+    );
 
     // d. Actualizar el último correlativo del usuario (Cobrador) en el mismo Batch
     // Esto asegura que el correlativo se sincronice en background junto con el cobro en modo offline.
-    final userRef = _firestore.collection(FirestoreCollections.usuarios).doc(userId);
+    final userRef = _firestore
+        .collection(FirestoreCollections.usuarios)
+        .doc(userId);
     batch.set(userRef, {
       'ultimoCorrelativo': nuevoCorrelativo,
       'anioCorrelativo': anioActual,
@@ -194,27 +203,27 @@ class CobroDatasource {
 
   Future<List<CobroJson>> listarPorIds(List<String> ids) async {
     if (ids.isEmpty) return [];
-    
+
     // Firestore whereIn supports up to 30 elements.
     final List<List<String>> batches = [];
     for (var i = 0; i < ids.length; i += 30) {
-      batches.add(ids.sublist(
-        i,
-        i + 30 > ids.length ? ids.length : i + 30,
-      ));
+      batches.add(ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30));
     }
 
     // Ejecutar todas las peticiones en paralelo
     final snapshots = await Future.wait(
-      batches.map((batchIds) => _collection
-          .where(FieldPath.documentId, whereIn: batchIds)
-          .get())
+      batches.map(
+        (batchIds) =>
+            _collection.where(FieldPath.documentId, whereIn: batchIds).get(),
+      ),
     );
 
     final List<CobroJson> results = [];
     for (final snapshot in snapshots) {
       results.addAll(
-        snapshot.docs.map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id)),
+        snapshot.docs.map(
+          (doc) => CobroJson.fromJson(doc.data(), docId: doc.id),
+        ),
       );
     }
     return results;
@@ -313,7 +322,10 @@ class CobroDatasource {
         .toList();
   }
 
-  Future<List<CobroJson>> listarPorCobrador(String cobradorId, {int limite = 50}) async {
+  Future<List<CobroJson>> listarPorCobrador(
+    String cobradorId, {
+    int limite = 50,
+  }) async {
     // Nota: Puede requerir un índice compuesto (creadoPor ASC, fecha DESC) en Firestore.
     try {
       final snapshot = await _collection
@@ -331,7 +343,7 @@ class CobroDatasource {
       final snapshot = await _collection
           .where('creadoPor', isEqualTo: cobradorId)
           .get();
-      
+
       final lista = snapshot.docs
           .map((doc) => CobroJson.fromJson(doc.data(), docId: doc.id))
           .toList();
@@ -398,7 +410,8 @@ class CobroDatasource {
     String? municipalidadId,
     String? mercadoId,
     String? cobradorId, // NUEVO parámetro para aislar datos
-    int limite = 150, // Límite de seguridad para evitar miles de lecturas si hay picos
+    int limite =
+        150, // Límite de seguridad para evitar miles de lecturas si hay picos
   }) {
     final inicio = DateTime(fecha.year, fecha.month, fecha.day);
     final fin = inicio.add(const Duration(days: 1));
@@ -467,7 +480,11 @@ class CobroDatasource {
     int? limite = 100, // Limitar a 100 por seguridad en dashboard
   }) async {
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
-    final fechaFin = DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1));
+    final fechaFin = DateTime(
+      fin.year,
+      fin.month,
+      fin.day,
+    ).add(const Duration(days: 1));
 
     var query = _collection
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
@@ -493,7 +510,9 @@ class CobroDatasource {
         .toList();
   }
 
-  @Deprecated('Usar listarPorRangoFechas para ahorrar costos en datos históricos')
+  @Deprecated(
+    'Usar listarPorRangoFechas para ahorrar costos en datos históricos',
+  )
   Stream<List<CobroJson>> streamPorRangoFechas(
     DateTime inicio,
     DateTime fin, {
@@ -503,16 +522,23 @@ class CobroDatasource {
   }) {
     // ... (Se mantiene por compatibilidad si es necesario, pero se marcará como depre)
     final fechaInicio = DateTime(inicio.year, inicio.month, inicio.day);
-    final fechaFin = DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1));
+    final fechaFin = DateTime(
+      fin.year,
+      fin.month,
+      fin.day,
+    ).add(const Duration(days: 1));
 
     var query = _collection
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
         .where('fecha', isLessThan: Timestamp.fromDate(fechaFin))
         .orderBy('fecha', descending: true);
 
-    if (municipalidadId != null) query = query.where('municipalidadId', isEqualTo: municipalidadId);
-    if (mercadoId != null) query = query.where('mercadoId', isEqualTo: mercadoId);
-    if (cobradorId != null) query = query.where('creadoPor', isEqualTo: cobradorId);
+    if (municipalidadId != null)
+      query = query.where('municipalidadId', isEqualTo: municipalidadId);
+    if (mercadoId != null)
+      query = query.where('mercadoId', isEqualTo: mercadoId);
+    if (cobradorId != null)
+      query = query.where('creadoPor', isEqualTo: cobradorId);
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
@@ -520,7 +546,6 @@ class CobroDatasource {
           .toList(),
     );
   }
-
 
   Stream<List<CobroJson>> streamRecientes({
     int limite = 20,
@@ -538,7 +563,7 @@ class CobroDatasource {
     if (mercadoId != null) {
       query = query.where('mercadoId', isEqualTo: mercadoId);
     }
-    
+
     // CORRECCIÓN CRÍTICA: Aplicar el límite a Firestore ANTES de descargar.
     query = query.limit(limite);
 
@@ -571,7 +596,10 @@ class CobroDatasource {
 
       final query = _collection
           .where('localId', whereIn: batchIds)
-          .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio))
+          .where(
+            'fecha',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio),
+          )
           .where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(fechaFin));
 
       final snapshot = await query.get();
@@ -621,7 +649,9 @@ class CobroDatasource {
       onTimeout: () => [ConnectivityResult.none],
     );
 
-    final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
+    final isOffline = connectivityResult.any(
+      (res) => res == ConnectivityResult.none,
+    );
     final future = _collection.doc(docId).update(data);
 
     if (!isOffline) {
@@ -635,14 +665,19 @@ class CobroDatasource {
   // DELETE
   Future<void> eliminar(String docId, {String? municipalidadId}) async {
     final docSnap = await _collection.doc(docId).get();
-    
+
     if (docSnap.exists) {
       final data = docSnap.data()!;
-      final targetMuniId = municipalidadId ?? data['municipalidadId'] as String?;
+      final targetMuniId =
+          municipalidadId ?? data['municipalidadId'] as String?;
       final montoCobrado = (data['monto'] as num?) ?? 0;
       final abonoDeuda = (data['montoAbonadoDeuda'] as num?) ?? 0;
-      final incrementoSaldo = (data['nuevoSaldoFavor'] as num?) ?? 0;
-      
+      final pagoACuota = (data['pagoACuota'] as num?) ?? 0;
+      // Debe ser el mismo delta aplicado al crear el cobro:
+      // deltaSaldoFavor = montoEfectivo - abonoDeuda - pagoACuota.
+      final incrementoSaldo = montoCobrado - abonoDeuda - pagoACuota;
+      final montoMora = (data['montoMora'] as num?) ?? 0;
+
       final fechaRaw = data['fecha'];
       DateTime fechaCobro = DateTime.now();
       if (fechaRaw is Timestamp) fechaCobro = fechaRaw.toDate();
@@ -685,24 +720,16 @@ class CobroDatasource {
               abonoDeuda: abonoDeuda,
               incrementoSaldo: incrementoSaldo,
               fechaCobroOriginal: fechaCobro,
+              montoMora: montoMora,
               batch: batch,
             );
           }
         }
       }
 
-      // 2. Revertir impacto en el Local (Deuda y Saldo) en el mismo Batch
-      final localId = data['localId'] as String?;
-      if (localId != null) {
-        await _localDs.revertirPago(
-          localId: localId,
-          montoARecomponerDeuda: abonoDeuda,
-          montoARestarSaldo: incrementoSaldo,
-          batch: batch,
-        );
-      }
-
-      // Eliminar el documento en el mismo Batch
+      // Nota: el rollback del Local (deuda/saldo) se ejecuta en el Repository
+      // para evitar doble reversión entre capas.
+      // Aquí solo revertimos stats y eliminamos el documento.
       batch.delete(_collection.doc(docId));
       await batch.commit();
     }
@@ -712,12 +739,14 @@ class CobroDatasource {
   /// Retorna los IDs de los cobros saldados, sus fechas, y el monto que corresponde a Mora.
   /// - [fechaReferenciaMora]: Deudas del mes anterior a esta fecha se clasifican como "Mora".
   ///   Si es null, se usa el primer día del mes actual como referencia.
-  Future<({List<String> ids, List<DateTime> fechas, num montoMora})> saldarDeudaHistoria(
+  Future<({List<String> ids, List<DateTime> fechas, num montoMora})>
+  saldarDeudaHistoria(
     String localId,
     num montoASaldar, {
     DateTime? fechaReferenciaMora,
   }) async {
-    if (montoASaldar <= 0) return (ids: <String>[], fechas: <DateTime>[], montoMora: 0);
+    if (montoASaldar <= 0)
+      return (ids: <String>[], fechas: <DateTime>[], montoMora: 0);
 
     // Inicio del mes de referencia (por defecto: mes actual)
     final ref = fechaReferenciaMora ?? DateTime.now();
@@ -729,15 +758,21 @@ class CobroDatasource {
       onTimeout: () => [ConnectivityResult.none],
     );
 
-    final isOffline = connectivityResult.any((res) => res == ConnectivityResult.none);
-    
+    final isOffline = connectivityResult.any(
+      (res) => res == ConnectivityResult.none,
+    );
+
     QuerySnapshot<Map<String, dynamic>> snapshot;
     try {
       snapshot = await _collection
           .where('localId', isEqualTo: localId)
           .where('estado', whereIn: ['pendiente', 'abono_parcial'])
           .orderBy('fecha', descending: false)
-          .get(GetOptions(source: isOffline ? Source.cache : Source.serverAndCache))
+          .get(
+            GetOptions(
+              source: isOffline ? Source.cache : Source.serverAndCache,
+            ),
+          )
           .timeout(const Duration(seconds: 3));
     } catch (_) {
       // Fallback a caché si expira o falla la red
@@ -758,7 +793,8 @@ class CobroDatasource {
       if (restante <= 0) break;
 
       final data = doc.data();
-      final saldoPendiente = (data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0) as num;
+      final saldoPendiente =
+          (data['saldoPendiente'] ?? data['cuotaDiaria'] ?? 0) as num;
 
       // Capturar la fecha del cobro histórico para el recibo
       final fechaRaw = data['fecha'];
@@ -805,7 +841,11 @@ class CobroDatasource {
       );
     }
 
-    return (ids: idsSaldados, fechas: fechasSaldadas, montoMora: montoMoraAcumulado);
+    return (
+      ids: idsSaldados,
+      fechas: fechasSaldadas,
+      montoMora: montoMoraAcumulado,
+    );
   }
 
   /// Revierte los cobros históricos que fueron saldados por un cobro que se está eliminando.
@@ -1174,7 +1214,7 @@ class CobroDatasource {
           .where('municipalidadId', isEqualTo: municipalidadId)
           .limit(500)
           .get();
-      
+
       if (snapshot.docs.isEmpty) {
         tieneCobros = false;
         break;
@@ -1185,7 +1225,7 @@ class CobroDatasource {
         deleteBatch.delete(doc.reference);
       }
       await deleteBatch.commit();
-      
+
       // Si el snapshot trajo menos del límite, es el último lote
       if (snapshot.docs.length < 500) {
         tieneCobros = false;
@@ -1195,11 +1235,12 @@ class CobroDatasource {
     // 5.1. Eliminar TODOS los cortes de esta municipalidad
     bool tieneCortes = true;
     while (tieneCortes) {
-      final snapshot = await _firestore.collection('cortes')
+      final snapshot = await _firestore
+          .collection('cortes')
           .where('municipalidadId', isEqualTo: municipalidadId)
           .limit(500)
           .get();
-      
+
       if (snapshot.docs.isEmpty) {
         tieneCortes = false;
         break;
@@ -1210,7 +1251,7 @@ class CobroDatasource {
         deleteBatch.delete(doc.reference);
       }
       await deleteBatch.commit();
-      
+
       if (snapshot.docs.length < 500) {
         tieneCortes = false;
       }
@@ -1219,11 +1260,12 @@ class CobroDatasource {
     // 5.2. Eliminar TODAS las gestiones de esta municipalidad
     bool tieneGestiones = true;
     while (tieneGestiones) {
-      final snapshot = await _firestore.collection('gestiones')
+      final snapshot = await _firestore
+          .collection('gestiones')
           .where('municipalidadId', isEqualTo: municipalidadId)
           .limit(500)
           .get();
-      
+
       if (snapshot.docs.isEmpty) {
         tieneGestiones = false;
         break;
@@ -1234,7 +1276,7 @@ class CobroDatasource {
         deleteBatch.delete(doc.reference);
       }
       await deleteBatch.commit();
-      
+
       if (snapshot.docs.length < 500) {
         tieneGestiones = false;
       }

@@ -213,12 +213,16 @@ class _CobradorEstadoCuentaScreenState
                           )
                           .nombre ??
                       '-';
+                  final municipalidadNombre = ref
+                      .read(municipalidadActualProvider)
+                      ?.nombre;
 
                   final bytes =
                       await ReportePdfGenerator.generarEstadoCuentaLocalPdf(
                         local: local,
                         cobros: combinedList,
                         nombreMercado: mercadoName,
+                        municipalidadNombre: municipalidadNombre,
                       );
                   if (kIsWeb) {
                     await descargarPdfWeb(
@@ -704,7 +708,9 @@ class _CobrosList extends ConsumerWidget {
     for (final r in registrosRelacionados) {
       final pagoCuota = (r.pagoACuota ?? 0).toDouble();
       if (pagoCuota <= 0) continue;
-      final fechaCobro = _normalizarDia(r.fecha ?? r.creadoEn ?? DateTime.now());
+      final fechaCobro = _normalizarDia(
+        r.fecha ?? r.creadoEn ?? DateTime.now(),
+      );
       if (_esMismoDia(fechaCobro, fechaNorm)) {
         abonoCuotaHoy = pagoCuota;
         fechaCobroCuota = r.fecha ?? r.creadoEn ?? fechaSeleccionada;
@@ -935,7 +941,10 @@ class _CobrosList extends ConsumerWidget {
       final f = c.fecha ?? c.creadoEn ?? DateTime.now();
       final hoyCobrado = DateTime(f.year, f.month, f.day);
       final yaIncluida = fechasAMostrar.any(
-        (d) => d.year == hoyCobrado.year && d.month == hoyCobrado.month && d.day == hoyCobrado.day,
+        (d) =>
+            d.year == hoyCobrado.year &&
+            d.month == hoyCobrado.month &&
+            d.day == hoyCobrado.day,
       );
       if (!yaIncluida) fechasAMostrar.add(hoyCobrado);
     }
@@ -1024,7 +1033,10 @@ class _CobrosList extends ConsumerWidget {
       final f = c.fecha ?? c.creadoEn ?? DateTime.now();
       final hoyCobrado = DateTime(f.year, f.month, f.day);
       final yaIncluida = fechasAMostrar.any(
-        (d) => d.year == hoyCobrado.year && d.month == hoyCobrado.month && d.day == hoyCobrado.day,
+        (d) =>
+            d.year == hoyCobrado.year &&
+            d.month == hoyCobrado.month &&
+            d.day == hoyCobrado.day,
       );
       if (!yaIncluida) fechasAMostrar.add(hoyCobrado);
     }
