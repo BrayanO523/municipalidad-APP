@@ -1314,6 +1314,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
                       ),
                       child: ScrollableTable(
                         child: DataTable(
+                          showCheckboxColumn: false,
                           headingRowHeight: 48,
                           dataRowMinHeight: 48,
                           dataRowMaxHeight: 56,
