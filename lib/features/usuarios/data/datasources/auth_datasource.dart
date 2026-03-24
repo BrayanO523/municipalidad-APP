@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart' as hive;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,10 +64,17 @@ class AuthDatasource {
       await boxCobros.clear();
 
       // Limpiar persistencia offline de Firestore
-      await _firestore.clearPersistence();
-    } catch (_) {}
-
-    await _auth.signOut();
+      if (!kIsWeb) {
+        await _firestore.clearPersistence();
+      }
+    } catch (e) {
+      debugPrint('logout cleanup warning: $e');
+    }
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('logout signOut warning: $e');
+    }
   }
 
   /// Crea un usuario (cobrador) sin cerrar la sesión actual del administrador.
@@ -384,3 +392,4 @@ class AuthDatasource {
     return 'C${maxNum + 1}';
   }
 }
+

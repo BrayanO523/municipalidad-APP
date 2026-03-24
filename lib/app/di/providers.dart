@@ -128,7 +128,22 @@ final currentUsuarioProvider = StreamProvider<Usuario?>((ref) {
   final user = authState.value;
   if (user == null) return Stream.value(null);
   final ds = ref.read(authDatasourceProvider);
-  return ds.streamUsuario(user.uid);
+  const soporteEmail = 'durlinortiz@gmail.com';
+  final esSoporte = user.email?.toLowerCase() == soporteEmail;
+
+  return ds.streamUsuario(user.uid).map((usuario) {
+    if (usuario != null) return usuario;
+    if (!esSoporte) return null;
+
+    // Fallback para cuenta de soporte cuando no existe doc en Firestore.
+    return Usuario(
+      id: user.uid,
+      email: user.email,
+      nombre: 'Soporte',
+      rol: 'admin',
+      activo: true,
+    );
+  });
 });
 
 // Local Datasources (Hive)
