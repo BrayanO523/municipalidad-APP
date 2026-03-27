@@ -381,7 +381,7 @@ class _UsuariosScreenState extends ConsumerState<UsuariosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Cobrador'),
         content: Text(
-          'Estas seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta accion NO se puede deshacer.',
+          '¿Estás seguro de que deseas eliminar al cobrador "${usuario.nombre}"?\n\nEsta acción NO se puede deshacer.',
         ),
         actions: [
           TextButton(

@@ -157,7 +157,7 @@ class CobrosStatusPieChart extends StatelessWidget {
                 _Indicator(
                   color: cobradosDiaColor,
                   text:
-                      'Cobrados al dia ($cobradosAlDia, ${pct(cobradosAlDia)})',
+                      'Cobrados al día ($cobradosAlDia, ${pct(cobradosAlDia)})',
                 ),
                 _Indicator(
                   color: cobradosConDeudaColor,

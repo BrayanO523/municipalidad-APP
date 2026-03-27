@@ -185,7 +185,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                           ),
                         ),
                         trailing: Text(
-                          'L ${(l.cuotaDiaria ?? 0).toStringAsFixed(2)}',
+                          DateFormatter.formatCurrency(l.cuotaDiaria),
                           style: const TextStyle(
                             color: Colors.white38,
                             fontSize: 11,
@@ -214,7 +214,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
             Row(
               children: [
                 const Text(
-                  'Dias de deuda: ',
+                  'Días de deuda: ',
                   style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 const SizedBox(width: 8),
@@ -255,7 +255,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  'Cuota: L ${_cuotaDiaria.toStringAsFixed(2)}',
+                  'Cuota: ${DateFormatter.formatCurrency(_cuotaDiaria)}',
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -273,7 +273,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Se crearan $_diasDeDeuda cobros pendientes',
+                    'Se crearán $_diasDeDeuda cobros pendientes',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -288,7 +288,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
                     ),
                   ),
                   Text(
-                    'Fechas: hace $_diasDeDeuda dias hasta ayer',
+                    'Fechas: hace $_diasDeDeuda días hasta ayer',
                     style: const TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                 ],
@@ -411,7 +411,7 @@ class _DevSeederScreenState extends ConsumerState<DevSeederScreen> {
         final fechaStr =
             '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
         _addLog(
-          '  + $fechaStr  L ${_cuotaDiaria.toStringAsFixed(2)}  [$docId]',
+          '  + $fechaStr  ${DateFormatter.formatCurrency(_cuotaDiaria)}  [$docId]',
         );
       }
 

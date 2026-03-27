@@ -112,7 +112,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     // Si no tiene datos o es menor a un ID típico de Firestore (~20 chars) = Error
     if (qrData == null || qrData.length < 15) {
       setState(() {
-        _error = 'QR invalido. Asegurate de escanear un QR de local válido.';
+        _error = 'QR inválido. Asegúrate de escanear un QR de local válido.';
         _yaEscaneado = true;
       });
       return;
@@ -139,7 +139,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           if (!rutasAsignadas.contains(local.id)) {
             setState(() {
               _error =
-                  'Acceso Denegado: Este local no está asignado a tu ruta o mercado.';
+                  'Acceso denegado: este local no está asignado a tu ruta o mercado.';
               _buscando = false;
             });
             return;
@@ -429,7 +429,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                                   bottom: 8.0,
                                 ),
                                 child: Text(
-                                  'Se usará L${dist.saldoFavorConsumido.toStringAsFixed(2)} del saldo a favor.',
+                                  'Se usará ${DateFormatter.formatCurrency(dist.saldoFavorConsumido)} del saldo a favor.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppColors.warning,
@@ -689,24 +689,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                 final partes = <String>[];
                 if (dist.paraDeudaReal > 0) {
                   partes.add(
-                    'L ${dist.paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
+                    '${DateFormatter.formatCurrency(dist.paraDeudaReal)} a deuda anterior',
                   );
                 }
                 if (dist.pagoACuotaHoy > 0) {
                   final hoyStr =
                       '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
                   partes.add(
-                    'L ${dist.pagoACuotaHoy.toStringAsFixed(2)} cuota del $hoyStr',
+                    '${DateFormatter.formatCurrency(dist.pagoACuotaHoy)} cuota del $hoyStr',
                   );
                 }
                 if (dist.saldoFavorConsumido > 0) {
                   partes.add(
-                    'L ${dist.saldoFavorConsumido.toStringAsFixed(2)} de saldo a favor',
+                    '${DateFormatter.formatCurrency(dist.saldoFavorConsumido)} de saldo a favor',
                   );
                 }
                 if (dist.paraNuevoSaldoFavor > 0) {
                   partes.add(
-                    'L ${dist.paraNuevoSaldoFavor.toStringAsFixed(2)} a favor',
+                    '${DateFormatter.formatCurrency(dist.paraNuevoSaldoFavor)} a favor',
                   );
                 }
                 final prefijo = observaciones.isNotEmpty
@@ -1257,7 +1257,7 @@ class _LocalDetailPanel extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Icons.location_on_rounded),
-                label: const Text('Abrir Ubicación (Maps)'),
+                label: const Text('Abrir ubicación (Maps)'),
               ),
             ),
             const SizedBox(height: 12),
@@ -1433,3 +1433,4 @@ class _FinanceRow extends StatelessWidget {
     );
   }
 }
+

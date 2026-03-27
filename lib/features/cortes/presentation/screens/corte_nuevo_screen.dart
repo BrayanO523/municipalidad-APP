@@ -159,7 +159,7 @@ class CorteNuevoScreen extends ConsumerWidget {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12.0),
                   child: Text(
-                    'Ya se ha realizado un corte en el dia de hoy.',
+                    'Ya se ha realizado un corte en el día de hoy.',
                     style: TextStyle(
                       color: AppColors.success,
                       fontWeight: FontWeight.bold,
@@ -223,8 +223,8 @@ class CorteNuevoScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Corte Diario'),
         content: const Text(
-          'Estas seguro de que deseas realizar el corte? '
-          'Esto consolidara los cobros realizados hasta este momento como tu cierre oficial del dia.',
+          '¿Estás seguro de que deseas realizar el corte? '
+          'Esto consolidará los cobros realizados hasta este momento como tu cierre oficial del día.',
         ),
         actions: [
           TextButton(
@@ -238,7 +238,7 @@ class CorteNuevoScreen extends ConsumerWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Corte diario realizado con exito!'),
+                    content: const Text('Corte diario realizado con éxito'),
                     backgroundColor: AppColors.success,
                   ),
                 );
@@ -1060,7 +1060,7 @@ void _showCobroBottomSheet(
             if (incidenciasLocal.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Incidencias del dia (${incidenciasLocal.length})',
+                'Incidencias del día (${incidenciasLocal.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,

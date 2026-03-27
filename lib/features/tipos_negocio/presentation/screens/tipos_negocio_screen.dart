@@ -281,7 +281,7 @@ class _TiposNegocioScreenState extends ConsumerState<TiposNegocioScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Tipo de Negocio'),
         content: Text(
-          'Estas seguro de que deseas eliminar el tipo de negocio "${tipo.nombre}"?',
+          '¿Estás seguro de que deseas eliminar el tipo de negocio "${tipo.nombre}"?',
         ),
         actions: [
           TextButton(

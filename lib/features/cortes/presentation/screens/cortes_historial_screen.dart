@@ -251,7 +251,7 @@ class _CortesHistorialScreenState extends ConsumerState<CortesHistorialScreen> {
                                           ),
                                     ),
                                     Text(
-                                      'Orden y codigo de cobrador para boletas.',
+                                      'Orden y código de cobrador para boletas.',
                                       style: Theme.of(sheetCtx)
                                           .textTheme
                                           .bodySmall
@@ -290,7 +290,7 @@ class _CortesHistorialScreenState extends ConsumerState<CortesHistorialScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Orden alfabetico (cobrador)',
+                                    'Orden alfabético (cobrador)',
                                     style: Theme.of(sheetCtx)
                                         .textTheme
                                         .labelLarge
@@ -329,7 +329,7 @@ class _CortesHistorialScreenState extends ConsumerState<CortesHistorialScreen> {
                         DropdownButtonFormField<String?>(
                           initialValue: codigoTemp,
                           decoration: InputDecoration(
-                            labelText: 'Codigo de cobrador (boletas)',
+                            labelText: 'Código de cobrador (boletas)',
                             isDense: true,
                             contentPadding: const EdgeInsets.fromLTRB(
                               12,

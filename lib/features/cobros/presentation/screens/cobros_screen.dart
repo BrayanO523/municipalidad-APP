@@ -1697,7 +1697,7 @@ class _CobrosFullTableState extends ConsumerState<_CobrosFullTable> {
       builder: (dialogCtx) => AlertDialog(
         title: const Text('Eliminar Cobro'),
         content: Text(
-          '¿Estás seguro de eliminar este cobro de L. ${c.monto}? Esto revertirá los saldos y deudas asociados.',
+          '¿Estás seguro de eliminar este cobro de ${CurrencyFormatter.format((c.monto ?? 0).toDouble())}? Esto revertirá los saldos y deudas asociados.',
         ),
         actions: [
           TextButton(

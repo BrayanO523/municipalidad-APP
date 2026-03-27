@@ -1230,24 +1230,24 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 final partes = <String>[];
                 if (dist.paraDeudaReal > 0) {
                   partes.add(
-                    'L ${dist.paraDeudaReal.toStringAsFixed(2)} a deuda anterior',
+                    '${DateFormatter.formatCurrency(dist.paraDeudaReal)} a deuda anterior',
                   );
                 }
                 if (dist.pagoACuotaHoy > 0) {
                   final hoyStr =
                       '${now.day.toString().padLeft(2, "0")}/${now.month.toString().padLeft(2, "0")}/${now.year}';
                   partes.add(
-                    'L ${dist.pagoACuotaHoy.toStringAsFixed(2)} cuota del $hoyStr',
+                    '${DateFormatter.formatCurrency(dist.pagoACuotaHoy)} cuota del $hoyStr',
                   );
                 }
                 if (saldoAExtraer > 0) {
                   partes.add(
-                    'L ${saldoAExtraer.toStringAsFixed(2)} de saldo a favor',
+                    '${DateFormatter.formatCurrency(saldoAExtraer)} de saldo a favor',
                   );
                 }
                 if (dist.paraNuevoSaldoFavor > 0) {
                   partes.add(
-                    'L ${dist.paraNuevoSaldoFavor.toStringAsFixed(2)} a favor',
+                    '${DateFormatter.formatCurrency(dist.paraNuevoSaldoFavor)} a favor',
                   );
                 }
                 final prefijo = observaciones.isNotEmpty
@@ -2118,7 +2118,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     const Text('Recientes Pendientes:'),
                     ...cobrosPendientes.map(
                       (cobro) => ListTile(
-                        title: Text('Monto: L ${cobro.monto}'),
+                        title: Text('Monto: ${DateFormatter.formatCurrency(cobro.monto)}'),
                         subtitle: Text(
                           'ID: ${cobro.id}\nLocal UUID: ${cobro.localId}',
                         ),

@@ -426,7 +426,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
       period: DashboardPeriod.hoy,
       range: DateTimeRange(start: today, end: today),
       label: 'Hoy',
-      description: 'Solo datos del dia de hoy',
+      description: 'Solo datos del día de hoy',
     );
   }
 
@@ -446,7 +446,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
       case DashboardPeriod.hoy:
         range = DateTimeRange(start: today, end: today);
         label = 'Hoy';
-        description = 'Solo datos del dia de hoy';
+        description = 'Solo datos del día de hoy';
         break;
       case DashboardPeriod.semana:
         range = DateTimeRange(
@@ -454,7 +454,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
           end: today,
         );
         label = 'Semana';
-        description = 'Ultimos 7 dias de actividad';
+        description = 'Últimos 7 días de actividad';
         break;
       case DashboardPeriod.mes:
         range = DateTimeRange(
@@ -467,7 +467,7 @@ class DashboardFilterNotifier extends Notifier<DashboardFilterState> {
         break;
       case DashboardPeriod.anio:
         range = DateTimeRange(start: DateTime(today.year, 1, 1), end: today);
-        label = 'Anio';
+        label = 'Año';
         description = 'Desde el 1 de enero de ${today.year} hasta hoy';
         break;
       case DashboardPeriod.personalizado:

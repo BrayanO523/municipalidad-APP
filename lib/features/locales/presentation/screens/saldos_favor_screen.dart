@@ -639,7 +639,7 @@ class _SaldosSearchInput extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: 'Buscar local',
-        hintText: 'Local, cobrador, boleta/codigo, representante...',
+        hintText: 'Local, cobrador, boleta/código, representante...',
         floatingLabelBehavior: FloatingLabelBehavior.always,
         prefixIcon: const Icon(Icons.search_rounded, size: 18),
         isDense: true,

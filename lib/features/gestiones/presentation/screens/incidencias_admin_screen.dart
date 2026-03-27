@@ -354,7 +354,7 @@ class _IncidenciasAdminScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar incidencia'),
         content: Text(
-          'Se eliminara la incidencia de ${incidencia.localNombre}. Esta accion no se puede deshacer.',
+          'Se eliminará la incidencia de ${incidencia.localNombre}. Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -397,7 +397,7 @@ class _IncidenciasAdminScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se encontro municipalidad para crear incidencia.'),
+          content: Text('No se encontró municipalidad para crear incidencia.'),
         ),
       );
       return;
@@ -1271,7 +1271,7 @@ class _IncidenciasSearchInput extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: 'Buscar incidencia',
-        hintText: 'Local, clave, codigo, tipo, comentario, cobrador...',
+        hintText: 'Local, clave, código, tipo, comentario, cobrador...',
         floatingLabelBehavior: FloatingLabelBehavior.always,
         prefixIcon: const Icon(Icons.search_rounded, size: 18),
         isDense: true,
@@ -1527,7 +1527,7 @@ class _IncidenciaDetallePanel extends StatelessWidget {
             const Divider(height: 16),
             _IncidenciaDetailRow(
               icon: Icons.vpn_key_rounded,
-              label: 'Clave / Codigo',
+              label: 'Clave / Código',
               value:
                   'Clave: ${incidencia.localClave} | Cod: ${incidencia.localCodigo}',
             ),

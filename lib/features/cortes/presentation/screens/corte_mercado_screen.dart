@@ -78,7 +78,7 @@ class CortesMercadoScreen extends ConsumerWidget {
                 icon: Icons.storefront_outlined,
                 title: 'Selecciona un Mercado',
                 subtitle:
-                    'Elige un mercado del desplegable para ver\nlos cortes del dia disponibles.',
+                    'Elige un mercado del desplegable para ver\nlos cortes del día disponibles.',
               ),
             )
           else if (state.isLoading)
@@ -131,7 +131,7 @@ class CortesMercadoScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Cortes de Cobradores del Dia',
+                        'Cortes de cobradores del día',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -767,7 +767,7 @@ class _CorteCobradorTile extends StatelessWidget {
                   Icon(Icons.report, color: theme.colorScheme.error),
                   const SizedBox(width: 8),
                   const Text(
-                    'Incidencias del dia',
+                    'Incidencias del día',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ],
@@ -953,10 +953,10 @@ class _BotonCorteMercado extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Confirmar Corte de Mercado'),
         content: Text(
-          'Deseas consolidar los ${state.cortesDelDia.length} cortes del dia '
+          '¿Deseas consolidar los ${state.cortesDelDia.length} cortes del día '
           'del mercado "${state.mercadoSeleccionado?.nombre}" por un total de '
           '${CurrencyFormatter.format(state.totalConsolidado)}?\n\n'
-          'Esta accion registrara el cierre oficial del mercado para hoy.',
+          'Esta acción registrará el cierre oficial del mercado para hoy.',
         ),
         actions: [
           TextButton(
@@ -970,7 +970,7 @@ class _BotonCorteMercado extends StatelessWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Corte de mercado realizado con exito'),
+                    content: Text('Corte de mercado realizado con éxito'),
                     backgroundColor: AppColors.success,
                   ),
                 );

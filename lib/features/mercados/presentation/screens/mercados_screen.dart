@@ -278,7 +278,7 @@ class _MercadosScreenState extends ConsumerState<MercadosScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Mercado'),
         content: Text(
-          '¿Estas seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
+          '¿Estás seguro de que deseas eliminar el mercado "${mercado.nombre}"?',
         ),
         actions: [
           TextButton(

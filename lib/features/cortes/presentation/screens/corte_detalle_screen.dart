@@ -91,7 +91,7 @@ class CorteDetalleScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Corte'),
         content: const Text(
-          'Estas seguro de que deseas eliminar este registro de corte? Esta accion no afectara los cobros individuales registrados.',
+          '¿Estás seguro de que deseas eliminar este registro de corte? Esta acción no afectará los cobros individuales registrados.',
         ),
         actions: [
           TextButton(
@@ -1306,7 +1306,7 @@ class _PendientesInfoSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Incidencias del dia (${incidencias.length})',
+                'Incidencias del día (${incidencias.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -1725,7 +1725,7 @@ class _CobradosInfoSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Incidencias del dia (${incidenciasLocal.length})',
+                'Incidencias del día (${incidenciasLocal.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
