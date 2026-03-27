@@ -14,7 +14,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const _soporteAlias = 'soporte';
   static const _soporteEmail = 'durlinortiz@gmail.com';
-  static const _soportePassword = '123456';
+  static const _soportePassword = 'durlin123';
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
